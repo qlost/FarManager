@@ -57,6 +57,8 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(SrcRoot)plugins\common\unicode;$(SrcRoot)plugins\common;$(SrcRoot)\far\thirdparty\fmt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;_CRT_NON_CONFORMING_WCSTOK;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WIN32_WINNT=0x0600;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
       <WarningLevel>Level3</WarningLevel>
       <StringPooling>true</StringPooling>
       <PrecompiledHeader></PrecompiledHeader>
