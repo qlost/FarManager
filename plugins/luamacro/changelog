@@ -1,3 +1,39 @@
+shmuel 07.05.2020 22:58:33 +0300 - build 746
+
+1. LuaFAR: refactoring.
+
+shmuel 05.05.2020 23:27:35 +0300 - build 745
+
+1. LuaFAR: make tPluginPanelItem.UserData accessible from coroutines (and therefore macros).
+
+shmuel 03.05.2020 14:12:01 +0200 - build 744
+
+1. Minor fix related to build 738.
+
+shmuel 26.04.2020 19:59:14 +0200 - build 743
+
+1. Refactoring.
+
+shmuel 25.04.2020 21:24:46 +0200 - build 742
+
+1. Fix build 741.
+
+shmuel 25.04.2020 18:44:02 +0200 - build 741
+
+1. Minor fixes and refactoring.
+
+shmuel 24.04.2020 21:12:21 +0200 - build 740
+
+1. GCC warnings + micro-refactoring.
+
+shmuel 19.04.2020 11:22:12 +0200 - build 739
+
+1. LuaFAR: fix GCC warnings from appveyor.
+
+shmuel 10.04.2020 21:59:24 +0200 - build 738
+
+1. LuaFAR: update luautf8 library to release 0.1.2.
+
 shmuel 30.03.2020 15:14:49 +0200 - build 737
 
 1. LuaFAR: add file:read("*b") - read binary line.

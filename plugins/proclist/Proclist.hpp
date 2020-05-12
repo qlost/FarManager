@@ -14,6 +14,8 @@
 
 #include <plugin.hpp>
 
+#include "format.hpp"
+
 
 struct free_deleter
 {
@@ -44,8 +46,19 @@ using handle = std::unique_ptr<void, handle_closer>;
 
 inline HANDLE normalise_handle(HANDLE Handle)
 {
-	return Handle == INVALID_HANDLE_VALUE ? nullptr : Handle;
+	return Handle == INVALID_HANDLE_VALUE? nullptr : Handle;
 }
+
+struct local_deleter
+{
+	void operator()(const void* MemoryBlock) const
+	{
+		LocalFree(const_cast<HLOCAL>(MemoryBlock));
+	}
+};
+
+template<typename T>
+using local_ptr = std::unique_ptr<T, local_deleter>;
 
 
 #ifdef _MSC_VER
@@ -61,7 +74,6 @@ typedef unsigned long ULONG_PTR, * PULONG_PTR;
 
 inline constexpr auto
 	NPANELMODES     = 10,      // Number of panel modes
-	MAX_MODE_STR    = 80,      // Max length of panel mode string and width string
 	MAX_CUSTOM_COLS = 20,      // Max number of custom cols in any panel mode
 	MAX_DATETIME    = 50,
 	MAXCOLS = MAX_CUSTOM_COLS + 4;
@@ -92,16 +104,21 @@ Opt;
 
 int Message(unsigned Flags, const wchar_t* HelpTopic, const wchar_t** Items, size_t nItems, size_t nButtons = 1);
 
-extern class ui64Table
+struct columns
 {
-public:
-	ui64Table();
-	uint64_t tenpow(size_t n);
+	std::wstring
+		internal_types,
+		widths,
+		far_types;
+};
 
-private:
-	uint64_t Table[21];
-}
-*Ui64Table;
+struct mode
+{
+	columns
+		panel_columns,
+		status_columns;
+	PANELMODE_FLAGS Flags;
+};
 
 class Plist
 {
@@ -119,22 +136,17 @@ public:
 	int ProcessKey(const INPUT_RECORD* Rec);
 	PanelMode* PanelModes(size_t& nModes);
 
-	static wchar_t* PrintTitle(int MsgId);
 	static bool GetVersionInfo(const wchar_t* pFullPath, std::unique_ptr<char[]>& Buffer, const wchar_t*& pVersion, const wchar_t*& pDesc);
+
 	static void SavePanelModes();
 	static void InitializePanelModes();
-	static bool PanelModesInitialized() { return PanelModesLocal[0].ColumnTypes != nullptr; }
-
-	static bool bInit;
+	static bool PanelModesInitialized() { return !m_PanelModesDataLocal.empty(); }
 
 private:
 	static void PrintVersionInfo(HANDLE InfoFile, const wchar_t* FullPath);
-	static void FileTimeToText(const FILETIME& CurFileTime, const FILETIME& SrcTime, wchar_t* TimeText);
 	void Reread();
 	void PutToCmdLine(const wchar_t* tmp);
-	static void GeneratePanelModes();
 	static int Menu(unsigned int Flags, const wchar_t* Title, const wchar_t* Bottom, const wchar_t* HelpTopic, const struct FarKey* BreakKeys, const FarMenuItem* Items, size_t ItemsNumber);
-	static bool TranslateMode(const wchar_t* src, wchar_t* dest);
 	void PrintOwnerInfo(HANDLE InfoFile, DWORD dwPid);
 	bool ConnectWMI();
 	void DisconnectWMI();
@@ -147,13 +159,8 @@ private:
 	unsigned SortMode{};
 	std::unique_ptr<WMIConnection> pWMI;
 	DWORD dwPluginThread;
-	static PanelMode
-		PanelModesLocal[NPANELMODES],
-		PanelModesRemote[NPANELMODES];
-	static wchar_t
-		ProcPanelModesLocal[NPANELMODES][MAX_MODE_STR],
-		ProcPanelModesRemote[NPANELMODES][MAX_MODE_STR];
-	static wchar_t PanelModeBuffer[NPANELMODES * MAX_MODE_STR * 4 * 2];
+
+	static inline std::vector<mode> m_PanelModesDataLocal, m_PanelModesDataRemote;
 };
 
 struct InitDialogItem
@@ -169,15 +176,15 @@ struct InitDialogItem
 
 struct ProcessData
 {
-	DWORD Size;
-	HWND hwnd;
+	DWORD Size{};
+	HWND hwnd{};
 	//  DWORD Threads;
-	DWORD dwPID;
-	DWORD dwParentPID;
-	DWORD dwPrBase;
-	int Bitness;
+	DWORD dwPID{};
+	DWORD dwParentPID{};
+	DWORD dwPrBase{};
+	int Bitness{};
 	std::wstring FullPath;
-	DWORD dwElapsedTime;
+	uint64_t dwElapsedTime{};
 	std::wstring CommandLine;
 };
 
@@ -243,9 +250,6 @@ enum
 
 extern wchar_t CustomColumns[10][10];
 
-wchar_t* PrintNTUptime(void* p);
-wchar_t* PrintTime(ULONGLONG ul100ns, bool bDays = true);
-void DumpNTCounters(HANDLE InfoFile, PerfThread& PThread, DWORD dwPid, DWORD dwThreads);
 void PrintNTCurDirAndEnv(HANDLE InfoFile, HANDLE hProcess, BOOL bExportEnvironment);
 void PrintModules(HANDLE InfoFile, DWORD dwPID, options& opt);
 bool PrintHandleInfo(DWORD dwPID, HANDLE file, bool bIncludeUnnamed, PerfThread* pThread);
@@ -265,16 +269,18 @@ typedef enum _PROCESSINFOCLASS
 using  P ## Name = __VA_ARGS__; \
 extern P ## Name p ## Name
 
-DECLARE_IMPORT(NtQueryInformationProcess, LONG (WINAPI*)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG));
-DECLARE_IMPORT(NtQueryInformationThread, LONG (WINAPI* )(HANDLE, ULONG, PVOID, DWORD, DWORD*));
-DECLARE_IMPORT(NtQueryObject, LONG (WINAPI*)(HANDLE, DWORD, VOID*, DWORD, VOID*));
-DECLARE_IMPORT(NtQuerySystemInformation, LONG (WINAPI*)(DWORD, VOID*, DWORD, ULONG*));
-DECLARE_IMPORT(NtQueryInformationFile, LONG (WINAPI*)(HANDLE, PVOID, PVOID, DWORD, DWORD));
+DECLARE_IMPORT(NtQueryInformationProcess, NTSTATUS (NTAPI*)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG));
+DECLARE_IMPORT(NtQueryInformationThread, NTSTATUS (NTAPI*)(HANDLE, ULONG, PVOID, DWORD, DWORD*));
+DECLARE_IMPORT(NtQueryObject, NTSTATUS (NTAPI*)(HANDLE, DWORD, VOID*, DWORD, VOID*));
+DECLARE_IMPORT(NtQuerySystemInformation, NTSTATUS (NTAPI*)(DWORD, VOID*, DWORD, ULONG*));
+DECLARE_IMPORT(NtQueryInformationFile, NTSTATUS (NTAPI*)(HANDLE, PVOID, PVOID, DWORD, DWORD));
+DECLARE_IMPORT(NtWow64QueryInformationProcess64, NTSTATUS(NTAPI*)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG));
+DECLARE_IMPORT(NtWow64ReadVirtualMemory64, NTSTATUS (NTAPI*)(HANDLE, ULONG64, PVOID, ULONG64, PULONG64));
+
 DECLARE_IMPORT(IsValidSid, BOOL (WINAPI*)(PSID));
 DECLARE_IMPORT(GetSidIdentifierAuthority, PSID_IDENTIFIER_AUTHORITY (WINAPI*)(PSID));
 DECLARE_IMPORT(GetSidSubAuthorityCount, PUCHAR (WINAPI*)(PSID));
 DECLARE_IMPORT(GetSidSubAuthority, PDWORD (WINAPI*)(PSID, DWORD));
-DECLARE_IMPORT(LookupAccountNameW, BOOL (WINAPI*)(LPCTSTR, LPCTSTR, PSID, LPDWORD, LPTSTR, LPDWORD, PSID_NAME_USE));
 DECLARE_IMPORT(IsWow64Process, BOOL (WINAPI*)(HANDLE hProcess, PBOOL Wow64Process));
 DECLARE_IMPORT(GetGuiResources, DWORD (WINAPI*)(HANDLE hProcess, DWORD uiFlags));
 DECLARE_IMPORT(CoSetProxyBlanket, HRESULT (WINAPI*)(IUnknown*, DWORD, DWORD, OLECHAR*, DWORD, DWORD, RPC_AUTH_IDENTITY_HANDLE, DWORD));
@@ -283,13 +289,36 @@ DECLARE_IMPORT(EnumProcessModulesEx, BOOL (WINAPI*)(HANDLE, HMODULE*, DWORD, DWO
 #undef DECLARE_IMPORT
 //------
 
-size_t PrintToFile(HANDLE File, const wchar_t* Format...);
-size_t PrintToFile(HANDLE File, wchar_t Char);
+bool is_wow64_process(HANDLE Process);
+
+std::wstring DurationToText(uint64_t Duration);
+std::wstring FileTimeDifferenceToText(const FILETIME& CurFileTime, const FILETIME& SrcTime);
+
+size_t WriteToFile(HANDLE File, const std::wstring_view& Str);
+size_t WriteToFile(HANDLE File, wchar_t Char);
 
 //-------
 inline bool norm_m_prefix(const wchar_t* Str)
 {
 	return Str[0] == L'\\' && Str[1] == L'\\';
 }
+
+template<typename T>
+class ptr_setter
+{
+public:
+	explicit ptr_setter(T& Ptr) : m_Ptr(&Ptr) {}
+	~ptr_setter() { m_Ptr->reset(m_RawPtr); }
+
+	[[nodiscard]]
+	auto operator&() { return &m_RawPtr; }
+
+	ptr_setter(const ptr_setter&) = delete;
+	ptr_setter& operator=(const ptr_setter&) = delete;
+
+private:
+	T* m_Ptr;
+	typename T::pointer m_RawPtr{};
+};
 
 #endif // PROCLIST_HPP_71FFA62B_457B_416D_B4F5_DAB215BE015F

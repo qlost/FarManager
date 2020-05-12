@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 
 constexpr inline auto NCOUNTERS = 22;
@@ -18,11 +19,11 @@ Counters[NCOUNTERS];
 
 struct ProcessPerfData
 {
-	DWORD       dwProcessId;
-	DWORD       dwProcessPriority;
-	DWORD       dwThreads;
-	DWORD       dwCreatingPID;
-	DWORD       dwElapsedTime;
+	DWORD       dwProcessId{};
+	DWORD       dwProcessPriority{};
+	DWORD       dwThreads{};
+	DWORD       dwCreatingPID{};
+	uint64_t    dwElapsedTime{};
 	LONGLONG    qwCounters[NCOUNTERS]{};
 	LONGLONG    qwResults[NCOUNTERS]{};
 
@@ -32,14 +33,15 @@ struct ProcessPerfData
 	std::wstring CommandLine;
 	bool FullPathRead{};
 	bool OwnerRead{};
-	FILETIME    ftCreation;
-	DWORD       dwGDIObjects, dwUSERObjects;
-	int         Bitness;
+	bool CommandLineRead{};
+	FILETIME    ftCreation{};
+	DWORD       dwGDIObjects{}, dwUSERObjects{};
+	int         Bitness{};
 };
 
 struct PerfLib
 {
-	wchar_t szSubKey[1024]{};
+	std::wstring SubKey;
 	DWORD dwProcessIdTitle{};
 	DWORD dwPriorityTitle{};
 	DWORD dwThreadTitle{};
@@ -59,18 +61,23 @@ public:
 	explicit operator bool() const { return pIWbemServices != nullptr; }
 	bool Connect(const wchar_t* pMachineName, const wchar_t* pUser = {}, const wchar_t* pPassword = {});
 	void Disconnect();
-	DWORD GetProcessPriority(DWORD dwPID);
+	DWORD GetProcessPriority(DWORD Pid);
 	int SetProcessPriority(DWORD dwPID, DWORD dwPri);
 	int TerminateProcess(DWORD dwPID);
 	std::wstring GetProcessOwner(DWORD dwPID, std::wstring* pDomain = {});
 	std::wstring GetProcessUserSid(DWORD dwPID);
-	int GetProcessSessionId(DWORD dwPID);
-	std::wstring GetProcessExecutablePath(DWORD dwPID);
+	DWORD GetProcessSessionId(DWORD Pid);
+	std::wstring GetProcessExecutablePath(DWORD Pid);
+	std::wstring GetProcessCommandLine(DWORD Pid);
 	int AttachDebuggerToProcess(DWORD dwPID) { return ExecMethod(dwPID, L"AttachDebugger"); }
 	HRESULT GetLastHResult() const { return hrLast; }
 
 private:
 	int ExecMethod(DWORD dwPID, const wchar_t* wsMethod, const wchar_t* wsParamName = {}, DWORD dwParam = 0);
+
+	bool GetProcessProperty(DWORD Pid, const wchar_t* Name, const std::function<void(const VARIANT&)>& Getter);
+	DWORD GetProcessInt(DWORD Pid, const wchar_t* Name);
+	std::wstring GetProcessString(DWORD Pid, const wchar_t* Name);
 
 	DebugToken token;
 	IWbemServices* pIWbemServices{};
@@ -93,12 +100,12 @@ public:
 	void SyncReread();
 	void SmartReread() { if (dwLastRefreshTicks > 1000) AsyncReread(); else SyncReread(); }
 	bool IsOK() const { return bOK; }
-	const wchar_t* GetHostName() const { return HostName; }
+	const auto& HostName() const { return m_HostName; }
 	bool Updated() { const auto Ret = bUpdated; bUpdated = false; return Ret; }
 	bool IsWMIConnected() const { return WMI.operator bool(); }
 	int GetDefaultBitness() const { return DefaultBitness; }
-	auto GetUserName() const { return UserName; }
-	auto GetPassword() const { return Password; }
+	const auto& UserName() const { return m_UserName; }
+	const auto& Password() const { return m_Password; }
 private:
 	static DWORD WINAPI ThreadProc(void* Param);
 	void ThreadProc();
@@ -115,14 +122,14 @@ private:
 	bool bOK{};
 	HKEY hHKLM{}, hPerf{};
 	DWORD dwRefreshMsec{ 500 }, dwLastRefreshTicks{};
-	wchar_t HostName[64]{};
+	std::wstring m_HostName;
 	handle hMutex;
 	WMIConnection WMI;
 	PerfLib pf;
 	bool bUpdated{};
 	bool bConnectAttempted{};
-	wchar_t UserName[64]{};
-	wchar_t Password[64]{};
+	std::wstring m_UserName;
+	std::wstring m_Password;
 };
 
 enum

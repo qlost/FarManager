@@ -89,6 +89,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/algorithm.hpp"
 #include "common/from_string.hpp"
+#include "common/view/enumerate.hpp"
 #include "common/view/zip.hpp"
 
 // External:
@@ -337,7 +338,24 @@ void Options::InterfaceSettings()
 	Builder.AddCheckbox(lng::MConfigPgUpChangeDisk, PgUpChangeDisk);
 	Builder.AddCheckbox(lng::MConfigUseVirtualTerminalForRendering, VirtualTerminalRendering);
 	Builder.AddCheckbox(lng::MConfigClearType, ClearType);
+	Builder.StartColumns();
 	const auto SetIconCheck = Builder.AddCheckbox(lng::MConfigSetConsoleIcon, SetIcon);
+	Builder.ColumnBreak();
+
+	std::vector<FarDialogBuilderListItem2> IconIndices(consoleicons::instance().size());
+	{
+		int Index = 0;
+		for (auto& i: IconIndices)
+		{
+			i.Text = str(Index);
+			i.ItemValue = Index;
+			++Index;
+		}
+	}
+
+	const auto IconIndexEdit = Builder.AddComboBox(IconIndex, nullptr, 0, IconIndices, DIF_LISTAUTOHIGHLIGHT | DIF_LISTWRAPMODE | DIF_DROPDOWNLIST);
+	Builder.EndColumns();
+	Builder.LinkFlags(SetIconCheck, IconIndexEdit, DIF_DISABLE);
 	const auto SetAdminIconCheck = Builder.AddCheckbox(lng::MConfigSetAdminConsoleIcon, SetAdminIcon);
 	SetAdminIconCheck->Indent(4);
 	Builder.LinkFlags(SetIconCheck, SetAdminIconCheck, DIF_DISABLE);
@@ -351,6 +369,8 @@ void Options::InterfaceSettings()
 			CMOpt.CopyTimeRule = 3;
 
 		SetFarConsoleMode();
+		consoleicons::instance().set_icon();
+
 		const auto& Panels = Global->CtrlObject->Cp();
 		Panels->LeftPanel()->Update(UPDATE_KEEP_SELECTION);
 		Panels->RightPanel()->Update(UPDATE_KEEP_SELECTION);
@@ -1821,6 +1841,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyInterface,              L"FormatNumberSeparators"sv,        FormatNumberSeparators, L""sv},
 		{FSSF_PRIVATE,           NKeyInterface,              L"Mouse"sv,                         Mouse, true},
 		{FSSF_PRIVATE,           NKeyInterface,              L"SetIcon"sv,                       SetIcon, false},
+		{FSSF_PRIVATE,           NKeyInterface,              L"IconIndex"sv,                     IconIndex, 0},
 		{FSSF_PRIVATE,           NKeyInterface,              L"SetAdminIcon"sv,                  SetAdminIcon, true},
 		{FSSF_PRIVATE,           NKeyInterface,              L"ShowDotsInRoot"sv,                ShowDotsInRoot, false},
 		{FSSF_INTERFACE,         NKeyInterface,              L"ShowMenuBar"sv,                   ShowMenuBar, false},
@@ -1851,6 +1872,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyPanel,                  L"CtrlFRule"sv,                     PanelCtrlFRule, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"Highlight"sv,                     Highlight, true},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"ReverseSort"sv,                   ReverseSort, true},
+		{FSSF_PRIVATE,           NKeyPanel,                  L"ReverseSortCharCompat"sv,         ReverseSortCharCompat, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"RememberLogicalDrives"sv,         RememberLogicalDrives, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"RightClickRule"sv,                PanelRightClickRule, 2},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"SelectFolders"sv,                 SelectFolders, false},
@@ -2101,7 +2123,6 @@ void Options::SetSearchColumns(const string& Columns, const string& Widths)
 	if (Columns.empty())
 		return;
 
-	auto& FindOpt = Global->Opt->FindOpt;
 	FindOpt.OutColumns = DeserialiseViewSettings(Columns, Widths);
 	std::tie(FindOpt.strSearchOutFormat, FindOpt.strSearchOutFormatWidth) = SerialiseViewSettings(FindOpt.OutColumns);
 }
@@ -2578,35 +2599,38 @@ void Options::SavePanelModes(bool always)
 
 	SCOPED_ACTION(auto)(cfg->ScopedTransaction());
 
-	auto root = cfg->root_key;
-
-	const auto SaveMode = [&](const auto& i, size_t Index)
+	const auto SaveMode = [&](HierarchicalConfig::key const ModesKey, PanelViewSettings const& Item, size_t Index)
 	{
-		const auto [PanelTitles, PanelWidths] = SerialiseViewSettings(i.PanelColumns);
-		const auto [StatusTitles, StatusWidths] = SerialiseViewSettings(i.StatusColumns);
+		const auto [PanelTitles, PanelWidths] = SerialiseViewSettings(Item.PanelColumns);
+		const auto [StatusTitles, StatusWidths] = SerialiseViewSettings(Item.StatusColumns);
 
-		if(const auto Key = cfg->CreateKey(root, str(Index)))
-		{
-			cfg->SetValue(Key, ModesNameName, i.Name);
-			cfg->SetValue(Key, ModesColumnTitlesName, PanelTitles);
-			cfg->SetValue(Key, ModesColumnWidthsName, PanelWidths);
-			cfg->SetValue(Key, ModesStatusColumnTitlesName, StatusTitles);
-			cfg->SetValue(Key, ModesStatusColumnWidthsName, StatusWidths);
-			cfg->SetValue(Key, ModesFlagsName, i.Flags);
-		}
+		const auto Key = cfg->CreateKey(ModesKey, str(Index));
+
+		cfg->SetValue(Key, ModesNameName, Item.Name);
+		cfg->SetValue(Key, ModesColumnTitlesName, PanelTitles);
+		cfg->SetValue(Key, ModesColumnWidthsName, PanelWidths);
+		cfg->SetValue(Key, ModesStatusColumnTitlesName, StatusTitles);
+		cfg->SetValue(Key, ModesStatusColumnWidthsName, StatusWidths);
+		cfg->SetValue(Key, ModesFlagsName, Item.Flags);
 	};
 
-	for_each_cnt(ViewSettings.cbegin(), ViewSettings.cbegin() + predefined_panel_modes_count, SaveMode);
-
-	if ((root = cfg->FindByName(cfg->root_key, CustomModesKeyName)))
+	for (const auto& [Value, Index]: enumerate(span(ViewSettings).subspan(0, predefined_panel_modes_count)))
 	{
-		cfg->DeleteKeyTree(root);
+		SaveMode(cfg->root_key, Value, Index);
 	}
 
-	if ((root = cfg->CreateKey(cfg->root_key, CustomModesKeyName)))
+	if (const auto ModesKey = cfg->FindByName(cfg->root_key, CustomModesKeyName))
 	{
-		for_each_cnt(ViewSettings.cbegin() + predefined_panel_modes_count, ViewSettings.cend(), SaveMode);
+		cfg->DeleteKeyTree(ModesKey);
 	}
+
+	const auto ModesKey = cfg->CreateKey(cfg->root_key, CustomModesKeyName);
+
+	for (const auto& [Value, Index]: enumerate(span(ViewSettings).subspan(predefined_panel_modes_count)))
+	{
+		SaveMode(ModesKey, Value, Index);
+	}
+
 	m_ViewSettingsChanged = false;
 }
 
@@ -2762,7 +2786,7 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 		}
 	};
 
-	const auto no_tree = Global->Opt->Tree.TurnOffCompletely? LIF_HIDDEN : LIF_NONE;
+	const auto no_tree = Tree.TurnOffCompletely? LIF_HIDDEN : LIF_NONE;
 
 	menu_item LeftMenu[]
 	{

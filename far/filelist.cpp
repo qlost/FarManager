@@ -2147,7 +2147,7 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 				if (RealName)
 				{
 					int ToPlugin = 0;
-					ShellCopy(shared_from_this(), LocalKey == KEY_SHIFTF6, false, true, true, ToPlugin, nullptr);
+					Copy(shared_from_this(), LocalKey == KEY_SHIFTF6, false, true, true, ToPlugin, nullptr);
 				}
 				else
 				{
@@ -2247,13 +2247,11 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 					PluginDelete();
 				else
 				{
-					bool SaveOpt=Global->Opt->DeleteToRecycleBin;
-
-					if (LocalKey==KEY_SHIFTDEL || LocalKey==KEY_SHIFTNUMDEL || LocalKey==KEY_SHIFTDECIMAL)
-						Global->Opt->DeleteToRecycleBin = false;
-
-					Delete(shared_from_this(), LocalKey == KEY_ALTDEL || LocalKey == KEY_RALTDEL || LocalKey == KEY_ALTNUMDEL || LocalKey == KEY_RALTNUMDEL || LocalKey == KEY_ALTDECIMAL || LocalKey == KEY_RALTDECIMAL);
-					Global->Opt->DeleteToRecycleBin=SaveOpt;
+					Delete(
+						shared_from_this(),
+						LocalKey == KEY_SHIFTDEL || LocalKey == KEY_SHIFTNUMDEL || LocalKey == KEY_SHIFTDECIMAL ? delete_type::remove :
+						LocalKey == KEY_ALTDEL || LocalKey == KEY_RALTDEL || LocalKey == KEY_ALTNUMDEL || LocalKey == KEY_RALTNUMDEL || LocalKey == KEY_ALTDECIMAL || LocalKey == KEY_RALTDECIMAL ? delete_type::erase :
+						Global->Opt->DeleteToRecycleBin? delete_type::recycle : delete_type::remove);
 				}
 
 				if (LocalKey==KEY_SHIFTF8)
@@ -3400,33 +3398,33 @@ void FileList::ApplySortMode(panel_sort Mode)
 	Global->WindowManager->RefreshWindow();
 }
 
+static bool const InvertSortByDefault[]
+{
+	false, // UNSORTED,
+	false, // BY_NAME,
+	false, // BY_EXT,
+	true,  // BY_MTIME,
+	true,  // BY_CTIME,
+	true,  // BY_ATIME,
+	true,  // BY_SIZE,
+	false, // BY_DIZ,
+	false, // BY_OWNER,
+	true,  // BY_COMPRESSEDSIZE,
+	true,  // BY_NUMLINKS,
+	true,  // BY_NUMSTREAMS,
+	true,  // BY_STREAMSSIZE,
+	false, // BY_FULLNAME,
+	true,  // BY_CHTIME,
+};
+static_assert(std::size(InvertSortByDefault) == static_cast<size_t>(panel_sort::COUNT));
+
 void FileList::SetSortMode(panel_sort Mode, bool KeepOrder)
 {
 	if (Mode < panel_sort::COUNT)
 	{
 		if (!KeepOrder)
 		{
-			static bool const InvertByDefault[]
-			{
-				false, // UNSORTED,
-				false, // BY_NAME,
-				false, // BY_EXT,
-				true,  // BY_MTIME,
-				true,  // BY_CTIME,
-				true,  // BY_ATIME,
-				true,  // BY_SIZE,
-				false, // BY_DIZ,
-				false, // BY_OWNER,
-				true,  // BY_COMPRESSEDSIZE,
-				true,  // BY_NUMLINKS,
-				true,  // BY_NUMSTREAMS,
-				true,  // BY_STREAMSSIZE,
-				false, // BY_FULLNAME,
-				true,  // BY_CHTIME,
-			};
-			static_assert(std::size(InvertByDefault) == static_cast<size_t>(panel_sort::COUNT));
-
-			m_ReverseSortOrder = (m_SortMode == Mode && Global->Opt->ReverseSort)? !m_ReverseSortOrder : InvertByDefault[static_cast<size_t>(Mode)];
+			m_ReverseSortOrder = (m_SortMode == Mode && Global->Opt->ReverseSort)? !m_ReverseSortOrder : InvertSortByDefault[static_cast<size_t>(Mode)];
 		}
 
 		ApplySortMode(Mode);
@@ -4910,7 +4908,7 @@ void FileList::CountDirSize(bool IsRealNames)
 	//Рефреш текущему времени для фильтра перед началом операции
 	m_Filter->UpdateCurrentTime();
 
-	time_check TimeCheck(time_check::mode::delayed, GetRedrawTimeout());
+	time_check TimeCheck;
 
 	struct
 	{
@@ -5118,7 +5116,7 @@ void FileList::ProcessCopyKeys(int Key)
 				        !Global->CtrlObject->Plugins->UseFarCommand(AnotherPanel->GetPluginHandle(),PLUGIN_FARPUTFILES))
 				{
 					ToPlugin=2;
-					ShellCopy(shared_from_this(), Move, false, false, Ask, ToPlugin, &strPluginDestPath);
+					Copy(shared_from_this(), Move, false, false, Ask, ToPlugin, &strPluginDestPath);
 				}
 
 				if (ToPlugin!=-1)
@@ -5159,7 +5157,7 @@ void FileList::ProcessCopyKeys(int Key)
 			int ToPlugin = AnotherPanel->GetMode() == panel_mode::PLUGIN_PANEL &&
 			             AnotherPanel->IsVisible() && (Key!=KEY_ALTF6 && Key!=KEY_RALTF6) &&
 			             !Global->CtrlObject->Plugins->UseFarCommand(AnotherPanel->GetPluginHandle(),PLUGIN_FARPUTFILES);
-			ShellCopy(shared_from_this(), Move, Key == KEY_ALTF6 || Key == KEY_RALTF6, false, Ask, ToPlugin, nullptr, Drag && AnotherDir);
+			Copy(shared_from_this(), Move, Key == KEY_ALTF6 || Key == KEY_RALTF6, false, Ask, ToPlugin, nullptr, Drag && AnotherDir);
 
 			if (ToPlugin==1)
 				PluginPutFilesToAnother(Move,AnotherPanel);
@@ -6632,7 +6630,7 @@ void FileList::ReadFileNames(int KeepSelection, int UpdateEvenIfPanelInvisible, 
 	}
 
 	error_state ErrorState;
-	const time_check TimeCheck(time_check::mode::delayed, GetRedrawTimeout());
+	const time_check TimeCheck;
 
 	for (const auto& fdata: Find)
 	{
@@ -7430,7 +7428,8 @@ void FileList::ShowFileList(bool Fast)
 			const auto& CurrentModeName = msg(std::find_if(CONST_RANGE(ModeNames, i) { return i.first == m_SortMode; })->second);
 			// Owerflow from npos to 0 is ok - pick the first character if & isn't there.
 			const auto Char = CurrentModeName[CurrentModeName.find(L'&') + 1];
-			Indicator = m_ReverseSortOrder? upper(Char) : lower(Char);
+			const auto UseReverseIndicator = Global->Opt->ReverseSortCharCompat && InvertSortByDefault[static_cast<size_t>(m_SortMode)]? !m_ReverseSortOrder: m_ReverseSortOrder;
+			Indicator = UseReverseIndicator? upper(Char) : lower(Char);
 		}
 		else
 		{

@@ -722,7 +722,7 @@ void FileEditor::ReadEvent()
 {
 	Global->CtrlObject->Plugins->ProcessEditorEvent(EE_READ, nullptr, m_editor.get());
 	bEE_READ_Sent = true;
-	Show(); //в EE_READ поменялась позиция курсора или размер табуляции.
+	Global->WindowManager->RefreshWindow(); //в EE_READ поменялась позиция курсора или размер табуляции.
 }
 
 void FileEditor::InitKeyBar()
@@ -1547,7 +1547,7 @@ bool FileEditor::LoadFile(const string& Name,int &UserBreak, error_state_ex& Err
 		unsigned long long FileSize = 0;
 		// BUGBUG check result
 		(void)EditFile.GetSize(FileSize);
-		const time_check TimeCheck(time_check::mode::delayed, GetRedrawTimeout());
+		const time_check TimeCheck;
 
 		os::fs::filebuf StreamBuffer(EditFile, std::ios::in);
 		std::istream Stream(&StreamBuffer);
@@ -1653,7 +1653,7 @@ bool FileEditor::LoadFile(const string& Name,int &UserBreak, error_state_ex& Err
 
 bool FileEditor::ReloadFile(uintptr_t codepage)
 {
-	const auto save_codepage(m_codepage), save_codepage1(m_editor->m_codepage);
+	const auto save_codepage(m_codepage);
 	const auto save_bAddSignature(m_bAddSignature);
 	const auto save_BadConversiom(BadConversion);
 	const auto save_Flags(m_Flags), save_Flags1(m_editor->m_Flags);
@@ -1686,7 +1686,6 @@ bool FileEditor::ReloadFile(uintptr_t codepage)
 		m_bAddSignature = save_bAddSignature;
 		BadConversion = save_BadConversiom;
 		m_Flags = save_Flags;
-		m_editor->m_codepage = save_codepage1;
 		m_editor->m_Flags = save_Flags1;
 		m_editor->SwapState(saved);
 
@@ -1940,7 +1939,7 @@ int FileEditor::SaveFile(const string& Name,int Ask, bool bSaveAs, error_state_e
 			if (!bSaveAs)
 				AddSignature = m_bAddSignature;
 
-			const time_check TimeCheck(time_check::mode::delayed, GetRedrawTimeout());
+			const time_check TimeCheck;
 
 			encoding::writer Writer(Stream, Codepage, AddSignature);
 

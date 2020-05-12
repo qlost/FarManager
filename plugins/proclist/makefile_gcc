@@ -1,6 +1,7 @@
 NAME = Proclist
 SRCS = Proclist.cpp \
 fileio.cpp \
+format.cpp \
 handles.cpp \
 Pcfg.cpp \
 Pclass.cpp \
@@ -10,7 +11,13 @@ Pmix.cpp \
 wmi.cpp
 DOCS = ProcEng.hlf ProcRus.hlf ProcPol.hlf ProcEng.lng ProcRus.lng ProcIta.lng ProcBel.lng ProcPol.lng changelog
 
-USERCPP = -I ./WMI
+ifndef FARDIR
+FAR_DIRECTORY=../../far
+else
+FAR_DIRECTORY=$(FARDIR)
+endif
+
+USERCPP = -I ./WMI -I "$(FAR_DIRECTORY)/thirdparty/fmt"
 USERLIBS = -lversion -lmpr -lole32 -loleaut32 -lpsapi
 
 include ../../far/makefile_gcc_common

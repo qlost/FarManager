@@ -33,7 +33,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.fs.hpp"
 
 // Internal:
-#include "ctrlobj.hpp"
 #include "cvtname.hpp"
 #include "drivemix.hpp"
 #include "elevation.hpp"
@@ -41,10 +40,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "imports.hpp"
 #include "lasterror.hpp"
 #include "pathmix.hpp"
-#include "plugins.hpp"
 #include "string_utils.hpp"
 #include "strmix.hpp"
-#include "global.hpp"
+#include "exception_handler.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -52,6 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.version.hpp"
 
 // Common:
+#include "common.hpp"
 #include "common/algorithm.hpp"
 #include "common/scope_exit.hpp"
 
@@ -152,6 +151,16 @@ namespace os::fs
 		void file_unmapper::operator()(const void* Data) const
 		{
 			UnmapViewOfFile(Data);
+		}
+	}
+
+	namespace state
+	{
+		static std::atomic_bool current_directory_syncronisation = false;
+
+		void set_current_directory_syncronisation(bool const Value)
+		{
+			current_directory_syncronisation = Value;
 		}
 	}
 
@@ -383,29 +392,29 @@ namespace os::fs
 	static bool FindNextFileInternal(const find_file_handle& Find, find_data& FindData)
 	{
 		bool Result = false;
-		const auto Handle = static_cast<far_find_file_handle_impl*>(Find.native_handle());
+		auto& Handle = *static_cast<far_find_file_handle_impl*>(Find.native_handle());
 		bool Status = true, set_errcode = true;
-		auto DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(Handle->BufferBase.data());
-		if (Handle->NextOffset)
+		auto DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(Handle.BufferBase.data());
+		if (Handle.NextOffset)
 		{
-			DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(reinterpret_cast<const char*>(DirectoryInfo) + Handle->NextOffset);
+			DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(reinterpret_cast<const char*>(DirectoryInfo) + Handle.NextOffset);
 		}
 		else
 		{
-			if (Handle->ReadDone)
+			if (Handle.ReadDone)
 			{
 				Status = false;
 			}
 			else
 			{
-				if (Handle->Buffer2)
+				if (Handle.Buffer2)
 				{
-					Handle->BufferBase = std::move(Handle->Buffer2);
-					DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(Handle->BufferBase.data());
+					Handle.BufferBase = std::move(Handle.Buffer2);
+					DirectoryInfo = reinterpret_cast<const FILE_ID_BOTH_DIR_INFORMATION*>(Handle.BufferBase.data());
 				}
 				else
 				{
-					Status = Handle->Object.NtQueryDirectoryFile(Handle->BufferBase.data(), Handle->BufferBase.size(), Handle->Extended ? FileIdBothDirectoryInformation : FileBothDirectoryInformation, false, {}, false);
+					Status = Handle.Object.NtQueryDirectoryFile(Handle.BufferBase.data(), Handle.BufferBase.size(), Handle.Extended? FileIdBothDirectoryInformation : FileBothDirectoryInformation, false, {}, false);
 					set_errcode = false;
 				}
 			}
@@ -413,8 +422,8 @@ namespace os::fs
 
 		if (Status)
 		{
-			DirectoryInfoToFindData(*DirectoryInfo, FindData, Handle->Extended);
-			Handle->NextOffset = DirectoryInfo->NextEntryOffset? Handle->NextOffset + DirectoryInfo->NextEntryOffset : 0;
+			DirectoryInfoToFindData(*DirectoryInfo, FindData, Handle.Extended);
+			Handle.NextOffset = DirectoryInfo->NextEntryOffset? Handle.NextOffset + DirectoryInfo->NextEntryOffset : 0;
 			Result = true;
 		}
 
@@ -1661,7 +1670,7 @@ namespace os::fs
 #ifndef NO_WRAPPER
 
 			// Legacy plugins expect that the current directory is set
-			(Global->CtrlObject && Global->CtrlObject->Plugins->OemPluginsPresent())
+			state::current_directory_syncronisation
 #else
 			false
 #endif // NO_WRAPPER

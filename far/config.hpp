@@ -414,7 +414,7 @@ public:
 	bool AdvancedConfig(config_type Mode = config_type::roaming);
 	void LocalViewerConfig(ViewerOptions &ViOptRef) {return ViewerConfig(ViOptRef, true);}
 	void LocalEditorConfig(EditorOptions &EdOptRef) {return EditorConfig(EdOptRef, true);}
-	static void SetSearchColumns(const string& Columns, const string& Widths);
+	void SetSearchColumns(const string& Columns, const string& Widths);
 
 	struct SortingOptions
 	{
@@ -788,6 +788,7 @@ public:
 
 	BoolOption SelectFolders;
 	BoolOption ReverseSort;
+	BoolOption ReverseSortCharCompat;
 	BoolOption SortFolderExt;
 	BoolOption DeleteToRecycleBin;
 	IntOption WipeSymbol; // символ заполнитель для "ZAP-операции"
@@ -865,6 +866,7 @@ public:
 
 	StringOption strLanguage;
 	BoolOption SetIcon;
+	IntOption IconIndex;
 	BoolOption SetAdminIcon;
 	IntOption PanelRightClickRule;
 	IntOption PanelCtrlAltShiftRule;

@@ -11,13 +11,14 @@ function bcolorer {
 
   wine cmd /c ../../../../colorer.${BIT}.bat &> ../../../../logs/colorer${BIT}
 
-  if [ ! -e colorer.dll ]; then
+  if [ ! -e src/colorer.dll ]; then
+    echo "Can't find colorer.dll"
     return 1
   fi
 
   mkdir -p ../../../../outfinalnew${BIT}/Plugins/${PLUGIN}/bin
 
-  cp -f colorer.dll colorer.map ../../../../outfinalnew${BIT}/Plugins/$PLUGIN/bin
+  cp -f src/colorer.dll src/colorer.map ../../../../outfinalnew${BIT}/Plugins/$PLUGIN/bin
 
   popd
 

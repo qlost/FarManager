@@ -8,33 +8,42 @@
 #include "version.hpp"
 
 options Opt;
-ui64Table* Ui64Table;
 
 PluginStartupInfo Info;
 FarStandardFunctions FSF;
 
 //-----------------------------------------------------------------------------
-static LONG WINAPI fNtQueryInformationProcess(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG)
+static NTSTATUS NTAPI fNtQueryInformationProcess(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG)
 {
 	return STATUS_NOT_IMPLEMENTED;
 }
 
-static LONG WINAPI fNtQueryInformationThread(HANDLE, ULONG, PVOID, DWORD, DWORD*)
+static NTSTATUS NTAPI fNtQueryInformationThread(HANDLE, ULONG, PVOID, DWORD, DWORD*)
 {
 	return STATUS_NOT_IMPLEMENTED;
 }
 
-static LONG WINAPI fNtQueryObject(HANDLE, DWORD, VOID*, DWORD, VOID*)
+static NTSTATUS NTAPI fNtQueryObject(HANDLE, DWORD, VOID*, DWORD, VOID*)
 {
 	return STATUS_NOT_IMPLEMENTED;
 }
 
-static LONG WINAPI fNtQuerySystemInformation(DWORD, VOID*, DWORD, ULONG*)
+static NTSTATUS NTAPI fNtQuerySystemInformation(DWORD, VOID*, DWORD, ULONG*)
 {
 	return STATUS_NOT_IMPLEMENTED;
 }
 
-static LONG WINAPI fNtQueryInformationFile(HANDLE, PVOID, PVOID, DWORD, DWORD)
+static NTSTATUS NTAPI fNtQueryInformationFile(HANDLE, PVOID, PVOID, DWORD, DWORD)
+{
+	return STATUS_NOT_IMPLEMENTED;
+}
+
+static NTSTATUS NTAPI fNtWow64ReadVirtualMemory64(HANDLE, ULONG64, PVOID, ULONG64, PULONG64)
+{
+	return STATUS_NOT_IMPLEMENTED;
+}
+
+static NTSTATUS NTAPI fNtWow64QueryInformationProcess64(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG)
 {
 	return STATUS_NOT_IMPLEMENTED;
 }
@@ -69,11 +78,6 @@ static PDWORD WINAPI fGetSidSubAuthority(PSID, DWORD)
 	return {};
 }
 
-static BOOL WINAPI fLookupAccountNameW(LPCTSTR, LPCTSTR, PSID, LPDWORD, LPTSTR, LPDWORD, PSID_NAME_USE)
-{
-	return FALSE;
-}
-
 static HRESULT WINAPI fCoSetProxyBlanket(IUnknown*, DWORD, DWORD, OLECHAR*, DWORD, DWORD, RPC_AUTH_IDENTITY_HANDLE, DWORD)
 {
 	return E_FAIL;
@@ -92,13 +96,14 @@ STATIC_INIT_IMPORT(NtQueryInformationThread);
 STATIC_INIT_IMPORT(NtQueryObject);
 STATIC_INIT_IMPORT(NtQuerySystemInformation);
 STATIC_INIT_IMPORT(NtQueryInformationFile);
+STATIC_INIT_IMPORT(NtWow64QueryInformationProcess64);
+STATIC_INIT_IMPORT(NtWow64ReadVirtualMemory64);
 STATIC_INIT_IMPORT(IsWow64Process);
 STATIC_INIT_IMPORT(GetGuiResources);
 STATIC_INIT_IMPORT(IsValidSid);
 STATIC_INIT_IMPORT(GetSidIdentifierAuthority);
 STATIC_INIT_IMPORT(GetSidSubAuthorityCount);
 STATIC_INIT_IMPORT(GetSidSubAuthority);
-STATIC_INIT_IMPORT(LookupAccountNameW);
 STATIC_INIT_IMPORT(CoSetProxyBlanket);
 STATIC_INIT_IMPORT(EnumProcessModulesEx);
 
@@ -123,6 +128,8 @@ static void dynamic_bind()
 		INIT_IMPORT(NtQueryObject);
 		INIT_IMPORT(NtQuerySystemInformation);
 		INIT_IMPORT(NtQueryInformationFile);
+		INIT_IMPORT(NtWow64QueryInformationProcess64);
+		INIT_IMPORT(NtWow64ReadVirtualMemory64);
 	}
 
 	if (const auto Module = GetModuleHandle(L"kernel32"))
@@ -136,7 +143,6 @@ static void dynamic_bind()
 		INIT_IMPORT(GetSidIdentifierAuthority);
 		INIT_IMPORT(GetSidSubAuthorityCount);
 		INIT_IMPORT(GetSidSubAuthority);
-		INIT_IMPORT(LookupAccountNameW);
 	}
 
 	if (const auto Module = GetModuleHandle(L"user32"))
@@ -157,6 +163,12 @@ static void dynamic_bind()
 #undef INIT_IMPORT
 
 	Inited = true;
+}
+
+bool is_wow64_process(HANDLE Process)
+{
+	BOOL IsProcessWow64 = pIsWow64Process(Process, &IsProcessWow64) && IsProcessWow64;
+	return IsProcessWow64 != FALSE;
 }
 
 int Message(unsigned Flags, const wchar_t* HelpTopic, const wchar_t** Items, size_t nItems, size_t nButtons)
@@ -183,7 +195,6 @@ void WINAPI SetStartupInfoW(const struct PluginStartupInfo* Info)
 	::Info = *Info;
 	FSF = *Info->FSF;
 	::Info.FSF = &FSF;
-	Ui64Table = new ui64Table;
 	Opt.Read();
 	DebugToken::CreateToken();
 }
@@ -191,7 +202,6 @@ void WINAPI SetStartupInfoW(const struct PluginStartupInfo* Info)
 
 void WINAPI ExitFARW(const struct ExitInfo* Info)
 {
-	delete Ui64Table;
 }
 
 

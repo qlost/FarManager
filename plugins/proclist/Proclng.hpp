@@ -70,8 +70,8 @@ enum
 	MChangePriority,
 	MConfirmChangePriority,
 
-	MGDIObjects,
-	MUSERObjects,
+	MTitleGDIObjects,
+	MTitleUSERObjects,
 
 	MCommandLine,
 	MCurDir,
@@ -81,11 +81,15 @@ enum
 	MTitleFileDesc,
 
 	MTitleModules,
-	MColBaseSize,
+	MColBase,
+	MColSize,
 	MColPathVerDesc,
 	MColPathVerDescNotShown,
-	MTitleHandleInfo,
-	MHandleInfoHdr,
+	MHandles,
+	MHandlesHandle,
+	MHandlesAccess,
+	MHandlesType,
+	MHandlesName,
 
 	MConfigTitle,
 	MConfigAddToDisksMenu,
@@ -158,7 +162,7 @@ enum
 	MColVirtualBytes,
 	MColVirtualBytesPeak,
 
-	MperSec,
+	MPerSec,
 
 	MSortBy,
 	MSortByName,

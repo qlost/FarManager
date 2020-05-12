@@ -370,9 +370,15 @@ static void ParseTimeComponents(string_view const Src, span<const std::pair<size
 	});
 }
 
+namespace
+{
+	template<size_t Size>
+	using dt_ranges = std::array<std::pair<size_t, size_t>, Size>;
 
-using date_ranges = std::array<std::pair<size_t, size_t>, 3>;
-using time_ranges = std::array<std::pair<size_t, size_t>, 4>;
+	using date_ranges = dt_ranges<3>;
+	using time_ranges = dt_ranges<4>;
+}
+
 static constexpr time_ranges TimeRanges{ { {0, 2}, { 3, 2 }, { 6, 2 }, { 9, 7 } } };
 
 static date_ranges get_date_ranges(date_type const DateFormat)
@@ -700,6 +706,11 @@ bool local_to_utc(const SYSTEMTIME& LocalTime, os::chrono::time_point& UtcTime)
 
 	UtcTime = os::chrono::nt_clock::from_filetime(FileUtcTime);
 	return true;
+}
+
+time_check::time_check(mode Mode):
+	time_check(Mode, GetRedrawTimeout())
+{
 }
 
 #ifdef ENABLE_TESTS

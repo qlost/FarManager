@@ -569,7 +569,8 @@ void PushPanelItem(lua_State *L, const struct PluginPanelItem *PanelItem)
 		// This is a panel of a LuaFAR plugin
 		FarPanelItemUserData* ud = (FarPanelItemUserData*)PanelItem->UserData.Data;
 
-		if(ud->L == L)
+		// Compare registries rather than Lua states to allow for different coroutines of the same state
+		if(lua_topointer(ud->L, LUA_REGISTRYINDEX) == lua_topointer(L, LUA_REGISTRYINDEX))
 		{
 			lua_rawgeti(L, LUA_REGISTRYINDEX, ud->ref);
 			lua_setfield(L, -2, "UserData");
@@ -1358,7 +1359,8 @@ int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
 		Color->Flags = CheckFlagsFromTable(L, -1, "Flags");
 		Color->Foreground.ForegroundColor = CAST(COLORREF, GetOptNumFromTable(L, "ForegroundColor", 0));
 		Color->Background.BackgroundColor = CAST(COLORREF, GetOptNumFromTable(L, "BackgroundColor", 0));
-		Color->Reserved = NULL;
+		Color->Reserved[0] = 0;
+		Color->Reserved[1] = 0;
 		lua_pop(L, 1);
 		return 1;
 	}
@@ -1368,7 +1370,8 @@ int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
 		Color->Flags = FCF_4BITMASK;
 		Color->Foreground.ForegroundColor = (num & 0x0F) | ALPHAMASK;
 		Color->Background.BackgroundColor = ((num>>4) & 0x0F) | ALPHAMASK;
-		Color->Reserved = NULL;
+		Color->Reserved[0] = 0;
+		Color->Reserved[1] = 0;
 		return 1;
 	}
 	return 0;
@@ -4198,7 +4201,7 @@ static int far_Text(lua_State *L)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
 	const wchar_t *Str;
-	struct FarColor fc = { FCF_4BITMASK, {0x0F}, {0x00}, NULL };
+	struct FarColor fc = { FCF_4BITMASK, {0x0F}, {0x00} };
 	intptr_t X = luaL_optinteger(L, 1, 0);
 	intptr_t Y = luaL_optinteger(L, 2, 0);
 	GetFarColor(L, 3, &fc);
@@ -6235,10 +6238,13 @@ static int luaopen_far(lua_State *L)
 	lua_setfield(L, LUA_REGISTRYINDEX, FAR_VIRTUALKEYS);
 	luaL_register(L, "far", far_funcs);
 
-	lua_pushcfunction(L, far_MacroCallFar);
-	lua_setfield(L, -2, "MacroCallFar");
-	lua_pushcfunction(L, far_FarMacroCallToLua);
-	lua_setfield(L, -2, "FarMacroCallToLua");
+	if (GetPluginData(L)->Info->Private)
+	{
+		lua_pushcfunction(L, far_MacroCallFar);
+		lua_setfield(L, -2, "MacroCallFar");
+		lua_pushcfunction(L, far_FarMacroCallToLua);
+		lua_setfield(L, -2, "FarMacroCallToLua");
+	}
 
 	push_flags_table(L);
 	lua_pushvalue(L, -1);
