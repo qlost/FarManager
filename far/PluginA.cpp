@@ -1333,7 +1333,7 @@ static oldfar::FarDialogItem* UnicodeDialogItemToAnsi(FarDialogItem &di, HANDLE 
 		diA->Ptr.PtrLength = static_cast<int>(Length);
 		auto Data = std::make_unique<char[]>(Length + 1);
 		encoding::oem::get_bytes({ di.Data, Length }, { Data.get(), Length });
-		Data[Length] = L'\0';
+		Data[Length] = {};
 		diA->Ptr.PtrData = Data.release();
 	}
 	else
@@ -1972,7 +1972,7 @@ static int WINAPI ProcessNameA(const char *Param1, char *Param2, DWORD Flags) no
 		const auto strP1 = encoding::oem::get_chars(Param1), strP2 = encoding::oem::get_chars(Param2);
 		const auto size = static_cast<int>(strP1.size() + strP2.size() + oldfar::NM) + 1; //а хрен ещё как угадать скока там этот Param2 для PN_GENERATENAME
 		const wchar_t_ptr_n<os::default_buffer_size> p(size);
-		*std::copy(ALL_CONST_RANGE(strP2), p.data()) = L'\0';
+		*copy_string(strP2, p.data()) = {};
 
 		auto newFlags = PN_NONE;
 
@@ -2753,7 +2753,7 @@ static intptr_t WINAPI FarSendDlgMessageA(HANDLE hDlg, int OldMsg, int Param1, v
 				if (!Param2)
 					return FALSE;
 
-				FarDialogItem& di=CurrentDialogItem(hDlg,Param1);
+				auto& di = CurrentDialogItem(hDlg, Param1);
 
 				if (di.Type==DI_LISTBOX || di.Type==DI_COMBOBOX)
 					di.ListItems = &CurrentList(hDlg,Param1);
@@ -2765,7 +2765,7 @@ static intptr_t WINAPI FarSendDlgMessageA(HANDLE hDlg, int OldMsg, int Param1, v
 				// save color info
 				if(diA->Flags&oldfar::DIF_SETCOLOR)
 				{
-					oldfar::FarDialogItem *diA_Copy=CurrentDialogItemA(hDlg,Param1);
+					const auto diA_Copy = CurrentDialogItemA(hDlg, Param1);
 					diA_Copy->Flags = diA->Flags;
 				}
 
@@ -4653,7 +4653,7 @@ static int WINAPI FarCharTableA(int Command, char *Buffer, int BufferSize) noexc
 					return -1;
 
 				cpiex.MaxCharSize = cpi.MaxCharSize;
-				cpiex.CodePageName[0] = L'\0';
+				cpiex.CodePageName[0] = {};
 			}
 
 			if (cpiex.MaxCharSize != 1)
@@ -5772,7 +5772,6 @@ private:
 		void reserve(size_t Size) override { return m_Messages.reserve(Size); }
 		void add(string&& Str) override { m_Messages.emplace_back(encoding::oem::get_bytes(Str)); }
 		void set_at(size_t Index, string&& Str) override { m_Messages[Index] = encoding::oem::get_bytes(Str); }
-		const string& at(size_t Index) const override { throw MAKE_FAR_FATAL_EXCEPTION(L"Not supported"sv); }
 		size_t size() const override { return m_Messages.size(); }
 
 		const std::string& ansi_at(size_t Index) const { return m_Messages[Index]; }
@@ -5785,8 +5784,7 @@ private:
 	{
 	public:
 		explicit ansi_plugin_language(string_view const Path, string_view const Language):
-			language(m_Data),
-			m_Data(std::make_unique<ansi_language_data>())
+			language(std::make_unique<ansi_language_data>())
 		{
 			load(Path, Language);
 		}
@@ -5795,9 +5793,6 @@ private:
 		{
 			return m_Data->validate(Id)? static_cast<const ansi_language_data&>(*m_Data).ansi_at(Id).c_str() : "";
 		}
-
-	private:
-		std::unique_ptr<i_language_data> m_Data;
 	};
 
 	template<export_index Export>

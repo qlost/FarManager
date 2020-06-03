@@ -220,8 +220,8 @@ Viewer::~Viewer()
 			DeleteFileWithFolder(strTempViewName);
 		else
 		{
-			os::fs::set_file_attributes(strTempViewName,FILE_ATTRIBUTE_NORMAL);
-			os::fs::delete_file(strTempViewName); //BUGBUG
+			(void)os::fs::set_file_attributes(strTempViewName,FILE_ATTRIBUTE_NORMAL); // BUGBUG
+			(void)os::fs::delete_file(strTempViewName); //BUGBUG
 		}
 	}
 }
@@ -447,7 +447,8 @@ bool Viewer::OpenFile(const string& Name, bool const Warn)
 
 bool Viewer::isBinaryFile(uintptr_t cp) // very approximate: looks for '\0' in first 2k bytes
 {
-	char Buffer[2048];
+	alignas(wchar_t) char Buffer[2048];
+
 	const auto CurrentPos = vtell();
 	vseek(0, FILE_BEGIN);
 	size_t BytesRead = 0;
@@ -1036,14 +1037,14 @@ void Viewer::ReadString(ViewerString *pString, int MaxSize, bool update_cache)
 	AdjustWidth();
 
 	int OutPtr = 0, nTab = 0, wrap_out = -1;
-	wchar_t ch, eol_char = L'\0';
+	wchar_t ch, eol_char{};
 	long long wrap_pos = -1;
 	bool skip_space = false;
 
 	if (m_DisplayMode != VMT_TEXT)
 	{
 		vseek(GetModeDependentLineSize(), FILE_CURRENT);
-		ReadBuffer[OutPtr] = L'\0';
+		ReadBuffer[OutPtr] = {};
 		LastPage = veof();
 		return;
 	}
@@ -1960,7 +1961,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 						--FilePos;
 						FilePos -= FilePos % CharSize;
 						vseek(FilePos, FILE_BEGIN);
-						wchar_t LastSym = L'\0';
+						wchar_t LastSym{};
 						if (vgetc(&LastSym) && !IsEol(LastSym))
 							++max_counter;
 
@@ -2861,7 +2862,7 @@ SEARCHER_RESULT Viewer::search_hex_backward(search_data* sd)
 SEARCHER_RESULT Viewer::search_text_forward(search_data* sd)
 {
 	const auto bsize = 8192, slen = sd->search_len, ww = (LastSearchWholeWords ? 1 : 0);
-	wchar_t prev_char = L'\0', *buff = Search_buffer.data(), *t_buff = (sd->ch_size < 0 ? buff + bsize : nullptr);
+	wchar_t prev_char{}, *buff = Search_buffer.data(), *t_buff = (sd->ch_size < 0 ? buff + bsize : nullptr);
 	long long to;
 	const auto cpos = sd->CurPos;
 	const auto swrap = ViOpt.SearchWrapStop;
@@ -3055,7 +3056,7 @@ int Viewer::read_line(wchar_t *buf, wchar_t *tbuf, long long cpos, int adjust, l
 	int llen = vread(buf, lsize = vString.linesize, tbuf);
 	if (llen > 0)
 		llen -= vString.eol_length; // remove eol-s
-	buf[llen >= 0 ? llen : 0] = L'\0';
+	buf[llen >= 0 ? llen : 0] = {};
 
 	m_DisplayMode = OldDisplayMode;
 
@@ -3837,7 +3838,7 @@ wchar_t Viewer::vgetc_prev()
 {
 	const auto pos = vtell();
 	if ( pos <= 0 )
-		return L'\0';
+		return {};
 
 	const auto CharSize = getCharSize();
 	if ( pos < CharSize )
@@ -4267,7 +4268,7 @@ int Viewer::ViewerControl(int Command, intptr_t Param1, void *Param2)
 		{
 			if (Param2 && static_cast<size_t>(Param1) > strFullFileName.size())
 			{
-				*std::copy(ALL_CONST_RANGE(strFullFileName), static_cast<wchar_t*>(Param2)) = L'\0';
+				*copy_string(strFullFileName, static_cast<wchar_t*>(Param2)) = {};
 			}
 
 			return static_cast<int>(strFullFileName.size()+1);

@@ -1,3 +1,15 @@
+shmuel 21.05.2020 15:21:20 +0300 - build 749
+
+1. Show traceback when error is thrown from ExitFAR event handler.
+
+zg 18.05.2020 23:28:55 +0300 - build 748
+
+1. откат 747.
+
+zg 18.05.2020 18:30:29 +0300 - build 747
+
+1. experimental "FolderChanged" event.
+
 shmuel 07.05.2020 22:58:33 +0300 - build 746
 
 1. LuaFAR: refactoring.

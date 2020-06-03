@@ -344,13 +344,11 @@ bool Panel::SetCurPath()
 
 	if (AnotherPanel->GetMode() != panel_mode::PLUGIN_PANEL)
 	{
-		if (AnotherPanel->m_CurDir.size() > 1 && AnotherPanel->m_CurDir[1]==L':' &&
-		        (m_CurDir.empty() || upper(AnotherPanel->m_CurDir[0])!=upper(m_CurDir[0])))
+		// Propagate passive panel curent directory to the environment
+		// (only if it won't be overwritten by the active)
+		if (!AnotherPanel->m_CurDir.empty() && (m_CurDir.empty() || !equal_icase_t{}(AnotherPanel->m_CurDir[0], m_CurDir[0])))
 		{
-			// сначала установим переменные окружения для пассивной панели
-			// (без реальной смены пути, чтобы лишний раз пассивный каталог
-			// не перечитывать)
-			FarChDir(AnotherPanel->m_CurDir, false);
+			set_drive_env_curdir(AnotherPanel->m_CurDir);
 		}
 	}
 
@@ -481,9 +479,9 @@ void Panel::ShowScreensCount() const
 {
 	if (Global->Opt->ShowScreensNumber && !m_Where.left)
 	{
-		int Viewers = Global->WindowManager->GetWindowCountByType(windowtype_viewer);
-		int Editors = Global->WindowManager->GetWindowCountByType(windowtype_editor);
-		int Dialogs = Global->Opt->ShowScreensNumber > 1 ? Global->WindowManager->GetWindowCountByType(windowtype_dialog) : 0;
+		const auto Viewers = Global->WindowManager->GetWindowCountByType(windowtype_viewer);
+		const auto Editors = Global->WindowManager->GetWindowCountByType(windowtype_editor);
+		const auto Dialogs = Global->Opt->ShowScreensNumber > 1? Global->WindowManager->GetWindowCountByType(windowtype_dialog) : 0;
 
 		if (Viewers>0 || Editors>0 || Dialogs > 0)
 		{
@@ -745,9 +743,9 @@ int Panel::SetPluginCommand(int Command,int Param1,void* Param2)
 					dirInfo->Name = static_cast<wchar_t*>(static_cast<void*>(static_cast<char*>(Param2) + folderOffset));
 					dirInfo->Param = static_cast<wchar_t*>(static_cast<void*>(static_cast<char*>(Param2) + pluginDataOffset));
 					dirInfo->File = static_cast<wchar_t*>(static_cast<void*>(static_cast<char*>(Param2) + pluginFileOffset));
-					*std::copy(ALL_CONST_RANGE(Info.ShortcutFolder), const_cast<wchar_t*>(dirInfo->Name)) = L'\0';
-					*std::copy(ALL_CONST_RANGE(Info.PluginData), const_cast<wchar_t*>(dirInfo->Param)) = L'\0';
-					*std::copy(ALL_CONST_RANGE(Info.PluginFile), const_cast<wchar_t*>(dirInfo->File)) = L'\0';
+					*copy_string(Info.ShortcutFolder, const_cast<wchar_t*>(dirInfo->Name)) = {};
+					*copy_string(Info.PluginData, const_cast<wchar_t*>(dirInfo->Param)) = {};
+					*copy_string(Info.PluginFile, const_cast<wchar_t*>(dirInfo->File)) = {};
 				}
 				Reenter--;
 			}

@@ -42,7 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/noncopyable.hpp"
-#include "common/range.hpp"
 
 // External:
 
@@ -97,20 +96,20 @@ class time_check: noncopyable
 public:
 	enum class mode { delayed, immediate };
 
-	time_check(mode Mode = mode::delayed);
+	explicit time_check(mode Mode = mode::delayed) noexcept;
 
-	time_check(mode Mode, clock_type::duration Interval):
+	time_check(mode Mode, clock_type::duration Interval) noexcept:
 		m_Begin(Mode == mode::delayed? clock_type::now() : clock_type::now() - Interval),
 		m_Interval(Interval)
 	{
 	}
 
-	void reset(clock_type::time_point Value = clock_type::now()) const
+	void reset(clock_type::time_point Value = clock_type::now()) const noexcept
 	{
 		m_Begin = Value;
 	}
 
-	bool is_time() const
+	bool is_time() const noexcept
 	{
 		return clock_type::now() - m_Begin > m_Interval;
 	}

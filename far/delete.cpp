@@ -93,7 +93,7 @@ struct total_items
 class ShellDelete : noncopyable
 {
 public:
-	ShellDelete(panel_ptr SrcPanel, delete_type Type, bool UpdateDiz);
+	ShellDelete(panel_ptr SrcPanel, delete_type Type);
 
 	struct progress
 	{
@@ -576,7 +576,7 @@ void ShellDelete::process_item(
 
 			if (MsgCode == Message::first_button)
 			{
-				;
+				// Nop
 			}
 			else if (MsgCode == Message::second_button)
 			{
@@ -616,7 +616,7 @@ void ShellDelete::process_item(
 				if (os::fs::is_directory_symbolic_link(FindData))
 				{
 					if (FindData.Attributes & FILE_ATTRIBUTE_READONLY)
-						os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL);
+						(void)os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL); //BUGBUG
 
 					bool Dummy = false;
 					if (!ERemoveDirectory(strFullName, m_DeleteType, Dummy))
@@ -646,7 +646,7 @@ void ShellDelete::process_item(
 
 					if (MsgCode == Message::first_button)
 					{
-						;
+						// Nop
 					}
 					else if (MsgCode == Message::second_button)
 					{
@@ -666,7 +666,7 @@ void ShellDelete::process_item(
 				if (ScTree.IsDirSearchDone())
 				{
 					if (FindData.Attributes & FILE_ATTRIBUTE_READONLY)
-						os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL);
+						(void)os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL); //BUGBUG
 
 					bool Dummy = false;
 					if (!ERemoveDirectory(strFullName, m_DeleteType, Dummy))
@@ -690,7 +690,7 @@ void ShellDelete::process_item(
 	}
 
 	if (SelFindData.Attributes & FILE_ATTRIBUTE_READONLY)
-		os::fs::set_file_attributes(strSelName,FILE_ATTRIBUTE_NORMAL);
+		(void)os::fs::set_file_attributes(strSelName,FILE_ATTRIBUTE_NORMAL); //BUGBUG
 
 	bool RetryRecycleAsRemove = false;
 	const auto Removed = ERemoveDirectory(
@@ -718,11 +718,18 @@ void ShellDelete::process_item(
 
 }
 
-ShellDelete::ShellDelete(panel_ptr SrcPanel, delete_type const Type, bool const UpdateDiz):
+ShellDelete::ShellDelete(panel_ptr SrcPanel, delete_type const Type):
 	m_DeleteFolders(!Global->Opt->Confirm.DeleteFolder),
-	m_UpdateDiz(UpdateDiz),
+	m_UpdateDiz(Global->Opt->Diz.UpdateMode == DIZ_UPDATE_ALWAYS || (SrcPanel->IsDizDisplayed() && Global->Opt->Diz.UpdateMode == DIZ_UPDATE_IF_DISPLAYED)),
 	m_DeleteType(Type)
 {
+	if (m_UpdateDiz)
+		SrcPanel->ReadDiz();
+
+	const auto strDizName = SrcPanel->GetDizName();
+	const auto CheckDiz = [&] { return !strDizName.empty() && os::fs::exists(strDizName); };
+	const auto DizPresent = CheckDiz();
+
 	SCOPED_ACTION(TPreRedrawFuncGuard)(std::make_unique<DelPreRedrawItem>());
 
 	const auto SelCount = SrcPanel->GetSelCount();
@@ -742,6 +749,9 @@ ShellDelete::ShellDelete(panel_ptr SrcPanel, delete_type const Type, bool const 
 
 	SCOPE_EXIT
 	{
+		if (m_UpdateDiz && DizPresent == CheckDiz())
+			SrcPanel->FlushDiz();
+
 		ShellUpdatePanels(SrcPanel, NeedSetUpADir);
 	};
 
@@ -802,7 +812,7 @@ bool ShellDelete::ConfirmDeleteReadOnlyFile(const string& Name,DWORD Attr)
 		ReadOnlyDeleteMode = Message::first_button;
 		[[fallthrough]];
 	case Message::first_button:
-		os::fs::set_file_attributes(Name, FILE_ATTRIBUTE_NORMAL);
+		(void)os::fs::set_file_attributes(Name, FILE_ATTRIBUTE_NORMAL); //BUGBUG
 		return true;
 
 	case Message::fourth_button:
@@ -863,7 +873,7 @@ bool ShellDelete::ShellRemoveFile(const string& Name, progress Files)
 			case Message::first_button:
 				if (EraseFile(strFullName, Files))
 					return true;
-
+				break;
 			case Message::fourth_button:
 				SkipWipeMode = Message::third_button;
 				[[fallthrough]];
@@ -932,10 +942,12 @@ bool ShellDelete::ERemoveDirectory(const string& Name, delete_type const Type, b
 		case delete_type::remove:
 			if (os::fs::remove_directory(Name))
 				return true;
+			break;
 
 		case delete_type::erase:
 			if (EraseDirectory(Name))
 				return true;
+			break;
 
 		case delete_type::recycle:
 			{
@@ -1031,7 +1043,7 @@ static void break_links_for_old_os(const string& Name)
 bool ShellDelete::RemoveToRecycleBin(const string& Name, bool dir, bool& RetryRecycleAsRemove, bool& Skip)
 {
 	RetryRecycleAsRemove = false;
-	auto strFullName = ConvertNameToFull(Name);
+	const auto strFullName = ConvertNameToFull(Name);
 
 	break_links_for_old_os(strFullName);
 
@@ -1094,7 +1106,7 @@ void DeleteDirTree(const string& Dir)
 
 	while (ScTree.GetNextName(FindData, strFullName))
 	{
-		os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL);
+		(void)os::fs::set_file_attributes(strFullName,FILE_ATTRIBUTE_NORMAL); //BUGBUG
 
 		if (FindData.Attributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
@@ -1116,7 +1128,7 @@ void DeleteDirTree(const string& Dir)
 bool DeleteFileWithFolder(const string& FileName)
 {
 	auto strFileOrFolderName = unquote(FileName);
-	os::fs::set_file_attributes(strFileOrFolderName, FILE_ATTRIBUTE_NORMAL);
+	(void)os::fs::set_file_attributes(strFileOrFolderName, FILE_ATTRIBUTE_NORMAL); //BUGBUG
 
 	if (!os::fs::delete_file(strFileOrFolderName))
 		return false;
@@ -1154,24 +1166,12 @@ bool delayed_deleter::any() const
 
 void Delete(const panel_ptr& SrcPanel, delete_type const Type)
 {
-	const auto UpdateDiz = Global->Opt->Diz.UpdateMode == DIZ_UPDATE_ALWAYS || (SrcPanel->IsDizDisplayed() && Global->Opt->Diz.UpdateMode == DIZ_UPDATE_IF_DISPLAYED);
-
-	if (UpdateDiz)
-		SrcPanel->ReadDiz();
-
-	const auto strDizName = SrcPanel->GetDizName();
-	const auto CheckDiz = [&]{ return !strDizName.empty() && os::fs::exists(strDizName); };
-	const auto DizPresent = CheckDiz();
-
 	try
 	{
-		ShellDelete(SrcPanel, Type, UpdateDiz);
+		ShellDelete(SrcPanel, Type);
 	}
 	catch (const operation_cancelled&)
 	{
-		;
+		// Nop
 	}
-
-	if (UpdateDiz && DizPresent == CheckDiz())
-		SrcPanel->FlushDiz();
 }

@@ -6,7 +6,7 @@
 /*
 plugin.hpp
 
-Plugin API for Far Manager 3.0 build 5579
+Plugin API for Far Manager 3.0 build 5603
 */
 /*
 Copyright © 1996 Eugene Roshal
@@ -44,7 +44,7 @@ other possible license with no implications from the above license on them.
 #define FARMANAGERVERSION_MAJOR 3
 #define FARMANAGERVERSION_MINOR 0
 #define FARMANAGERVERSION_REVISION 0
-#define FARMANAGERVERSION_BUILD 5579
+#define FARMANAGERVERSION_BUILD 5603
 #define FARMANAGERVERSION_STAGE VS_PRIVATE
 
 #ifndef RC_INVOKED
@@ -713,6 +713,7 @@ typedef intptr_t (WINAPI *FARAPIMENU)(
 
 typedef unsigned long long PLUGINPANELITEMFLAGS;
 static const PLUGINPANELITEMFLAGS
+	// The low word is reserved for private flags
 	PPIF_SELECTED               = 0x0000000040000000ULL,
 	PPIF_PROCESSDESCR           = 0x0000000080000000ULL,
 

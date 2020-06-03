@@ -264,7 +264,7 @@ wchar_t* WINAPI apiRemoveLeadingSpaces(wchar_t *Str) noexcept
 		const auto NewBegin = std::find_if_not(Iterator, Iterator.end(), std::iswspace);
 		if (NewBegin != Iterator)
 		{
-			*std::copy(NewBegin, Iterator.end(), Str) = L'\0';
+			*std::copy(NewBegin, Iterator.end(), Str) = {};
 		}
 		return Str;
 	}
@@ -1843,7 +1843,11 @@ intptr_t WINAPI apiEditor(const wchar_t* FileName, const wchar_t* Title, intptr_
 					if (-1 == editorExitCode)
 						Global->WindowManager->ExecuteModal(Editor);
 
-					if (Editor->GetExitCode())
+					if (Editor->GetExitCode() == XC_OPEN_ERROR)
+					{
+						ExitCode = EEC_OPEN_ERROR;
+					}
+					else
 					{
 #if 0
 
@@ -1852,10 +1856,6 @@ intptr_t WINAPI apiEditor(const wchar_t* FileName, const wchar_t* Title, intptr_
 						else
 #endif
 							ExitCode = Editor->IsFileChanged() ? EEC_MODIFIED : EEC_NOT_MODIFIED;
-					}
-					else
-					{
-						ExitCode = EEC_OPEN_ERROR;
 					}
 				}
 				break;
@@ -2387,7 +2387,7 @@ intptr_t WINAPI apiMacroControl(const GUID* PluginId, FAR_MACRO_CONTROL_COMMANDS
 					Result->ErrCode = ErrCode;
 					Result->ErrPos = ErrPos;
 					Result->ErrSrc = reinterpret_cast<const wchar_t*>(static_cast<char*>(Param2) + stringOffset);
-					*std::copy(ALL_CONST_RANGE(ErrSrc), const_cast<wchar_t*>(Result->ErrSrc)) = L'\0';
+					*copy_string(ErrSrc, const_cast<wchar_t*>(Result->ErrSrc)) = {};
 				}
 
 				return Size;
@@ -2869,7 +2869,7 @@ BOOL WINAPI apiMkLink(const wchar_t *Target, const wchar_t *LinkName, LINK_TYPE 
 {
 	try
 	{
-		int Result = 0;
+		bool Result{};
 
 		if (Target && *Target && LinkName && *LinkName)
 		{
@@ -2885,7 +2885,7 @@ BOOL WINAPI apiMkLink(const wchar_t *Target, const wchar_t *LinkName, LINK_TYPE 
 			case LINK_SYMLINKDIR:
 			case LINK_SYMLINK:
 			{
-				ReparsePointTypes LinkType = RP_JUNCTION;
+				auto LinkType = RP_JUNCTION;
 
 				switch (Type)
 				{

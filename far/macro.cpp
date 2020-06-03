@@ -4683,7 +4683,7 @@ int FarMacroApi::chrFunc()
 
 	if (tmpVar.isNumber())
 	{
-		const wchar_t tmp[]={static_cast<wchar_t>(tmpVar.asInteger()), L'\0'};
+		const wchar_t tmp[]{ static_cast<wchar_t>(tmpVar.asInteger()), {} };
 		tmpVar = tmp;
 	}
 
@@ -5222,7 +5222,7 @@ TEST_CASE("macro.ToDouble")
 
 	for (const auto& i: Tests)
 	{
-		double Result;
+		double Result = 0;
 		REQUIRE(ToDouble(i.Value, Result) == i.Valid);
 
 		if (i.Valid)

@@ -1016,7 +1016,7 @@ bool PluginManager::GetFile(const plugin_panel* hPlugin, PluginPanelItem *PanelI
 	const auto ItemIterator = std::find_if(CONST_RANGE(Find, i) { return !(i.Attributes & FILE_ATTRIBUTE_DIRECTORY); });
 	if (ItemIterator != Find.cend())
 	{
-		string_view Name = PanelItem->FileName;
+		const string_view Name = PanelItem->FileName;
 		const auto isADS = GetCode == 1 && starts_with(Name, ItemIterator->FileName) && starts_with(Name.substr(ItemIterator->FileName.size()), L':');
 		auto Result = path::join(Info.DestPath, isADS? Name : ItemIterator->FileName);
 
@@ -1027,8 +1027,8 @@ bool PluginManager::GetFile(const plugin_panel* hPlugin, PluginPanelItem *PanelI
 		}
 		else
 		{
-			os::fs::set_file_attributes(Result,FILE_ATTRIBUTE_NORMAL);
-			os::fs::delete_file(Result); //BUGBUG
+			(void)os::fs::set_file_attributes(Result,FILE_ATTRIBUTE_NORMAL); // BUGBUG
+			(void)os::fs::delete_file(Result); //BUGBUG
 		}
 	}
 
@@ -1663,7 +1663,7 @@ static wchar_t* StrToBuf(const string& Str, char*& Buf, size_t& Rest, size_t& Si
 	const auto Res = reinterpret_cast<wchar_t*>(BufReserve(Buf, Count, Rest, Size));
 	if (Res)
 	{
-		*std::copy(ALL_CONST_RANGE(Str), Res) = L'\0';
+		*copy_string(Str, Res) = {};
 	}
 	return Res;
 }
@@ -2128,7 +2128,7 @@ bool PluginManager::CallPluginItem(const GUID& Guid, CallPluginInfo *Data) const
 		if (!GetPluginInfo(Data->pPlugin, &Info))
 			return false;
 
-		auto IFlags = Info.Flags;
+		const auto IFlags = Info.Flags;
 		PluginMenuItem* MenuItems = nullptr;
 
 		// Разрешен ли вызов данного типа в текущей области

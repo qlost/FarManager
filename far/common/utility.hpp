@@ -32,6 +32,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "function_traits.hpp"
+#include "preprocessor.hpp"
+
 //----------------------------------------------------------------------------
 
 template<typename T>
@@ -228,6 +231,24 @@ struct [[nodiscard]] overload: args...
 
 template<typename... args> overload(args&&...) -> overload<args...>;
 
+template<typename callable, typename variant>
+constexpr decltype(auto) visit_if(callable&& Callable, variant&& Variant)
+{
+	{
+		using arg = typename function_traits<callable>::template arg<0>;
+		using get_arg = decltype(std::get<std::decay_t<arg>>(Variant));
+		// This will fail if callable's arg type is not compatible with the variant:
+		using try_call [[maybe_unused]] = decltype(Callable(std::declval<get_arg>()));
+	}
+
+	return std::visit(overload
+	{
+		FWD(Callable),
+		[](const auto&...){}
+	},
+	FWD(Variant));
+}
+
 namespace detail
 {
 	template<typename T>
@@ -235,7 +256,7 @@ namespace detail
 }
 
 template<typename src_type, typename dst_type>
-void copy_memory(const src_type* Source, dst_type* Destination, size_t const Size)
+void copy_memory(const src_type* Source, dst_type* Destination, size_t const Size) noexcept
 {
 	static_assert(std::conjunction_v<
 		detail::is_void_or_trivially_copyable<src_type>,

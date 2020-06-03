@@ -392,7 +392,7 @@ size_t encoding::get_chars(uintptr_t const Codepage, std::string_view const Str,
 	const auto Result = get_chars_impl(Codepage, Str, Buffer);
 	if (Result < Buffer.size())
 	{
-		Buffer[Result] = L'\0';
+		Buffer[Result] = {};
 	}
 	return Result;
 }
@@ -421,7 +421,7 @@ string encoding::get_chars(uintptr_t const Codepage, std::string_view const Str)
 	};
 
 	// With this approach we can fill the buffer with only one attempt in many cases.
-	string Buffer(EstimatedCharsCount(), L'\0');
+	string Buffer(EstimatedCharsCount(), {});
 	for (auto Overflow = true; Overflow;)
 	{
 		const auto Size = get_chars(Codepage, Str, Buffer);
@@ -1320,7 +1320,7 @@ TEST_CASE("encoding.ucs2-utf8.round-trip")
 		assert(Size <= std::size(Bytes));
 
 		wchar_t Result;
-		const auto ResultSize = encoding::utf8::get_chars({ Bytes, Size }, { &Result, 1 });
+		[[maybe_unused]] const auto ResultSize = encoding::utf8::get_chars({ Bytes, Size }, { &Result, 1 });
 		assert(ResultSize == 1u);
 
 		return Result;

@@ -3999,7 +3999,7 @@ long FileList::SelectFiles(int Mode, string_view const Mask)
 		{
 			// Учтем тот момент, что имя может содержать символы-разделители
 			strRawMask = concat(L"\""sv, strCurName);
-			size_t pos = strRawMask.rfind(L'.');
+			const auto pos = strRawMask.rfind(L'.');
 
 			if (pos != string::npos && pos!=strRawMask.size()-1)
 				strRawMask.resize(pos);
@@ -5198,7 +5198,7 @@ void FileList::UpdateKeyBar()
 
 bool FileList::PluginPanelHelp(const plugin_panel* hPlugin) const
 {
-	auto strPath = hPlugin->plugin()->ModuleName();
+	string_view strPath = hPlugin->plugin()->ModuleName();
 	CutToSlash(strPath);
 	const auto [File, Name, Codepage] = OpenLangFile(strPath, Global->HelpFileMask, Global->Opt->strHelpLanguage);
 	if (!File)
@@ -5227,7 +5227,7 @@ string FileList::GetPluginPrefix() const
 			PluginInfo PInfo = {sizeof(PInfo)};
 			if (Global->CtrlObject->Plugins->GetPluginInfo(GetPluginHandle()->plugin(), &PInfo) && PInfo.CommandPrefix && *PInfo.CommandPrefix)
 			{
-				string_view Prefix = PInfo.CommandPrefix;
+				const string_view Prefix = PInfo.CommandPrefix;
 				return Prefix.substr(0, Prefix.find(L':')) + L":"sv;
 			}
 		}
@@ -5468,7 +5468,7 @@ void FileList::FileListToPluginItem(const FileListItem& fi, PluginPanelItemHolde
 	const auto MakeCopy = [](string_view const Str)
 	{
 		auto Buffer = std::make_unique<wchar_t[]>(Str.size() + 1);
-		*std::copy(ALL_CONST_RANGE(Str), Buffer.get()) = L'\0';
+		*copy_string(Str, Buffer.get()) = {};
 		return Buffer.release();
 	};
 
@@ -5507,7 +5507,7 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 			const auto CopyToBuffer = [&](string_view const Str)
 			{
 				const auto Result = reinterpret_cast<const wchar_t*>(data);
-				*std::copy(ALL_CONST_RANGE(Str), reinterpret_cast<wchar_t*>(data)) = L'\0';
+				*copy_string(Str, reinterpret_cast<wchar_t*>(data)) = {};
 				data += StringSizeInBytes(Str);
 				return Result;
 			};
@@ -5562,7 +5562,7 @@ FileListItem::FileListItem(const PluginPanelItem& pi)
 
 			string_view const Data = pi.CustomColumnData[i];
 			CustomColumnData[i] = new wchar_t[Data.size() + 1];
-			*std::copy(ALL_CONST_RANGE(Data), CustomColumnData[i]) = L'\0';
+			*copy_string(Data, CustomColumnData[i]) = {};
 		}
 	}
 
@@ -5573,7 +5573,7 @@ FileListItem::FileListItem(const PluginPanelItem& pi)
 	{
 		string_view const Description = pi.Description;
 		const auto Str = new wchar_t[Description.size() + 1];
-		*std::copy(ALL_CONST_RANGE(Description), Str) = L'\0';
+		*copy_string(Description, Str) = {};
 		DizText = Str;
 		DeleteDiz = true;
 	}
@@ -6161,8 +6161,6 @@ int FileList::ProcessOneHostFile(const FileListItem* Item)
 
 	return Done;
 }
-
-
 
 void FileList::SetPluginMode(std::unique_ptr<plugin_panel>&& PluginPanel, const string& PluginFile, bool SendOnFocus)
 {

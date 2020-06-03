@@ -20,6 +20,9 @@ MSBuild.exe /property:Configuration=%CONFIG% /property:Platform=%PLATFORM% far.v
 call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars%PLATFORM:~-2%.bat" || %throw%
 if %CONFIG%==Debug set DEBUG=1
 
+rem print version
+cl 3>&2 2>&1 1>&3 > nul
+
 cd far
 nmake /f makefile_vc %ADD_MAKE% || %throw%
 cd ..
@@ -37,6 +40,9 @@ set PATH=C:\Program Files\LLVM\bin;%PATH%
 set CLANG=1
 if %CONFIG%==Debug set DEBUG=1
 
+rem print version
+clang --version
+
 cd far
 nmake /f makefile_vc %ADD_MAKE% || %throw%
 cd ..
@@ -47,6 +53,9 @@ cd ..
 :GCC_MAKE
 set PATH=C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw%PLATFORM:~-2%\bin;%PATH%
 if %CONFIG%==Debug set DEBUG=1
+
+rem print version
+gcc --version
 
 cd far
 mingw32-make -j4 -f makefile_gcc %ADD_MAKE% || %throw%

@@ -332,7 +332,7 @@ RFLAGS=/nologo /l 0x409 /fo"$(RES_FILE)" $(ADDINCLUDE) /d $(USEDEBUG)
 
 !ifdef CLANG
 CPP = clang-cl
-CPPFLAGS = $(CPPFLAGS) -Qunused-arguments -Werror=old-style-cast
+CPPFLAGS = $(CPPFLAGS) /clang:-fvisibility=hidden -Qunused-arguments -Werror=old-style-cast
 NOBATCH=1
 NO_RELEASE_LTCG=1
 !elseifdef ICL
@@ -419,7 +419,6 @@ include: \
 	"$(FARINCLUDE)\FarColorW.pas" \
 	"$(FARINCLUDE)\farcolor.hpp" \
 	"$(FARINCLUDE)\plugin.hpp" \
-	"$(FARINCLUDE)\DlgBuilder.hpp" \
 	"$(FARINCLUDE)\vc_crt_fix_impl.cpp" \
 	"$(FARINCLUDE)\vc_crt_fix.asm" \
 	"$(FARINCLUDE)\vc_crt_fix_ulink.cpp"
@@ -516,7 +515,7 @@ $(INTDIR)\api_test_c.testobj: $(FARINCLUDE)/plugin.hpp $(FARINCLUDE)/farcolor.hp
 	@echo Testing C plugin API
 	$(CPP) /nologo /c /Fo"$@" /TC api_test.c
 
-$(INTDIR)\api_test_c++.testobj: $(FARINCLUDE)/plugin.hpp $(FARINCLUDE)/farcolor.hpp $(FARINCLUDE)/DlgBuilder.hpp api_test.c
+$(INTDIR)\api_test_c++.testobj: $(FARINCLUDE)/plugin.hpp $(FARINCLUDE)/farcolor.hpp api_test.c
 	@echo Testing C++ plugin API
 	$(CPP) /nologo /c /Fo"$@" /TP api_test.c
 
@@ -533,7 +532,6 @@ $(OUTDIR)\File_id.diz: $(@F).m4 farversion.m4 tools.m4 vbuild.m4
 
 $(FARINCLUDE)\vc_crt_fix_impl.cpp \
 $(FARINCLUDE)\plugin.hpp \
-$(FARINCLUDE)\DlgBuilder.hpp \
 $(FARINCLUDE)\farcolor.hpp: $(@F) farversion.m4 tools.m4 vbuild.m4
 	$(MSG)
 	$(M4) -DINPUT=$(@F) headers.m4 > $@
@@ -587,6 +585,7 @@ PASINSTDIR=$(INSTALLDIR)\PluginSDK\Headers.pas
 install: instdir
 	@echo Installing to $(INSTALLDIR)
 	@copy /Y "$(FARINCLUDE)\*.hpp" "$(HPPINSTDIR)\" > nul
+	@copy /Y "$(FARINCLUDE)\..\..\plugins\common\unicode\DlgBuilder.hpp" "$(HPPINSTDIR)\" > nul
 	@copy /Y "$(FARINCLUDE)\*.pas" "$(PASINSTDIR)\" > nul
 	for %%i in (changelog changelog_eng "$(OUTDIR)\Far.*" "$(OUTDIR)\*.lng" "$(OUTDIR)\File_id.diz" "$(OUTDIR)\*.hlf" "$(OUTDIR)\Far.exe.example.ini") do @copy /Y %%i "$(INSTALLDIR)\" > nul
 

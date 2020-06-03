@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/algorithm.hpp"
+#include "common/string_utils.hpp"
 
 // External:
 
@@ -50,12 +51,12 @@ namespace os::memory
 	{
 		namespace detail
 		{
-			void deleter::operator()(HGLOBAL MemoryBlock) const
+			void deleter::operator()(HGLOBAL MemoryBlock) const noexcept
 			{
 				GlobalFree(MemoryBlock);
 			}
 
-			void unlocker::operator()(const void* MemoryBlock) const
+			void unlocker::operator()(const void* MemoryBlock) const noexcept
 			{
 				GlobalUnlock(const_cast<HGLOBAL>(MemoryBlock));
 			}
@@ -64,6 +65,20 @@ namespace os::memory
 		ptr alloc(UINT Flags, size_t size)
 		{
 			return ptr(GlobalAlloc(Flags, size));
+		}
+
+		ptr copy(HGLOBAL const Ptr)
+		{
+			const auto Size = GlobalSize(Ptr);
+			auto Memory = alloc(GMEM_MOVEABLE, Size);
+			if (!Memory)
+				return nullptr;
+
+			const auto From = lock<const char*>(Ptr);
+			const auto To = lock<char*>(Memory);
+			std::copy(From.get(), From.get() + Size, To.get());
+
+			return Memory;
 		}
 
 		ptr copy(string_view const Str)
@@ -76,7 +91,7 @@ namespace os::memory
 			if (!Copy)
 				return nullptr;
 
-			*std::copy(ALL_CONST_RANGE(Str), Copy.get()) = L'\0';
+			*copy_string(Str, Copy.get()) = {};
 			return Memory;
 		}
 
@@ -86,7 +101,7 @@ namespace os::memory
 	{
 		namespace detail
 		{
-			void deleter::operator()(const void* MemoryBlock) const
+			void deleter::operator()(const void* MemoryBlock) const noexcept
 			{
 				LocalFree(const_cast<HLOCAL>(MemoryBlock));
 			}

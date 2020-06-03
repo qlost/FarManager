@@ -1,7 +1,105 @@
-﻿=======================================================================================
-This file is a translation of the main russian changelog and is provided by volunteers.
-It might not always be as up to date as the main changelog.
-=======================================================================================
+drkns 01.06.2020 02:05:40 +0100 - build 5615
+
+1. Refactoring.
+
+drkns 30.05.2020 20:22:00 +0100 - build 5614
+
+1. FarDlgBuilder.hpp doesn't depend on DlgBuilder.hpp anymore.
+   DlgBuilder.hpp is now only used by plugins.
+
+shmuel 30.05.2020 19:39:20 +0300 - build 5613
+
+1. Experimentally: do not hide progress windows (e.g. copy progress) during macro execution.
+
+drkns 29.05.2020 18:57:47 +0100 - build 5612
+
+1. File descriptions weren't removed in some cases.
+
+2. Refactoring.
+
+3. Warnings.
+
+svs 27.05.2020 21:30:18 +0300 - build 5611
+
+1. SQLite 3.32.1
+
+drkns 26.05.2020 08:45:08 +0100 - build 5610
+
+1. Correction of 5608.
+
+svs 26.05.2020 10:38:50 +0300 - build 5609
+
+1. SQLite 3.32.0
+
+drkns 25.05.2020 16:27:26 +0100 - build 5608
+
+1. Incorrect symlink creation.
+
+2. Incorrect display of network drives in attributes dialog.
+
+3. Refactoring. Removed a lot of copy-paste.
+
+drkns 24.05.2020 20:53:25 +0100 - build 5607
+
+1. New versions of fmt, tinyxml2, Catch2.
+
+2. Warnings.
+
+drkns 24.05.2020 02:04:04 +0100 - build 5606
+
+1. Correction of 5599 once more.
+
+2. Ignore spaces before / after far:config and far:about.
+
+3. A few minor optimisations.
+
+4. Unit tests preserve the clipboard.
+
+5. Remove the disclaimer from this file. Update it along with everything else, it's not that hard.
+
+zg 21.05.2020 14:52:59 +0300 - build 5605
+
+1. first DN_GOTFOCUS could contain outdated information.
+
+drkns 19.05.2020 20:35:17 +0100 - build 5604
+
+1. gh-242: Far2 CtrlAltShift behavior
+
+zg 18.05.2020 23:28:13 +0300 - build 5603
+
+1. revert 5601.
+
+drkns 18.05.2020 18:13:57 +0100 - build 5602
+
+1. Correction of 5599.
+
+zg 18.05.2020 17:08:41 +0300 - build 5601
+
+1. experimental: new event SE_FOLDERCHANGED, sent when changing the current directory in panels.
+
+drkns 17.05.2020 17:56:00 +0100 - build 5600
+
+1. Refactoring.
+
+2. Tests.
+
+drkns 16.05.2020 02:22:20 +0100 - build 5599
+
+1. Refactoring.
+
+3. Warnings.
+
+drkns 15.05.2020 18:05:22 +0100 - build 5598
+
+1. Request credentials when traversing network paths.
+
+drkns 13.05.2020 23:46:30 +0100 - build 5597
+
+1. Refactoring.
+
+2. Corrections of 5592.
+
+3. Warnings.
 
 drkns 04.05.2020 20:12:47 +0300 - build 5596
 

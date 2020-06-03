@@ -51,9 +51,12 @@ namespace tinyxml_impl
 
 WARNING_PUSH()
 
+WARNING_DISABLE_MSC(4668) // 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
+
 WARNING_DISABLE_GCC("-Wdouble-promotion")
 WARNING_DISABLE_GCC("-Wimplicit-fallthrough")
 WARNING_DISABLE_GCC("-Wold-style-cast")
+WARNING_DISABLE_GCC("-Wzero-as-null-pointer-constant")
 
 WARNING_DISABLE_CLANG("-Weverything")
 WARNING_DISABLE_CLANG("-Wold-style-cast")
