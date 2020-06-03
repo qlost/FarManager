@@ -1,13 +1,6 @@
-﻿#include <algorithm>
+﻿#include <CRT\crt.hpp>
 #include <array>
 #include <mutex>
-#include <string>
-#include <string_view>
-#include <unordered_map>
-#include <cassert>
-#include <cmath>
-#include <cwchar>
-#include <cwctype>
 
 #include "Proclist.hpp"
 #include "perfthread.hpp"
@@ -187,7 +180,7 @@ static bool TranslateMode(const std::wstring& Src, std::wstring& Destination)
 
 			default:
 				auto endptr = src;
-				while (std::iswdigit(*endptr))
+				while (iswdigit(*endptr))
 					++endptr;
 
 				if (endptr == src)
@@ -658,7 +651,7 @@ int Plist::GetFindData(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, OPERAT
 				case L'U': if (pd) dwData = pd->dwUSERObjects; break;
 
 				default:
-					if (std::iswdigit(c))
+					if (iswdigit(c))
 					{
 						iCounter = FSF.atoi(&tok[1]);
 

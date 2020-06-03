@@ -1,5 +1,4 @@
-﻿#include <algorithm>
-#include <mutex>
+﻿#include <mutex>
 
 #include "Proclist.hpp"
 #include "Proclng.hpp"
@@ -7,6 +6,8 @@
 #include "ipc.hpp"
 
 #include <psapi.h>
+
+void __cdecl std::_Xbad_function_call(void) {}
 
 using namespace std::literals;
 

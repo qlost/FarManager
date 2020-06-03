@@ -1,9 +1,7 @@
 ﻿// Based on Zoltan Csizmadia's TaskManagerEx source, zoltan_csizmadia@yahoo.com
 
 #include <algorithm>
-#include <memory>
 #include <mutex>
-#include <string_view>
 
 #include "Proclist.hpp"
 #include "perfthread.hpp" // fot GetProcessData
@@ -11,6 +9,8 @@
 
 #include <lmcons.h>
 #include <sddl.h>
+
+void __cdecl std::_Xout_of_range(char const*) {}
 
 using namespace std::literals;
 
