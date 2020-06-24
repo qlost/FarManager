@@ -49,7 +49,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cddrv.hpp"
 #include "syslog.hpp"
 #include "interf.hpp"
-#include "drivemix.hpp"
 #include "dirmix.hpp"
 #include "pathmix.hpp"
 #include "strmix.hpp"
@@ -308,65 +307,66 @@ void InfoList::DisplayObject()
 		                            &strFileSystemName))
 		{
 			auto DiskTypeId = lng::MInfoUnknown;
-			int DriveType=FAR_GetDriveType(strDriveRoot, Global->Opt->InfoPanel.ShowCDInfo);
+			int DriveType=FAR_GetDriveType(strDriveRoot);
+			string strAssocPath;
+			bool UseAssocPath = false;
 
 			switch (DriveType)
 			{
 				case DRIVE_REMOVABLE:
 					DiskTypeId = lng::MInfoRemovable;
 					break;
+
 				case DRIVE_FIXED:
 					DiskTypeId = lng::MInfoFixed;
 					break;
+
 				case DRIVE_REMOTE:
-					DiskTypeId = lng::MInfoNetwork;
+					{
+						DiskTypeId = lng::MInfoNetwork;
+						auto DeviceName = strDriveRoot;
+						DeleteEndSlash(DeviceName);
+						os::WNetGetConnection(DeviceName, strAssocPath);
+						UseAssocPath = true;
+					}
 					break;
+
 				case DRIVE_CDROM:
-					DiskTypeId = lng::MInfoCDROM;
+					if (Global->Opt->InfoPanel.ShowCDInfo)
+					{
+						static_assert(as_underlying_type(lng::MInfoHDDVDRAM) - as_underlying_type(lng::MInfoCDROM) == as_underlying_type(cd_type::hddvdram) - as_underlying_type(cd_type::cdrom));
+
+						DiskTypeId = lng::MInfoCDROM + (as_underlying_type(get_cdrom_type(strDriveRoot)) - as_underlying_type(cd_type::cdrom));
+					}
+					else
+					{
+						DiskTypeId = lng::MInfoCDROM;
+					}
 					break;
+
 				case DRIVE_RAMDISK:
 					DiskTypeId = lng::MInfoRAM;
 					break;
+
 				default:
-
-					if (IsDriveTypeCDROM(DriveType))
-						DiskTypeId = lng::MInfoCD_RW + (DriveType - DRIVE_CD_RW);
-
 					break;
 			}
-
-			string strAssocPath;
 
 			if (GetSubstName(DriveType,strDriveRoot,strAssocPath))
 			{
 				DiskTypeId = lng::MInfoSUBST;
-				DriveType=DRIVE_SUBSTITUTE;
+				UseAssocPath = true;
 			}
 			else if(DriveCanBeVirtual(DriveType) && GetVHDInfo(strDriveRoot,strAssocPath))
 			{
 				DiskTypeId = lng::MInfoVirtual;
-				DriveType=DRIVE_VIRTUAL;
+				UseAssocPath = true;
 			}
 
 			SectionTitle = concat(msg(DiskTypeId), L' ', msg(lng::MInfoDisk), L' ', strDriveRoot, L" ("sv, strFileSystemName, L')');
 
-			switch(DriveType)
-			{
-				case DRIVE_REMOTE:
-					{
-						auto DeviceName = strDriveRoot;
-						DeleteEndSlash(DeviceName);
-						os::WNetGetConnection(DeviceName, strAssocPath);
-					}
-					// TODO: check result
-					[[fallthrough]];
-				case DRIVE_SUBSTITUTE:
-				case DRIVE_VIRTUAL:
-				{
-					append(SectionTitle, L' ', strAssocPath);
-				}
-				break;
-			}
+			if (UseAssocPath)
+				append(SectionTitle, L' ', strAssocPath);
 
 			strDiskNumber = format(FSTR(L"{0:04X}-{1:04X}"), HIWORD(VolumeNumber), LOWORD(VolumeNumber));
 		}
@@ -889,7 +889,7 @@ void InfoList::PrintText(lng MsgID) const
 }
 
 
-void InfoList::PrintInfo(const string& Str) const
+void InfoList::PrintInfo(string_view const Str) const
 {
 	if (WhereY() > m_Where.bottom - 1)
 		return;
@@ -1017,10 +1017,9 @@ void InfoList::CloseFile()
 	strDizFileName.clear();
 }
 
-bool InfoList::OpenDizFile(const string& DizFile,int YPos)
+bool InfoList::OpenDizFile(string_view const DizFile, int const YPos)
 {
 	bool bOK=true;
-	_tran(SysLog(L"InfoList::OpenDizFile([%s]",DizFile));
 
 	if (!DizView)
 	{

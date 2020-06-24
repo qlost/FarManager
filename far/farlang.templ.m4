@@ -6075,6 +6075,19 @@ upd:"Cannot move folder to the Recycle Bin"
 "Не вдалося перемістити папку в Кошик"
 "Немагчыма перанесці каталог у Сметнік"
 
+MTryToDeletePermanently
+"Попробовать удалить окончательно?"
+"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+upd:"Try to delete it permanently?"
+"Спробувати видалити остаточно?"
+"Паспрабаваць выдаліць канчаткова?"
+
 MCannotGetSecurity
 l:
 "Ошибка получения прав доступа к файлу"
@@ -9718,10 +9731,10 @@ MEditNewPlugin1
 
 MEditorLoadCPWarn1
 "Файл содержит символы, которые невозможно"
-"File contains characters that cannot be"
+"The file contains characters that cannot be"
 "Soubor obsahuje znaky, které se nedají"
 "Datei enthält Symbole, die korrekt"
-upd:"File contains characters that cannot be"
+upd:"The file contains characters that cannot be"
 "Plik zawiera znaki, które nie mogą być"
 "El archivo contiene caracteres que no pueden ser"
 "Súbor obsahuje znaky, ktoré sa nedajú"
@@ -9731,10 +9744,10 @@ upd:"File contains characters that cannot be"
 
 MEditorLoadCPWarn2
 "корректно прочитать, используя выбранную кодовую страницу."
-"correctly read using selected code page."
+"correctly read using the selected code page."
 "správně přečíst se zvolenou kódovou stránkou."
 "mit ausgewälte Codepage nicht gelesen werden können."
-upd:"correctly read using selected code page."
+upd:"correctly read using the selected code page."
 "poprawnie odczytane w tej stronie kodowej."
 "correctamente leídos con la página de códigos (codepage) seleccionada."
 "správne prečítať so zvolenou tabuľkou znakov."
@@ -9784,10 +9797,10 @@ upd:"Editor contains characters that cannot be"
 
 MEditorSaveCPWarn2
 "корректно сохранить, используя выбранную кодовую страницу."
-"correctly saved using selected code page."
+"correctly saved using the selected code page."
 "správně uložit se zvolenou kódovou stránkou."
 "mit ausgewählte Codepage nicht gespeichert werden können."
-upd:"correctly saved using selected code page."
+upd:"correctly saved using the selected code page."
 "poprawnie zapisane w wybranej stronie kodowej."
 "correctamente guardados con página de códigos (codepage) seleccionada."
 "správne uložiť so zvolenou tabuľkou znakov."
@@ -9809,17 +9822,17 @@ upd:"Editor contains characters that cannot be"
 "Змена ўтрымоўвае сімвалы, якія немагчыма"
 
 MEditorSwitchCPWarn2
-"корректно преобразовать, используя выбранную кодовую страницу [{0}]"
-"correctly translated using selected code page [{0}]"
-"správně přeložit se zvolenou kódovou stránkou [{0}]"
-"mit ausgewählte Codepage nicht gewandelt werden können [{0}]"
-upd:"correctly translated using selected code page [{0}]"
-"poprawnie przetłumaczone w bieżącej stronie kodowej [{0}]"
-"con la página de códigos (codepage) seleccionada [{0}]"
-"správne preložiť so zvolenou tabuľkou znakov [{0}]"
-"Correttamente Tradotti Usando La Tabella Selezionata [{0}]"
-"коректно перетворити з використанням обраної кодової сторінки [{0}]"
-"правільна пераўтварыць, калі ўжыць абраную кадыроўку [{0}]"
+"корректно преобразовать, используя выбранную кодовую страницу:"
+"correctly translated using the selected code page:"
+"správně přeložit se zvolenou kódovou stránkou:"
+"mit ausgewählte Codepage nicht gewandelt werden können:"
+upd:"correctly translated using the selected code page:"
+"poprawnie przetłumaczone w bieżącej stronie kodowej:"
+"con la página de códigos (codepage) seleccionada:"
+"správne preložiť so zvolenou tabuľkou znakov:"
+"Correttamente Tradotti Usando La Tabella Selezionata:"
+"коректно перетворити з використанням обраної кодової сторінки:"
+"правільна пераўтварыць, калі ўжыць абраную кадыроўку:"
 
 MEditorSwitchCPConfirm
 "Продолжить?"
@@ -14648,11 +14661,24 @@ MInfoCDROM
 "CD-ROM"
 "CD-ROM"
 "CD-ROM"
-"CD-Rom"
 "CD-ROM"
 "CD-ROM"
+"CD-ROM"
 
-MInfoCD_RW
+MInfoCDR
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+
+MInfoCDRW
 "CD-RW"
 "CD-RW"
 "CD-RW"
@@ -14665,7 +14691,7 @@ MInfoCD_RW
 "CD-RW"
 "CD-RW"
 
-MInfoCD_RWDVD
+MInfoCDRWDVD
 "CD-RW/DVD"
 "CD-RW/DVD"
 "CD-RW/DVD"
@@ -14678,7 +14704,7 @@ MInfoCD_RWDVD
 "CD-RW/DVD"
 "CD-RW/DVD"
 
-MInfoDVD_ROM
+MInfoDVDROM
 "DVD-ROM"
 "DVD-ROM"
 "DVD-ROM"
@@ -14687,11 +14713,24 @@ MInfoDVD_ROM
 "DVD-ROM"
 "DVD-ROM"
 "DVD-ROM"
-"DVD-Rom"
+"DVD-ROM"
 "DVD-ROM"
 "DVD-ROM"
 
-MInfoDVD_RW
+MInfoDVDR
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+
+MInfoDVDRW
 "DVD-RW"
 "DVD-RW"
 "DVD-RW"
@@ -14704,7 +14743,7 @@ MInfoDVD_RW
 "DVD-RW"
 "DVD-RW"
 
-MInfoDVD_RAM
+MInfoDVDRAM
 "DVD-RAM"
 "DVD-RAM"
 "DVD-RAM"
@@ -14713,9 +14752,100 @@ MInfoDVD_RAM
 "DVD-RAM"
 "DVD-RAM"
 "DVD-RAM"
-"DVD-Ram"
 "DVD-RAM"
 "DVD-RAM"
+"DVD-RAM"
+
+MInfoBDROM
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+"BD-ROM"
+
+MInfoBDR
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+
+MInfoBDRW
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+"BD-RW"
+
+MInfoHDDVDROM
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+"HDDVD-ROM"
+
+MInfoHDDVDR
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+
+MInfoHDDVDRW
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+"HDDVD-RW"
+
+MInfoHDDVDRAM
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
 
 MInfoRAM
 "RAM"
@@ -16924,7 +17054,20 @@ MChangeDriveCDROM
 "CD-ROM"
 "CD-ROM"
 
-MChangeDriveCD_RW
+MChangeDriveCDR
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+"CD-R"
+
+MChangeDriveCDRW
 "CD-RW"
 "CD-RW"
 "CD-RW"
@@ -16937,7 +17080,7 @@ MChangeDriveCD_RW
 "CD-RW"
 "CD-RW"
 
-MChangeDriveCD_RWDVD
+MChangeDriveCDRWDVD
 "CD-RW/DVD"
 "CD-RW/DVD"
 "CD-RW/DVD"
@@ -16950,7 +17093,7 @@ MChangeDriveCD_RWDVD
 "CD-RW/DVD"
 "CD-RW/DVD"
 
-MChangeDriveDVD_ROM
+MChangeDriveDVDROM
 "DVD-ROM"
 "DVD-ROM"
 "DVD-ROM"
@@ -16963,20 +17106,33 @@ MChangeDriveDVD_ROM
 "DVD-ROM"
 "DVD-ROM"
 
-MChangeDriveDVD_RW
+MChangeDriveDVDR
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+"DVD-R"
+
+MChangeDriveDVDRW
 "DVD-RW"
 "DVD-RW"
-"DWD-RW"
 "DVD-RW"
 "DVD-RW"
 "DVD-RW"
 "DVD-RW"
-"DWD-RW"
+"DVD-RW"
+"DVD-RW"
 "DVD-RW"
 "DVD-RW"
 "DVD-RW"
 
-MChangeDriveDVD_RAM
+MChangeDriveDVDRAM
 "DVD-RAM"
 "DVD-RAM"
 "DVD-RAM"
@@ -16989,7 +17145,7 @@ MChangeDriveDVD_RAM
 "DVD-RAM"
 "DVD-RAM"
 
-MChangeDriveBD_ROM
+MChangeDriveBDROM
 "BD-ROM"
 "BD-ROM"
 "BD-ROM"
@@ -17002,7 +17158,20 @@ MChangeDriveBD_ROM
 "BD-ROM"
 "BD-ROM"
 
-MChangeDriveBD_RW
+MChangeDriveBDR
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+"BD-R"
+
+MChangeDriveBDRW
 "BD-RW"
 "BD-RW"
 "BD-RW"
@@ -17015,7 +17184,7 @@ MChangeDriveBD_RW
 "BD-RW"
 "BD-RW"
 
-MChangeDriveHDDVD_ROM
+MChangeDriveHDDVDROM
 "HDDVD-ROM"
 "HDDVD-ROM"
 "HDDVD-ROM"
@@ -17028,7 +17197,20 @@ MChangeDriveHDDVD_ROM
 "HDDVD-ROM"
 "HDDVD-ROM"
 
-MChangeDriveHDDVD_RW
+MChangeDriveHDDVDR
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+"HDDVD-R"
+
+MChangeDriveHDDVDRW
 "HDDVD-RW"
 "HDDVD-RW"
 "HDDVD-RW"
@@ -17041,6 +17223,18 @@ MChangeDriveHDDVD_RW
 "HDDVD-RW"
 "HDDVD-RW"
 
+MChangeDriveHDDVDRAM
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
+"HDDVD-RAM"
 
 MChangeDriveRAM
 "RAM диск"
@@ -23794,7 +23988,7 @@ upd:"Minidump saved to"
 upd:"Minidump saved to"
 upd:"Minidump saved to"
 "Мінідамп збережено в"
-upd:"Мінідамп захаваны ў"
+"Мінідамп захаваны ў"
 
 
 MNetUserName
@@ -29107,19 +29301,46 @@ MKBTreeCtrlAltShiftF12
 ""
 ""
 
-MCopyTimeInfo
+MCopyTimeInfoElapsed
 l:
-"Время: {0}    Осталось: {1}    {2}Б/с"
-"Time: {0}    Remaining: {1}    {2}B/s"
-"Čas: {0}      Zbývá: {1}       {2}B/s"
-"Zeit: {0}     Restzeit: {1}    {2}B/s"
-"Eltelt: {0}    Maradt: {1}     {2}B/s"
-"Czas: {0}    Pozostało: {1}    {2}B/s"
-"Tiempo: {0}    Restante: {1}   {2}b/s"
-"Čas: {0}      Zostáva: {1}     {2}B/s"
-"Tempo: {0}     Manca: {1}      {2}B/s"
-"Час: {0}    Залишилося: {1}    {2}Б/с"
-"Час: {0}    Засталося: {1}    {2}Б/с"
+"Время:"
+"Time:"
+"Čas:"
+"Zeit:"
+"Eltelt:"
+"Czas:"
+"Tiempo:"
+"Čas:"
+"Tempo:"
+"Час:"
+"Час:"
+
+MCopyTimeInfoRemaining
+"Осталось:"
+"Remaining:"
+"Zbývá:"
+"Restzeit:"
+"Maradt:"
+"Pozostało:"
+"Restante:"
+"Zostáva:"
+"Manca:"
+"Залишилося:"
+"Засталося:"
+
+MCopyTimeInfoSpeed
+l:// Bytes per second
+"Б/с"
+"B/s"
+"B/s"
+"B/s"
+"B/s"
+"B/s"
+"b/s"
+"B/s"
+"B/s"
+"Б/с"
+"Б/с"
 
 MKeyESCWasPressed
 l:
@@ -29964,7 +30185,7 @@ upd:"para reemplazar este objeto:"
 upd:"nahradenie tohto objektu:"
 upd:"Per Sostituire Questo Oggetto:"
 "для заміщення цього об'єкта:"
-upd:"для замены гэтага аб'екту:"
+"для замены гэтага аб'екту:"
 
 MElevationRequiredGetAttributes
 "для получения атрибутов этого объекта:"

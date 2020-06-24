@@ -239,7 +239,7 @@ bool FileFilterParams::FileInFilter(const FileListItem& Object, const FileList* 
 	return FileInFilter(FilterObject, CurrentTime, [&]{ return Object.NumberOfLinks(Owner); });
 }
 
-bool FileFilterParams::FileInFilter(const os::fs::find_data& Object, os::chrono::time_point CurrentTime,const string* FullName) const
+bool FileFilterParams::FileInFilter(const os::fs::find_data& Object, os::chrono::time_point const CurrentTime, string_view const FullName) const
 {
 	const filter_file_object FilterObject
 	{
@@ -254,10 +254,10 @@ bool FileFilterParams::FileInFilter(const os::fs::find_data& Object, os::chrono:
 
 	return FileInFilter(FilterObject, CurrentTime, [&]
 	{
-		if (!FullName)
+		if (FullName.empty())
 			return DWORD{1};
 
-		const auto Hardlinks = GetNumberOfLinks(*FullName);
+		const auto Hardlinks = GetNumberOfLinks(FullName);
 		return Hardlinks? static_cast<DWORD>(*Hardlinks) : 1;
 	});
 }
@@ -641,7 +641,7 @@ static void HighlightDlgUpdateUserControl(matrix_view<FAR_CHAR_INFO> const& VBuf
 			++Iterator;
 		}
 
-		const auto FileArea = span(Iterator, Row.end() - 1);
+		const span FileArea(Iterator, Row.end() - 1);
 		const auto Str = fit_to_left(msg(lng::MHighlightExample), FileArea.size());
 
 		for (const auto& [Cell, Char] : zip(FileArea, Str))

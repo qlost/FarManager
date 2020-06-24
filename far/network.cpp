@@ -105,7 +105,7 @@ os::fs::drives_set GetSavedNetworkDrives()
 	return Drives;
 }
 
-bool ConnectToNetworkResource(const string& NewDir)
+bool ConnectToNetworkResource(string_view const NewDir)
 {
 	string LocalName, RemoteName;
 
@@ -114,7 +114,7 @@ bool ConnectToNetworkResource(const string& NewDir)
 	{
 		LocalName = NewDir.substr(0, 2);
 		// TODO: check result
-		DriveLocalToRemoteName(DRIVE_REMOTE_NOT_CONNECTED, NewDir[0], RemoteName);
+		DriveLocalToRemoteName(DRIVE_REMOTE, NewDir[0], RemoteName);
 	}
 	else
 	{
@@ -151,7 +151,7 @@ bool ConnectToNetworkResource(const string& NewDir)
 			Message(MSG_WARNING, error_state::fetch(),
 				msg(lng::MError),
 				{
-					NewDir
+					string(NewDir)
 				},
 				{ lng::MOk });
 			return false;
@@ -211,7 +211,7 @@ bool DriveLocalToRemoteName(int DriveType, wchar_t Letter, string &strDest)
 
 	string strRemoteName;
 
-	if (IsDriveTypeRemote(DriveType) && os::WNetGetConnection(LocalName, strRemoteName))
+	if (DriveType == DRIVE_REMOTE && os::WNetGetConnection(LocalName, strRemoteName))
 	{
 		strDest = strRemoteName;
 		return true;

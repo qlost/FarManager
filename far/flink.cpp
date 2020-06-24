@@ -347,7 +347,7 @@ std::optional<size_t> GetNumberOfLinks(string_view const Name)
 	return bhfi.nNumberOfLinks;
 }
 
-bool MkHardLink(const string& ExistingName,const string& NewName, bool Silent)
+bool MkHardLink(string_view const ExistingName, string_view const NewName, bool const Silent)
 {
 	for (;;)
 	{
@@ -407,7 +407,7 @@ bool GetSubstName(int DriveType,const string& DeviceName, string &strTargetPath)
 	*/
 	const auto DriveRemovable = DriveType == DRIVE_REMOVABLE || DriveType == DRIVE_CDROM;
 
-	if (DriveType==DRIVE_NOT_INIT || (((Global->Opt->SubstNameRule & 1) || !DriveRemovable) && ((Global->Opt->SubstNameRule & 2) || DriveRemovable)))
+	if (((Global->Opt->SubstNameRule & 1) || !DriveRemovable) && ((Global->Opt->SubstNameRule & 2) || DriveRemovable))
 	{
 		const auto Type = ParsePath(DeviceName);
 		if (Type == root_type::drive_letter)
