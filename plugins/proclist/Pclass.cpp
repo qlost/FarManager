@@ -47,6 +47,13 @@ private:
 // TODO: API?
 static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousands)
 {
+	size_t size = FSF.FormatFileSize(value, width, FFFS_SHOWBYTESINDEX | FFFS_ECONOMIC | (bThousands ? FFFS_THOUSAND : 0), NULL, 0);
+	wchar_t* s = new wchar_t[size];
+	FSF.FormatFileSize(value, width, FFFS_SHOWBYTESINDEX | FFFS_ECONOMIC | (bThousands ? FFFS_THOUSAND : 0), s, size);
+	auto ValueStr = str(s);
+	free(s);
+	return ValueStr;
+/*
 	auto ValueStr = str(value);
 	if (ValueStr.size() <= width)
 		return ValueStr;
@@ -88,6 +95,7 @@ static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousand
 	}
 
 	return ValueStr.append(1, L' ').append(1, L"BKMGTPE"[UnitIndex]);
+*/
 }
 
 static std::wstring PrintTitle(std::wstring_view const Msg)
