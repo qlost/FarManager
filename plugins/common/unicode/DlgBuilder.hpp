@@ -52,7 +52,7 @@ public:
 
 	virtual ~DialogAPIBinding() = default;
 
-	virtual void SaveValue(FarDialogItem const* Item, int RadioGroupIndex) = 0;
+	virtual void SaveValue(FarDialogItem const* Item, int RadioGroupIndex) {}
 
 	int BeforeLabelID{-1};
 	int AfterLabelID{-1};
