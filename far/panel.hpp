@@ -115,7 +115,7 @@ enum class panel_mode
 	PLUGIN_PANEL
 };
 
-enum class panel_sort
+enum class panel_sort: int
 {
 	UNSORTED,
 	BY_NAME,
@@ -130,11 +130,13 @@ enum class panel_sort
 	BY_NUMLINKS,
 	BY_NUMSTREAMS,
 	BY_STREAMSSIZE,
-	BY_FULLNAME,
+	BY_NAMEONLY,
 	BY_CHTIME,
 
 	COUNT
 };
+
+span<int const> default_sort_layers(panel_sort SortMode);
 
 enum sort_order
 {
