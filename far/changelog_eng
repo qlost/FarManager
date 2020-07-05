@@ -1,3 +1,31 @@
+drkns 05.07.2020 19:49:40 +0100 - build 5637
+
+1. Continuation of 5370 - skip redundant scroll on startup.
+
+drkns 05.07.2020 18:37:32 +0100 - build 5636
+
+1. VS 2019 16.7 & GCC warnings.
+
+drkns 05.07.2020 15:10:15 +0100 - build 5635
+
+1. Another attempt to workaround Windows 10 console host bugs.
+
+drkns 04.07.2020 13:30:24 +0100 - build 5634
+
+1. Correction of 5598.
+
+drkns 04.07.2020 12:52:29 +0100 - build 5633
+
+1. gh-250: Use ArcLite for .apk and .aar by default
+
+drkns 04.07.2020 02:32:19 +0100 - build 5632
+
+1. C++20 warnings.
+
+2. VS 2019 16.7 warnings.
+
+3. A few minor optimisations of size formatting.
+
 drkns 03.07.2020 02:42:42 +0100 - build 5631
 
 1. Continuation and improving of 5630.1:

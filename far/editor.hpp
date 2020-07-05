@@ -189,9 +189,6 @@ private:
 		numbered_iterator_t& operator++() { ++base(); ++m_Number; return *this; }
 		numbered_iterator_t& operator--() { --base(); --m_Number; return *this; }
 
-		bool operator==(const numbered_iterator_t& rhs) const { return base() == rhs.base(); }
-		bool operator==(const T& rhs) const { return rhs == *this; }
-
 		T& base() { return *this; }
 		const std::conditional_t<std::is_base_of_v<ConstT, T>, ConstT, T>& base() const { return *this; }
 		std::conditional_t<std::is_base_of_v<ConstT, T>, const ConstT&, ConstT> cbase() const { return *this; }
