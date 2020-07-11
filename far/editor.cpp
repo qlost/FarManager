@@ -121,6 +121,7 @@ eol Editor::GetDefaultEOL()
 
 Editor::Editor(window_ptr Owner, bool DialogUsed):
 	SimpleScreenObject(std::move(Owner)),
+	GlobalEOL(GetDefaultEOL()),
 	EdOpt(Global->Opt->EdOpt),
 	LastSearchCase(Global->GlobalSearchCase),
 	LastSearchWholeWords(Global->GlobalSearchWholeWords),
@@ -139,15 +140,13 @@ Editor::Editor(window_ptr Owner, bool DialogUsed):
 	if (Global->GetSearchHex())
 	{
 		const auto Blob = HexStringToBlob(Global->GetSearchString(), 0);
-		strLastSearchStr.assign(ALL_CONST_RANGE(Blob));
+		strLastSearchStr.assign(view_as<char const*>(Blob.data()), view_as<char const*>(Blob.data() + Blob.size()));
 	}
 	else
 	{
 		strLastSearchStr = Global->GetSearchString();
 	}
 	UnmarkMacroBlock();
-
-	GlobalEOL = GetDefaultEOL();
 	PushString({});
 }
 
@@ -217,7 +216,7 @@ void Editor::KeepInitParameters() const
 	{
 		// BUGBUG, it's unclear how to represent unicode in hex
 		const auto AnsiStr = encoding::get_bytes(m_codepage, strLastSearchStr);
-		Global->StoreSearchString(BlobToHexWString({ AnsiStr.data(), AnsiStr.size() }, 0), true);
+		Global->StoreSearchString(BlobToHexString(view_bytes(AnsiStr), 0), true);
 	}
 	else
 	{
