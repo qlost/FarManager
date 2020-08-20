@@ -1223,7 +1223,7 @@ bool Dialog::GetItemRect(size_t I, SMALL_RECT& Rect)
 bool Dialog::ItemHasDropDownArrow(const DialogItemEx *Item)
 {
 	return (!Item->strHistory.empty() && (Item->Flags & DIF_HISTORY) && Global->Opt->Dialogs.EditHistory) ||
-		(Item->Type == DI_COMBOBOX && Item->ListPtr && !Item->ListPtr->empty());
+		(Item->Type == DI_COMBOBOX && Item->ListPtr && Item->ListPtr->HasVisible());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1748,9 +1748,17 @@ void Dialog::ShowDialog(size_t ID)
 
 				if (!(Item.Flags & DIF_WORDWRAP))
 				{
-					LenText=LenStrItem(I,strStr);
-
-					if (!(Item.Flags & (DIF_SEPARATORUSER | DIF_SEPARATOR | DIF_SEPARATOR2)) && CX1 != -1 && CX2 > CX1)
+					if (Item.Flags & (DIF_SEPARATORUSER | DIF_SEPARATOR | DIF_SEPARATOR2))
+					{
+						if (!strStr.empty())
+						{
+							if (!starts_with(strStr, L" "sv))
+								strStr.insert(0, 1, L' ');
+							if (!ends_with(strStr, L" "sv))
+								strStr.push_back(L' ');
+						}
+					}
+					else if (CX1 != -1 && CX2 > CX1)
 					{
 						if (Item.Flags & DIF_RIGHTTEXT)
 							inplace::fit_to_right(strStr, CX2 - CX1 + 1);
@@ -1758,9 +1766,9 @@ void Dialog::ShowDialog(size_t ID)
 							inplace::fit_to_center(strStr, CX2 - CX1 + 1);
 						else
 							inplace::fit_to_left(strStr, CX2 - CX1 + 1);
-
-						LenText = LenStrItem(I, strStr);
 					}
+
+					LenText = LenStrItem(I, strStr);
 
 					if ((CX2 <= 0) || (CX2 < CX1))
 						CW = LenText;
@@ -1812,13 +1820,6 @@ void Dialog::ShowDialog(size_t ID)
 							(Item.Flags & DIF_SEPARATORUSER)? line_type::h_user : (Item.Flags & DIF_SEPARATOR2? line_type::h2_to_v2 : line_type::h1_to_v2),
 							Item.strMask
 						);
-						if (!strStr.empty())
-						{
-							if (!starts_with(strStr, L" "sv))
-								strStr.insert(0, 1, L' ');
-							if (!ends_with(strStr, L" "sv))
-								strStr.push_back(L' ');
-						}
 					}
 
 					GotoXY(m_Where.left + X, m_Where.top + Y);
@@ -3547,7 +3548,7 @@ bool Dialog::ProcessOpenComboBox(FARDIALOGITEMTYPES Type,DialogItemEx *CurItem, 
 	// $ 18.07.2000 SVS:  +обработка DI_COMBOBOX - выбор из списка!
 	else if (Type == DI_COMBOBOX && CurItem->ListPtr &&
 	         !(CurItem->Flags & DIF_READONLY) &&
-	         !CurItem->ListPtr->empty()) //??
+	         CurItem->ListPtr->HasVisible()) //??
 	{
 		SelectFromComboBox(CurItem, CurEditLine);
 	}
@@ -5096,7 +5097,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 					// уточнение для DI_COMBOBOX - здесь еще и DlgEdit нужно корректно заполнить
 					if (!CurItem->IFlags.Check(DLGIIF_COMBOBOXNOREDRAWEDIT) && Type==DI_COMBOBOX && CurItem->ObjPtr)
 					{
-						if (!ListBox->empty())
+						if (ListBox->HasVisible())
 						{
 							const auto& ListMenuItem = ListBox->at(ListBox->GetSelectPos());
 							const auto Edit = static_cast<DlgEdit*>(CurItem->ObjPtr);
