@@ -127,6 +127,8 @@ struct subst_data
 	bool PreserveLFN{};
 	bool PassivePanel{};
 	bool EscapeAmpersands{};
+
+	std::unordered_map<string, string>* Variables;
 };
 
 
@@ -621,6 +623,25 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 	return CurStr;
 }
 
+static string_view ProcessVariable(string_view const CurStr, subst_data& SubstData, string& Out)
+{
+	const auto Str = CurStr.substr(1);
+
+	const auto Iterator = std::find_if(ALL_CONST_RANGE(*SubstData.Variables), [&](std::pair<string, string> const& i)
+	{
+		return starts_with_icase(Str, i.first);
+	});
+
+	if (Iterator == SubstData.Variables->cend())
+	{
+		Out += CurStr.front();
+		return Str;
+	}
+
+	Out += Iterator->second;
+	return Str.substr(Iterator->first.size());
+}
+
 static string ProcessMetasymbols(string_view Str, subst_data& Data)
 {
 	string Result;
@@ -631,6 +652,10 @@ static string ProcessMetasymbols(string_view Str, subst_data& Data)
 		if (Str.front() == L'!')
 		{
 			Str = ProcessMetasymbol(Str, Data, Result);
+		}
+		else if (Str.front() == L'%')
+		{
+			Str = ProcessVariable(Str, Data, Result);
 		}
 		else
 		{
@@ -650,6 +675,11 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 	const int DlgWidth = 76;
 
 	constexpr auto HistoryAndVariablePrefix = L"UserVar"sv;
+
+	const auto GenerateHistoryName = [&](size_t const Index)
+	{
+		return format(FSTR(L"{0}{1}"), HistoryAndVariablePrefix, Index);
+	};
 
 	constexpr auto ExpectedTokensCount = 64;
 
@@ -709,7 +739,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 			Item.X2 = DlgWidth - 6;
 			Item.Y1 = Item.Y2 = DlgData.size() + 1;
 			Item.Flags = DIF_HISTORY | DIF_USELASTHISTORY;
-			Item.strHistory = concat(HistoryAndVariablePrefix, str((DlgData.size() - 1) / 2));
+			Item.strHistory = GenerateHistoryName((DlgData.size() - 1) / 2);
 			DlgData.emplace_back(Item);
 		}
 
@@ -826,11 +856,15 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 		if (i.Type != DI_EDIT)
 			continue;
 
-		const auto VariableName = format(FSTR(L"%{0}{1}"), HistoryAndVariablePrefix, (&i - DlgData.data() - 1) / 2 + 1);
+		const auto Index = (&i - DlgData.data() - 1) / 2;
+		const auto VariableName = format(FSTR(L"%{0}{1}"), HistoryAndVariablePrefix, Index + 1);
 		replace_icase(strTmpStr, VariableName, i.strData);
 
-		if (!i.strHistory.empty() && i.strHistory != VariableName)
+		if (!i.strHistory.empty() && i.strHistory != GenerateHistoryName(Index))
+		{
 			replace_icase(strTmpStr, L'%' + i.strHistory, i.strData);
+			SubstData.Variables->emplace(i.strHistory, i.strData);
+		}
 	}
 
 	strStr = os::env::expand(strTmpStr);
@@ -864,7 +898,7 @@ bool SubstFileName(
 	  нужно будет либо убрать эту проверку либо изменить условие (последнее
 	  предпочтительнее!)
 	*/
-	if (!contains(Str, L'!'))
+	if (Str.find_first_of(L"!%"sv) == Str.npos)
 		return true;
 
 	subst_data SubstData;
@@ -892,6 +926,8 @@ bool SubstFileName(
 	SubstData.PreserveLFN = false;
 	SubstData.PassivePanel = false; // первоначально речь идет про активную панель!
 	SubstData.EscapeAmpersands = EscapeAmpersands;
+
+	SubstData.Variables = &Context.Variables;
 
 	Str = ProcessMetasymbols(Str, SubstData);
 
