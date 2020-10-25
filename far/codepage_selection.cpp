@@ -29,6 +29,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "codepage_selection.hpp"
 
@@ -598,7 +601,7 @@ intptr_t codepages::EditDialogProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 				ConfigProvider().GeneralCfg()->SetValue(NamesOfCodePagesKey, strCodePage, strCodePageName);
 
 			// Получаем информацию о кодовой странице
-			if (const auto Info = GetCodePageInfo(static_cast<UINT>(CodePage)))
+			if (const auto Info = GetCodePageInfo(CodePage))
 			{
 				auto Copy = *Info;
 				const auto IsCodePageNameCustom = GetCodePageCustomName(CodePage, Copy.Name);
@@ -774,13 +777,13 @@ bool codepages::IsCodePageSupported(uintptr_t CodePage, size_t MaxCharSize)
 	if (CodePage == CP_DEFAULT || IsStandardCodePage(CodePage))
 		return true;
 
-	const auto Info = GetCodePageInfo(static_cast<UINT>(CodePage));
+	const auto Info = GetCodePageInfo(CodePage);
 	return Info && Info->MaxCharSize <= MaxCharSize;
 }
 
 std::optional<cp_info> codepages::GetInfo(uintptr_t CodePage)
 {
-	const auto Info = GetCodePageInfo(static_cast<UINT>(CodePage));
+	const auto Info = GetCodePageInfo(CodePage);
 	if (!Info)
 		return {};
 
@@ -809,8 +812,8 @@ void codepages::DeleteFavorite(uintptr_t cp)
 //################################################################################################
 
 F8CP::F8CP(bool viewer):
-	m_AcpName(msg(Global->OnlyEditorViewerUsed? (viewer? lng::MSingleViewF8 : lng::MSingleEditF8) : (viewer? lng::MViewF8 : lng::MEditF8))),
-	m_OemName(msg(Global->OnlyEditorViewerUsed? (viewer? lng::MSingleViewF8DOS : lng::MSingleEditF8DOS) : (viewer? lng::MViewF8DOS : lng::MEditF8DOS))),
+	m_AcpName(msg(viewer? lng::MViewF8 : lng::MEditF8)),
+	m_OemName(msg(viewer? lng::MViewF8DOS : lng::MEditF8DOS)),
 	m_UtfName(L"UTF-8"sv)
 {
 	uintptr_t defcp = viewer? Global->Opt->ViOpt.DefaultCodePage : Global->Opt->EdOpt.DefaultCodePage;

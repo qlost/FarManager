@@ -29,6 +29,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "platform.memory.hpp"
 
@@ -62,9 +65,9 @@ namespace os::memory
 			}
 		}
 
-		ptr alloc(UINT Flags, size_t size)
+		ptr alloc(unsigned const Flags, size_t const Size)
 		{
-			return ptr(GlobalAlloc(Flags, size));
+			return ptr(GlobalAlloc(Flags, Size));
 		}
 
 		ptr copy(HGLOBAL const Ptr)
@@ -117,7 +120,7 @@ namespace os::memory
 			return Info;
 		}();
 
-		return in_range(
+		return in_closed_range(
 			reinterpret_cast<uintptr_t>(info.lpMinimumApplicationAddress),
 			reinterpret_cast<uintptr_t>(Address),
 			reinterpret_cast<uintptr_t>(info.lpMaximumApplicationAddress)

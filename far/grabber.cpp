@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "grabber.hpp"
 
@@ -77,7 +80,7 @@ void Grabber::init()
 	SetMacroMode(MACROAREA_GRABBER);
 	SaveScr = std::make_unique<SaveScreen>();
 	bool Visible=false;
-	DWORD Size=0;
+	size_t Size = 0;
 	GetCursorType(Visible,Size);
 
 	if (Visible)

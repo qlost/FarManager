@@ -1,3 +1,23 @@
+drkns 25.10.2020 05:30:03 +0000 - build 5689
+
+1. Fix clang build & warnings.
+
+drkns 25.10.2020 01:11:40 +0000 - build 5688
+
+1. Refactoring.
+
+drkns 23.10.2020 22:18:08 +0100 - build 5687
+
+1. Exception handling:
+   - intercept std::terminate
+   - alternative stack retrieval
+   - show registers.
+
+drkns 22.10.2020 22:17:27 +0100 - build 5686
+
+1. Removed lng lines for single viewer/editor functional keys.
+   They are the same anyway, and we can make the unavailabe buttons empty programmatically.
+
 yogdg 22.10.2020 14:31:20 -0300 - build 5685
 
 1. gh-247: Customizable number of bytes by line in hex viewer

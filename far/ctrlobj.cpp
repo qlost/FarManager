@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "ctrlobj.hpp"
 
@@ -157,11 +160,11 @@ void ControlObject::ShowVersion(bool const Direct)
 		return;
 	}
 
-	COORD Size;
+	point Size;
 	console.GetSize(Size);
-	COORD CursorPosition;
+	point CursorPosition;
 	console.GetCursorPosition(CursorPosition);
-	const auto FreeSpace = Size.Y - CursorPosition.Y - 1;
+	const auto FreeSpace = Size.y - CursorPosition.y - 1;
 
 	if (FreeSpace < 5 && DoWeReallyHaveToScroll(5))
 		ScrollScreen(5-FreeSpace);

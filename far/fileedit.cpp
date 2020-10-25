@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "fileedit.hpp"
 
@@ -760,23 +763,32 @@ void FileEditor::ReadEvent()
 
 void FileEditor::InitKeyBar()
 {
-	m_windowKeyBar->SetLabels(Global->OnlyEditorViewerUsed ? lng::MSingleEditF1 : lng::MEditF1);
+	auto& Keybar = *m_windowKeyBar;
+
+	Keybar.SetLabels(lng::MEditF1);
+
+	if (Global->OnlyEditorViewerUsed)
+	{
+		Keybar[KBL_SHIFT][F4].clear();
+		Keybar[KBL_CTRL][F10].clear();
+	}
 
 	if (!GetCanLoseFocus())
 	{
-		(*m_windowKeyBar)[KBL_MAIN][F12].clear();
-		(*m_windowKeyBar)[KBL_ALT][F11].clear();
-		(*m_windowKeyBar)[KBL_SHIFT][F4].clear();
+		Keybar[KBL_MAIN][F12].clear();
+		Keybar[KBL_ALT][F11].clear();
+		Keybar[KBL_SHIFT][F4].clear();
 	}
+
 	if (m_Flags.Check(FFILEEDIT_SAVETOSAVEAS))
-		(*m_windowKeyBar)[KBL_MAIN][F2] = msg(lng::MEditShiftF2);
+		Keybar[KBL_MAIN][F2] = msg(lng::MEditShiftF2);
 
 	if (!m_Flags.Check(FFILEEDIT_ENABLEF6))
-		(*m_windowKeyBar)[KBL_MAIN][F6].clear();
+		Keybar[KBL_MAIN][F6].clear();
 
-	(*m_windowKeyBar)[KBL_MAIN][F8] = f8cps.NextCPname(m_codepage);
+	Keybar[KBL_MAIN][F8] = f8cps.NextCPname(m_codepage);
 
-	m_windowKeyBar->SetCustomLabels(KBA_EDITOR);
+	Keybar.SetCustomLabels(KBA_EDITOR);
 }
 
 void FileEditor::SetNamesList(NamesList& Names)
@@ -892,7 +904,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 	   никак не соответствует обрабатываемой клавише, возникают разномастные
 	   глюки
 	*/
-	if (in_range(KEY_MACRO_BASE, LocalKey, KEY_MACRO_ENDBASE) || in_range(KEY_OP_BASE, LocalKey, KEY_OP_ENDBASE)) // исключаем MACRO
+	if (in_closed_range(KEY_MACRO_BASE, LocalKey, KEY_MACRO_ENDBASE) || in_closed_range(KEY_OP_BASE, LocalKey, KEY_OP_ENDBASE)) // исключаем MACRO
 	{
 		// ; //
 	}
@@ -904,7 +916,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			if (m_Flags.Check(FFILEEDIT_ENABLEF6))
 			{
 				int FirstSave=1;
-				UINT cp=m_codepage;
+				auto cp = m_codepage;
 
 				// проверка на "а может это говно удалили уже?"
 				// возможно здесь она и не нужна!
@@ -2304,7 +2316,7 @@ void FileEditor::ShowStatus() const
      Узнаем атрибуты файла и заодно сформируем готовую строку атрибутов для
      статуса.
 */
-DWORD FileEditor::EditorGetFileAttributes(string_view const Name)
+os::fs::attributes FileEditor::EditorGetFileAttributes(string_view const Name)
 {
 	m_FileAttributes = os::fs::get_file_attributes(Name);
 	int ind=0;

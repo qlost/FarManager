@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "filestr.hpp"
 
@@ -356,7 +359,7 @@ static bool GetCpUsingUniversalDetectorWithExceptions(std::string_view const Str
 	// This whole block shouldn't be here
 	if (Global->Opt->strNoAutoDetectCP.Get() == L"-1"sv)
 	{
-		if (Global->Opt->CPMenuMode && static_cast<UINT>(Codepage) != encoding::codepage::ansi() && static_cast<UINT>(Codepage) != encoding::codepage::oem())
+		if (Global->Opt->CPMenuMode && none_of(Codepage, encoding::codepage::ansi(), encoding::codepage::oem()))
 		{
 			const auto CodepageType = codepages::GetFavorite(Codepage);
 			if (!(CodepageType & CPST_FAVORITE))

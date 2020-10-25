@@ -32,6 +32,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "dlgedit.hpp"
 
@@ -607,7 +610,7 @@ int  DlgEdit::GetStrSize(int Row) const
 		return lineEdit->m_Str.size();
 }
 
-void DlgEdit::SetCursorType(bool Visible, DWORD Size)
+void DlgEdit::SetCursorType(bool const Visible, size_t const Size)
 {
 #if defined(PROJECT_DI_MEMOEDIT)
 
@@ -618,7 +621,7 @@ void DlgEdit::SetCursorType(bool Visible, DWORD Size)
 		lineEdit->SetCursorType(Visible,Size);
 }
 
-void DlgEdit::GetCursorType(bool& Visible, DWORD& Size) const
+void DlgEdit::GetCursorType(bool& Visible, size_t& Size) const
 {
 #if defined(PROJECT_DI_MEMOEDIT)
 

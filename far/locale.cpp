@@ -29,6 +29,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "locale.hpp"
 
@@ -144,7 +147,7 @@ namespace detail
 				m_DigitsGrouping = 0;
 				for (const auto i: Grouping)
 				{
-					if (in_range(L'1', i, L'9'))
+					if (in_closed_range(L'1', i, L'9'))
 						m_DigitsGrouping = m_DigitsGrouping * 10 + i - L'0';
 				}
 

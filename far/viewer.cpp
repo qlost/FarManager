@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "viewer.hpp"
 
@@ -702,7 +705,7 @@ int Viewer::getCharSize() const
 		return m_Codepage == MB.GetCP()? -static_cast<int>(MB.GetSize()) : +1;
 }
 
-static int getChSize( UINT cp )
+static int getChSize(uintptr_t const cp)
 {
 	return IsUnicodeCodePage(cp)? 2 : 1;
 }
@@ -857,7 +860,7 @@ void Viewer::ShowHex()
 	{
 		m_PrevXX2 = XX2;
 		// TODO: Add an option
-		if constexpr (false)
+		if constexpr ((false))
 		{
 			m_BytesPerLine = std::min(static_cast<size_t>(CalculateMaxBytesPerLineByScreenWidth()), m_BytesPerLine);
 		}
@@ -911,7 +914,7 @@ void Viewer::ShowHex()
 		{
 			if ( SelectSize >= 0 )
 			{
-				if (SelectPos >= fpos && SelectPos < fpos + static_cast<decltype(fpos)>(m_BytesPerLine))
+				if (SelectPos >= fpos && SelectPos < fpos + static_cast<long long>(m_BytesPerLine))
 				{
 					const auto off = static_cast<int>(SelectPos - fpos);
 					bSelStartFound = true;
@@ -920,7 +923,7 @@ void Viewer::ShowHex()
 						--SelStart;
 				}
 				const auto selectEnd = SelectPos + SelectSize - 1;
-				if (selectEnd >= fpos && selectEnd < fpos + static_cast<decltype(fpos)>(m_BytesPerLine))
+				if (selectEnd >= fpos && selectEnd < fpos + static_cast<long long>(m_BytesPerLine))
 				{
 					const auto off = static_cast<int>(selectEnd - fpos);
 					bSelEndFound = true;
@@ -987,7 +990,7 @@ void Viewer::DrawScrollbar()
 		{
 			total = static_cast<unsigned long long>(FileSize);
 			start = static_cast<unsigned long long>(FilePos);
-			ViewerString& last_line = Strings.back();
+			auto& last_line = Strings.back();
 			end = last_line.nFilePos + last_line.linesize;
 			if ( end == static_cast<unsigned long long>(FileSize) && last_line.linesize > 0 && last_line.eol_length != 0 )
 				++total;
@@ -999,7 +1002,7 @@ void Viewer::DrawScrollbar()
 			start = FilePos / LineSize + ((FilePos % LineSize)? 1 : 0);
 			end = start + h;
 		}
-		ScrollBarEx3(x, m_Where.top, h, start, end, total);
+		ScrollBarEx(x, m_Where.top, h, start, end, total);
 	}
 }
 
@@ -1453,7 +1456,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 	if (none_of(LocalKey, KEY_ALTBS, KEY_RALTBS, KEY_CTRLZ, KEY_RCTRLZ, KEY_NONE, KEY_IDLE))
 		LastKeyUndo=FALSE;
 
-	if (in_range(KEY_CTRL0, LocalKey, KEY_CTRL9))
+	if (in_closed_range(KEY_CTRL0, LocalKey, KEY_CTRL9))
 	{
 		const auto Pos = LocalKey - KEY_CTRL0;
 

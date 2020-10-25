@@ -29,6 +29,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "platform.version.hpp"
 
@@ -49,7 +52,7 @@ namespace os::version
 	template<class T>
 	static auto get_value(std::vector<std::byte> const& Data, const string_view SubBlock)
 	{
-		UINT Length;
+		unsigned Length;
 		T* Result;
 		return VerQueryValue(Data.data(), null_terminated(SubBlock).c_str(), reinterpret_cast<void**>(&Result), &Length) && Length? Result : nullptr;
 	}

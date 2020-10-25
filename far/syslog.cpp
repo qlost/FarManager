@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "syslog.hpp"
 
@@ -59,6 +62,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // External:
 
 //----------------------------------------------------------------------------
+
+WARNING_PUSH()
+WARNING_DISABLE_CLANG("-Wused-but-marked-unused")
 
 #if !defined(SYSLOG)
 #if defined(SYSLOG_OT)             || \
@@ -199,7 +205,7 @@ void OpenSysLog()
 	if (!LogStream)
 	{
 		auto strLogFileName = path::join(Global->g_strFarPath, L"$Log");
-		DWORD Attr=os::fs::get_file_attributes(strLogFileName);
+		const auto Attr = os::fs::get_file_attributes(strLogFileName);
 
 		if (Attr == INVALID_FILE_ATTRIBUTES)
 		{
@@ -2048,3 +2054,5 @@ void PrintSysLogStat()
 	FarOutputDebugString(oss);
 #endif
 }
+
+WARNING_POP()

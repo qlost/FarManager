@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "infolist.hpp"
 
@@ -98,7 +101,7 @@ enum InfoListSectionStateIndex
 struct InfoList::InfoListSectionState
 {
 	bool Show;   // раскрыть/свернуть?
-	SHORT Y;     // Где?
+	int Y;     // Где?
 };
 
 info_panel_ptr InfoList::create(window_ptr Owner)

@@ -31,11 +31,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "cddrv.hpp"
 
 // Internal:
-#include "flink.hpp"
 #include "pathmix.hpp"
 
 // Platform:
@@ -430,7 +432,7 @@ static auto get_cd_type(cdrom_device_capabilities const caps)
 	return ItemIterator == std::cend(DeviceCaps)? cd_type::cdrom : ItemIterator->first;
 }
 
-bool DriveCanBeVirtual(UINT DriveType)
+bool DriveCanBeVirtual(unsigned DriveType)
 {
 	return (DriveType == DRIVE_FIXED && IsWindows7OrGreater()) || (DriveType == DRIVE_CDROM && IsWindows8OrGreater());
 }

@@ -28,6 +28,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "tracer.hpp"
 
@@ -92,7 +95,7 @@ static auto GetBackTrace(CONTEXT ContextRecord, HANDLE ThreadHandle)
 
 	const auto Data = platform_specific_data(ContextRecord);
 
-	if (Data.MachineType == IMAGE_FILE_MACHINE_UNKNOWN)
+	if (Data.MachineType == IMAGE_FILE_MACHINE_UNKNOWN || (!Data.PC && !Data.Frame && !Data.Stack))
 		return Result;
 
 	const auto address = [](DWORD64 const Offset)
@@ -176,7 +179,7 @@ static void GetSymbols(string_view const ModuleName, span<DWORD64 const> const B
 
 		Consumer(
 			FormatAddress(Address - Module.BaseOfImage),
-			concat(HasModuleInfo? PointToName(Module.ImageName) : L"<unknown>"sv, L'!', GetName(Address)),
+			Address? concat(HasModuleInfo? PointToName(Module.ImageName) : L"<unknown>"sv, L'!', GetName(Address)) : L""s,
 			GetLocation(Address)
 		);
 	}

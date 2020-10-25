@@ -28,6 +28,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "diskmenu.hpp"
 
@@ -161,7 +164,7 @@ static void AddPluginItems(VMenu2 &ChDisk, int Pos, int DiskCount, bool SetSelec
 
 		for (int PluginItem = 0;; ++PluginItem)
 		{
-			WCHAR HotKey = 0;
+			wchar_t HotKey = 0;
 			UUID Uuid;
 			string strPluginText;
 

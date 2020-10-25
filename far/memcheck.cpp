@@ -30,6 +30,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "memcheck.hpp"
 
@@ -326,6 +329,7 @@ static void* debug_allocator(size_t const size, std::align_val_t Alignment, allo
 			placement::construct(*Info, type, HeaderSize, realSize);
 
 			const auto FramesToSkip = 2; // This function and the operator
+			// RtlCaptureStackBackTrace is invoked directly since we don't need to make debug builds Win2k compatible
 			Info->Stack[RtlCaptureStackBackTrace(FramesToSkip, static_cast<DWORD>(std::size(Info->Stack)), Info->Stack, {})] = {};
 
 			Info->end_marker() = EndMarker;
@@ -367,6 +371,8 @@ static auto default_alignment()
 }
 
 // ReSharper disable CppParameterNamesMismatch
+WARNING_PUSH()
+WARNING_DISABLE_CLANG("-Wmissing-prototypes")
 
 void* operator new(size_t const Size)
 {
@@ -490,6 +496,7 @@ void operator delete[](void* const Block, std::align_val_t const Alignment, std:
 }
 
 // ReSharper restore CppParameterNamesMismatch
+WARNING_POP()
 
 NIFTY_DEFINE(memcheck::checker, Checker);
 

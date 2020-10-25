@@ -31,6 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "setcolor.hpp"
 
@@ -57,6 +60,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common.hpp"
+#include "common/2d/point.hpp"
 #include "common/null_iterator.hpp"
 #include "common/scope_exit.hpp"
 
@@ -109,7 +113,7 @@ struct color_item
 	span<const color_item> SubColor;
 };
 
-static void SetItemColors(span<const color_item> const Items, COORD Position = {})
+static void SetItemColors(span<const color_item> const Items, point Position = {})
 {
 	const auto ItemsMenu = VMenu2::create(msg(lng::MSetColorItemsTitle), {});
 
@@ -118,7 +122,7 @@ static void SetItemColors(span<const color_item> const Items, COORD Position = {
 		ItemsMenu->AddItem(msg(i.LngId));
 	}
 
-	ItemsMenu->SetPosition({ Position.X += 10, Position.Y += 5, 0, 0 });
+	ItemsMenu->SetPosition({ Position.x += 10, Position.y += 5, 0, 0 });
 	ItemsMenu->SetMenuFlags(VMENU_WRAPMODE);
 	ItemsMenu->RunEx([&](int Msg, void *param)
 	{

@@ -28,6 +28,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// BUGBUG
+#include "platform.headers.hpp"
+
 // Self:
 #include "exception_handler_test.hpp"
 
@@ -76,8 +79,7 @@ namespace tests
 
 	static void cpp_std_lib()
 	{
-		string s;
-		s.at(42) = 0;
+		string().at(42) = 0;
 	}
 
 	static void cpp_std_nested()
@@ -143,6 +145,34 @@ namespace tests
 		});
 
 		rethrow_if(Ptr);
+	}
+
+	[[noreturn]]
+	static void cpp_terminate()
+	{
+		std::terminate();
+	}
+
+	static void cpp_terminate_unwind()
+	{
+		struct c
+		{
+			~c() noexcept(false)
+			{
+				volatile const auto Throw = true;
+				if (Throw)
+					throw MAKE_FAR_EXCEPTION(L"Dtor exception"s);
+			}
+		};
+
+		try
+		{
+			c C;
+			throw MAKE_FAR_EXCEPTION(L"Regular exception"s);
+		}
+		catch(...)
+		{
+		}
 	}
 
 	static void cpp_memory_leak()
@@ -305,6 +335,8 @@ static bool ExceptionTestHook(Manager::Key const& key)
 		{ tests::cpp_std_bad_alloc,            L"C++ std::bad_alloc"sv },
 		{ tests::cpp_unknown,                  L"C++ unknown exception"sv },
 		{ tests::cpp_unknown_nested,           L"C++ unknown exception (nested)"sv },
+		{ tests::cpp_terminate,                L"C++ terminate"sv },
+		{ tests::cpp_terminate_unwind,         L"C++ terminate unwind"sv },
 		{ tests::cpp_memory_leak,              L"C++ memory leak"sv },
 		{ tests::seh_access_violation_read,    L"SEH access violation (read)"sv },
 		{ tests::seh_access_violation_write,   L"SEH access violation (write)"sv },
