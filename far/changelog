@@ -1,3 +1,23 @@
+drkns 27.10.2020 00:25:27 +0000 - build 5694
+
+1. 0003821 / gh-279: Redundant ampersand in the "Group of file masks" dialog title.
+
+drkns 26.10.2020 20:48:46 +0000 - build 5693
+
+1. Новые версии fmt, tinyxml2, Catch2.
+
+drkns 26.10.2020 18:02:12 +0000 - build 5692
+
+1. С форума: 5688 подвисает в меню дисков, если сетевой диск не доступен.
+
+drkns 26.10.2020 02:03:19 +0000 - build 5691
+
+1. Уточнение 5683.
+
+drkns 25.10.2020 20:54:39 +0000 - build 5690
+
+1. 0003818: Бесконечный перезапуск .cmd батчей через double-click и попытке выхода через Ctrl-Break
+
 drkns 25.10.2020 05:30:03 +0000 - build 5689
 
 1. Fix clang build & warnings.
