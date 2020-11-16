@@ -1,15 +1,13 @@
-﻿#ifndef FNPARCE_HPP_4E73DE55_DA35_4962_86C4_EC0DBDE2E229
-#define FNPARCE_HPP_4E73DE55_DA35_4962_86C4_EC0DBDE2E229
+﻿#ifndef PLATFORM_PROCESS_HPP_234140CB_C857_40CF_901D_A10C5EBEA85B
+#define PLATFORM_PROCESS_HPP_234140CB_C857_40CF_901D_A10C5EBEA85B
 #pragma once
 
 /*
-fnparce.hpp
+platform.process.hpp
 
-Парсер файловых ассоциаций
 */
 /*
-Copyright © 1996 Eugene Roshal
-Copyright © 2000 Far Group
+Copyright © 2020 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -45,27 +43,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-class delayed_deleter;
-
-class subst_context
+namespace os::process
 {
-public:
-	subst_context(string_view NameStr, string_view ShortNameStr);
+	enum class image_type
+	{
+		unknown,
+		console,
+		graphical,
+	};
 
-	string_view Name;
-	string_view ShortName;
-	string_view Path;
+	image_type get_process_subsystem(HANDLE Process);
+}
 
-	std::unordered_map<string, string> mutable Variables;
-};
-
-bool SubstFileName(
-	string &Str,
-	const subst_context& Context,
-	bool* PreserveLongName = {},
-	bool IgnoreInputAndLists = false,
-	string_view DlgTitle = {},
-	bool EscapeAmpersands = false
-);
-
-#endif // FNPARCE_HPP_4E73DE55_DA35_4962_86C4_EC0DBDE2E229
+#endif // PLATFORM_PLATFORM_PROCESS_HPP_234140CB_C857_40CF_901D_A10C5EBEA85B

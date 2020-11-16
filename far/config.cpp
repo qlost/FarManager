@@ -456,7 +456,7 @@ static void ApplyDefaultMaskGroups()
 {
 	static const std::pair<string_view, string_view> Sets[] =
 	{
-		{ L"arc"sv,  L"*.zip,*.rar,*.[7bgxl]z,*.[bg]zip,*.tar,*.t[agbxl]z,*.z,*.ar[cj],*.r[0-9][0-9],*.a[0-9][0-9],*.bz2,*.cab,*.jar,*.lha,*.lzh,*.ha,*.ac[bei],*.pa[ck],*.rk,*.cpio,*.rpm,*.zoo,*.hqx,*.sit,*.ice,*.uc2,*.ain,*.imp,*.777,*.ufa,*.boa,*.bs[2a],*.sea,*.[ah]pk,*.ddi,*.x2,*.rkv,*.[lw]sz,*.h[ay]p,*.lim,*.sqz,*.chz,*.aa[br]"sv },
+		{ L"arc"sv,  L"*.zip,*.rar,*.[7bgxl]z,*.[bg]zip,*.tar,*.t[agbxl]z,*.z,*.ar[cj],*.r[0-9][0-9],*.a[0-9][0-9],*.bz2,*.cab,*.jar,*.lha,*.lzh,*.ha,*.ac[bei],*.pa[ck],*.rk,*.cpio,*.rpm,*.zoo,*.hqx,*.sit,*.ice,*.uc2,*.ain,*.imp,*.777,*.ufa,*.boa,*.bs[2a],*.sea,*.[ah]pk,*.ddi,*.x2,*.rkv,*.[lw]sz,*.h[ay]p,*.lim,*.sqz,*.chz,*.aa[br],*.msi"sv },
 		{ L"temp"sv, L"*.bak,*.tmp"sv },
 		{ L"exec"sv, L"*.exe,*.cmd,*.bat,*.com,%PATHEXT%"sv },
 	};
@@ -2023,13 +2023,12 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeySystemException,        L"Used"sv,                          ExceptUsed, false},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"~"sv,                             Exec.strHomeDir, L"%FARHOME%"sv},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"ExcludeCmds"sv,                   Exec.strExcludeCmds, L""sv},
-		{FSSF_PRIVATE,           NKeySystemExecutor,         L"FullTitle"sv,                     Exec.ExecuteFullTitle, false},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"RestoreCP"sv,                     Exec.RestoreCPAfterExecute, true},
-		{FSSF_PRIVATE,           NKeySystemExecutor,         L"UseAppPath"sv,                    Exec.ExecuteUseAppPath, true},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"UseHomeDir"sv,                    Exec.UseHomeDir, true},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"Comspec"sv,                       Exec.Comspec, L"%COMSPEC%"sv},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"ComspecArguments"sv,              Exec.ComspecArguments, L"/S /C \"{0}\""sv},
 		{FSSF_PRIVATE,           NKeySystemExecutor,         L"ComspecCondition"sv,              Exec.ComspecCondition, L""sv},
+		{FSSF_PRIVATE,           NKeySystemExecutor,         L"UseAssociations"sv,               Exec.UseAssociations, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"AutoDetectCodePage"sv,            ViOpt.AutoDetectCodePage, true},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"DefaultCodePage"sv,               ViOpt.DefaultCodePage, encoding::codepage::ansi()},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"DetectDumpMode"sv,                ViOpt.DetectDumpMode, true},
