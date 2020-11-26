@@ -1,11 +1,25 @@
 !include ../makefile_vc_base
 
 NAME = DrawLine
-LINK_OBJS = $(OBJDIR)\DrawLine.obj
-DOCS = DrawEng.hlf DrawRus.hlf DrawPol.hlf DrawEng.lng DrawRus.lng DrawSky.lng DrawSpa.lng DrawIta.lng DrawPol.lng DrawBel.lng changelog
 NOENTRY = 1
 NODEFLIB = 1
 INCLUDECRT = 1
+
+LINK_OBJS = $(OBJDIR)\DrawLine.obj
+
+DOCS = \
+	DrawEng.hlf \
+	DrawRus.hlf \
+	DrawPol.hlf \
+	DrawEng.lng \
+	DrawRus.lng \
+	DrawSky.lng \
+	DrawSpa.lng \
+	DrawIta.lng \
+	DrawPol.lng \
+	DrawBel.lng \
+	DrawGer.lng \
+	changelog
 
 !include ..\makefile_vc_def_inc
 
