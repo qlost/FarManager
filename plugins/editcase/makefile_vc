@@ -12,6 +12,7 @@ DOCS = \
 	ECaseRus.hlf \
 	ECasePol.hlf \
 	ECaseGer.hlf \
+	ECaseUkr.hlf \
 	ECaseEng.lng \
 	ECaseRus.lng \
 	ECaseSky.lng \
@@ -20,6 +21,8 @@ DOCS = \
 	ECasePol.lng \
 	ECaseBel.lng \
 	ECaseGer.lng \
+	ECaseUkr.lng \
+	EditCase.lua \
 	changelog
 
 !include ..\makefile_vc_def_inc
