@@ -196,6 +196,7 @@ enum SELECT_MODES
 {
 	SELECT_INVERT,
 	SELECT_INVERTALL,
+	SELECT_INVERTFILES,
 	SELECT_ADD,
 	SELECT_REMOVE,
 	SELECT_ADDEXT,
@@ -1317,6 +1318,11 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 			SelectFiles(SELECT_INVERTALL);
 			return true;
 
+		case KEY_ALTMULTIPLY:
+		case KEY_RALTMULTIPLY:
+			SelectFiles(SELECT_INVERTFILES);
+			return true;
+
 		case KEY_ALTLEFT:     // Прокрутка длинных имен и описаний
 		case KEY_RALTLEFT:
 			if (LeftPos != std::numeric_limits<decltype(LeftPos)>::min())
@@ -1497,7 +1503,7 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 					}
 
 					if (!strFileName.empty() && (Global->Opt->QuotedName&QUOTEDNAME_INSERT) != 0)
-						QuoteSpace(strFileName);
+						inplace::QuoteSpace(strFileName);
 
 					strFileName += L' ';
 				}
@@ -2670,7 +2676,6 @@ void FileList::ProcessEnter(bool EnableExec,bool SeparateWindow,bool EnableAssoc
 				strFullPath = CurItem.FileName;
 			}
 
-			QuoteSpace(strFullPath);
 			OpenFolderInShell(strFullPath);
 		}
 		else
@@ -2755,9 +2760,7 @@ void FileList::ProcessEnter(bool EnableExec,bool SeparateWindow,bool EnableAssoc
 					const auto ExclusionFlag = IsItExecutable? EXCLUDECMDHISTORY_NOTPANEL : EXCLUDECMDHISTORY_NOTWINASS;
 					if (!(Global->Opt->ExcludeCmdHistory & ExclusionFlag) && !PluginMode)
 					{
-						string QuotedName = strFileName;
-						QuoteSpace(QuotedName);
-						Global->CtrlObject->CmdHistory->AddToHistory(QuotedName, HR_DEFAULT, nullptr, {}, m_CurDir);
+						Global->CtrlObject->CmdHistory->AddToHistory(QuoteSpace(strFileName), HR_DEFAULT, nullptr, {}, m_CurDir);
 					}
 				}
 			}
@@ -4088,6 +4091,7 @@ long FileList::SelectFiles(int Mode, string_view const Mask)
 			if (
 				Mode != SELECT_INVERT &&
 				Mode != SELECT_INVERTALL &&
+				Mode != SELECT_INVERTFILES &&
 				!(bUseFilter? Filter.FileInFilter(&i) : FileMask.check(i.AlternateOrNormal(m_ShowShortNames)))
 			)
 				continue;
@@ -4108,6 +4112,7 @@ long FileList::SelectFiles(int Mode, string_view const Mask)
 
 				case SELECT_INVERT:
 				case SELECT_INVERTALL:
+				case SELECT_INVERTFILES:
 				case SELECT_INVERTMASK:
 					Selection=!i.Selected;
 					break;
@@ -4116,7 +4121,7 @@ long FileList::SelectFiles(int Mode, string_view const Mask)
 			if (
 				bUseFilter ||
 				!(i.Attributes & FILE_ATTRIBUTE_DIRECTORY) ||
-				Global->Opt->SelectFolders ||
+				(Global->Opt->SelectFolders && Mode != SELECT_INVERTFILES) ||
 				!Selection ||
 				RawSelection ||
 				Mode == SELECT_INVERTALL ||
@@ -4395,7 +4400,7 @@ void FileList::CopyNames(bool FillPathName, bool UNC)
 		}
 
 		if (Global->Opt->QuotedName&QUOTEDNAME_CLIPBOARD)
-			QuoteSpace(strQuotedName);
+			inplace::QuoteSpace(strQuotedName);
 
 		CopyData += strQuotedName;
 	}
