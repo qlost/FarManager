@@ -360,7 +360,7 @@ $ #Befehl zur Fenstersteuerung#
 
  Dateien mit aktuellem Namen auswählen                 #Alt+<Grau +>#
  Dateiauswahl mit aktuellem Namen aufheben             #Alt+<Grau ->#
- Auswahl ohne Verzeichnisse umkehren                   #Alt+<Grau *>#
+ Invert selection on files, deselect folders           #Alt+<Grau *>#
 
  Alle Dateien auswählen                              #Umsch+<Grau +>#
  Auswahl aller Dateien aufheben                      #Umsch+<Grau ->#
@@ -5563,6 +5563,8 @@ If current value of an option is other than the default, the option is marked wi
 
  #Shift+F4#      For the integer type, hexadecimal editor dialog is opened,
                for other types works as #F4#.
+
+ #Del#           Reset the option to its default value.
 
  #Ctrl+H#        Hide/show options having default values.
 

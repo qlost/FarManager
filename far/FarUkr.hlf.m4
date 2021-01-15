@@ -353,7 +353,8 @@ $ #Команди керування панелями#
  Позначити файли з ім'ям як у поточного файла          #Alt+<Gray +>#
  Зняти позначення з файлів з ім'ям                     #Alt+<Gray ->#
  як у поточного файла
- Інвертувати позначення, за винятком папок             #Alt+<Gray *>#
+ Інвертувати позначення файлiв,                        #Alt+<Gray *>#
+ зняти позначення з папок
  Позначити всі файли                                 #Shift+<Gray +>#
  Зняти позначення з усіх файлiв                      #Shift+<Gray ->#
  Відновити попереднє позначення                              #Ctrl+M#
@@ -5560,6 +5561,8 @@ If current value of an option is other than the default, the option is marked wi
 
  #Shift+F4#      For the integer type, hexadecimal editor dialog is opened,
                for other types works as #F4#.
+
+ #Del#           Reset the option to its default value.
 
  #Ctrl+H#        Hide/show options having default values.
 

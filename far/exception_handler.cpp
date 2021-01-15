@@ -291,7 +291,7 @@ static void read_modules(span<HMODULE const> const Modules, string& To, string_v
 	for (const auto& i: Modules)
 	{
 
-		if (const auto Result = os::fs::GetModuleFileName(nullptr, i, Name))
+		if (os::fs::GetModuleFileName(nullptr, i, Name))
 			append(To, Name, L' ', file_version(Name), Eol);
 		else
 			append(To, str(static_cast<void const*>(i)), Eol);
@@ -456,7 +456,7 @@ static void copy_information(
 
 	for (const auto& [Label, Value]: zip(Labels, Values))
 	{
-		append(Strings, format(FSTR(L"{0:{1}} {2}{3}"), Label, LabelsWidth, Value, Eol));
+		format_to(Strings, FSTR(L"{0:{1}} {2}{3}"), Label, LabelsWidth, Value, Eol);
 	}
 
 	append(Strings, Eol);

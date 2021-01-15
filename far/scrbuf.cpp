@@ -279,6 +279,16 @@ void ScreenBuf::FillRect(rectangle Where, const FAR_CHAR_INFO& Info)
 	debug_flush();
 }
 
+void ScreenBuf::Invalidate(flush_type const FlushType)
+{
+	if (FlushType & flush_type::screen)
+		SBFlags.Clear(SBFLAGS_FLUSHED);
+	if (FlushType & flush_type::cursor)
+		SBFlags.Clear(SBFLAGS_FLUSHEDCURPOS | SBFLAGS_FLUSHEDCURTYPE);
+	if (FlushType & flush_type::title)
+		SBFlags.Clear(SBFLAGS_FLUSHEDTITLE);
+}
+
 /* "Сбросить" виртуальный буфер на консоль
 */
 void ScreenBuf::Flush(flush_type FlushType)
@@ -620,10 +630,6 @@ void ScreenBuf::Scroll(size_t Count)
 
 void ScreenBuf::SetClearTypeFix(int const ClearTypeFix)
 {
-	// 'New' console doesn't need this
-	if (::console.IsVtSupported())
-		return;
-
 	m_ClearTypeFix = ClearTypeFix;
 }
 

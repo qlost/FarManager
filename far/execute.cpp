@@ -532,15 +532,13 @@ public:
 		ChangeConsoleMode(console.GetInputHandle(), InitialConsoleMode->Input);
 		ChangeConsoleMode(console.GetOutputHandle(), InitialConsoleMode->Output);
 		ChangeConsoleMode(console.GetErrorHandle(), InitialConsoleMode->Error);
-
-		GetCursorType(CursorVisible, CursorSize);
 	}
 
 	~external_execution_context()
 	{
-		SetFarConsoleMode(true);
+		SCOPED_ACTION(os::last_error_guard);
 
-		SetCursorType(CursorVisible, CursorSize);
+		SetFarConsoleMode(true);
 
 		point ConSize;
 		if (console.GetSize(ConSize) && (ConSize.x != ScrX + 1 || ConSize.y != ScrY + 1))
@@ -554,15 +552,13 @@ public:
 			console.SetOutputCodepage(ConsoleOutputCP);
 		}
 
-		// The title could be changed by the external program
-		Global->ScrBuf->Flush(flush_type::cursor | flush_type::title);
+		// Could be changed by the external program
+		Global->ScrBuf->Invalidate();
 	}
 
 private:
 	int ConsoleCP = console.GetInputCodepage();
 	int ConsoleOutputCP = console.GetOutputCodepage();
-	bool CursorVisible{};
-	size_t CursorSize{};
 };
 
 static bool execute_impl(

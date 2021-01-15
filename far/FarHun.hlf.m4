@@ -365,7 +365,7 @@ $ #Panelvezérlő parancsok#
  Kijelöli az aktuális fájllal azonos nevű fájlokat   #Alt+<Szürke +>#
  A kijelölést leveszi az aktuális fájllal            #Alt+<Szürke ->#
  megegyező nevű fájlokról
- Invert selection excluding folders                  #Alt+<Szürke *>#
+ Invert selection on files, deselect folders         #Alt+<Szürke *>#
  Minden fájl kijelölése                            #Shift+<Szürke +>#
  Minden fájlról leveszi a kijelölést               #Shift+<Szürke ->#
  Visszaállítja az előző kijelölést                           #Ctrl+M#
@@ -5557,6 +5557,8 @@ If current value of an option is other than the default, the option is marked wi
 
  #Shift+F4#      For the integer type, hexadecimal editor dialog is opened,
                for other types works as #F4#.
+
+ #Del#           Reset the option to its default value.
 
  #Ctrl+H#        Hide/show options having default values.
 
