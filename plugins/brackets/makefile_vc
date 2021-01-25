@@ -11,7 +11,9 @@ DOCS = \
 	BrackEng.hlf \
 	BrackRus.hlf \
 	BrackPol.hlf \
+	BrackBel.hlf \
 	BrackUkr.hlf \
+	BrackCze.hlf \
 	BrackEng.lng \
 	BrackRus.lng \
 	BrackSky.lng \
@@ -21,6 +23,7 @@ DOCS = \
 	BrackBel.lng \
 	BrackGer.lng \
 	BrackUkr.lng \
+	BrackCze.lng \
 	Brackets.lua \
 	changelog
 

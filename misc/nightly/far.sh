@@ -47,6 +47,7 @@ gawk -f ./scripts/mkhlf.awk FarHun.hlf.m4 | $M4CMDP | unix2dos -m > $OUTDIR/FarH
 gawk -f ./scripts/mkhlf.awk FarPol.hlf.m4 | $M4CMDP | unix2dos -m > $OUTDIR/FarPol.hlf
 gawk -f ./scripts/mkhlf.awk FarGer.hlf.m4 | $M4CMDP | unix2dos -m > $OUTDIR/FarGer.hlf
 gawk -f ./scripts/mkhlf.awk FarUkr.hlf.m4 | $M4CMDP | unix2dos -m > $OUTDIR/FarUkr.hlf
+gawk -f ./scripts/mkhlf.awk FarCze.hlf.m4 | $M4CMDP | unix2dos -m > $OUTDIR/FarCze.hlf
 
 wine tools/lng.generator.exe -nc -oh ${BOOTSTRAPDIR} -ol $OUTDIR ${BOOTSTRAPDIR}farlang.templ
 
@@ -60,7 +61,6 @@ cp $2/Include/*.hpp $BINDIR/PluginSDK/Headers.c/ && \
 cp $2/../far.git/plugins/common/unicode/DlgBuilder.hpp $BINDIR/PluginSDK/Headers.c/ && \
 cp $2/Include/*.pas $BINDIR/PluginSDK/Headers.pas/ && \
 cp -f $2/changelog $BINDIR/ && \
-cp -f $2/changelog_eng $BINDIR/ && \
 cp -f $2/Far.exe.example.ini $BINDIR/ \
 ) || return 1
 
@@ -81,7 +81,6 @@ $M4CMD -DINPUT=PluginW.pas headers.m4 | unix2dos > Include/PluginW.pas
 $M4CMD -DINPUT=FarColorW.pas headers.m4 | unix2dos > Include/FarColorW.pas
 
 unix2dos -m changelog
-unix2dos -m changelog_eng
 unix2dos Far.exe.example.ini
 
 cd ..

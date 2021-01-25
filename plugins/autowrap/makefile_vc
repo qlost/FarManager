@@ -17,6 +17,7 @@ DOCS = \
 	WrapBel.lng \
 	WrapGer.lng \
 	WrapUkr.lng \
+	WrapCze.lng \
 	changelog
 
 !include ..\makefile_vc_def_inc

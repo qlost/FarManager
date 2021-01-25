@@ -665,6 +665,13 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
       <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
       <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
     </CustomBuild>
+    <CustomBuild Include="FarCze.hlf.m4">
+      <FileType>Document</FileType>
+      <Message>Compiling %(Identity)...</Message>
+      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
+      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
+    </CustomBuild>
     <CustomBuild Include="$(BootstrapDir)farlang.templ">
       <FileType>Document</FileType>
       <Message>Generating language files based on %(Identity)...</Message>
@@ -677,9 +684,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
       <ExcludedFromBuild Condition="'$(Platform)'!='Win32' and '$(Platform)'!='x64'">true</ExcludedFromBuild>
     </MASM>
     <CopyFileToFolders Include="changelog">
-      <FileType>Document</FileType>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="changelog_eng">
       <FileType>Document</FileType>
     </CopyFileToFolders>
     <None Include="Far.ico" />

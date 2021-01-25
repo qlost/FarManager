@@ -14,7 +14,9 @@ DOCS = \
 	EMenuEng.hlf \
 	EMenuRus.hlf \
 	EMenuPol.hlf \
+	EMenuBel.hlf \
 	EMenuUkr.hlf \
+	EMenuCze.hlf \
 	EMenuEng.lng \
 	EMenuRus.lng \
 	EMenuSky.lng \
@@ -23,6 +25,7 @@ DOCS = \
 	EMenuPol.lng \
 	EMenuBel.lng \
 	EMenuUkr.lng \
+	EMenuCze.lng \
 	Hotkey.lua \
 	HotkeyClipboard.lua \
 	HotkeyProperties.lua \

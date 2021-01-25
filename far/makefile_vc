@@ -443,6 +443,7 @@ HLFS = \
 	"$(OUTDIR)\FarPol.hlf" \
 	"$(OUTDIR)\FarGer.hlf" \
 	"$(OUTDIR)\FarUkr.hlf" \
+	"$(OUTDIR)\FarCze.hlf" \
 
 .PHONY: docs
 docs: \
@@ -604,7 +605,7 @@ install: instdir
 	@copy /Y "$(FARINCLUDE)\*.hpp" "$(HPPINSTDIR)\" > nul
 	@copy /Y "$(FARINCLUDE)\..\..\plugins\common\unicode\DlgBuilder.hpp" "$(HPPINSTDIR)\" > nul
 	@copy /Y "$(FARINCLUDE)\*.pas" "$(PASINSTDIR)\" > nul
-	for %%i in (changelog changelog_eng "$(OUTDIR)\Far.*" "$(OUTDIR)\*.lng" "$(OUTDIR)\File_id.diz" "$(OUTDIR)\*.hlf" "$(OUTDIR)\Far.exe.example.ini") do @copy /Y %%i "$(INSTALLDIR)\" > nul
+	for %%i in (changelog "$(OUTDIR)\Far.*" "$(OUTDIR)\*.lng" "$(OUTDIR)\File_id.diz" "$(OUTDIR)\*.hlf" "$(OUTDIR)\Far.exe.example.ini") do @copy /Y %%i "$(INSTALLDIR)\" > nul
 
 .PHONY: instdir
 instdir:
