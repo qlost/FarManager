@@ -1,43 +1,41 @@
-﻿.Language=Polish,Polish (Polski)
-.PluginContents=Panel tymczasowy
+﻿.Language=Slovak,Slovak (Slovenčina)
+.PluginContents=Pomocný panel
 
 @Contents
-$ #Panel tymczasowy#
-    Panel tymczasowy jest podobny do panelu plików i jest zaprojektowany
-aby ułatwić grupowanie plików z różnych folderów i przetwarzać je,
-tak jakby były jedną grupą.
+$ #Pomocný panel#
+    Pomocný panel, s ktorým sa pracuje podobne ako so súborovým
+panelom, umožňuje zoskupovanie súborov z rôznych adresárov a
+pracovať s nimi ako s jednou skupinou.
 
-   ~Praca z panelem tymczasowym~@TempPanel@
-   ~Konfiguracja panelu~@Config@
-   ~Praca z listą plików~@List@
-   ~Składnia linii poleceń~@CMD@
+   ~Práca s pomocným panelom~@TempPanel@
+   ~Konfigurácia pomocného panelu~@TempCfg@
+   ~Working with file lists~@List@
+   ~Command line syntax~@CMD@
 
 @TempPanel
-$ #Praca z panelem tymczasowym#
-   Aby dodać pliki do panelu tymczasowe należy wykonać jedną z poniższych
-operacji:
+$ #Práca s pomocným panelom#
+   Nastavenie obsahu pomocného panelu možno vykonať buď:
 
-  - skopiować pliki lub foldery z panelu plików lub drzewa do panelu
-    tymczasowego;
 
-  - otworzyć ~listę plików~@List@ poprzez wciśnięcie na niej klawisza Enter
-    lub Ctrl-PgDn lub wpisując jej nazwę w ~linii poleceń~@CMD@;
+  - skopírovaním súborov doň zo súborového alebo stromového panel;
 
-  - send the list of the files found by the ~Find files~@:FindFile@ command
-    to the temporary panel. In order to do this, you should click
-    the "#Panel#" button in the dialog with the list of found files.
+  - open a ~list file~@List@ by pressing Enter or Ctrl-PgDn on it
+    or by entering its name in the ~command line~@CMD@;
 
-   Pliki kopiowane do panelu tymczasowego nie są tam kopiowane fizycznie,
-a jedynie umieszczane są tam odwołania do nich. Podczas wykonywania operacji na
-plikach w panelu tymczasowym zmieniane są pliki w ich fizycznej lokacji. Na
-przykład usunięcie pliku z panelu tymczasowego powoduje fizyczne usunięcie
-pliku z dysku.
+  - poslaním súborov z okna ~Vyhľadanie súborov~@:FindFile@,
+    použitím príkazu "Panel".
 
-   Aby usunąć plik tylko z panelu tymczasowego należy użyć klawisza
-#F7#. Wtedy właściwy plik pozostanie nienaruszony.
+    Súbory kopírované do pomocného panelu sa nekopírujú fyzicky,
+vytvárajú sa na ne len odkazy. Keď použijete na súbory v pomocnom
+paneli nejaký príkaz, tento sa vykoná na skutočnom súbore v jeho
+aktuálnej polohe. Napríklad vymazanie súboru z pomocného panelu
+vedie k skutočnému vymazaniu tohoto súboru z disku.
 
-   Aby znaleźć się w katalogu, w którym znajduje się plik pod kursorem należy
-nacisnąć #Ctrl-PgUp#.
+ Odstránenie označených súborov len z pomocného panelu bez vymazania z disku
+sa vykonáva klávesom "F7-Odstr. (Remove)".
+
+    Stlačenie #Ctrl-PgUp# uzavrie pomocný panel a prejde na súbor,
+ktorý je práve pod kurzorom.
 
    #Alt-Shift-F3# on an element:
 
@@ -54,23 +52,22 @@ you can use a menu (#Alt-Shift-F12#) or hotkeys for immediate switching
    To save the current contents of the panel to a list file, you
 can use the hotkey #Alt-Shift-F2#.
 
-
- ~Zawartość~@Contents@
+~Contents~@Contents@
 
 @Config
-$ #Panel tymczasowy: Konfiguracja#
-   W tym oknie dialogowym można zmienić następujące parametry:
+$ #Konfigurácia pomocného panelu#
+   V tomto okne môžete zmeniť nasledovné položky:
 
- #Add to disks menu#
-   Pozwala na włączenie elementu "Tymczasowy" do menu napędów.
+ #Pridaj do menu jednotiek#
+   Pridá položku "Dočasný" do menu jednotiek.
 
  #Add to plugins menu#
    Enables adding the "Temporary" item to the plugins menu.
 
- #Użyj wspólnego panelu#
-   Jeśli opcja jest włączona, obsługiwany jest jeden panel tymczasowy
-a jego zawartość jest przechowywana nawet po jego zamknięciu. Bez
-tej opcji każdy panel tymczasowy po utworzeniu jest pusty.
+ #Používať zvyčajný panel#
+   Ak je zvolený, pracuje sa s jedným zvyčajným panelom a jeho obsah sa
+uchováva aj keď je uzavretý. Beztejto voľby bude každý novootvorený
+pomocný panel vytvorený prázdny.
    If the option #"Use common panel"# is enabled, 10 instances of
 the temporary panel are created. You can switch between them by pressing
 #Alt-Shift-F12# (to show a menu) or hotkeys from #Alt-Shift-0# to
@@ -131,19 +128,19 @@ delimiter will be executed when the item is selected.
    #|-|# is a separator and will be shown as a horizontal line in
 the menu.
 
-   Przykład zawartości pliku: #shortcuts.temp#
-   #|&A: wyjmowalny|A:#
-   #|&C: stały|C:#
-   #|&D: stały|D:#
+   Example of a list file: #shortcuts.temp#
+   #|&A: removable|A:#
+   #|&C: fixed|C:#
+   #|&D: fixed|D:#
    #|-|#
-   #|&M: Muzyka|D:\Music#
-   #|&M: Narzędzia|D:\Tools#
-   #|&M: Pulpit|%HOMEDRIVE%%HOMEPATH%\Desktop#
+   #|&M: Music|D:\Music#
+   #|&M: Tools|D:\Tools#
+   #|&M: Desktop|%HOMEDRIVE%%HOMEPATH%\Desktop#
    #|-|#
-   #|&1: Tymczasowyy|tmp:#
+   #|&1: Temporary|tmp:#
    #|&2: Far Navigator|ftp:#
-   #|&3: Sieć|net:#
-   #|&8: Rejestr|reg:#
+   #|&3: Network|net:#
+   #|&8: Registry|reg:#
 
  #New panel for search results#
    This option works when #"Use common panel"# is enabled and allows
@@ -162,15 +159,15 @@ panel.
    ~Masks~@:FileMasks@ for the files that should be interpreted as
 ~file lists~@List@.
 
- #Przedrostek linii poleceń#
+ #Command line prefix#
    Specifies the prefix for opening the temporary panel from the command
 line and for ~file list operations~@List@.
 
 
- ~Zawartość~@Contents@
+ ~Contents~@Contents@
 
 @List
-$ #Panel tymczasowy: Lista plików#
+$ #Temporary panel: list files#
    The temporary panel can read a list of filenames from a list file.
 
    Each line in the list file must contain
@@ -190,7 +187,7 @@ environment variables (%WINDIR%\System).
    List file example:
      #c:#
      #d:#
-     #d:\Gry\Quake3#
+     #d:\Games\Quake3#
      #\\server\c$#
      #\\server\music#
      #%ProgramFiles%#
@@ -221,17 +218,17 @@ sequence:
 given above - #tmp:#) can be set in the configuration dialog.
 
 
- ~Zawartość~@Contents@
+ ~Contents~@Contents@
 
 @CMD
-$ #Panel tymczasowy: Linia poleceń#
- Składnia linii poleceń:
-   #<przedrostek>:[<opcje>] [<lista_plików>]# , where:
+$ #Temporary panel: Command line#
+ Command line syntax:
+   #<prefix>:[<options>] [<filelist>]# , where:
 
-   #<przedrostek># - przedrostek wtyczki, ustawiany w
-                ~oknie konfiguracji~@Config@ (domyślny to #tmp#)
+   #<prefix>#   - plugin prefix, configurable in the
+                ~configuration dialog~@Config@  (the default is #tmp#)
 
-   #<opcje>#    - zero or more of the options listed above, separated
+   #<options>#  - zero or more of the options listed above, separated
                 with at least a single space (the options are not
                 case-sensitive)
 
@@ -243,10 +240,10 @@ $ #Panel tymczasowy: Linia poleceń#
    #+menu# / #-menu# - menu/panel from file list
    #+replace# / #-replace# - replace/add panel items
 
-   #<lista_plików>#  - the ~list file~@List@ from which the temporary
+   #<filelist>#  - the ~list file~@List@ from which the temporary
 panel will read its list of elements
 
-   See ~Panel tymczasowy: Konfiguracja~@Config@ for a more in depth
+   See ~Temporary panel: configuration~@Config@ for a more in depth
 explanation of command line switches.
 
- ~Zawartość~@Contents@
+ ~Contents~@Contents@

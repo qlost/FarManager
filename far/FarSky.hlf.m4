@@ -1,5 +1,5 @@
 ﻿m4_include(`farversion.m4')m4_dnl
-.Language=German,German (Deutsch)
+.Language=Slovak,Slovak (Slovenčina)
 .Options CtrlColorChar=\
 .Options CtrlStartPosChar=^<wrap>
 
@@ -46,119 +46,114 @@
 
 
 @Contents
-$^#Datei- und Archiv-Manager.#
+$^#Manažér súborov a archívov#
 `$^#'FULLVERSION`#'
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#
+`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
  ~Help file index~@Index@
- ~Hilfe über Hilfe~@Help@
+ ~Ako používať nápovedu~@Help@
 
- ~Über Far~@About@
+ ~O programe Far~@About@
  ~License~@License@
 
- ~Kommandozeilenschalter~@CmdLine@
- ~Tastaturreferenz~@KeyRef@
- ~Plugin-Support~@Plugins@
+ ~Prepínače použiteľné z príkazového riadku~@CmdLine@
+ ~Klávesové skratky~@KeyRef@
+ ~Podpora prídavných modulov~@Plugins@
  ~Overview of plugin capabilities~@PluginsReviews@
 
- ~Fenster~@Panels@:
-  ~Dateifenster~@FilePanel@
-  ~Baumfenster~@TreePanel@
-  ~Statusfenster~@InfoPanel@
-  ~Schnellansichtsfenster~@QViewPanel@
-  ~Dateien "ziehen und fallenlassen"~@DragAndDrop@
-  ~Benutzerdefinierte Ansichten für Dateifenster~@PanelViewModes@
-  ~Dateien auswählen~@SelectFiles@
+ ~Panely~@Panels@:
+  ~Súborový panel~@FilePanel@
+  ~Stromový panel~@TreePanel@
+  ~Informačný panel~@InfoPanel@
+  ~Panel rýchleho prezerania~@QViewPanel@
+  ~Ťahaj a pusť súbory~@DragAndDrop@
+  ~Úprava zobrazovacích módov v súborovom paneli~@PanelViewModes@
+  ~Označovanie súborov~@SelectFiles@
 
- ~Menüs:~@Menus@:
-  ~Linke und rechte Menüs~@LeftRightMenu@
-  ~Das Menü 'Dateien'~@FilesMenu@
-  ~Das Menü 'Befehle'~@CmdMenu@
-  ~Das Menü 'Optionen'~@OptMenu@
+ ~Menu~@Menus@:
+  ~Menu Ľavý a Pravý~@LeftRightMenu@
+  ~Menu Súbory~@FilesMenu@
+  ~Menu Príkazy~@CmdMenu@
+  ~Menu Nastavenia~@OptMenu@
 
- ~Datei suchen~@FindFile@
- ~History~@History@
- ~Verzeichnis suchen~@FindFolder@
- ~Verzeichnisse vergleichen~@CompFolders@
- ~Benutzermenü~@UserMenu@
- ~Laufwerk wechseln-Menü~@DriveDlg@
+ ~Nájdi súbor~@FindFile@
+ ~História~@History@
+ ~Vyhľadanie adresára~@FindFolder@
+ ~Porovnanie adresárov~@CompFolders@
+ ~Užívateľské menu~@UserMenu@
+ ~Zmena jednotky~@DriveDlg@
 
- ~Dateiverknüpfungen~@FileAssoc@
+ ~Typy súborov~@FileAssoc@
  ~Operating system commands~@OSCommands@
- ~Verzeichnis-Kürzel~@FolderShortcuts@
- ~Sort groups~@SortGroups@
- ~Dateifensterfilter~@FiltersMenu@
- ~Bildschirme umschalten~@ScrSwitch@
- ~Taskliste~@TaskList@
+ ~Skratky k adresárom~@FolderShortcuts@
+ ~Skupiny triedenia~@SortGroups@
+ ~Filter zobrazených súborov~@FiltersMenu@
+ ~Prepínanie obrazoviek~@ScrSwitch@
+ ~Zoznam úloh~@TaskList@
  ~Hotplug devices list~@HotPlugList@
 
- ~Systemeinstellungen~@SystemSettings@
- ~Fenstereinstellungen~@PanelSettings@
+ ~Nastavenia systému~@SystemSettings@
+ ~Nastavenia panelov~@PanelSettings@
  ~Tree settings~@TreeSettings@
- ~Programmeinstellungen~@InterfSettings@
+ ~Nastavenia prostredia~@InterfSettings@
  ~Dialog settings~@DialogSettings@
  ~Menu settings~@VMenuSettings@
  ~Command line settings~@CmdlineSettings@
 
- ~Dateihervorhebung~@Highlight@
- ~Dateibeschreibungen~@FileDiz@
- ~Betrachter-Einstellungen~@ViewerSettings@
- ~Editor-Einstellungen~@EditorSettings@
+ ~Zvýrazňovanie súborov~@Highlight@
+ ~Popis súborov~@FileDiz@
+ ~Nastavenie prezerača~@ViewerSettings@
+ ~Nastavenie editora~@EditorSettings@
 
- ~Kopieren, verschieben, umbenennen und Links anlegen~@CopyFiles@
+ ~Kopírovanie, presúvanie, premenovávanie a vytváranie linkov~@CopyFiles@
 
- ~Interner Betrachter~@Viewer@
- ~Interner Editor~@Editor@
+ ~Zabudovaný prezerač~@Viewer@
+ ~Zabudovaný editor~@Editor@
 
- ~Dateimasken~@FileMasks@
- ~Tastaturmakros~@KeyMacro@
+ ~Masky súborov~@FileMasks@
+ ~Klávesové makrá~@KeyMacro@
 
 
 @Help
-$ #Hilfe über Hilfe#
- Hilfefenster können Verweise auf andere Hilfefenster enthalten.
+$ #Ako používať nápovedu#
+ Obrazovky nápovedy môžu obsahovať odkazy na inú obrazovku nápovedy.
 Also, the main page has the "~Help Index~@Index@", which lists all the
 topics available in the help file and in some cases helps to find the needed
 information faster.
 
-Benutzen Sie die #Tabulator#- und #Umsch+Tabulator#-Taste, um den Cursor
-von einem zum anderen Verweis-Eintrag zu bewegen, drücken Sie dann die
-Enter-Taste, um das Hilfefenster, das diesen Eintrag beschreibt, zu
-öffnen. Dies erreichen Sie auch, wenn Sie den Mauszeiger auf den
-Verweis bewegen und die linke Maustaste drücken.
+ Použitím klávesov #Tab# a #Shift+Tab# môžete presúvať kurzor medzi týmito
+odkazmi a potom stlačením klávesu Enter sa dostanete na obrazovku popisujúcu
+danú položku. S myšou sa presuniete pomocou kliknutia na daný odkaz.
 
- Wenn ein Text nicht vollständig in das Hilfefenster passt, wird
-ein Rollbalken angezeigt. In diesem Fall kann man die #Cursor-Tasten#
-benutzen, um durch den Text zu rollen.
+ Ak sa text nezmestí celý do okna nápovedy, zobrazí sa posuvník. Vtedy
+možno na pohyb textu použiť #kurzorové klávesy#.
 
- Mit der #Alt+F1#- oder der #Rückschritt#-Taste können Sie zum
-vorherigen Hilfefenster zurückkehren, mit #Umsch+F1# können Sie
-sich das Hilfe-Inhaltsverzeichnis anschauen.
+ Stlačením #Alt+F1# alebo #BS# (#BackSpace#) sa dostanete na predošlú
+obrazovku a stlačením #Shift+F1# na obsah nápovedy.
 
- Drücken Sie #Umsch+F2#, um Hilfe über ~Plugins~@Plugins@ zu
-erhalten.
+ Pre nápovedu k ~prídavným modulom~@Plugins@ stlačte #Shift+F2#.
 
  Press #F7# to search for text in the current help file. Search results
 will be displayed as links to relevant topics.
 
- #Help# is shown by default in a reduced windows.
-#F5# schaltet zwischen Fenster- und Vollbildschirm hin und her.
+ #Help# is shown by default in a reduced windows, you can maximize it by
+pressing #F5# "#Zoom#", pressing #F5# again will restore the window to the
+previous size.
 
 
 @About
-$ #Über Far#
- #Far# ist Datei- und Archiv-Manager im Textmodus für Windows.
-Er unterstützt #lange Dateinamen# und bietet eine
-große Zahl an Datei- und Verzeichnisoperationen an.
+$ #O programe Far#
+ #Far# je manažér súborov a archívov pre Windows, pracujúci v textovom móde.
+Podporuje #dlhé mená súborov# a ponúka širokú paletu operácií so súbormi a adresármi.
 
  #Far# is #freeware# and #open source# software distributed under the
 revised BSD ~license~@License@.
 
- #Far# ermöglicht transparentes Archiv-Handling. Dateien eines Archivs werden genauso
-behandelt als ob sie sich in einem Verzeichnis befänden: wenn Sie mit Archiven arbeiten,
-wandelt Far Ihre Befehle in die entsprechenden externen Packer-Befehle um.
+ Far ponúka transparentnú prácu s #archívmi#. So súbormi v archívoch sa
+pracuje podobne ako v adresári: keď pracujete s archívom, Far transformuje
+vaše príkazy do zodpovedajúcich volaní externých archivačných programov.
 
- Außerdem bietet #Far# eine Menge an Service-Funktionen an.
+ Far taktiež obsahuje množstvo servisných funkcií.
 
 
 @License
@@ -191,13 +186,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 @CmdLine
-$ #Kommandozeilenschalter#
- Die folgenden Kommandozeilenoptionen stehen zur Verfügung:
+$ #Prepínače použiteľné z príkazového riadku#
+ V príkazovom riadku možno použiť nasledovné prepínače:
 
- #-e[<Zeile>[:<Position>]] <Dateiname>#
- Angegebene Datei bearbeiten. Nach /e kann optional die Startzeile
-und Zeilenposition angegeben werden.
- Beispiel: far -e70:2 readme.
+ #-e[<riadok>[:<pozícia>]] <názov súboru>#
+ Edituj určený súbor. Po /e môžete voliteľne určiť na ktorom riadku
+a stĺpci má editor umiestniť kurzor.
+ Napríklad: far -e70:2 citaj.ma
 
  #-p[<path>]#
  Search for "main" plugins in the folder given in <path>.
@@ -230,17 +225,17 @@ user profile folder (#%APPDATA%\\Far Manager\\Profile# by default).
  #-s <profilepath> [<localprofilepath>]#
  Custom location for Far configuration files (overrides the ini file).
 
- -u <Benutzername>
- Ermöglicht die Benutzung separate Einstellungen für unterschiedliche Benutzer.
+ #-u <názov užívateľa>#
+ Dovoľuje mať oddelené nastavenia pre rôznych užívateľov.
  Affects only 1.x Far Manager plugins
- Beispiel: far -u gast
+ Napríklad: far -u guest
 
  Far Manager will set the ~environment variable~@FAREnv@ "FARUSER" to the value <username>.
 
- -v <Dateiname>
- Zeigt die angegebene Datei im Betrachter an. Gibt man als Dateiname - an, wird vom Standardeingabegerät (stdin) eingelesen.
+ #-v <názov súboru>#
+ Načíta do prezerača špecifikovaný súbor. Ak je <názov súboru> `#-#', dáta sú načítané zo štandardného vstupu (stdin).
 
- Beispiel, "dir|far -v -" zeigt z.B. die Ausgabe des dir-Befehls an.
+ Napríklad, "dir|far -v -" načíta do prezerača výstup príkazu dir.
 
  If the input stream is empty when using ‘-’ (for example, you have not specified
 the "dir" command in the provided example), Far will wait for the end of data
@@ -290,13 +285,13 @@ Single letter prefixes A-Z or conflicted with disk letter will be ignored.
 
 
 @KeyRef
-$ #Tastaturreferenz#
+$ #Klávesové skratky#
 
- ~Fenstersteuerung~@PanelCmd@
+ ~Príkazy na ovládanie panelov~@PanelCmd@
 
- ~Kommandozeilensteuerung~@CmdLineCmd@
+ ~Príkazy pre príkazový riadok~@CmdLineCmd@
 
- ~Dateimanagement- und Service-Befehle~@FuncCmd@
+ ~Príkazy pre prácu so súbormi a servisné príkazy~@FuncCmd@
 
  ~Mouse: wheel support~@MsWheel@
 
@@ -304,7 +299,7 @@ $ #Tastaturreferenz#
 
  ~Screen grabber~@Grabber@
 
- ~Verschiedenes~@MiscCmd@
+ ~Ostatné~@MiscCmd@
 
  ~Special commands~@SpecCmd@
 
@@ -320,84 +315,80 @@ $ #Menu control commands#
 
 
 @PanelCmd
-$ #Befehl zur Fenstersteuerung#
- #Allgemeine Fensterbefehle#
+$ #Príkazy na ovládanie panelov#
+ #Základné príkazy panelu#
 
- Aktives Fenster wechseln                                 #Tabulator#
- Fenster vertauschen                                         #Strg+U#
- Fenster neu lesen                                           #Strg+R#
- Status-Fenster ein-/ausschalten                             #Strg+L#
- ~Schnellansichtsfenster~@QViewPanel@ ein-/ausschalten                     #Strg+Q#
- ~Baumfenster~@TreePanel@ ein-/ausschalten                                #Strg+T#
- Beide Fenster anzeigen/verbergen                            #Strg+O#
+ Zmeň aktívny panel                                             #Tab#
+ Vymeň panely                                                #Ctrl+U#
+ Aktualizuj panel (znovu načítaj)                            #Ctrl+R#
+ Zap./vyp. informačný panel                                  #Ctrl+L#
+ Zap./vyp. panel rýchleho prezerania                         #Ctrl+Q#
+ Zap./vyp. stromový panel                                    #Ctrl+T#
+ Schovaj/zobraz oba panely                                   #Ctrl+O#
  Temporarily hide both panels                        #Ctrl+Alt+Shift#
  (as long as these keys are held down)
- Inaktives Fenster anzeigen/verbergen                        #Strg+P#
- Linkes Fenster anzeigen/verbergen                          #Strg+F1#
- Rechtes Fenster anzeigen/verbergen                         #Strg+F2#
- Fensterhöhe ändern                                   #Strg+↑,Strg+↓#
+ Schovaj/zobraz neaktívny panel                              #Ctrl+P#
+ Schovaj/zobraz ľavý panel                                  #Ctrl+F1#
+ Schovaj/zobraz pravý panel                                 #Ctrl+F2#
+ Zmeň výšku panelov                           #Ctrl+Nahor,Ctrl+Nadol#
  Change current panel height          #Ctrl+Shift+Up,Ctrl+Shift+Down#
- Fensterbreite ändern                        #Strg+Links,Strg+Rechts#
- (b.leerer Kommandozeile)
- Standardfensterbreite wiederherstellen                   #Strg+Num5#
+ Zmeň šírku panelov                              #Ctrl+Doľ,Ctrl+Dopr#
+ (ak je prík. riadok prázdny)
+ Vráť štandartnú šírku panelov                        #Ctrl+NumKlav5#
  Restore default panels height                     #Ctrl+Alt+Numpad5#
  Show/Hide functional key bar at the bottom line.            #Ctrl+B#
  Toggle total and free size show mode                  #Ctrl+Shift+S#
  in bytes (if possible) or with size suffices K/M/G/T
 
- #Dateifensterbefehle#
+ #Súborové príkazy panelu#
 
- ~Auswählen/Auswahl aufheben~@SelectFiles@              #Einfg, Umsch+Cursor-Tasten#
+ ~Označ/odznač súbor~@SelectFiles@                    #Ins, Shift+Kurzorové klávesy#
                                                  #Right mouse button#
- Gruppe auswählen                                            #Grau +#
- Gruppenauswahl aufheben                                     #Grau -#
- Auswahl umkehren                                            #Grau *#
- Dateien mit aktueller Erweiterung auswählen          #Strg+<Grau +>#
+ Označ skupinu                                               #Sivý +#
+ Odznač skupinu                                              #Sivý -#
+ Invertuj označenie                                          #Sivý *#
+ Označ súbory s príponou ako má aktuálny súbor        #Ctrl+<Sivý +>#
+ Odznač súbory s príponou ako má aktuálny súbor       #Ctrl+<Sivý ->#
+ Invertuj označenie vrátane adresárov                 #Ctrl+<Sivý *>#
+ Označ súbory s menom ako má aktuálny súbor            #Alt+<Sivý +>#
+ Odznač súbory s menom ako má aktuálny súbor           #Alt+<Sivý ->#
+ Invert selection on files, deselect folders           #Alt+<Gray *>#
+ Označ všetky súbory                                 #Shift+<Sivý +>#
+ Odznač všetky súbory                                #Shift+<Sivý ->#
+ Obnov predchádzajúce označenie                              #Ctrl+M#
 
- Dateiauswahl mit aktueller Erweiterung aufheben      #Strg+<Grau ->#
-
- Auswahl inkl. Verzeichnissen umkehren                #Strg+<Grau *>#
-
- Dateien mit aktuellem Namen auswählen                 #Alt+<Grau +>#
- Dateiauswahl mit aktuellem Namen aufheben             #Alt+<Grau ->#
- Invert selection on files, deselect folders           #Alt+<Grau *>#
-
- Alle Dateien auswählen                              #Umsch+<Grau +>#
- Auswahl aller Dateien aufheben                      #Umsch+<Grau ->#
- Vorherige Auswahl wiederherstellen                          #Strg+M#
-
- Lange Namen und Beschreibungen rollen         #Alt+Links,Alt+Rechts#
+ Skroluj dlhé mená súborov a popisy          #Alt+Doľava,Alt+Doprava#
                                                    #Alt+Home,Alt+End#
 
- Kurzer Dateiansichtsmodus                              #StrgLinks+1#
- Mittlerer Dateiansichtsmodus                           #StrgLinks+2#
- Voller Dateiansichtsmodus                              #StrgLinks+3#
- Weite  Dateiansicht                                    #StrgLinks+4#
- Detaillierte Dateiansicht                              #StrgLinks+5#
- Beschreibungsansicht                                   #StrgLinks+6#
- Lange Beschreibungsansicht                             #StrgLinks+7#
- Eigentümer-Ansicht                                     #StrgLinks+8#
- Dateilink-Ansicht                                      #StrgLinks+9#
- Alternativer voller Dateiansichtsmodus                 #StrgLinks+0#
+ Nastav "stručný" mód zobrazenia                         #ĽavýCtrl+1#
+ Nastav "stredný" mód zobrazenia                         #ĽavýCtrl+2#
+ Nastav "úplny" mód zobrazenia                           #ĽavýCtrl+3#
+ Nastav "široký" mód zobrazenia                          #ĽavýCtrl+4#
+ Nastav "detailný" mód zobrazenia                        #ĽavýCtrl+5#
+ Nastav mód zobrazenia popisov                           #ĽavýCtrl+6#
+ Nastav mód zobrazenia dlhých popisov                    #ĽavýCtrl+7#
+ Mastav mód zobrazenia vlastníkov súborov                #ĽavýCtrl+8#
+ Mastav mód zobrazenia liniek súborov                    #ĽavýCtrl+9#
+ Mastav alternatívny "plný" mód zobrazenia               #ĽavýCtrl+0#
 
- Versteckte und Systemdateien anzeigen/verbergen             #Strg+H#
- Lange Dateinamenansicht ein-/ausschalten                    #Strg+N#
+ Zap./vyp. zobrazovanie skrytých a systémových súborov       #Ctrl+H#
+ Zap./vyp. zobrazovanie dlhých mien súborov                  #Ctrl+N#
 
- Linkes Fenster anzeigen/verbergen                          #Strg+F1#
- Rechtes Fenster anzeigen/verbergen                         #Strg+F2#
+ Schovaj/zobraz ľavý panel                                  #Ctrl+F1#
+ Schovaj/zobraz pravý panel                                 #Ctrl+F2#
 
- Aktuelles Fenster nach Namen sortieren                     #Strg+F3#
- Aktuelles Fenster nach Erweiterungen sortieren             #Strg+F4#
- Aktuelles Fenster nach Datum/Zeit sortieren                #Strg+F5#
- Aktuelles Fenster nach Größe sortieren                     #Strg+F6#
- Aktuelles Fenster unsortiert anzeigen                      #Strg+F7#
- Aktuelles Fenster nach Datum der Dateierzeugung sortieren  #Strg+F8#
- Aktuelles Fenster nach letzter Zugriffszeit sortieren      #Strg+F9#
- Aktuelles Fenster nach Beschreibung sortieren             #Strg+F10#
- Aktuelles Fenster nach Eigentümer sortieren               #Strg+F11#
- ~Sortiermodus-Menü~@PanelCmdSort@ öffnen                                  #Strg+F12#
- Gruppensortierung benutzen                               #Umsch+F11#
- Ausgewählte Dateien als erste zeigen                     #Umsch+F12#
+ Zoraď súbory aktívneho panelu podľa mena                   #Ctrl+F3#
+ Zoraď súbory aktívneho panelu podľa prípony                #Ctrl+F4#
+ Zoraď súbory aktívneho panelu podľa času modifikácie       #Ctrl+F5#
+ Zoraď súbory aktívneho panelu podľa dĺžky                  #Ctrl+F6#
+ Nechaj súbory aktívneho panelu podľa nezoradené            #Ctrl+F7#
+ Zoraď súbory aktívneho panelu podľa času vytvorenia        #Ctrl+F8#
+ Zoraď súbory aktívneho panelu podľa času prístupu          #Ctrl+F9#
+ Zoraď súbory aktívneho panelu podľa času popisu           #Ctrl+F10#
+ Zoraď súbory aktívneho panelu podľa vlastníka             #Ctrl+F11#
+ Zobraz menu ~zoraďovacích módov~@PanelCmdSort@                            #Ctrl+F12#
+ Používaj zoraďovanie skupín                              #Shift+F11#
+ Zobrazuj označené súbory ako prvé                        #Shift+F12#
 
  Create a ~folder shortcut~@FolderShortcuts@                            #Ctrl+Shift+0…9#
  Jump to a folder shortcut                            #RightCtrl+0…9#
@@ -410,7 +401,7 @@ active, but on the passive panel.
  Copy names of the selected files to clipboard (if the command line is empty).
 
  #Ctrl+Shift+Ins#
- Copy names of the selected files to clipboard.
+ Skopíruj označené mená súborov do schránky.
 
  #Alt+Shift+Ins#
  Copy full names of selected files to clipboard.
@@ -428,19 +419,16 @@ active, but on the passive panel.
 
  See also the list of ~macro keys~@KeyMacroShellList@, available in the panels.
 
- Hinweise:
+ Poznámky:
 
- 1. ^<wrap>Wenn die Option "Umgekehrte Sortierung erlauben" im
-~Fenster-Einstellungen~@PanelSettings@-Dialog eingeschaltet ist,
-schaltet ein wiederholter Druck auf die entsprechende
-Sortiertaste zwischen auf- und absteigender Reihenfolge um.
+ 1. ^<wrap>Ak máte nastavené "Povoliť triedenie v opačnom poradí" v ~nastavení panelov~@PanelSettings@,
+opakované stláčanie rovnakého klávesu zoraďovania vedie k zmene
+spôsobu zoraďovania zo vzostupného na zostupné a naopak;
 
- 2. ^<wrap>Alt+Links und Alt+Rechts-Tastenkombinationen zum Rollen von
-langen Namen und Beschreibungen funktioniert nur mit den linken
-und rechten Cursortasten, die sich nicht im Nummernblock be-
-finden. Das liegt daran, daß durch das Drücken der Alt+Taste
-in Verbindung mit einer Taste des Nummernblocks die
-Dezimalcodes eines Zeichens umgesetzt werden.
+ 2. ^<wrap>Kombinácie Alt+Doľava a Alt+Doprava, používané na skrolovanie
+dlhých mien a popisov nepracujú s klávesmi na numerickej
+klávesnici. Je to preto, lebo keď stlačíte Alt, čísla na nej sa
+používajú na vkladanie znakov pomocou ich číselných kódov.
 
  3. ^<wrap>The key combination #Ctrl+Alt+Ins# puts the following text into the clipboard:
     - ^<wrap>for network drives: the network (UNC) name of the file object;
@@ -502,63 +490,61 @@ to set the hotkey for the transliteration.
 
 
 @CmdLineCmd
-$ #Kommandozeilensteuerung#
+$ #Príkazy pre príkazový riadok#
  #Common command line commands#
 
- Zeichen links                                         #Links,Strg+S#
- Zeichen rechts                                       #Rechts,Strg+D#
- Wort links                                              #Strg+Links#
- Wort rechts                                            #Strg+Rechts#
- Zeilenanfang                                             #Strg+Pos1#
- Zeilenende                                               #Strg+Ende#
- Lösche Zeichen unter dem Cursor                               #Entf#
- Lösche Zeichen links vom Cursor                        #Rückschritt#
- Bis zum Zeilenende löschen                                  #Strg+K#
- Linkes Wort löschen                               #Strg+Rückschritt#
- Rechtes Wort löschen                                     #Strg+Entf#
- In Zwischenablage kopieren                              #Strg+Einfg#
- Aus Zwischenablage einfügen                            #Umsch+Einfg#
- Vorheriger Befehl                                           #Strg+E#
- Nächster Befehl                                             #Strg+X#
- Kommandozeile löschen                                       #Strg+Y#
+ Posun o znak doľava                                  #Doľava,Ctrl+S#
+ Posun o znak doprava                                #Doprava,Ctrl+D#
+ Posun o slovo doľava                                   #Ctrl+Doľava#
+ Posun o slovo doprava                                 #Ctrl+Doprava#
+ Presun na začiatok riadku                                #Ctrl+Home#
+ Presun na koniec riadku                                   #Ctrl+End#
+ Vymazanie znaku pod kurzorom                                   #Del#
+ Vymazanie znaku pred kurzorom (naľavo od kurzora)               #BS#
+ Vymazanie po koniec riadku                                  #Ctrl+K#
+ Vymazanie slova naľavo                                     #Ctrl+BS#
+ Vymazanie slova napravo                                   #Ctrl+Del#
+ Skopíruj do schránky                                      #Ctrl+Ins#
+ Vlož zo schránky                                         #Shift+Ins#
+ Predošlý príkaz                                             #Ctrl+E#
+ Nasledujúci príkaz                                          #Ctrl+X#
+ Vymaž príkazový riadok                                      #Ctrl+Y#
 
  #Insertion commands#
 
- Dateiname aus aktivem Fenster einfügen           #Strg+J,Strg+Enter#
+  Vlož názov súboru z aktívneho panelu            #Ctrl+J, Ctrl+Enter#
 
  In the ~fast find~@FastFind@ mode, #Ctrl+Enter# does not insert a
 file name, but instead cycles the files matching the
 file mask entered in the fast find box.
 
  Insert current file name from the passive panel   #Ctrl+Shift+Enter#
- Kompletten Dateinamen aus aktivem Fenster einfügen          #Ctrl+F#
- Insert full file name from the passive panel                #Ctrl+;#
+ Vlož plný názov súboru z aktívneho panelu                   #Ctrl+F#
+ Vlož plný názov súboru z pasívneho panelu                   #Ctrl+;#
  Insert network (UNC) file name from the active panel    #Ctrl+Alt+F#
  Insert network (UNC) file name from the passive panel   #Ctrl+Alt+;#
 
- Pfad aus linkem Fenster einfügen                            #Strg+ß#
- Pfad aus rechtem Fenster einfügen             #Strg+<Akzentzeichen>#
+ Vlož cestu z ľavého panelu                                  #Ctrl+[#
+ Vlož cestu z pravého panelu                                 #Ctrl+]#
  Insert network (UNC) path from the left panel           #Ctrl+Alt+[#
  Insert network (UNC) path from the right panel          #Ctrl+Alt+]#
 
- Pfad aus aktivem Fenster einfügen                     #Strg+Umsch+ß#
- Pfad aus inaktivem Fenster einfügen     #Strg+Umsch+<Akzentzeichen>#
+ Vlož cestu z aktívneho panelu                         #Ctrl+Shift+[#
+ Vlož cestu z pasívneho panelu                         #Ctrl+Shift+]#
  Insert network (UNC) path from the active panel        #Alt+Shift+[#
  Insert network (UNC) path from the passive panel       #Alt+Shift+]#
 
- Hinweise:
+ Poznámky:
 
- 1. ^<wrap>Bei leerer Kommandozeile kopiert #Strg+Einfg# in einem Fenster
-markierte Dateinamen in die Zwischenablage wie #Strg+Umsch+Einfg# (see ~Panel control commands~@PanelCmd@);
+ 1. ^<wrap>Ak je príkazový riadoch prázdny, #Ctrl+Ins# skopíruje mená
+označených súborov z panelu do schránky ako #Ctrl+Shift+Ins# (see ~Panel control commands~@PanelCmd@);
 
- 2. ^<wrap>Wird #Strg+Ende# am Ende einer Kommandozeile eingegeben, wird
-der aktuelle Inhalt - beginnend ab den bereits eingebeben Zeichen - durch ein Kommando
-aus der ~History~@History@ vervollständigt, sofern ein solcher Befehl bereits in der
-History existiert. Weiteres Drücken von #Strg+Ende# geht weiter zum nächsten derartigen Kommandoaufruf (sofern vorhanden).
+ 2. ^<wrap>#Ctrl+End# stlačené na konci príkazového riadku nahradí jeho obsah príkazom z
+~histórie~@History@, začínajúc od už vložených znakov, ak taký príkaz existuje.
+Môžete stlačiť #Ctrl+End# opäť a vložiť nasledujúci taký príkaz.
 
- 3. ^<wrap>Die meisten aller oben beschriebenen Befehle gelten für alle
-bearbeitbaren Zeichenketten inkl. der Eingabefelder in Dialog-
-fenstern und im integrierten Editor.
+ 3. ^<wrap>Väčšina z vyššie popísaných príkazov funguje všade, kde sa
+zadáva text, vrátane vstupných polí v dialógových oknách a interného editora.
 
  4. ^<wrap>#Alt+Shift+Left#, #Alt+Shift+Right#, #Alt+Shift+Home# and #Alt+Shift+End# select
 the block in the command line also when the panels are on.
@@ -568,102 +554,98 @@ insert the local name of the file with ~symbolic links~@HardSymLink@ expanded.
 
 
 @FuncCmd
-$ #Dateimanagement- und Service-Befehle#
- Online-Hilfe                                                    #F1#
+$ #Príkazy pre prácu so súbormi a servisné príkazy#
+ Nápoveda                                                        #F1#
 
- ~Benutzermenü~@UserMenu@ anzeigen                                           #F2#
+ Zobraz ~užívateľské menu~@UserMenu@                                         #F2#
 
- Anzeigen                               #Strg+Umsch+F3, Numpad 5, F3#
- Auf eine Datei angewandt, #Numpad5# und #F3# wird der ~interne~@Viewer@, externe oder
-~speziell zugewiesene~@FileAssoc@ Betrachter aufgerufen, abhängig
-vom jeweiligen Dateityp und den ~externen Einstellungen~@ViewerSettings@
-des Betrachters.
-#Strg+Umsch+F3# ignoriert die Dateizuweisungen und ruft immer den
-internen Betrachter auf.
- Auf ein Verzeichnis angewandt, wird die Größe der ausgewählten
-Verzeichnisse berechnet und angezeigt.
+ Prezeranie                             #Ctrl+Shift+F3, NumKlav5, F3#
+ Ak sa stlačí na súbore, #F3# alebo #5# na numerickej klávesnici vyvolá
+~interný~@Viewer@, externý alebo ~podľa typu priradený~@FileAssoc@
+prezerač, v závislosti od typu súboru a ~nastavenia externých prezeračov~@ViewerSettings@.
+ #Ctrl+Shift+F3# vždy vyvolá interný prezerač ignorujúc nastavenie externých prezeračov.
+ Ak sa stlačí na adresári, vypočíta a zobrazí dĺžku označených adresárov.
 
- Bearbeiten                                       #Strg+Umsch+F4, F4#
- #F4# wird der ~interne~@Editor@, externe oder ~speziell zugewiesene~@FileAssoc@
-Editor aufgerufen, abhängig vom jeweiligen Dateityp und den
-~externen Editor-Einstellungen~@EditorSettings@.
-#Strg+Umsch+F4# ignoriert die Dateizuweisungen und ruft immer den internen Editor auf.
+ Editovanie                                       #Ctrl+Shift+F4, F4#
+ #F4# vyvolá ~interný~@Editor@, externý alebo ~podľa typu priradený~@FileAssoc@
+editor, v závislosti od typu súboru a ~nastavenia externých editorov~@EditorSettings@.
+ #Ctrl+Shift+F4# vždy vyvolá interný editor ignorujúc nastavenie externých editorov.
 #F4# and #Ctrl+Shift+F4# for directories invoke the change file
 ~attributes~@FileAttrDlg@ dialog.
 
- ~Kopieren~@CopyFiles@                                                        #F5#
- Kopiert Dateien und Verzeichnisse. Wenn Sie ein Zielverzeichnis
-vor dem Kopieren anlegen wollen, schließen Sie den Namen mit einem
-umgekehrten Schrägstrich ab.
+ ~Kopírovanie~@CopyFiles@                                                     #F5#
+ Kopíruje súbory a adresáre. Ak chcete vytvoriť cieľový adresár pred
+kopírovaním, pridajte k jeho menu spätné lomítko.
 
- ~Umbenennen oder Bewegen~@CopyFiles@                                         #F6#
- Bewegt Dateien und Verzeichnisse oder benennt sie um. Wenn Sie
-ein Zielverzeichnis vor dem Bewegen anlegen wollen, schließen
-Sie den Namen mit einem umgekehrten Schrägstrich ab.
+ ~Premenovanie alebo presun~@CopyFiles@                                       #F6#
+ Presunie alebo premenuje súbory a adresáre. Ak chcete vytvoriť cieľový
+adresár pred presúvaním, pridajte k jeho menu spätné lomítko.
 
- ~Neues Verzeichnis anlegen~@CopyFiles@                                       #F7#
+ ~Vytvorenie nového adresára~@MakeFolder@                                      #F7#
 
- ~Löschen~@DeleteFile@                                   #Umsch+Entf, Umsch+F8, F8#
+ ~Vymazanie~@DeleteFile@                                  #Shift+Del, Shift+F8, F8#
 
- ~Unwiderruflich löschen~@DeleteFile@                                    #Alt+Entf#
+ ~Dôkladné vymazanie~@DeleteFile@                                         #Alt+Del#
 
- ~Menüzeile~@Menus@ anzeigen                                              #F9#
+ Zobraz ~menu~@Menus@                                                     #F9#
 
- Far beenden                                                    #F10#
+ Ukončiť Far                                                    #F10#
 
- ~Plugin~@PlugIns@-Befehle anzeigen                                        #F11#
+ Zobraz príkazy ~prídavných modulov (plugins)~@Plugins@ commands           #F11#
 
- Laufwerk im linken Fenster wechseln                         #Alt+F1#
+ Zmeň aktuálnu jednotku v ľavom paneli                       #Alt+F1#
 
- Laufwerk im rechten Fenster wechseln                        #Alt+F2#
+ Zmeň aktuálnu jednotku v pravom panely                      #Alt+F2#
 
- Interner/externer Betrachter                                #Alt+F3#
- Ruft den internen Betrachter auf, wenn der externe der Standard-Betrachter,
+ Interný/externý prezerač                                    #Alt+F3#
+ If the internal viewer is used by default, invokes the external viewer
 specified in the ~Viewer settings~@ViewerSettings@ or the ~associated viewer program~@FileAssoc@
-for the file type, ist und umgekehrt.
+for the file type. Vyvolá interný prezerač ak je ako východzí nastavený externý a externý ak
+je ako východzí nastavený interný.
 
- Interner/externer Editor                                    #Alt+F4#
- Ruft den internen Editor auf, wenn der externe der Standard-Editor,
+ Interný/externý editor                                      #Alt+F4#
+ If the internal editor is used by default, invokes the external editor
 specified in the ~settings~@EditorSettings@ or the ~associated editor program~@FileAssoc@
- for the file type, ist und umgekehrt.
+for the file type. Vyvolá interný editor ak je ako východzí nastavený externý a externý ak
+je ako východzí nastavený interný.
 
- Drucke Dateien                                              #Alt+F5#
+ Vytlačiť súbory                                             #Alt+F5#
  If the "Print Manager" plugin is installed then the printing of
 the selected files will be carried out using that plugin,
 otherwise by using internal facilities.
 
- ~Links~@HardSymLink@ erzeugen (nur bei NTFS)                               #Alt+F6#
- Die Benutzung von harten Links erlaubt mehrere unterschiedliche
-Dateinamen, die auf die gleichen Daten verweisen.
+ Vytvoriť ~súboru linku~@HardSymLink@ (len NTFS)                            #Alt+F6#
+ Použitím pevných liniek môžete mať niekoľko rôznych názvov súborov,
+ktoré odkazujú na tie isté dáta.
 
- ~Datei suchen~@FileFind@                                                #Alt+F7#
+ Vykonaj príkaz ~nájdenia súboru~@FindFile@                              #Alt+F7#
 
- ~Befehlshistory~@History@ anzeigen                                     #Alt+F8#
+ Zobraz ~históriu príkazov~@History@                                    #Alt+F8#
 
- Videomodus umschalten                                       #Alt+F9#
+ Nastavenie počtu riadkov obrazovky                          #Alt+F9#
  In the windowed mode, toggles between the current size and the maximum
 possible size of a console window. In the fullscreen mode, #Alt+F9# toggles the
 screen height between 25 and 50 lines. See ~Interface.AltF9~@Interface.AltF9@ for details.
 
  Configure ~plugins~@Plugins@.                                    #Alt+Shift+F9#
 
- ~Verzeichnis suchen~@FindFolder@                                         #Alt+F10#
+ Vykonaj príkaz ~nájdenia adresáru~@FindFolder@                           #Alt+F10#
 
- ~Ansichts- und Bearbeitungshistory~@HistoryViews@ anzeigen                 #Alt+F11#
+ Zobraz ~históriu prezerania a editovania~@HistoryViews@                    #Alt+F11#
 
- ~Verzeichnishistory~@HistoryFolders@ anzeigen                                #Alt+F12#
+ Zobraz ~históriu adresárov~@HistoryFolders@                                  #Alt+F12#
 
- Dateien zu Archiven hinzufügen                            #Umsch+F1#
- Dateien aus Archiven entpacken                            #Umsch+F2#
- Archivmanagement-Befehle ausführen                        #Umsch+F3#
+ Pridanie súborov do archívu                               #Shift+F1#
+ Rozbalenie súborov z archívu                              #Shift+F2#
+ Vykonanie príkazov pracujúcich z archívmi                 #Shift+F3#
 
- ~Neue Datei~@FileOpenCreate@ bearbeiten                                     #Umsch+F4#
+ Editovanie nového súboru                                  #Shift+F4#
  When a new file is opened, the same code page is used as in the last opened
 editor. If the editor is opened for the first time in the current Far session,
 the default code page is used.
 
- Datei unter Cursor kopieren                               #Umsch+F5#
- Datei unter Cursor umbenennen oder verschieben            #Umsch+F6#
+ Kopírovanie súboru pod kurzorom                           #Shift+F5#
+ Premenovanie alebo presun súboru pod kurzorom             #Shift+F6#
  For folders: if the specified path (absolute or relative) points to an
 existing folder, the source folder is moved inside that folder. Otherwise the
 folder is renamed/moved to the new path.
@@ -673,14 +655,14 @@ moved into #d:\folder2\folder1\#;
  - ^<wrap>otherwise contents of #c:\folder1\# is moved into the
 newly created #d:\folder2\#.
 
- Datei unter Cursor ~löschen~@DeleteFile@                                #Umsch+F8#
+ Vymazanie súboru pod kurzorom                             #Shift+F8#
 
- Konfiguration sichern                                     #Umsch+F9#
+ Uloženie konfigurácie                                     #Shift+F9#
 
- Zuletzt benutzten Menüeintrag auswählen                  #Umsch+F10#
+ Návrat na naposledy spustenú položku menu                #Shift+F10#
 
- Ausführen, Verzeichnis wechseln, Archiv öffnen               #Enter#
- In separatem Fenster ausführen                         #Umsch+Enter#
+ Spustenie, zmena adresára, vstup do archívu                  #Enter#
+ Spustenie v osobitnom okne                             #Shift+Enter#
  Execute as administrator                            #Ctrl+Alt+Enter#
 
  Pressing #Shift+Enter# on a directory invokes the Windows Explorer and
@@ -688,28 +670,28 @@ shows the selected directory. To show a root directory in the Explorer, you
 should press #Shift+Enter# on the required drive in the ~Change drive menu~@DriveDlg@.
 Pressing #Shift+Enter# on "#..#" opens the current directory in the Explorer.
 
- Ins Wurzelverzeichnis wechseln                              #Strg+\\#
+ Zmena adresára do koreňového                                #Ctrl+\\#
 
- Verzeichnis wechseln, Archiv öffnen               #Strg+Umsch+Bild↓#
- (auch SFX-Archiv)
+ Zmena adresára, vstup do archívu                 #Ctrl+[Shift+]PgDn#
+ (aj do SFX archívu)
  If the cursor points to a directory, pressing #Ctrl+PgDn# changes to that
 directory. If the cursor points to a file, then, depending on the file type,
 an ~associated command~@FileAssoc@ is executed or the archive is opened.
 #Ctrl+Shift+PgDn# always opens the archive, regardless of the associated
 command configuration.
 
- Ins übergeordnete verzeichnis wechseln                  #Strg+Bild↑#
+ Zmena adresára na rodičovský (o stupeň vyššie)           #Ctrl+PgUp#
  The behavior in root folders depends on "Use Ctrl+PgUp to change drive~@InterfSettings@" option.
 
- Kürzel <Nr> für aktuelles Verzeichnis anlegen       #Strg+Umsch+0…9#
+ Vytvorenie skratky k aktuálnemu adresáru            #Ctrl+Shift+0…9#
 
- Verzeichniskürzel aufrufen                          #RechtsStrg+0…9#
+ Použitie skratky k adresáru                          #RightCtrl+0…9#
 
- Dateiattribute setzen                                       #Strg+A#
+ Nastav atribúty súboru                                      #Ctrl+A#
 
- Befehl auf ausgewählte Dateien ~anwenden~@ApplyCmd@                     #Strg+G#
+ ~Použi príkaz~@ApplyCmd@ na označené súbory                             #Ctrl+G#
 
- Ausgewählte Dateien ~beschreiben~@FileDiz@                             #Strg+Z#
+ ~Popíš~@FileDiz@ označené súbory                                       #Ctrl+Z#
 
 
 @DeleteFile
@@ -721,10 +703,10 @@ $ #Deleting and wiping files and folders#
 the object currently under cursor will be deleted.
 
  #Shift+F8#
- Delete only the file under cursor (with no regard to selection in the panel).
+ Vymaže len súbor pod kurzorom (with no regard to selection in the panel).
 
  #Shift+Del#
- Delete selected objects, skipping the Recycle Bin.
+ Delete selected objects okamžite a nie do Koša.
 
  #Alt+Del#
  Wipe out files and folders.
@@ -735,10 +717,10 @@ the object currently under cursor will be deleted.
 #Shift+F8# do or do not move the deleted files to the Recycle Bin. The
 #Shift+Del# hotkey always deletes, skipping the Recycle Bin.
 
- 2. ^<wrap>A file is wiped by first overwriting its data with zeroes
+ 2. ^<wrap>A file is wiped by pred sú jeho dáta prepísané nulami
 (a different value can be specified in
-~System.WipeSymbol~@System.WipeSymbol@), then truncating to zero
-length, following by renaming to a temporary name, and finally deleting.
+~System.WipeSymbol~@System.WipeSymbol@), následne je súbor rozdelený
+a premenovaný na dočasné meno, and finally deleting.
 
 
 @ErrCannotExecute
@@ -748,18 +730,19 @@ external command, operable program or batch file.
 
 
 @Grabber
-$ #Verschiedenes#
- Screen Grabber                                           #Alt+Einfg#
+$ #Screen grabber#
+ Zachytenie obrazovky                                       #Alt+Ins#
 
- Der Screen Grabber ermöglicht das Markieren und Kopieren eines
-beliebigen Fensterausschnittes in die Zwischenablage. Benutzen Sie die
-Cursortasten oder drücken Sie kurz die linke Maustaste, um den Cursor
-zu bewegen. Zum Markieren des gewünschten Fensterbereiches benutzen Sie
-die #Umsch+Cursor-Tasten# oder bewegen die Maus mit gedrückter linker
-Maustaste. Ein Druck auf die #Enter#, #Strg+Einfg# oder rechte Maus-Taste
-oder ein #Doppelklick# kopiert den markierten Text in die Zwischenablage,
-#Strg+<Grau +># fügt ihn zum bestehenden Inhalt der Zwischenablage hinzu.
- #Esc# bricht das Markieren ab.
+ Zachytenie obrazovky umožňuje zvoliť ľubovoľnú oblasť obrazovky a následne ju skopírovať do schránky.
+
+ To switch between stream and block selection mode use the #Space# key.
+ Pohyb kurzora možno riadiť #šípkami# alebo kliknutím #ľavého tlačítka myši#.
+ Na označenie oblasti sa používajú šípky pri stlačenom klávese #Shift# alebo pohyb myši pri stlačenom #ľavom tlačítku#.
+ To extend or shrink selected area use #Alt+Shift+arrow# keys.
+ To move selected area use #Alt+arrow# keys.
+ #Enter#, #Ctrl+Ins#, #pravé tlačítko myši# alebo #dvojité kliknutie# skopírujú
+označený text do schránky, #Ctrl+<Sivý +># ho do schránky pridá k už existujúcemu obsahu.
+ #Esc# ukončia zachytávanie.
  #Ctrl+A# - select whole screen.
  #Ctrl+U# - deselect block.
  #Ctrl+Shift+Left# and #Ctrl+Shift+Right# - extend or shrink selection by 10 characters left or right.
@@ -767,10 +750,10 @@ oder ein #Doppelklick# kopiert den markierten Text in die Zwischenablage,
 
 
 @MiscCmd
-$ #Common control commands#
+$ #Ostatné#
  #Keyboard macros#
 
- ~Tastaturmakros~@KeyMacro@ aufnehmen                                  #Strg+<.>#
+ Načítaj ~klávesové makro~@KeyMacro@                                   #Ctrl+<.>#
 
  #Menus and dropdown lists#
 
@@ -782,25 +765,24 @@ text.
 
  #Dialogs#
 
- Eingabefeld-History in Dialogfenstern               #Strg+↑, Strg+↓#
+ História vo vstupných poliach okien             #Ctrl+Up, Ctrl+Down#
 
- In Eingabefeld-Histories können Sie die Enter-Taste benutzen, um den
-History-Eintrag in das Eingabefeld zu kopieren, Einfg markiert oder
-demarkiert den Eintrag. Markierte Einträge werden nicht aus der History
-entfernt und durch neue ersetzt. Sie können so oft benötigte
-Zeichenketten markieren, damit sie in der History immer zur Verfügung stehen.
+ In dialog edit control history you can use #Enter# to copy the current item
+to the edit control and #Ins# to mark or unmark an item. Marked items are not
+pushed out of history by new items, so you can mark frequently used strings so
+that you will always have them in the history.
 
- Eingabefeld-History in Dialogfenstern löschen                 #Entf#
+ Vymaž históriu vo vstupných poliach okien                      #Del#
 
  Delete the current item in a dialog edit line history    #Shift+Del#
  (if it is not locked)
 
  Set the dialog focus to the default element                   #PgDn#
 
- Diese Tastenkombination gilt für alle Eingabefelder außer für
-die Kommandozeile und den ~internen Editor~@Editor@.
+ The following combinations are valid for all edit controls except the
+command line, including dialogs and the ~internal editor~@Editor@.
 
- Dateiname unter Cursor in Dialog übernehmen            #Umsch+Enter#
+ Vlož meno súboru pod kurzorom do dialógového okna      #Shift+Enter#
 
  Insert a file name from passive panel to dialog   #Ctrl+Shift+Enter#
 
@@ -864,55 +846,52 @@ editor and viewer (see ~System.MsWheelDelta~@System.MsWheelDelta@).
 
 
 @Plugins
-$ #Plugin-Support#
- Sie können externe DLL-Module (Plugins) benutzen, um neue Far-
-Befehle zu implementieren und Dateisysteme zu emulieren. Zum
-Beispiel emulieren der Archiv-Support, der FTP-Client, das temporäre
-Fenster und der Netzwerk-Browser Dateisystem-Plugins.
+$ #Podpora prídavných modulov (plugins)#
+ Externé DLL moduly (plugins) môžu byť použité na pridanie nových
+príkazov pre Far a emulovanie súborových systémov. Napríklad podpora
+archívov, klient FTP, dočasný panel a prezerač siete emulujú súborový
+systém.
 
- Alle Plugins werden in einem separaten Unterverzeichnis des
-'Plugins'-Verzeichnisses, welches sich im gleichen Verzeichnis wie
-Far.exe befindet, gespeichert, and the 'Plugins' folder, which is in the
+ Všetky prídavné moduly sú uložené v osobitných adresároch v adresári 'Plugins',
+ktorý je umiestnený v tom istom adresári ako Far.exe, and the 'Plugins' folder, which is in the
 user profile folder (#%APPDATA%\\Far Manager\\Profile# by default).
-Wenn ein neues Plugin erkannt wird, speichert Far Informationen darüber und lädt es später nur, wenn es
-erforderlich ist, so daß ungenutzte Plugins keinen zusätzlichen
-Speicher belegen. Wenn Sie sicher sind, daß sie einige Plugins nicht
-benötigen, können Sie diese löschen, um Plattenplatz zu sparen.
+Keď Far detekuje nový modul, uloží si informácie o ňom a
+neskôr ho načíta len keď je potrebný, takže nepoužívané moduly
+nevyžadujú nijakú dodatočnú pamäť. Ale ak ste si istý, že niektoré
+moduly sú pre vás zbytočné, môžete ich vymazať a ušetriť miesto na disku.
 
- Plugins können entweder über das ~Laufwerk wechseln~@DriveDlg@-
-oder das #Plugin-Kommandos#-Menü, aktiviert durch #F11# oder den
-entsprechenden Eintrag im ~Befehle~@Cmdmenu@-Menü, aufgerufen werden.
- Mit F4 im Menü ~"Plugin-Kommandos"~@PluginCommands@ können Hotkeys für Menü-Einträge
-zugewiesen werden (das ist einfacher als über ~Tastaturmakros~@KeyMacro@).
-Dieses Menü ist erreichbar über das Dateifenster und (nur über F11)
-aus dem internen Betrachter und Editor. Wenn das Menü aus dem Editor
-oder Betrachter aufgerufen wird, werden nur spezielle dafür
-erstellte Plugins angezeigt.
+ Moduly môžu byť vyvolané buď cez ~menu zmeny jednotky~@DriveDlg@
+alebo z menu #Príkazy prídavných modulov#, aktivovanom stlačením #F11# alebo príslušnou položkou
+z menu ~Príkazy~@CmdMenu@. #F4# v tomto menu dovoľuje priradiť klávesovú skratku jednotlivým položkám
+(toto umožňuje ich potom ľahšie vyvolať pomocou ~klávesových makier~@KeyMacro@).
+Toto menu je prístupné zo súborových panelov a (len cez #F11#) z interného
+prezerača a editora. Keď sa zavolá z prezerača alebo editora, zobrazia
+sa len špeciálne preň vytvorené moduly.
 
- Plugin-Parameter können über den #Plugin-Konfiguration#-Aufruf im
-~Optionen~@OptMenu@ konfiguriert werden.
+ Parametre modulov môžete nastaviť pomocou #Nastavenie prídavných modulov#
+z menu ~Nastavenia~@OptMenu@.
 
- Dateioperationen wie Kopieren, Verschieben, Löschen, Editieren
-oder ~Datei suchen~@FindFile@ arbeiten mit Plugins, die Dateisysteme
-emulieren. Die Suche ausgehend vom aktuellen Verzeichnis im "Datei
-suchen"-Befehl erfordert weniger Funktionalität als eine Suche vom
-Wurzelverzeichnis aus. Suchen Sie also vom aktuellen Verzeichnis aus,
-wenn die Suche vom Wurzelverzeichnis aus nicht korrekt arbeiten
-sollte.
+ Súbory, s ktorými sa pracuje operáciami ako kopírovanie, presúvanie,
+vymazávanie, editovanie alebo ~vyhľadanie súboru~@FindFile@
+môžu pracovať s modulmi, ktoré emulujú súborové systémy v prípade, že
+tieto moduly poskytujú príslušné funkcie. Vyhľadávanie z aktuálneho
+adresára vo "Vyhľadanie súboru" vyžaduje menšiu funkčnosť ako vyhľadávanie
+z kmeňového adresára, takže skúste použiť to, ak vyhľadávanie z kmeňového
+nefunguje správne.
 
- Plugins besitzen eigene Nachrichten- und Hilfedateien. Ein Liste
-aller verfügbaren Plugin-Hilfen erhalten Sie durch Drücken von
+ Moduly majú vlastné správy a súbory nápovedy. Zoznam použiteľných
+nápovied pre moduly získate stlačením
 
- #Shift+F2# - anywhere in the Far help system
+ #Shift+F2# - v hlavnej nápovede Faru
 
  #Shift+F1# - in the list of plugins (context-dependent help).
 
  If the plugin has no help file, then context-dependent help will not pop out.
 
- If the active panel shows a plugin emulated file system, the command "CD"
-in the command line can be used to change the plugin file system folder. Unlike
-"CD", "CHDIR" command always treats the specified parameter as a real folder
-name regardless a file panel type.
+ Ak aktívny panel zobrazuje emulovaný súborový systém modulu, možno
+v príkazovom riadku na zmenu súborového systému modulu použiť príkaz "CD".
+Narozdiel od "CD" príkaz "CHDIR" vždy berie zadaný paramater ako skutočné
+meno súboru bez ohľadu na typ súborového systému v paneli.
 
  Use #Alt+Shift+F9# to ~configure plugins~@PluginsConfig@.
 
@@ -1045,97 +1024,85 @@ one can recommend:
 
 
 @Panels
-$ #Fenster#
- Normalerweise zeigt Far zwei Fenster (linkes und rechtes Fenster)
-mit unterschiedlichen Informationen. Wenn Sie die Art der Informationen
-eines Fensters ändern möchten, benutzen Sie das ~Fenstermenü~@LeftRightMenu@
-oder die entsprechenden ~Tastenbefehle~@KeyRef@.
+$ #Panely#
+ Za normálnych okolností Far zobrazuje dva panely (ľavé a pravé okno),
+s rôznymi informáciami. Ak chcete zmeniť typ informácie zobrazenej v paneli,
+použite ~menu panelu~@LeftRightMenu@ alebo zodpovedajúci ~príkaz z klávesnice~@KeyRef@.
 
- Um weitere Informationen zu erhalten, schauen Sie unter folgenden Themen nach:
+ Pre viac informácií sa si pozrite nasledovné položky:
 
- ~Dateifenster~@FilePanel@
- ~Baumfenster~@TreePanel@
- ~Statusfenster~@InfoPanel@
- ~Schnellansichtsfenster~@QViewPanel@
+ ~Súborový panel~@FilePanel@
+ ~Stromový panel~@TreePanel@
+ ~Informačný panel~@InfoPanel@
+ ~Panel rýchleho prezerania~@QViewPanel@
 
- ~Dateien "ziehen und fallenlassen"~@DragAndDrop@
- ~Dateien auswählen~@SelectFiles@
- ~Dateifensteranzeigemodi benutzerdefiniert anpassen~@PanelViewModes@
+ ~Ťahaj a pusť súbory~@DragAndDrop@
+ ~Označovanie súborov~@SelectFiles@
+ ~Prispôsobenie zobrazovacích módov v súborovom paneli~@PanelViewModes@
 
 
 @FilePanel
-$ #Dateifenster#
- Das Dateifenster zeigt das aktuelle Verzeichnis an.
-Sie können Dateien und Verzeichnisse auswählen, Auswahlen aufheben und
-verschiedene Datei und Archivoperationen ausführen. Eine Liste der
-Befehle finden Sie in der ~Tastaturreferenz~@KeyRef@.
+$ #Súborový panel#
+ Súborový panel zobrazuje aktuálny adresár. Môžete označiť alebo odznačiť
+súbory a adresáre, vykonávať rôzne operácie so súbormi a archívmi. Pre zoznam
+súborov si prečítajte ~zoznam klávesových skratiek~@KeyRef@.
 
- Standardanzeigemodi für ein Dateifenster sind:
+ Základné zobrazovacie módy v súborovom paneli sú:
 
- #Kurz#          Dateinamen werden in drei Spalten angezeigt.
+ #Stručne#       Mená súborov sú zobrazené v troch stĺpcoch.
 
- #Mittel#        Dateinamen werden in zwei Spalten angezeigt.
+ #Stredne#       Mená súborov sú zobrazené v dvoch stĺpcoch.
 
- #Voll#          Dateinamen, -größen, -datum und -zeit werden
-               angezeigt.
+ #Úplne#         Zobrazuje meno, dĺžku, dátum a čas každého súboru.
 
- #Weit#          Dateinamen und -größen werden angezeigt.
+ #Široko#        Zobrazuje mená a dĺžky súborov.
 
- #Detailliert#   ^<wrap>Dateinamen, Größen, gepackte größen, Modifikations-,
-Erzeugungs- und letztes Zugriffsdatum sowie Dateiattribute werden im Vollbildschirmmodus angezeigt.
+ #Detailne#      ^<wrap>Mená súborov, dĺžky, komprimované dĺžky, dátum a
+čas vytvorenia, poslednej zmeny a posledného prístupu a atribúty. V celoobrazovkovom móde.
 
- #Beschreibung#  Dateinamen und ~Beschreibungen~@FileDiz@
+ #Popisy#        Mená súborov a ~ich popisy (descriptions)~@FileDiz@
 
- #Lange#         Dateinamen, Größen und Beschreibungen
- #Beschreibung#  Vollbildschirmmodus
+ #Dlhé popisy#   ^<wrap>Mená súborov, ich dĺžky a popisy. V celoobrazovkovom móde.
 
- #Eigentümer#    Dateinamen, Größen und Eigentümer.
+ #Vlast. súborov# Mená súborov, ich dĺžky a vlastníci.
 
- #Links#         Dateinamen, Größen und Anzahl harter Links.
+ #Linky súborov# Mená a dĺžky súborov a počet pevných liniek.
 
- #Alternativ#    Dateiname, -größe (formatiert durch Kommata) und
- #voll#          -datum werden angezeigt.
+ #Alter. úplne#  ^<wrap>Zobrazí mená súborov, dĺžky (formátované s čiarkami) a ich dátumy.
 
- Sie können ~Dateifensteranzeigemodi benutzerdefiniert anpassen~@PanelViewModes@.
+ ~Zobrazovacie módy v súborovom panely si môžete prispôsobiť.~@PanelViewModes@
 
- Gepackte Größen werden nur bei NTFS-komprimierten Dateien oder
-Dateien eines Archivs angezeigt. Eigentümer und Anzahl/Nummer harter
-Links sind nur beim NTFS-Dateisystem von Bedeutung. Einige Dateisysteme
-unterstützen kein Datum der Dateierzeugung oder des letzten Zugriffs.
+ Vlastníci súborov a počet pevných liniek majú taktiež význam len pre NTFS.
+Niektoré systémy nemusia podporovať ani dátumy vytvorenia a posledného prístupu.
 
- Die Ansichten in einem Fenster können Sie im ~Fenstermenü~@LeftRightMenu@
-ändern. Nachdem die Ansicht oder das Laufwerk geändert wurden, wird
-automatisch die Starteinstellung des Fenstertyps benutzt.
+ Ak chcete zmeniť mód zobrazenia súborov v paneli, vyberte si z ~menu panelu~@LeftRightMenu@.
+Po zmene módu alebo zmene jednotky sa panel automaticky nastaví na zobrazenie súborov,
+ak bol predtým nastavený iný typ panelu.
 
- Die #Schnellsuche# kann benutzt werden, um durch die Anfangsbuch-
-staben eines Namens auf die Datei zu springen.
+ ~Rýchle vyhľadávanie~@FastFind@ možno použiť na nastavenie sa na
+požadovaný súbor použitím prvých písmen jeho mena. 
 
  See also the list of ~macro keys~@KeyMacroShellList@, available in the panels.
 
 
 @TreePanel
-$ #Baumfenster#
- Das Baumfenster zeigt die Verzeichnisstruktur des aktuellen Lauf-
-werks als einen Baum. Innerhalb des Baums können Sie sehr schnell
-zwischen Verzeichnissen wechseln und andere Verzeichnisoperationen
-durchführen.
+$ #Stromový panel#
+ Stromový panel zobrazuje štruktúru aktuálneho disku ako strom.
+V tomto strome môžete veľmi rýchlo meniť adresár a vykonávať operácie
+z adresármi.
 
- Far speichert die Verzeichnisbauminformation in einer Datei
-namens #tree3.Far# im Wurzelverzeichnis eines jeden Laufwerks. Bei
-Nur-Lese-Laufwerken wird diese Information in einem versteckten
-Verzeichnis namens Tree.Cache gespeichert, welches in dem
-Verzeichnis angelegt wird, worin sich auch Far.exe befindet. The tree3.far
+ Far ukladá informácie o strome adresárov do súboru z názvom #Tree.Far# do kmeňového adresáru každej jednotky.
+Pre jednotky prístupné iba na čítanie sa táto informácia ukladá do skrytého adresáru Tree.Cache
+umiestneného v tom istom adresári ako Far.exe. The tree3.far
 file doesn't exist by default. It will be automatically created after the first
 use of the #Tree Panel# or the #Find Folder# command. If that file exists, Far
 updates it with the changes to the tree structure it is aware of. If such
 changes were made outside of Far and Tree.far is no longer current, it can be
 refreshed by pressing #Ctrl+R#.
 
- Verzeichnisse können bequem mit Hilfe der #Schnellsuche#
-gefunden werden. Halten Sie die Alt+Taste gedrückt und geben Sie
-den Verzeichnisnamen ein, bis das gesuchte Verzeichnis gefunden.
-Ein Druck auf #Strg+Enter# zeigt auf die nächste Fundstelle,
-sofern vorhanden.
+ Tak ako u súborov možno aj tu použiť funkciu #rýchleho vyhľadávania#. Držte
+kláves Alt a píšte meno adresára kým sa kurzor nenastaví na požadované. Po stlačení
+#Ctrl+Enter# (súčasne) preskočí na nasledujúci adresár začínajúci na zadané znaky, ak taký existuje.
 
  #Gray +# and #Gray -# keys move up and down the tree to the next branch
 on the same level.
@@ -1144,13 +1111,13 @@ on the same level.
 
 
 @InfoPanel
-$ #Statusfenster#
-    The Statusfenster beinhaltet die folgenden Informationen:
+$ #Informačný panel#
+ Informačný panel obsahuje nasledovné údaje:
 
- 1. ^<wrap>Die #Netzwerk#-Namen von Computer und Benutzer (see ~Info panel settings~@InfoPanelSettings@);
+ 1. ^<wrap>#sieťové# mená počítača a užívateľa (see ~Info panel settings~@InfoPanelSettings@);
 
- 1. ^<wrap>Name und Typ des aktuellen Laufwerks, Dateisystemtyp, Netzwerkname,
-gesamte und freie Laufwerkskapazität, Label der aktuellen Partition und deren Seriennummer;
+ 2. ^<wrap>meno a typ #aktuálneho disku# ako i typ súborového systému, sieťové
+meno, celkové a voľné miesto, názov jednotky disku a sériové číslo;
 
     ^<wrap>Far will attempt to determine the type of each of the CD drives available
 in the system. Known types are as follows: CD-ROM, CD-RW, CD-RW/DVD, DVD-ROM,
@@ -1168,20 +1135,18 @@ status line also affected.
 Current mode - far:config #Panel.ShowBytes# (default=false).
 
  3. ^<wrap>Memory information
- - Prozentuale #Speicher#auslastung (100% bedeutet, daß der gesamte Speicher in Benutzung ist),
- size of the installed physical memory (in Vista and newer), gesamte und freie Größe an physikalischem
-Speicher (available for Windows), virtuellem Speicher and paging file;
+    ^<wrap>percento obsadenia #pamäte# (100% znamená, že je obsadená celá pamäť),
+size of the installed physical memory (in Vista and newer), cekovú a voľnú veľkosť fyzickej
+pamäte (available for Windows) a virtuálnej pamäte and paging file;
 
- 4. ^<wrap>#Verzeichisbeschreibung#sdatei
-    ^<wrap>Den Inhalt einer Datei können Sie im Vollbildschirm ansehen,
-indem Sie #F3# oder die #linke Maustaste# drücken. Erzeugen oder
-Bearbeiten können Sie eine Datei durch Drücken von #F4# oder der
-#rechten Maustaste#. You can also use
+ 4. ^<wrap>súbor #popisu adresára#
+    ^<wrap>Obsah celého súboru si môžete prezrieť na celej obrazovké stlačením
+klávesu #F3# alebo ľavého tlačítka myši. Editovanie alebo vytvorenie je
+k dipozícii po stlačení klávesu #F4# alebo pravého tlačítka myši. You can also use
 many of the ~viewer commands~@Viewer@ (search, code page selection and so on)
 for viewing the folder description file.
-    ^<wrap>Eine Liste möglicher Dateinamen für Verzeichnisbescheibungs-
-dateien kann mit Hilfe des "Verzeichnis-Beschreibungsdateien"-
-Befehls im ~Optionen~@OptMenu@-Menü eingeben.
+    ^<wrap>Zoznam možných súborov s popismi adresára môže byť definovaný
+pomocou príkazu "Popisný súbor adresára" v menu ~Nastavenia (Options)~@OptMenu@.
 
  5. Plugin panel
     ^<wrap>Contains information about the opposite plugin panel, if provided by the plugin.
@@ -1298,19 +1263,18 @@ Supported types: CD-ROM, CD-RW, CD-RW/DVD, DVD-ROM, DVD-RW and DVD-RAM.
 
 
 @QViewPanel
-$ #Schnellansichtsfenster#
- Das Schnellansichtsfenster wird benutzt, um Informationen
-über ausgewählte Einträge im ~Dateifenster~@FilePanel@ oder
-~Baumfenster~@TreePanel@ anzuzeigen.
+$ #Panel rýchleho zobrazenia#
+ Panel rýchleho zobrazenia sa používa na zobrazenie informácie o
+označenej položke v ~súborovom paneli~@FilePanel@ alebo ~stromovom paneli~@TreePanel@
 
- Wenn der gewählte Eintrag eine Datei ist, wird der Inhalt
-dieser Datei angezeigt. Bei Dateien registrierter Windows-Typen
-wird dieser Typ ebenfalls angezeigt.
+ Ak je označená položka súbor, potom sa zobrazí jeho obsah.
+Many of the ~internal viewer~@Viewer@ commands can be used with the file
+displayed in the panel. Pre súbory typov registrovaných vo Windows sa zobrazí
+aj tento typ.
 
- Bei Verzeichnisssen zeigt die Schnellansicht die Gesamtgröße,
-die gesamte komprimierte Größe, Anzahl der Dateien und Unter-
-verzeichnisse, aktuelle Clustergröße des Laufwerks, echte Dateigröße
-inkl. ungenutzer Bytes aufgrund der Clusterstückelung.
+ Pre adresáre vypíše panel rýchleho zobrazenia celkovú dĺžku, celkovú komprimovanú
+dĺžku, počet súborov a podadresárov v adresári, veľkosť clustera aktuálneho disku,
+reálnu dĺžku súborov, vrátane "straty" (súčet nepoužitých častí clusterov).
 
  When viewing reparse points, the path to the source folder is also displayed.
 
@@ -1327,28 +1291,24 @@ Current mode - far:config #Panel.ShowBytes# (default=false).
 
 
 @DragAndDrop
-$ #Dateien "ziehen und fallenlassen"#
- Es ist möglich, Dateien durch #Ziehen und Fallenlassen# zu
-#kopieren# oder zu #verschieben#. Drücken Sie die linke Maustaste,
-wenn sich der Cursor auf der Quelldatei oder dem Quellverzeichnis
-befindet, ziehen diese in das andere Fenster und lassen die
-Maustaste dann los.
+$ #Ťahaj a pusť súbory#
+ Operácie #kopírovania# a #presúvania# je možné vykonať aj pomocou #Ťahaj a pusť#.
+Stačí stlačiť ľavé tlačítko myši na zdrojovom súbore alebo adresári,
+pretiahnuť ho do druhého panelu a pustiť tlačítko myši.
 
- Wollen Sie eine Gruppe von Dateien oder Verzeichnissen derart
-behandeln, markieren Sie sie vor dem Ziehen, klicken mit der
-linken Maustaste im Quellfenster und ziehen die Gruppe in das
-andere Fenster.
+ Ak chcete túto operáciu vykonať pre skupinu súborov alebo adresárov,
+najprv ich označte, stlačte ľavé tlačítko na zdrojovom paneli a pretiahnite
+skupinu súborov do druhého panelu.
 
- Während Sie ziehen, können Sie zwischen Kopieren und Ver-
-schieben umschalten, indem Sie die rechte Maustaste drücken. Um
-Dateien zu verschieben, können Sie auch die #Umsch#-Taste drücken
-und festhalten während Sie die linke Maustaste drücken.
+ Prepínanie medzi operáciou kopírovania a presúvania sa vykonáva stlačením
+pravého tlačítka myši počas ťahania. Presunúť možno súbory taktiež držaním
+klávesu #Shift# počas držania ľavého tlačítka myši.
 
 
 @Menus
-$ #Menüs#
- Um einen Menüeintrag zu aktivieren, drücken Sie #F9# oder klicken in die
-oberste Bildschirmzeile.
+$ #Menu#
+ Na vybratie nejakej akcie z menu stlačte #F9# alebo kliknite myšou
+na vrchu obrazovky.
 
  When the menu is activated by pressing #F9#, the menu for the active panel
 is selected automatically. When the menu is active, pressing #Tab# switches
@@ -1356,171 +1316,160 @@ between the menus for the left and right panel. If the menus "Files",
 "Commands" or "Options" are active, pressing #Tab# switches to the menu of the
 passive panel.
 
- Durch Druck auf #Umsch+F10# wählen Sie den zuletzt benutzten Menübefehl erneut.
+ Kombinácia Shift+F10 vás nastaví na posledný použitý príkaz menu.
 
- Um weitere Informationen über die einzelnen Menüs zu erhalten, schauen Sie unter folgenden Themen nach:
+ Pre informácie o jednotlivých menu si prečítajte nasledovné položky:
 
- ~Linke und rechte Menüs~@LeftRightMenu@
- ~Menü Dateien~@FilesMenu@
- ~Menü Befehle~@CmdMenu@
- ~Menü Optionen~@OptMenu@
+ ~Menu Ľavý a Pravý~@LeftRightMenu@
+ ~Menu Súbory~@FilesMenu@
+ ~Menu Príkazy~@CmdMenu@
+ ~Menu Nastavenia~@OptMenu@
 
  See also the list of ~macro keys~@KeyMacroMainMenuList@, available in the main menu.
 
 
 @LeftRightMenu
-$ #Linke und rechte Menüs#
- Das #Links# und #Rechts# Menü erlaubt es, die Einstellungen für das linke bzw. rechte
-Fenster entsprechend zu ändern. Die beiden Menüs beinhalten folgende Punkte:
+$ #Menu Ľavý a Pravý#
+ Menu #Ľavý# a #Pravý# vám dovoľujú zmeniť nastavenia
+ľavého, resp. pravého panelu. Tieto menu majú nasledovné položky:
 
- #Kurz#                 Dateinamen werden in drei Spalten angezeigt.
+ #Stručne#         Mená súborov sú zobrazené v troch stĺpcoch.
 
- #Mittel#               Dateinamen werden in zwei Spalten angezeigt.
+ #Stredne#         Mená súborov sú zobrazené v dvoch stĺpcoch.
 
- #Voll#                 ^<wrap>Dateinamen, -größen, -datum und -zeit werden angezeigt.
+ #Úplne#           Zobrazuje meno, dĺžku, dátum a čas každého súboru.
 
- #Weit#                 Dateinamen und -größen werden angezeigt.
+ #Široko#          Zobrazuje mená a dĺžky súborov.
 
- #Detailliert#          ^<wrap>Dateinamen, Größen, gepackte größen, Modifikations-, Erzeugungs-
-und letztes Zugriffsdatum sowie Dateiattribute werden im  Vollbildschirmmodus angezeigt.
+ #Detailne#        ^<wrap>Mená súborov, dĺžky, komprimované dĺžky, dátum a čas vytvorenia,
+poslednej zmeny a posledného prístupu a atribúty. V celoobrazovkovom móde.
 
- #Beschreibung#         Dateinamen und ~Beschreibungen~@FileDiz@
+ #Popisy#          Mená súborov a ~ich popisy~@FileDiz@
 
- #Lange Beschreibung#   Dateinamen, Größen und Beschreibungen Vollbildschirmmodus
+ #Dlhé popisy#     ^<wrap>Mená súborov, ich dĺžky a popisy. V celoobrazovkovom móde.
 
- #Eigentümer#           Dateinamen, Größen und Eigentümer.
+ #Vlast. súborov#  Mená súborov, ich dĺžky a vlastníci.
 
- #Links#                Dateinamen, Größen und Anzahl harter Links.
+ #Linky súborov#   Mená a dĺžky súborov a počet pevných liniek.
 
- #Alternativ voll#      ^<wrap>Dateiname, -größe (formatiert durch Kommata) und -datum werden angezeigt.
+ #Alter. úplne#    ^<wrap>Zobrazí mená súborov, dĺžky a ich dátumy.
 
- #Status#               Öffnet Fenster als ~Statusfenster~@InfoPanel@.
+ #Informačný p./#  Zmení panel na ~informačný panel~@InfoPanel@.
 
- #Baum#                 Öffnet Fenster als ~Baumfenster~@TreePanel@.
+ #Strom adresárov# Zmení panel na ~stromový panel~@TreePanel@.
 
- #Schnellansicht#       Öffnet ~Schnellansicht~@QViewPanel@.
+ #Rýchle zobraz.#  Zmení panel na ~rýchle zobrazenie~@QViewPanel@.
 
- #Sortiermodus#         Zeigt verfügbare Sortiermöglichkeiten.
+ #Zoradiť podľa#   Zobrazí použiteľné spôsoby zoradenia.
 
- #Lange Dateinamen#     Zeigt kurze/lange Dateinamen.
+ #Zobraz dlhé m.#  Prepína zobrazenie dlhých/krátkych názvov súborov.
 
- #Fenster An/aus#       Zeigt/verbirgt Fenster.
+ #Panel Zap/Vyp#   Zobrazí/skryje panel.
 
- #Neu lesen#            Liest Fensterinhalt neu ein.
+ #Aktualizuj ob.#  Znovu načíta adresár/iný obsah panelu.
 
- #Laufwerk wechseln#    Wechselt das aktuelle Laufwerk.
+ #Zmeň jednotku/#  Zmení aktuálnu jednotku.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @FilesMenu
-$ #Menü Dateien#
- #Anzeigen#           Zeigt Dateien an, berechnet Verzeichnisgrößen.
+$ #Menu Súbory#
+ #Zobraziť#           ~Zobrazí súbory~@Viewer@, vypočíta dĺžku adresárov.
 
- #Bearbeiten#         Editiert Dateien.
+ #Editovať#           ~Editáciu~@Editor@ súborov.
 
- #Kopieren#           Kopiert Dateien und Verzeichnisse.
+ #Skopírovať#         ~Skopíruje~@CopyFiles@ súbory a adresáre.
 
- #Umbenennen/Bewegen# ^<wrap>Benennt Dateien/Verzeichnisse um oder verschiebt sie.
+ #Premenovať/presunúť# ~Premenuje alebo presunie~@CopyFiles@ súbory a adresáre.
 
  #Link#               Create ~file links~@HardSymLink@.
 
- #Neues Verzeichnis#  Legt neues Verzeichnis an.
+ #Vytvor adresár#     Vytvorí nový adresár.
 
- #Löschen#            Löscht Verzeichnisse oder Dateien.
+ #Odstrániť#          Odstráni súbory a adresáre.
 
  #Wipe#               ^<wrap>Wipe files and folders. Before file deletion
 its data are overwritten with zeros, after which the file is truncated and renamed to
 a temporary name.
 
- #Komprimieren#       Fügt ausgewählte Dateien zu einem Archiv hinzu. 
+ #Pridať do archívu#  Pridá označené súbory do archívu.
 
- #Entpacken#          Entpackt ausgewählte Dateien aus einem Archiv.
+ #Vybrať z archívu#   Vyberie (rozpakuje) označené súbory z archívu.
 
- #Archive Kommandos#  Führt Archiv-Management-Kommandos aus.
+ #Príkazy archívu/#   Zobrazí ponuku príkazov na prácu z archívom.
 
- #Dateiattribute#     ~Ändert Dateiattribute~@FileAttrDlg@ und -zeiten.
+ #Atribúry súborov/#  ~Zmení atribúty súborov~@FileAttrDlg@ a čas.
 
- #Befehl anwenden#    ~Wendet Befehl an~@ApplyCmd@ auf ausgewählte Dateien.
+ #Vykonať príkaz/#    Na označené súbory ~použije zvolený príkaz~@ApplyCmd@.
 
- #Dateibeschreibung#  Fügt ~Beschreibungen~@FileDiz@ zu ausgewählten
-                      Dateien hinzu.
+ #Popis súborov/#     Pridá označeným súborom ~popis~@FileDiz@.
 
- #Gruppe auswählen#   ^<wrap>~Wählt~@SelectFiles@ Dateigruppe mit Wildcard-Unterstützung aus.
+ #Označiť skupinu/#   ~Označí~@SelectFiles@ skupinu súborov podľa zadanej masky.
 
- #Auswahl rückgängig# ^<wrap>~Hebt eine Auswahl auf~@SelectFiles@ (mit Wildcard-Unterstützung.
+ #Odznačiť skupinu/#  ~Odznačí~@SelectFiles@ skupinu súborov podľa masky.
 
- #Auswahl umkehren#   ~Kehrt~@SelectFiles@ aktuelle Auswahl um.
+ #Inverzné označenie# ~Invertuje~@SelectFiles@ aktuálne označenie súborov.
 
- #Auswahl laden#      ^<wrap>~Stellt~@SelectFiles@ vorherige Auswahl wieder her.
+ #Obnoviť označenie#  ^<wrap>~Obnoví~@SelectFiles@ predošlé označenie súborov
+po nejakej operácii so súbormi alebo označením skupiny.
 
- Einige Befehle dieses Menüs werden auch im Abschnitt
-~Dateimanagement- und Service-Befehle~@FuncCmd@ bechrieben.
+ Niektoré príkazy tohoto menu sú popísané taktiež v položke
+~Príkazy pre prácu so súbormi a servisné príkazy~@FuncCmd@.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @CmdMenu
-$ #Menü Befehle#
- #Datei suchen#         Sucht nach Dateien im Verzeichnisbaum
-                      Wildcards können benutzt werden.
-                      Weitere Informationen finden Sie
-                      unter ~Datei suchen~@FindFile@.
+$ #Commands menu#
+ #Nájdi súbor#          Prehľadá strom adresárov, pre určenie
+                      hľadaného súboru možno použiť aj masky.
+                      Viď ~Nájdí súbor~@FindFile@.
 
- #History#              Zeigt vorherige Befehle.
-                      Weitere Informationen finden Sie
-                      unter ~History~@History@.
+ #História#             Zobrazí predtým použité príkazy.
+                      Viď ~História~@History@.
 
- #Videomodus#           Schaltet zwsichen 25- und 50-Zeilenmodus um.
+ #Video mód#            Prepína medzi 25 a 50-riadkovou obrazovkou.
 
- #Verzeichnis suchen#   sucht nach Verzeichnissen im Verzeichnis-
-                      baum. Weitere Informationen finden Sie
-                      unter ~Verzeichnis suchen~@FindFolder@.
+ #Nájdi adresár#        Prehľadá strom adresárov.
+                      Viď ~Nájdi adresár~@FindFolder@.
 
- #Anzeige-History#      Zeigt Dateibetrachter- und -editor-
-                      History an.
+ #Hist.zobr.súborov#    Zobrazí ~históriu prezeraných a editovaných súborov~@HistoryViews@.
 
- #Verzeichnis-History#  Zeigt Verzeichniswechselhistory an.
+ #História adresárov# Zobrazí ~históriu aktuálnych adresárov~@HistoryFolders@.
+                      Items in "Folders history" and "File view
+                      history" are moved to the end of list after
+                      selection. Use #Shift+Enter# to select item
+                      without changing its position.
 
-                      Einträge in der "Verzeichnishistory" und
-                      "Dateibetrachterhistory" werden nach Auswahl
-                      an das Ende der Liste verschoben.  Das Ver-
-                      schieben kann durch Benutzen von #Umsch+Enter#
-                      statt Enter verhindert werden.
+ #Vymeň panely#         Vymení ľavý a pravý panel.
 
- #Fenster tauschen#     Tauscht das linke und rechte Fenster.
+ #Panely Zap/Vyp#       Zobrazí/skryje oba panely.
 
- #Fenster An/Aus#       Zeigt/verbirgt beide Fenster.
+ #Porovnaj adresáre#    Porovná obsahy adresárov.
+                      Viď ~Porovnaj adresáre~@CompFolders@.
 
- #Verzeichnisse#        Vergleicht Inhalte von Verzeuchnissen.
- #vergleichen#          Detaillierte Informationen dazu finden Sie
-                      unter "Verzeichnisse vergleichen~@CompFolders@.
+ #Úprava užívateľského# Umožní úpravu hlavného alebo lokálneho
+ #menu#               ~užívateľského menu~@UserMenu@. Môžete použiť #Ins#
+                      pre vloženie, #Del# pre vymazanie a #F4# pre úpravu položiek menu.
 
- #Benutzermenü#         Erlaubt das Bearbeiten des Haupt- oder
- #bearbeiten#           lokalen ~Benutzermenüs~@UserMenu@.
-                      Drücken Sie #Einfg# zum Einfügen, #Entf# zum
-                      Löschen und #F4# zum Bearbeiten von
-                      Menüeinträgen.
+ #Typy súborov#         Zobrazí ~typy súborov~@FileAssoc@.
+                    Môžete použiť #Ins# pre vloženie, #Del# pre
+                    vymazanie a #F4# pre úpravu typu súborov.
 
- #Dateiverknüpfung#     Zeigt die Liste von ~Dateiverknüpfungen~@FileAssoc@.
-                      Drücken Sie #Einfg# zum Einfügen, #Entf# zum
-                      Löschen und #F4# zum Bearbeiten von
-                      Dateiverknüpfungen.
+ #Skratky k adresárom# Zobrazí ~skratky~@FolderShortcuts@.
 
- #Verzeichniskürzel#    Zeigt aktuelle ~Verzeichniskürzel~@FolderShortcuts@.
+ #Nastavenie skupín#    Umožní užívateľovi zmeniť nastavenie
+ #triedenia/#         ~skupín triedenia~@SortGroups@.
 
- #Sortierungsgruppen#   Erlaubt das Bearbeiten benutzerdefinierter
- #bearbeiten#           ~Sortiergruppen~@SortGroups@.
-
- #Dateifensterfilter#   Steuert die Anzeige der Dateifensterinhalte.
-                        Detaillierte Informationen dazu finden Sie
-                      unter ~Dateifensterfilter~@Filter@.
+ #Filter zobr.súborov#  Umožní nastavenie obsahu súborového
+                      panelu. Viď ~Filter zobrazených súborov~@Filter@.
 
  #Plugin commands#      Show ~plugin commands~@Plugins@ list.
 
- #Bildschirmliste#      Zeigt Liste geöffneter ~Bildschirme~@ScrSwitch@.
+ #Zoznam obrazoviek#    Zobrazí ~zoznam obrazoviek~@ScrSwitch@.
 
- #Taskliste#            Zeigt ~Liste aktiver Tasks~@TaskList@.
+ #Zoznam úloh#          Zobrazí ~zoznam aktívnych úloh~@TaskList@.
 
  #Hotplug devices list# Show ~hotplug devices list~@HotPlugList@.
 
@@ -1528,25 +1477,22 @@ $ #Menü Befehle#
 
 
 @OptMenu
-$ #Menü Optionen#
- #Systemeinstellungen#   Zeigt den ~Systemeinstellungen~@SystemSettings@-Dialog.
+$ #Menu Nastavenia#
+ #Systémové nastavenia#  Zobrazí ~nastavenia systému~@SystemSettings@.
 
- #Fenstereinstellungen#  Zeigt den ~Fenstereinstellungen~@PanelSettings@-Dialog.
+ #Nastavenie panelov#    Zobrazí ~nastavenie panelov~@PanelSettings@.
 
  #Tree settings#         Shows ~Tree settings~@TreeSettings@ dialog.
                        Available only if ~Panel.Tree.TurnOffCompletely~@Panel.Tree.TurnOffCompletely@
                        parameter in ~far:config~@FarConfig@ is set to “false.”
 
- #Programm-#             Zeigt den ~Programmeinstellungen~@InterfSettings@-Dialog.
- #einstellungen#
+ #Nastavenie prostredia# Zobrazí ~nastavenie prostredia~@InterfSettings@.
 
- #Sprache#               Wählt die Programmsprache und Sprache für die
-                       Online-Hilfe. Benutzen Sie "Einstellungen
-                       sichern", um die gewählte Sprache dauerhaft
-                       zu speichern.
+ #Voľba jazyka#          Nastaví jazyk prostredia a nápovedy.
+                       Toto nastavenie možno uložiť pomocou "Uložiť nastavenie".
 
- #Plugin-#               Konfiguriert die ~Plugin~@Plugins@-Module.
- #konfiguration#
+ #Nast. prídavných#      Umožní konfiguráciu ~prídavných modulov~@Plugins@.
+ #modulov#
 
  #Plugin manager#        Shows ~Plugin manager settings~@PluginsManagerSettings@ dialog.
  #settings#
@@ -1563,53 +1509,47 @@ $ #Menü Optionen#
 
  #Groups of file masks#  Shows ~Groups of file masks~@MaskGroupsSettings@ dialog.
 
- #Bestätigungen#         Schaltet ~Bestätigungen~@ConfirmDlg@ für
-                       einige Operationen ein oder aus.
+ #Potvrdzovanie#         Umožní zapnutie/vypnutie ~potvrdzovania~@ConfirmDlg@
+                       pre niektoré operácie.
 
- #Dateifenstermodi#      ~Dateifensteransichten benutzerdefiniert~@PanelViewModes@
-                       einstellen.
+ #Módy zobraz. súborov#  Umožní ~Prispôsobenie zobrazovacích módov~@PanelViewModes@.
 
- #Datei-#                Liste der ~Dateibeschreibungsdateien~@FileDiz@
- #beschreibungen#      und Update-Modus.
+ #Popisy súborov#        Názvy zoznamov s ~popismi súborov~@FileDiz@ a spôsob ich aktualizácie.
 
- #Verzeichnis-#          Definiert Dateinamen (~Wildcards~@FileMasks@ sind
- #beschreibungs-#      erlaubt) für Dateien, deren Inhalt im
- #dateien#               ~Statusfenster~@InfoPanel@ als Verzeichnisbeschreibung
-                       angezeigt wird.
+ #Súbory s popismi#      Umožní nastaviť mená (aj ~masky~@FileMasks@ sú povolené)
+ #adresárov#           súborov, ktorých obsah bude v ~informačnom paneli~@InfoPanel@
+                       uvedený ako popis adresára.
 
- #Betrachter-#           Einstellungen für externen ~Betrachter~@ViewerSettings@.
- #einstellungen#
+ #Nastavenie prezerača#  Nastevenie externého ~prezerača~@ViewerSettings@.
 
- #Editor-#               Externe and interne ~Editor-Einstellungen~@EditorSettings@.
- #einstellungen#
+ #Nastavenie editora#    Nastavenie interného a externého ~editora~@EditorSettings@.
 
  #Code pages#            Shows the ~Code pages~@CodePagesMenu@ menu.
 
- #Farben#                Erlaubt die Farbauswahl für verschiedene
-                       Programmpunkte, ändert die komlette Far
-                       Farbenpalette nach Schwarzweiß oder setzt
-                       Standardfarben.
+ #Farby#                 Dovoľuje zmeniť farbu rôznych častí
+                       prostredia, alebo zmeniť celú paletu farieb
+                       Faru na čiernobielu, a taktiež nastaviť farby
+                       ako východzie (základné).
 
- #Dateihervorhebung#     Ändert die Einstellungen für
-                       ~Dateihervorhebungen~@Highlight@.
+ #Zvýraznenie súborov#   Zmení nastavenie ~zvýrazňovania súborov~@Highlight@.
 
- #Einstellungen#         Sichert die aktuelle Konfiguration, die
- #sichern#             Farben und das Bildschirmlayout.
+   #Uložiť nastavenie#   Uloží aktuálnu konfiguráciu, farby a stav
+                       obrazovky.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @ConfirmDlg
-$ #Bestätigungen#
- Im Dialog #Bestätigungen# können Bestätigungen für folgende
-Operationen an- oder ausgeschaltet werden:
+$ #Potvrdzovanie (Confirmations)#
+ V tomto okne môžete zapnúť alebo vypnúť potvrdzovanie nasledovných
+operácií:
 
- - ^<wrap>Überschreiben von Zieldateien beim Kopieren von Dateien;
- - Überschreiben von Zieldateien beim Bewegen von Dateien;
+ - ^<wrap>prepísanie cieľových súborov pri kopírovaní;
+ - prepísanie cieľových súborov pri presúvaní;
  - overwrite and delete files with "read only" atrtibute;
- - ~Ziehen und Fallenlassen~@DragAndDrop@ von Dateien;
- - Löschen von Dateien;
- - Löschen von Verzeichnissen;
+ - použitie techniky ~ťahaj a pusť~@DragAndDrop@;
+ - vymazanie súborov;
+ - vymazanie adresárov;
  - interrupt operation;
  - ~disconnect network drives~@DisconnectDrive@ from the Disks menu;
  - delete SUBST-disks from the Disks menu;
@@ -1617,7 +1557,7 @@ Operationen an- oder ausgeschaltet werden:
  - removal of USB storage devices from the Disks menu;
  - ~reloading~@EditorReload@ a file in the editor;
  - clearing the view/edit, folder and command history lists;
- - Beenden von Far.
+ - ukončenie Faru.
 
 
 @PluginsManagerSettings
@@ -1696,17 +1636,14 @@ and "#D:\\foo3#" will be created.
 
 
 @FindFile
-$ #Datei suchen#
- Dieser Befehl dient zum Suchen von einer oder mehreren Datei(en)
-und Verzeichnissen. In den Dateimasken, die jeweils durch Kommata
-getrennt werden, sind ein oder mehrere Wildcards erlaubt. Die
-Dateisuche kann auch mit durch ~Plugins~@Plugins@ emulierten
-Dateisystemen benutzt werden.
+$ #Nájdi súbor#
+ Tento príkaz je určený na vyhľadanie jedného alebo viacerých súborov a adresárov v
+adresárovom strome, podľa jednej alebo viacerých masiek (wildcards), oddelených čiarkami.
+Taktiež môže byť použitá pri súborových systémoch emulovaných ~prídavnými modulmi~@Plugins@.
 
- Optional kann ein Text angegeben werden, um nur Dateien zu
-suchen, die diesen Text enthalten. Falls ein Text angegeben wurde,
-wird bei entsprechend markierter Option die Suche unter Beachtung
-der "Groß-/Kleinschreibung" durchgeführt.
+ Zadaním voliteľného textového reťazca sa vyhľadajú iba súbory obsahujúce tento text.
+Ak sa tento reťazec zadadá, možno nastavením "Rozlišovať veľké/malé písmená"
+prikázať presné porovnávanie veľkých a malých písmen.
 
  The option #Whole words# will let to find only the text that is separated
 from other text with spaces, tab characters, line breaks or standard
@@ -1728,10 +1665,9 @@ in the options, editor, or viewer). To search using a custom set of code pages,
 select required code pages in the dropdown list with the #Ins# or #Space# keys,
 then choose #Selected code pages# menu item.
 
-Benutzen Sie "Suche in Archiven", um in Archiven, deren Format Far
-bekannt ist, zu suchen, aber beachten Sie dabei bitte, daß diese
-Option die Performance der Operation signifikant herabsetzt. Far
-kann nicht in verschachtelten Archiven suchen.
+ Ak chcete prehľadávať aj pre Far známe typy archívov, nastavte #Hľadať v archívoch#,
+majte však napamäti, že to výrazne spomaľuje vyhľadávanie. Far nedokáže vyhľadávať vo
+vnorených archívoch (čiže archívoch ktoré sú súčasťou iného archívu).
 
  The #Search for folders# option includes in search list those folders, that
 match the wildcards. Also the counter of found files takes account of found
@@ -1744,16 +1680,16 @@ folders.
 the content of the file itself), allows to search alternate named data streams
 supported by some file systems (for example, #NTFS#).
 
- Die Suche kann auf:
- - ^<wrap>in all non-removable drives;
+ Vyhľadávanie možno vykonávať:
+ - ^<wrap>vo všetkých pevne pripojených jednotkách;
  - in all local drives, except removable and network;
  - in all folders specified in the %PATH% environment variable (not including subfolders).
- - in all folders from the drive root, in the find dialog one can change disk drive of the search;
- - from the current folder;
- - in the current folder only
- - in selected folders.
+ - v podadresároch kmeňového adresára, in the find dialog one can change disk drive of the search;
+ - aktuálneho adresára;
+ - len v aktuálnom adresári;
+ - v označených adresároch.
 
- Der Suchbereich wird in der Konfiguration gesichert.
+ Toto nastavenie sa ukladá spolu s konfiguráciou.
 
  Check the #Use filter# checkbox to search for files according to user
 defined conditions. Press the #Filter# button to open the ~filters menu~@FiltersMenu@.
@@ -1859,31 +1795,29 @@ results, leave the “Column types” field empty.
 
 @FindFileResult
 $ #Find file: control keys#
- Während oder nach Beendigung der ~Suche~@FindFile@ können die Cursortasten
-dazu benutzt werden, um durch die Dateiliste zu scrollen und die
-Buttons, um gewünschte Aktionen auszuführen.
+ Počas vyhľadávania alebo po jeho skončení môžete použiť kurzorové
+klávesy pre skrolovanie zoznamu súborov a tlačítka na spustenie
+želaných operácií.
 
- Während oder nach der Suche sind folgende Buttons verfügbar:
+ Počas alebo po skončení vyhľadávania máte k dispozícií nasledovné tlačítka:
 
- #Neue Suche#      Startet einen neuen Suchlauf.
+ #Nové hľadanie#   Spustí nové vyhľadávanie (nové nastavenie).
 
- #Gehe zu#         Bricht die aktuelle Such ab, wechselt das
-                 Verzeichnisfenster und bewegt den Cursor auf die
-                 ausgewählte Datei.
+ #Prejsť na#       Preruší bežiace vyhľadávanie, zmení aktuálny
+                 adresár a presunie kurzor na označnený súbor.
 
- #Anzeige#         Zeigt die ausgewählte Datei an. Wurde die Suche
-                 noch nicht beendet, wird sie nach dem Anzeigen
-                 fortgesetzt.
+ #Zobraziť#        Zobrazí označený súbor. Ak vyhľadávanie ešte
+                 nie je ukončené, bude pokračovať po zobrazení.
 
- #Fenster#         Erzeugt ein temporäres Fenster und füllt es mit
-                 den Ergebnissen der letzten Dateisuche.
+ #Panel#           Vytvorí pomocný panel a naplní ho súbormi,
+                 ktoré boli nájdené pri poslednom hľadaní.
 
- #Stop#            Bricht die aktuelle Suche ab. Verfügbar während
-                 eines Suchlaufs.
+ #Stop#            Preruší bežiace vyhľadávanie. Možné len ak
+                 práve vyhľadávanie prebieha.
 
- #Beenden#         Schließt den Suchdialog.
+ #Storno#          Ukončí funkciu vyhľadávania.
 
- During or after search you can view or edit found files.
+ Počas alebo po skončení vyhľadávania môžu byť prezeranie a editovanie nájdených súborov.
 
  View                          #F3, Alt+F3, Numpad5, Ctrl+Shift+F3#
 
@@ -1897,23 +1831,21 @@ depending on file type and ~Viewer settings~@ViewerSettings@.
 depending on file type and ~Editor settings~@EditorSettings@.
 #Ctrl+Shift+F4# always invokes internal editor regardless of file associations.
 
- Viewing and editing is supported for plugin emulated file systems. Note, that saving editor
+ Prezeranie a editovanie podporuje prídavnými modulmi (plugins) emulované súborové systémy. Note, that saving editor
 changes by #F2# key in emulated file system will perform #SaveAs# operation,
 instead of common #Save#.
 
 
 @FindFolder
-$ #Verzeichnis suchen#
-    Dieser Befehl erlaubt einen schnellen Blick auf die gesuchten
-Verzeichnisse im Verzeichnisbaum.
+$ #Vyhľadanie adresára#
+ Tento príkaz umožňuje rýchly pohľad na potrebný adresár v strome adresárov.
 
-    Zum Auswählen eines Verzeichnisses benutzen Sie die Cursortasten
-oder geben die ersten Zeichen des Verzeichnisnamens an.
+ Na nastavenie adresára môžete použiť kurzorové klávesy alebo
+napísať prvé znaky mena adresára.
 
-    Drücken Sie #Enter#, um in das ausgewählte Verzeichnis zu
-wechseln.
+ Stlačením klávesu #Enter# sa prepnete do označeného adresára.
 
-    #Strg+R# bzw. #F2# liest den Verzeichnisbaum erneut ein.
+ Klávesmi #Ctrl+R# a #F2# môžete prikázať znovunačítanie stromu adresárov.
 
  #Gray +# and #Gray -# should move up and down the tree to the next branch
 on the same level.
@@ -2009,20 +1941,20 @@ checkboxes. The #Reset# button will clear all of the filter conditions.
 
 
 @History
-$ #History#
- Das History-Menü zeigt eine Liste der von Far zuletzt ausgeführten Befehle.
+$ #História#
+ Tento príkaz zobrazí zoznam príkazov, spustených s príkazového riadka Faru.
 Besides the cursor control keys, the following keyboard shortcuts are
 available:
 
- Re-execute a command                                          #Enter#
+ Opäť spustiť príkaz                                           #Enter#
 
- Re-execute a command in a new window                    #Shift+Enter#
+ Spustiť v osobitnom okne                                #Shift+Enter#
 
  Re-execute a command as administrator                #Ctrl+Alt+Enter#
 
- Copy a command to the command line                       #Ctrl+Enter#
+ Vložiť do príkazového riadku                             #Ctrl+Enter#
 
- Clear the commands history                                      #Del#
+ Vymažete históriu príkazov                                      #Del#
 
  Lock/unlock the current history item                            #Ins#
 
@@ -2033,13 +1965,11 @@ available:
 
  Show additional information                                      #F3#
 
- Weiterhin ist es möglich, von der Kommandozeile aus durch
-Drücken von #Strg+E# oder #Strg+X# zum vorherigen bzw. zum nächsten
-Befehl zu wechseln.
+ Taktiež je možné skočiť na predošlý alebo nasledujúci príkaz
+priamo z príkazového riadku použitím kombinácie #Ctrl+E#, resp. #Ctrl+X#.
 
- Ob eine Befehls-History beim Beenden gesichert wird oder
-nicht, wird über die entsprechende Option im Dialog
-~Systemeinstellungen~@SystemSettings@ festgelegt.
+ Ak chcete túto históriu uložiť pred ukončením programu, zvoľte
+príslušné nastevenie v ~nastaveniach systému~@SystemSettings@.
 
  Locked items will not be deleted when clearing the history.
 
@@ -2125,22 +2055,18 @@ of time if a folder was located on a currently unavailable remote resource.
 
 
 @TaskList
-$ #Taskliste#
- Die Taskliste zeigt aktive Tasks an. Jede Zeile der Liste beinhaltet PID und
-den Fenstertitel einer Task.
+$ #Zoznam úloh#
+ Zoznam úloh zobrazuje aktívne úlohy - programy. Každý
+riadok zoznamu obsahuje hlavičku okna danej úlohy.
 
- In der Taskliste können Sie in ein anderes Taskfenster
-wechseln oder die gewählte Task durch Drücken der Taste #Entf#
-löschen. Vorsicht beim Löschen einer Task. Die Task wird
-unmittelbar beendet und jegliche nicht gesicherten
-Informationen gehen verloren. Eine Task sollte nur gelöscht
-werden, wenn ein zwingender Grund besteht, z.B. zum Abbrechen
-eines Programms, welches nicht mehr reagiert.
+ Zo zoznamu úloh sa môžete prepnúť do okna danej úlohy, alebo ukončiť úlohu klávesom
+#Del#. Pri ukončovaní úlohy buďte opatrní, lebo tým ukončíte úlohu okamžite a všetky
+neuložené informácie sa stratie. Preto by táto funkcia mala byť používaná iba keď je
+to skutočne nevyhnutné, napríklad na prerušenie programu, ktorý neodpovedá.
 
- Die Taskliste kann wahlweise entweder über das Menü ~Befehle~@CmdMenu@
-oder durch Drücken von #Strg+W# aufgerufen werden. Mittels #Strg+W# kann die
-Taskliste auch aus dem (internen) Betrachter oder Editor heraus aufgerufen
-werden.
+ Zoznam úloh možno vyvolať buď z ~menu príkazov~@CmdMenu@ alebo
+pomocou #Ctrl+W#. Klávesovú skratku možno použiť aj v prezerači
+a editore.
 
  #Ctrl+R# allows to refresh the task list.
 
@@ -2164,38 +2090,29 @@ notification will be displayed when it is safe to remove the device.
 
 
 @CompFolders
-$ #Verzeichnisse vergleichen#
- Der Befehl zum Vergleich von Verzeichnissen kann nur ausgeführt
-werden, wenn gleichzeitig zwei ~Dateifenster~@FilePanel@ geöffnet sind.
-Er vergleicht den Inhalt der beiden in den Fenstern angezeigten
-aktuellen Verzeichnisse. Markiert werden dabei Dateien, die nur in
-einem der beiden Verzeichnisse existieren oder die (bei gleichem
-Dateinamen) neuer sind als im anderen Verzeichnis.
+$ #Porovnanie adresárov#
+ Príkaz porovnania adresárov je možné použiť len ak sú zobrazené dva
+~súborové panely~@FilePanel@. Porovná sa obsah adresárov v nich zobrazených.
+Súbory, ktoré existujú iba v jednom z panelov alebo ktoré majú novší dátum
+ ako súbory s rovnakým menom v druhom paneli, sa označia.
 
- Unterverzeichnisse werden nicht verglichen. Der Vergleich
-von Verzeichnissen bezieht sich nur auf den Namen, die Größe
-und Datum/Zeit von darin enthaltenen Dateien, nicht auf deren
-Dateiinhalte.
+ Podadresáre sa neporovnávajú. Súbory sa porovnávajú len podľa
+mena, dĺžky a času, obsah súboru sa nekontroluje.
 
 
 @UserMenu
-$ #Benutzermenü#
- Das Benutzermenü dient zur leichteren Aufruf öfters benutzter
-Operationen. Es enthält eine Anzahl benutzerdefinierter Befehle
-und Befehlssequenzen, die über das Benutzermenü ausgeführt werden
-können. Das Menü kann auch Untermenüs enthalten. Spezielle
-Symbole, beschrieben in ~Dateiverknüpfungen~@FileAssoc@, werden
-sowohl in den Befehlen als auch in den Befehlstiteln unterstützt.
-Beachten Sie, daß das Symbol !?<Titel>?<Init>! dazu benutzt werden
-kann, um zusätzliche Parameter unmittelbar vor der Ausführung von
-Befehlen einzugeben.
+$ #Užívateľské menu#
+ Úlohou užívateľského menu je uľahčiť volanie často používaných
+operácií. Obsahuje užívateľom definované príkazy a skupiny príkazov,
+ktoré môžu byť spustené z užívateľského menu. Menu môže obsahovať aj podmenu.
+~Špeciálne symboly~@FileAssoc@ sú podporované tak v príkazoch samotných
+ako i v ich názvoch. Samozrejme možno použiť aj symbol !?<title>?<init>!,
+pomocou ktorého môžete zadať dodatočné parametre priamo pred spustením programov.
 
- Über #Benutzermenü bearbeiten# im Menü ~Befehle~@CmdMenu@
-können ein Haupt- oder lokale Benutzermenüs bearbeitet und
-angelegt werden. Es gibt nur ein Hauptbenutzermenü. Dieses
-Hauptbenutzermenü wird dann aufgerufen, wenn für das aktuelle
-Verzeichnis kein lokales Menü existiert. Ein lokales Menü kann
-für jedes Verzeichnis angelegt werden. You can switch between
+ Príkazom #Úprava užívateľského menu# z menu ~Príkazy~@CmdMenu@ môžete
+upraviť alebo vytvoriť hlavné alebo lokálne užívateľské menu. Hlavné užívateľské
+menu môže byť len jedno. Toto menu sa vyvolá ak pre daný adresár nebolo vytvorené
+nijaké lokálne menu. Lokálne menu môže byť umiestnené v ľubovoľnom adresári. You can switch between
 the main menu and the user menu by pressing #Shift+F2#. Also you can call the
 user menu of the parent folder by pressing #BS#.
 
@@ -2205,26 +2122,26 @@ must switch to file mode with #Alt+F4# key.
 
  User menu items can be moved with #Ctrl+Up# or #Ctrl+Down# key combinations.
 
- Zum Ausführen eines Befehls aus einem Benutzermenü wählen Sie ihn per Cursortasen aus und drücken #Enter#
- oder drücken Sie den zum Menüeintrag zugehörigen Hotkey.
+ Príkaz z užívateľského menu možno spustiť buď presunutím kurzora nad jeho
+názov a stlačením klávesy Enter alebo jemu priradenou klávesovou skratkou.
 
- Menüpunkte oder Untermenüs können durch die Taste Entf gelöscht werden. Durch Einfg können neue Menüpunkte
-oder Untermenüs angelegt werden. Durch #F4# können existierende Menüpunkte und Untermenüs bearbeitet werden.
-Mit Alt+F4 kann ein Menü in Form einer Textdatei bearbeitet werden.
+ Podmenu alebo položku menu môžete zrušiť klávesom #Del#, nové menu alebo
+položku môžete vložiť klávesom #Ins# a upraviť existujúce menu či položku
+možno klávesom #F4#. Po stlačení #Alt+F4# budete môcť menu editovať v textovej forme.
 
- Es ist möglich, Zahlen, Buchstaben und Funktionstasten (#F1#…#F24#) als Hotkeys in Benutzermenüs einzusetzen.
-Bei Benutzung von #F1# oder #F4# wird deren originale Funktion im Benutzermenü übergangen.
-#Umsch+F4# können Sie trotzdem weiterhin als Bearbeitungsfunktion nutzen.
+ Ako klávesové skratky možno v menu použiť číslice, písmená a funkčné klávesy (#F1#…#F24#).
+Ak použijete #F1# alebo #F4#, znemožníte tým ich originálnu funkciu.
+Každopádne na úpravu môžete ešte vždy použiť kombináciu #Shift+F4#.
 
- Wenn Sie einen Menüpunkt anlegen oder bearbeiten, geben Sie einen Hotkey für einen
-schnellen Zugriff an, einen Titel, welcher im Menü angezeigt wird sowie eine Befehlssequenz,
-die ausgeführt wird, wenn der Menüeintrag ausgewählt wird.
+ Keď upravujete alebo vytvárate položku menu, mali by ste zadať klávesovú
+skratku pre rýchly prítup, názov príkazu, ktorý sa bude zobrazovať v menu,
+a postupnosť príkazov ktoré sa majú vykonať pri zvolení tejto položky.
 
- Beim Bearbeiten oder Anlegen ein Untermenüs geben Sie nur
-einen Hotkey und einen Titel an.
+ Keď upravujete alebo vytvárate podmenu, mali by ste zadať iba
+klávesovú skratku a názov.
 
- Benutzermenüs werden in Textdateien mit Namen #FarMenu.Ini# gespeichert:
- - ^<wrap>Das Hauptmenü wird standardmäßig immer in der Far-Verzeichnis gespeichert.
+ Užívateľské menu sú uložené v textových súboroch #FarMenu.Ini#:
+ - ^<wrap>Global user menu, by default, is located in the Far Manager folder.
 If global user menu file exists it will override the user specific menu.
  - User specific user menu is located in the user profile.
  - Local user menu is located in the current folder.
@@ -2238,13 +2155,13 @@ If global user menu file exists it will override the user specific menu.
 
 
 @FileAssoc
-$ #Dateiverknüpfungen#
+$ #File associations#
  Far Manager supports file associations, that allow to associate various
 actions to running, viewing and editing files with a specified
 ~mask~@FileMasks@.
 
- You can add new associations with the #Edit associations# command in the
-~Commands menu~@CmdMenu@.
+ Nové typy súborov môžete vytvoriť pomocou príkazu #Typy súborov# z menu
+~Príkazy~@CmdMenu@.
 
  You can define several associations for one file type and select the
 desired association from the menu.
@@ -2265,37 +2182,37 @@ desired association from the menu.
 
 
 @FileAssocModify
-$ #Dateiverknüpfungen: Bearbeitung#
- Far gestattet es, bis zu sechs Befehle mit einem einzelnen
-Dateityp, der über ~Wildcard-Masken~@FileMasks@ definiert wird, zu verknüpfen:
+$ #Typy súborov: editing#
+ Far dovoľuje priradiť každému typu súborov, definovanému
+~maskou~@FileMasks@, až šesť príkazy:
 
- #Ausführungsbefehl#    Wird ausgeführt beim Drücken von #Enter#
+ #Vykonať príkaz#                Performed if #Enter# is pressed
  #(used for Enter)#
 
- #Ausführungsbefehl#    Wird ausgeführt beim Drücken von #Ctrl+PgDn#
+ #Príkaz pre zobrazenie#         Performed if #Ctrl+PgDn# is pressed
  #(used for Ctrl+PgDn)#
 
- #Anzeigebefehl#        Wird ausgeführt beim Drücken von #F3#
+ #Príkaz pre zobrazenie#         Performed if #F3# is pressed
  #(used for F3)#
 
- #Anzeigebefehl#        Wird ausgeführt beim Drücken von #Alt+F3#
+ #Príkaz pre zobrazenie#         Performed if #Alt+F3# is pressed
  #(used for Alt+F3)#
 
- #Bearbeitungsbefehl#   Wird ausgeführt beim Drücken von #F4#
+ #Príkaz pre editovanie#         Performed if #F4# is pressed
  #(used for F4)#
 
- #Bearbeitungsbefehl#   Wird ausgeführt beim Drücken von #Alt+F4#
+ #Príkaz pre editovanie#         Performed if #Alt+F4# is pressed
  #(used for Alt+F4)#
 
- The association can be described in the #Description of the association# field.
+ Názov daného typu môžete uviesť do poľa #Popis typu#.
 
- In den zugehörigen Befehlen können ~Spezialsymbole~@MetaSymbols@ benutzt werden.
+ ~Special symbols~@MetaSymbols@ can be used in the associated command.
 
-  Hinweise:
+ Notes:
 
- 1. ^<wrap>Ist kein Ausführungsbefehl mit der Datei verknüpft und die #In Windows registrierte
-Typen benutzen#-Option in den ~Systemeinstellungen~@SystemSettings@ ist markiert, versucht
-Far, den über Windows verknüpften Befehl für diesen Dateityp auszuführen.
+ 1. ^<wrap>If no execute command is associated with file and
+#Use Windows registered types# option in ~System settings~@SystemSettings@
+dialog is on, Far tries to use Windows association to execute this file type.
  2. ^<wrap>Operating system ~commands~@OSCommands@ "IF EXIST" and "IF DEFINED"
 allow to configure "smarter" associations - if you have specified several
 associations for a file type, the menu will show only the associations
@@ -2304,33 +2221,33 @@ for which the conditions are true.
 
 @MetaSymbols
 $ #Special symbols#
- The following special symbols can be used in ~associated commands~@FileAssoc@,
+ Môžete používať nasledovné špeciálne symboly v ~priradenom príkaze~@FileAssoc@,
 ~user menu~@UserMenu@ and the command ~"Apply command"~@ApplyCmd@:
 
- #!!#       ^<wrap>das Zeichen ‘!’
- #!#        Langer Dateiname ohne Erweiterung
- #!~~#       Kurzer Dateiname ohne Erweiterung
+ #!!#       ^<wrap>Znak '!'
+ #!#        Dlhé meno súboru bez prípony
+ #!~~#       Krátke meno súboru bez prípony
  #!`#       Long extension without file name (ext)
  #!`~~#      Short extension without file name (ext)
- #!.!#      Langer Dateiname mit Erweiterung
- #!-!#      Kurzer Dateiname mit Erweiterung
- #!+!#      Ähnlich wie !-! aber falls ein langer Dateiname nach der Ausführung des Befehls verlorenging, restauriert Far ihn wieder
- #!@@!#      Name einer Datei, die eine Liste von (langen) Dateinamen enthält
- #!$!#      Name einer Datei, die eine Liste von kurzen Dateinamen enthält
+ #!.!#      Dlhé meno súboru s príponou
+ #!-!#      Krátke meno súboru s príponou
+ #!+!#      Podobné ako !-! ale ak sa dlhé meno súboru stratilo vykonaním prílazu, Far ho vráti späť
+ #!@@!#      Názov súboru so zoznamom označených súborov
+ #!$!#      Názov súboru so zoznamom krátkych mien označených súborov
  #!&#       List of selected files
  #!&~~#      List of selected short file names
- #!:#       Aktuelles Lasufwerk in the format "C:". For remote folders - "\\\\server\\share"
- #!\\#       Aktueller Pfad
- #!/#       Kurzname des aktuellen Pfades
+ #!:#       Aktuálna jednotka
+ #!\\#       Aktuálna cesta
+ #!/#       Krátke meno aktuálnej cesty
  #!=\\#      Current path considering ~symbolic links~@HardSymLink@.
  #!=/#      Short name of the current path considering ~symbolic links~@HardSymLink@.
  #!?!#      Description of the current file
 
  #!?<title>?<init>!#
- Dieses Symbol wird beim Ausführen des Befehls durch die Benutzereingabe ersetzt.
-<Titel> und <Init> - Titel und Initialwert des Eingabefeldes.
- Es sind mehrere solcher Symbole in der gleichen Zeile erlaubt, z.B.:
- grep !?Search for:?! !?In:?*.*!|c:\\far\\Far.exe -v -
+ Tento symbol je pri spustení príkazu nahradnený
+užívateľských vstupom. <title> a <init> - hlavička a počiatočný text vstupného poľa dialógového okna.
+ Dovolené je použiť aj niekoľko takýchto symbolov v jednom riadku, napríklad:
+ grep !?Hľadaj:?! !?V súboroch:?*.*!|c:\\far\\Far.exe -v -
 
  A history name for the <init> string can be supplied in the <title>. In such case the command has the following format:
 #!?$<history>$<title>?<init>!#, for example:
@@ -2344,10 +2261,10 @@ $ #Special symbols#
 grep !?Find in (!.!):?! |Far.exe -v -.
 
  #!###
- "!##" verweist - vor ein Spezialsymbol gesetzt -
-auf das passive Fenster (see note 4).
-Z.B. bezeichnet !##!.! den aktuellen Dateinamen
-im passiven Fenster.
+ Ak pred niektorým špeciálnym symbolom uvediete "!##", znamená to
+referenciu pasívneho panelu (see note 4).
+Napríklad !##!.! označuje aktuálny súbor
+v pasívnom paneli.
 
  #!^#
  "!^" prefix forces all subsequent special symbols
@@ -2357,7 +2274,7 @@ the active panel, !##!\\!^!.! - a file on the passive
 panel with the same name as the name of the current
 file on the active panel.
 
- Notes:
+ Poznámky:
 
  1. ^<wrap>When handling special characters, Far substitutes only the string
 corresponding to the special character. No additional characters (for example,
@@ -2404,20 +2321,20 @@ backslash, use quotes, e.g. #"!"\#.
 
 
 @SystemSettings
-$ #Systemeinstellungen#
- #Gelöschte Dateien in Papierkorb#
- Aktiviert das Verschieben zu löschender Dateien in den Papierkorb. The operation of deleting to the Recycle
+$ #Nastavenia systému#
+ #Odstraňovať do Koša#
+ Nastaví vymazávanie do koša. The operation of deleting to the Recycle
 Bin can be performed only for local hard disks.
 
- #Systemkopierroutine benutzen#
- Benutzt die Windowsfunktion CopyFileEx anstelle der internen Implementation zum Kopieren von Dateien.
-Dies ist nützlich bei NTFS, weil CopyFileEx erweiterte Dateiattribute kopiert. On the other hand, when using the system
+ #Použiť kopírovanie cez systém#
+ Nastaví používanie funkcie CopyFileEx z Windows namiesto vnútornej implementácie
+kopírovania súborov. Môže to byť výhodné u NTFS, lebo táto funkcia kopíruje rozšírené atribúty. On the other hand, when using the system
 function, the possibility of "smart" ~copying~@CopyFiles@ of sparse files is not available.
 
- #Zum Schreiben geöffnete Dateien kopieren#
- Erlaubt es, durch andere Programme zum Schreiben geöffnete Dateien zu kopieren.
-Dieser Modus ist nützlich, wenn eine Datei längere Zeit geöffnet ist, aber es ist gefährlich,
-wenn sie während des Kopiervorgangs gleichzeitig modifiziert wird.
+ #Kopírovať aj súbory otvorené na zápis#
+ Dovoľuje kopírovať súbory, ktoré sú iným programom otvorené pre zapisovanie.
+Tento mód je šikovný na skopírovanie súboru otvoreného dlhú dobu, ale môže
+byť nebezpečný, ak sa súbor modifikuje súčasne s tým ako sa kopíruje.
 
  #Scan symbolic links#
  Scan ~symbolic links~@HardSymLink@ along with normal sub-folders when building the folder tree,
@@ -2429,20 +2346,21 @@ This allows to avoid blocking the directories opened on panels.
 However, sometimes the update is not triggered after receiving focus,
 so this option is disabled by default and directories are always monitored.
 
- #Befehls-History sichern#
- Aktiviert das Sichern der Befehls-History beim Beenden und Wiederherstellen dieser beim erneuten Start von Far.
+ #Ukladať históriu príkazov#
+ Ak je táto možnosť zapnutá, história sa bude ukladať pri ukončení a opätovne načítavať pri spustení Faru.
 
- #Verzeichnis-History sichern#
- Aktiviert das Sichern der Verzeichnis-History beim Beenden und Wiederherstellen dieser beim erneuten Start von Far.
-Die Verzeichnis-History-Liste kann mit #Alt+F12# angezeigt werden.
+ #Ukladať históriu adresárov#
+ Spôsobí uloženie histórie adresárov pred ukončením a jej načítanie pri spustení Faru.
+Históriu adresárov možno vyvolať stlačením #Alt+F12#.
 
- #Ansicht- und Edit-History sichern#
- Aktiviert das Sichern der History angezeigter und editierter Dateien beim Beenden und Wiederherstellen dieser beim
-erneuten Start von Far. Diese History-Liste kann mit Alt+F11 angezeigt werden.
+ #Ukladať históriuzobrazovania a editovania#
+ Spôsobí uloženie histórie prezeraných a editovaných súborov pred ukončením a jej načítanie pri spustení Faru.
+Históriu prezeraných a editovaných súborov možno vyvolať stlačením #Alt+F11#.
 
- #In Windows registrierte Typen benutzen#
-Wird bei eingeschalteter Option die Enter-Taste auf einer Datei gedrückt und es existiert eine Verknüpfung in Windows und
-keine unter Far's ~Dateiverknüpfungen~@FileAssoc@, wird das in Windows verknüpfte Programm für diesen Dateityp ausgeführt.
+ #Použiť registrované typy Windows#
+ Ak je táto možnosť zapnutá, potom stlačenie klávesu Enter na súbore, ktorého typ je známy pre
+Windows a nenachádza sa vo Fare nastavených ~typoch súborv~@FileAssoc@, spustí sa program,
+ktorý je vo Windows nastavený pre tento typ súboru.
 
  #CD drive auto mount#
  When a CD-ROM drive is selected from the ~Change drive menu~@DriveDlg@, Far will close the open
@@ -2489,22 +2407,20 @@ Use with caution.
 
  Note: how exactly the case of the characters in the string will be taken into account depends on the sorting collation.
 
- #Automatische Sicherung der Einstellungen#
- Falls markiert, sichert Far die Konfigurationseinstellungen automatisch.
-Die beiden aktuellen Verzeichnisebenen werden ebenfalls gesichert.
+ #Automaticky ukladať nastavenia#
+ Ak je zapnuté, Far bude nastavenia ukladať automaticky. Taktiež sa uložia adresáre v oboch aktívnych paneloch.
 
 
 @PanelSettings
-$ #Fenstereinstellungen#
- #Versteckte und System-dateien zeigen#
- Wenn markiert, werden auch versteckte und Systemdateien gezeigt. Diese Option kann auch durch Strg+H umgeschaltet werden.
+$ #Nastavenia panelov#
+ #Zobrazovať skryté a systémové súbory#
+ Umožňuje zobraziť súbory s nastaveným atribútom Skrytý a Systémový. Toto nastavenie možno prepínať klávesovou kombináciou #Ctrl+H#.
 
- #Dateien farblich hervorheben#
- Schaltet ~Dateihervorhebungen~@Highlight@ ein.
+ #Zvýrazňovať súbory#
+ Zapne ~zvýrazňovanie súborov~@Highlight@.
 
- #Verzeichnisse auswählen#
- Wenn markiert, können mit der #Grau +# und #Grau *# Taste auch Verzeichnisse selektiert werden.
-Ansonsten wählen diese Tasten nur Dateien aus.
+ #Označovať adresáre#
+ Zapne označovanie adresárov pri použití sivého #+# a #*#. Ináč budú tieto klávesy označovať iba súbory.
 
  #Right click selects files#
  If this option is on, #right mouse click# selects files. Otherwise, it opens Windows  Explorer Context menu.
@@ -2514,9 +2430,8 @@ Ansonsten wählen diese Tasten nur Dateien aus.
 by extension works the same as it did in Far 1.65. If the option is turned off, in the extension sort mode the
 folders will be sorted by name, as they are in the name sort mode.
 
- #Umgekehrte Sortierung erlauben#
- Wenn diese Option markiert ist und der Modus zur Fenstersortierung wird ein weiteres Mal angewählt,
-wird die Sortierung umgekehrt.
+ #Povoliť triedenie v opačnom poradí#
+ Ak je zapnuté a znovu sa vyberie aktuálny mód zoraďovania, nastaví zoraďovanie v opačnom poradí.
 
  #Disable automatic panel update#
  If this option is on and the number of file objects exceeds the specified value,
@@ -2529,30 +2444,30 @@ To force an update of the panels press #Ctrl+R#.
  This option enables panel autorefresh when the file system state of a network drive is changed.
 It may be helpful to disable this option on slow network connections.
 
- #Spaltentitel anzeigen#
- Wenn markiert, werden die Spaltentitel im ~Dateifenster~@FilePanel@ angezeigt.
+ #Zobrazovať názvy stĺpcov#
+ Zapne zobrazovanie názvov stĺpcov v ~súborovom paneli~@FilePanel@.
 
- #Statuszeile anzeigen#
- Wenn markiert, wird eine Statuszeile im Dateifenster angezeigt.
+ #Zobraz. stavový riadok#
+ Zapne zobrazovanie stavového riadku v súborovom paneli.
 
  #Detect volume mount points#
  Distiguishes between normal directory links (Junctions) and volume mount points.
 This option significanty slows down displaying directories on slow network connections.
 
- #Summe aller Dateien anzeigen#
- Zeigt die Summe aller Dateiinformationen in der Fußzeile des Dateifensters.
+ #Zobrazovať celkovú dĺžku a počet súborov#
+ Zapne zobrazovanie sumárnych informácii v spodnom riadku súborového panelu.
 
- #Freie Kapazität anzeigen#
- Zeigt die freie Laufwerkskapazität des aktuellen Laufwerks in der Fußzeile des Dateifensters an.
+ #Zobrazovať voľné miesto#
+ Zapne zobrazovanie veľkosti voľného miesta na aktuálnom disku.
 
- #Rollbalken anzeigen#
- Zeigt Rollbalken im Datei- und ~Baumfenster~@TreePanel@ an.
+ #Zobrazovať posuvník#
+ Zapne zobrazovanie posuvníkov (jazdcov) v súborovom a ~stromovom~@TreePanel@ paneli.
 
- #Anzahl Bildschirme im Hintergrund anzeigen#
- Wenn markiert, wird die Anzahl der ~Hintergrundbildschirme~@ScrSwitch@ angezeigt.
+ #Zobrazovať počet obrazoviek v pozadí#
+ Zapne zobrazovanie počtu obrazoviek ~v pozadí~@ScrSwitch@.
 
- #Sortiermodusbuchstabe anzeigen#
- Zeigt den aktuellen Sortiermodus in der linken oberen Ecke des Dateifensters an.
+ #Zobrazovať písmeno zoradenia#
+ Zobrazuje nastavený zoraďovanie v ľavom hornom rohu panelu.
 
  #Show ".." in root folders#
  Enables displaying of ".." item in root folders.
@@ -2561,39 +2476,41 @@ Pressing #Enter# on this item opens ~Change drive menu~@DriveDlg@.
 
 @TreeSettings
 $ #Tree settings#
- #Automatischer Verzeichniswechsel#
- Wenn markiert, führt eine Cursorbewegung im ~Baumfenster~@TreePanel@ zu einem Verzeichniswechsel im anderen Fenster.
-Wenn nicht markiert, muss zusätzlich Enter gedrückt werden, um in das Verzeichnis aus dem Baumfenster zu gelangen.
+ #Automaticky meniť adresár#
+ Ak je zapnuté, pohyb kurzora v ~stromovom paneli~@TreePanel@ spôsobí zmenu adresára v druhom paneli.
+Ak nie je zapnuté, na zmenu adresára je potrebné stlačiť #Enter#.
 
  #Minimum number of folders#
  The minimal number of folders on the disk for which folder tree cache file #tree3.far# will be created.
 
 
 @InterfSettings
-$ #Programmeinstellungen#
- #Uhr#
- Zeigt eine Uhr in der rechten oberen Ecke des Bildschirms.
+$ #Nastavenia prostredia#
+ #Čas#
+ Zobrazí v pravom hornom rohu obrazovky čas.
 
- #Uhr in Betrachter und Editor#
- Zeigt die Uhr im (internen) Betrachter und Editor.
+ #Zobrazovať čas aj prezerači a editore#
+ Zobrazí čas aj v prezerači a editore.
 
- #Maus#
- Erlaubt die Benutzung der Maus.
+ #Myš#
+ Zapne používanie myši.
 
- #Funktionstastenzeile anzeigen#
- Zeigt die Funktionstastenleiste in der Fußzeile an. Diese Option kann auch durch #Strg+B# umgeschaltet werden.
+ #Zobrazovať tlačítka funkčných kláves#
+ Zobrazí na spodnom riadku obrazovky riadok s krátkymi popismi funkcií kláves.
+Taktiež možno použiť kombináciu #Ctrl+B#.
 
- #Menüzeile immer anzeigen#
- Zeigt Menüzeile am oberen Bildschirmrand auch an, wenn sie inaktiv ist.
+ #Trvale zobrazovať horné menu#
+ Horný riadok z položkami menu bude zobrazený aj keď menu nebude aktívne.
 
- #Bildschirmschoner#
- Bildschirmschoner nach Ablauf der Zeitspanne (in Minuten) starten. When this option
+ #Šetrič obrazovky#
+ Po nastavenom čase (v minútach) bez aktivity spustí šetrič obrazovky. When this option
 is enabled, screen saver will also activate when mouse pointer is brought
 to the upper right corner of Far window.
 
- #Gesamtfortschritts-anzeige beim Kopieren#
- Zeigt einen Gesamtfortschrittsbalken bei einer Dateikopieraktion.
-Hierbei kann es einige zusätzliche Zeit dauern, um die gesamte Dateigröße zu berechnen, bevor die Kopieraktion startet.
+ #Zobrazuj indikátor celkovej dĺžky kopírovania#
+ Vyvolá zobrazenie indikátora celkovej dĺžky pri kopírovaní súborov.
+To môže vyžadovať pred začatím samotného kopírovania trochu času navyše
+na výpočet celkovej dĺžky súborov.
 
  #Show copying time information#
  Show information about average copying speed, copying time and
@@ -2634,13 +2551,13 @@ Can contain any text, including environment variables (e.g. "%USERDOMAIN%\%USERN
 
 @DialogSettings
 $ #Settings dialog: dialogs#
- #History in Dialog-#      Behält eine Historyliste einiger Far
- #kontrollfelder#          Dialoge. Die vorherigen Werte in der
-                         Liste können durch die Maus oder durch
-                         #Strg+↑# and #Strg+↓#. Wenn Sie, z.B. aus
-                         Sicherheitsgründen, eine solche History
-                         nicht aufzeichnen wollen, schalten Sie
-                         diese Option aus.
+ #História vo vstupoch#    Zapne ukladanie histórie vo všetkých
+ #dialógových okien#       dialógových vstupných oknách. Zoznam
+                         predtým použitých reťazcov (vstupov)
+                         možno vyvolať myšou alebo použitím
+                         #Ctrl# zo šípkou nahor, resp. nadol. Ak
+                         si takúto históriu neželáte, napr. z
+                         bezpečnostných dôvodov, vypnite ju tu.
 
  #Persistent blocks#       Do not remove block selection after moving
  #in edit controls#        the cursor in dialog edit controls and
@@ -2723,31 +2640,31 @@ These parameters can be changed via ~far:config~@FarConfig@
 
 
 @CommandPrompt
-$ #Format für Kommando-zeilenprompt setzen#
- Far allows to setzt das Standardformat für den Far Kommandozeilenprompt.
+$ #Command line prompt format#
+ Far umožňuje zmeniť štandard zobrazovania úvodnej informácie v príkazovom riadku.
 To change it you have to enter the needed sequence of variables and
 special code words in the #Set command line prompt format# input field
 of the ~Command line settings~@CmdlineSettings@ dialog, this will allow showing
 additional information in the command prompt.
 
- It is allowed to use environment variables and the following special code words:
+ Môžete použiť environment variables and nasledovné formátovacie premenné:
 
- $a - ^<wrap>the & character
- $b - the | character
- $c - the ( character
+ $a - ^<wrap>znak &
+ $b - znak |
+ $c - znak (
  $d - current date (depends on system settings)
- $f - the ) character
- $g - das >-Zeichen
+ $f - znak )
+ $g - znak > 
  $h - delete the previous character
- $l - the < character
+ $l - znak <
  $m - full network path of the current drive or empty, if the current drive is not a network drive
- $n - aktueller Laufwerksbuchstabe
- $p - aktueller Pfad
- $q - the = character
+ $n - písmeno aktuálnej jednotky
+ $p - aktuálna drive and cesta
+ $q - znak =
  $s - space
  $t - current time in HH:MM:SS format
  $w - current working directory (without the path)
- $$ - das $-Zeichen
+ $$ - znak $
  $+ - the depth of the folders stack
  $##nn - ^<wrap>max prompt width, given in percents relative to the width of the window
  $@@xx - ^<wrap>"Administrator", if Far Manager is running as administrator.
@@ -2804,26 +2721,26 @@ saved path.
 
 
 @Viewer
-$ #Interner Betrachter#
- Betrachterbefehle
+$ #Zabudovaný prezerač: control keys#
+ Príkazy prezerača
 
  The behavior of navigation keys depends on the ~view mode~@ViewerMode@.
 
  The following keys work in all modes:
 
- #Pfeil hoch#         ^<wrap>Zeile nach oben
- #Pfeil runter#       Zeile nach unten
- #Bild↑#              Seite nach oben
- #Bild↓#              Seite nach unten
- #Pos1, Strg+Pos1#    Dateianfang
- #Ende, Strg+Ende#    Dateiende
+ #Nahor#              Riadok vyššie
+ #Nadol#              Riadok nižšie
+ #PgUp#               Stranu vyššie
+ #PgDn#               Stranu nižšie
+ #Home, Ctrl+Home#    Začiatok súboru
+ #End, Ctrl+End#      Koniec súboru
 
  The following additional keys work in #text mode without line wrap#:
 
- #Pfeil links#        ^<wrap>Zeichen nach links
- #Pfeil rechts#       Zeichen nach rechts
- #Strg+Links#         20 Zeichen nach links
- #Strg+Rechts#        20 Zeichen nach rechts
+ #Doľava#             Znak vľavo
+ #Doprava#            Znak vpravo
+ #Ctrl+Doľava#        20 znakov vľavo
+ #Ctrl+Doprava#       20 znakov vpravo
  #Ctrl+Shift+Left#    Show the leftmost column
  #Ctrl+Shift+Right#   Show the rightmost column of all lines currently visible on the screen
 
@@ -2838,37 +2755,37 @@ combinations adjust the number of displayed bytes by 16 at a time.
 
  Viewer commands
 
- #F1#                 Hilfe
- #F2#                 autom. Zeilenumbruch ein-/ausschalten
+ #F1#                 ^<wrap>Nápoveda
+ #F2#                 Zapína/vypína rozdeľovanie dlhých riadkov in #text# mode, or change ~view mode~@ViewerMode@
  #Shift+F2#           Toggle wrap type (characters or words) in #text# ~view mode~@ViewerMode@
- #F4#                 Zwischen ~Text/Hex-Modus~@ViewerMode@ umschalten
+ #F4#                 Prepína ~view mode~@ViewerMode@ to #hex# and back
  #Shift+F4#           Select ~view mode~@ViewerMode@: #text#, #hex#, or #dump#
- #F6#                 Zum ~Editor~@Editor@ wechseln
- #F7#                 ~Suchen~@ViewerSearch@
- #Umsch+F7, Space#    Weitersuchen
+ #F6#                 Prepne do ~editora~@Editor@
+ #F7#                 ~Hľadanie~@ViewerSearch@
+ #Shift+F7, Space#    Pokračovanie v hľadaní
  #Alt+F7#             Continue search in reverse direction
- #F8#                 Zwischen OEM/ANSI Textansicht wechseln
- #Umsch+F8#           Benutzerdefinierte Zeichensatztabelle auswählen
- #Alt+F8#             Wechsle aktuelle Position
+ #F8#                 Prepína mód zobrazovania OEM/ANSI
+ #Shift+F8#           Select code page using the ~Code pages~@CodePagesMenu@ menu
+ #Alt+F8#             ~Zmeň aktuálnu pozíciu~@ViewerGotoPos@
  #Alt+F9#             Maximize or restore the size of the Far console window;
 see also ~Interface.AltF9~@Interface.AltF9@
  #Alt+Shift+F9#       Open ~Viewer settings~@ViewerSettings@ dialog
- #Numpad5,F3,F10,Esc# Beenden
+ #NumKlav5,F3,F10,Esc# Koniec (opustenie prezerača)
  #Ctrl+F10#           Jump to the current file on the active file panel
- #F11#                ~"Plugin-Befehle"~@Plugins@-Menü aufrufen
+ #F11#                Zobrazí menu ~Príkazy prídavných modulov~@Plugins@
  #Alt+F11#            Display ~file view and edit history~@HistoryViews@
- #Grau +#             Gehe zur nächsten Datei
- #Grau -#             Gehe zur vorherigen Datei
- #Ctrl+O#             Zeige Benutzerbildschirm
+ #+#                  Choď na nasledujúci súbor
+ #-#                  Choď na predošlý súbor
+ #Ctrl+O#             Ukáž užívateľskú obrazovku
  #Ctrl+Alt+Shift#     Temporarily show user screen
 (while the key combination is held down)
  #Ctrl+B#             Toggle functional key bar at the bottom of the screen
  #Ctrl+Shift+B#       Toggle status line
  #Ctrl+S#             Toggle the scrollbar
- #Alt+BS, Strg+Z#     Positionswechsel rückgängig machen
- #StrgRechts+0…9#     Aktuelle Position sichern (Merker setzen)
- #Ctrg+Umsch+0…9#     Aktuelle Position sichern (Merker setzen)
- #StrgLinks+0…9#      An gesicherte Position (Merker) springen
+ #Alt+BS, Ctrl+Z#     Späť na predošlú pozíciu
+ #PravýCtrl+0…9#      Ulož aktuálnu pozíciu 0…9
+ #Ctrl+Shift+0…9#     Ulož aktuálnu pozíciu 0…9
+ #ĽavýCtrl+0…9#       Choď na uloženú pozíciu 0…9
  #Ctrl+Ins, Ctrl+C#   Copy the selected text to the clipboard.
 The text can be selected manually or as the result of a ~search~@ViewerSearch@.
  #Ctrl+U#             Unselect the text
@@ -2880,10 +2797,10 @@ beginning in the text.
 
  See also the list of ~macro keys~@KeyMacroViewerList@ available in the viewer.
 
- Hinweise:
+ Poznámky:
 
- 1. ^<wrap>Sie können zusätzlich zu #F7# den ~Suchdialog~@ViewerSearch@ einfach
-durch Eingabe des zu suchenden Textes starten.
+ 1. ^<wrap>Dialógové okno ~hľadania~@ViewerSearch@ sa spustí automaticky ak začnete
+písať text, ktorý chcete vyhľadať.
 
  2. ^<wrap>The viewer opens files with the permission to be deleted.
 If another process attempts to delete the file while it is open in the
@@ -3109,7 +3026,7 @@ The multiline search is not supported.
 
 
 @Editor
-$ #Interner Editor#
+$ #Editor#
  To edit the file currently under the cursor you should press #F4#. This
 can be used to open the internal editor or any of the user defined external
 editors which are defined in the ~Editor settings~@EditorSettings@ dialog.
@@ -3130,84 +3047,84 @@ behavior can be changed in the ~Editor settings~@EditorSettings@ dialog.
 
  #Control keys#
 
- Cursorsteuerungen
+ Pohyb kurzora:
 
- #Pfeil links#             ^<wrap>Zeichen nach links
+ #Doľava#                  ^<wrap>Znak vľavo
  #Ctrl+S#                  Move the cursor one character to the left, but don't move to the previous line if the line beginning is reached.
- #Pfeil rechts#            Zeichen nach rechts
- #Pfeil hoch#              Zeile nach oben
- #Pfeil runter#            Zeile nach unten
- #Strg+Links#              Wort links
- #Strg+Rechts#             Wort rechts
- #Strg+Hoch#               Rollt den Bildschirm hoch
- #Strg+Runter#             Rollt den Bildschirm runter
- #Bild↑#                   Seite hoch
- #Bild↓#                   Seite runter
- #Pos1#                    Zeilenanfang
- #Ende#                    Zeilenende
- #Strg+Pos1, Strg+Bild↑#   Dateianfang
- #Strg+Ende, Strg+Bild↓#   Dateiende
- #Strg+N#                  Bildschirmanfang
- #Strg+E#                  Bildschirmende
+ #Doprava#                 Znak vpravo
+ #Nahor#                   Riadok vyššie
+ #Nadol#                   Riadok nižšie
+ #Ctrl+Doľava#             Slovo vľavo
+ #Ctrl+Doprava#            Slovo vpravo
+ #Ctrl+Nahor#              Riadok vyššie skrolovaním obrazovky
+ #Ctrl+Nadol#              Riadok nižšie skrolovaním obrazovky
+ #PgUp#                    Stranu vyššie
+ #PgDn#                    Stranu nižšie
+ #Home#                    Začiatok riadku
+ #End#                     Koniec riadku
+ #Ctrl+Home, Ctrl+PgUp#    Začiatok súboru
+ #Ctrl+End, Ctrl+PgDn#     Koniec súboru
+ #Ctrl+N#                  Začiatok obrazovky
+ #Ctrl+E#                  Koniec obrazovky
 
- Löschoperationen
+ Operácie vymazávania
 
- #Entf#                    ^<wrap>Zeichen löschen (löscht auch je nach Einstellung unter ~Editor-Einstellungen~@EditorSettings@ einen kompletten Block).
- #BS#                      Zeichen links vom Cursor löschen
- #Strg+Y#                  Zeile löschen
- #Strg+K#                  bis zum Ende der Zeile löschen
- #Strg+BS#                 Wort links vom Cursor löschen
- #Strg+T, Ctrg+Del#        Wort rechts vom Cursor löschen
+ #Del#                     ^<wrap>Vymaže znak (taktiež môže vymazať blok, podľa ~nastavenia editoru~@EditorSettings@).
+ #BS#                      Vymaže znak naľavo
+ #Ctrl+Y#                  Vymaže riadok
+ #Ctrl+K#                  Vymaže znaky po koniec riadku
+ #Ctrl+BS#                 Vymaže slovo naľavo
+ #Ctrl+T, Ctrl+Del#        Vymaže slovo napravo
 
- Blockoperationen
+ Operácie s blokmi
 
- #Umsch+Cursortasten#      Block markieren
- #Strg+Umsch+Cursortasten# Horizontalen Block markieren
- #Alt+graue Cursortasten#  Vertikalen Block markieren
- #Alt+Umsch+Cursortasten#  Vertikalen Block markieren
- #Strg+Alt+graue tasten#   Vertikalen Block markieren
- #Strg+A#                  Alles markieren
- #Strg+U#                  Blockmarkierung aufheben
- #Umsch+Einfg, Strg+V#     Block aus der Zwischenablage einfügen
- #Umsch+Entf, Strg+X#      Block löschen
- #Strg+Einfg, Strg+C#      Block in die Zwischenablage kopieren
- #Strg+<Grau +>#           Block in die Zwischenablage anhängen
- #Strg+D#                  Block löschen
- #Strg+P#                  Block an die aktuelle Cursorposition kopieren (nur bei beibehaltenen Blöcken)
- #Strg+M#                  Block an die aktuelle Cursorposition verschieben (nur bei beibehaltenen Blöcken)
- #Alt+U#                   Zeile(n) mit markiertem Block nach links schieben
- #Alt+I#                   Zeile(n) mit markiertem Block nach rechts schieben
+ #Shift+Kurzorové klávesy# Označí blok
+ #Ctrl+Shift+Kur. klávesy# Označí blok
+ #Alt+Sivé kurzorové kl.#  Označí vertikálny blok
+ #Alt+Shift+Kurz. klávesy# Označí vertikálny blok
+ #Ctrl+Alt+gray keys#      Označí vertikálny blok
+ #Ctrl+A#                  Označí celý text
+ #Ctrl+U#                  Odznačí blok
+ #Shift+Ins, Ctrl+V#       Vloží blok zo schránky
+ #Shift+Del, Ctrl+X#       Vymaže blok (presunie do schránky)
+ #Ctrl+Ins, Ctrl+C#        Skopíruje blok do schránky
+ #Ctrl+<Sivý +>#           Pridá blok do schránky
+ #Ctrl+D#                  Vymaže blok
+ #Ctrl+P#                  Skopíruje blok na pozíciu kurzora (len v móde trvalých blokov)
+ #Ctrl+M#                  Presunie blok na pozíciu kurzora (len v móde trvalých blokov)
+ #Alt+U#                   Posunie blok doľava
+ #Alt+I#                   Posunie blok doprava
 
- Andere Operationen
+ Iné operácie
 
- #F1#                      ^<wrap>Hilfe
- #F2#                      Datei sichern
- #Umsch+F2#                ~Datei sichern als…~@FileSaveAs@
+ #F1#                      ^<wrap>Nápoveda
+ #F2#                      Uloženie súboru
+ #Shift+F2#                Uloženie súboru pod iným menom
  #Shift+F4#                Edit ~new file~@FileOpenCreate@
- #F6#                      Zum Betrachter wechseln
- #F7#                      Suchen
- #Strg+F7#                 Ersetzen
- #Umsch+F7#                Weitersuchen
+ #F6#                      Prepnutie do prezerača
+ #F7#                      Hľadanie
+ #Ctrl+F7#                 Nahradzovanie
+ #Shift+F7#                Pokračovanie v hľadaní
  #Alt+F7#                  Continue search/replace in "reverse" mode
- #F8#                      Zwischen OEM/ANSI Textansicht wechseln
- #Strg+F8#                 Benutzerdefinierte Zeichensatztabelle auswählen
- #Alt+F8#                  Gehe nach Zeile
+ #F8#                      Prepínanie medzi DOS/Windows módom
+ #Shift+F8#                Výber užívateľskej tabuľky znakov (pozri poznámky nižšie)
+ #Alt+F8#                  Presun na zadaný riadok
  #Alt+F9#                  Maximize or restore the size of the Far console window; see also ~Interface.AltF9~@Interface.AltF9@
  #Alt+Shift+F9#            Call ~Editor settings~@EditorSettings@ dialog
- #F10, F4, Esc#            Beenden
- #Umsch+F10#               Sichern und Beenden
+ #F10, F4, Esc#            Koniec
+ #Shift+F10#               Uložiť súbor a koniec
  #Ctrl+F10#                Position to the current file
- #F11#                     Menü "Plugin-Kommandos" aufrufen
+ #F11#                     Zobrazí menu "~Príkazy prídavných modulov~@Plugins@"
  #Alt+F11#                 Display ~file view and edit history~@HistoryViews@
- #Alt+BS, Strg+Z#          Operation rückgängig machen
+ #Alt+BS, Ctrl+Z#          Odvolanie poslednej operácie
  #Ctrl+Shift+Z#            Redo
- #Strg+L#                  Editiermodus sperren
- #Strg+O#                  Benutzerbildschirm anzeigen
+ #Ctrl+L#                  Zákaz modifikácie editovaného textu
+ #Ctrl+O#                  Zobrazenie užívateľskej obrazovky
  #Ctrl+Alt+Shift#          Temporarily show user screen (as long as these keys are held down)
- #Strg+Q#                  Nächste Taste(nkombination) als Zeichencode benutzen
- #StrgRechts+0…9#          Aktuelle Position sichern (Merker setzen)
- #Ctrl+Umsch+0…9#          Aktuelle Position sichern (Merker setzen)
- #StrgLinks+0…9#           An gesicherte Position (Merker) springen
+ #Ctrl+Q#                  Považuj nasledovnú kombináciu kláves za kód znaku
+ #RightCtrl+0…9#           Set a bookmark 0…9 at the current position
+ #Ctrl+Shift+0…9#          Set a bookmark 0…9 at the current position
+ #LeftCtrl+0…9#            Go to bookmark 0…9
  #Shift+Enter#             Insert the name of the current file on the active panel at the cursor position.
  #Ctrl+Shift+Enter#        Insert the name of the current file on the passive panel at the cursor position.
  #Ctrl+F#                  Insert the full name of the file being edited at the cursor position.
@@ -3216,7 +3133,7 @@ behavior can be changed in the ~Editor settings~@EditorSettings@ dialog.
 
  See also the list of ~macro keys~@KeyMacroEditList@, available in the editor.
 
- Hinweise:
+ Poznámky:
 
  1. ^<wrap>#Alt+U#/#Alt+I# indent the current line if no block is selected.
  2. ^<wrap>Holding down #Alt# and typing a character code on the numeric
@@ -3599,13 +3516,12 @@ name. Another way to reset the name is to leave it empty and press #OK#.
 
 
 @DriveDlg
-$ #Laufwerk wechseln#
- In diesem Menü kann das aktuelle Laufwerk für das Fenster gewechselt werden,
-ein Netzwerklaufwerk getrennt werden, oder ein neues ~Plugin~@Plugins@-Fenster geöffnet werden.
+$ #Zmena jednotky#
+ Toto menu umožňuje zmeniť aktuálnu jednotku v paneli, odpojiť sieťovú jednotku alebo otvoriť nový panel ~prídavného modulu~@Plugins@.
 
- Wählen Sie den zugehörigen Laufwerksbuchstaben, um das Laufwerk zu wechseln,
-oder den Eintrag mit dem Plugin-Namen, um ein neues Plugin-Fenster zu öffnen.
-Wenn der Fenstertyp kein ~Dateifenster~@FilePanel@ ist, wird er entsprechend geändert.
+ Zvolením položky so zodpovedajúcim písmenom jednotky zmení aktuálnu jednotku,
+zvolenie položky s názvom modulu vytvorí nový panel tohoto modulu.
+Ak typ panelu nebol ~súborový panel~@FilePanel@, zmení sa naň.
 
  #Ctrl+A#, #F4# hotkeys invoke the ~file attributes~@FileAttrDlg@ for drives.
 
@@ -3613,8 +3529,8 @@ Wenn der Fenstertyp kein ~Dateifenster~@FilePanel@ ist, wird er entsprechend ge�
 
  #F3# key shows plugin technical information.
 
- Die Taste #Entf# kann auch dazu benutzt werden:
- - ^<wrap>um ein Netzwerklaufwerk ~zu trennen~@DisconnectDrive@;
+ Klávesom #Del# možno:
+ - ^<wrap>~odpojiť~@DisconnectDrive@ sieťové jednotky;
  - to delete a substituted disk;
  - to detach a virtual disk;
  - to eject disks from CD-ROM and removable drives.
@@ -3628,21 +3544,21 @@ removal. If the disk, for which the removal function is used, is a flash-card
 inserted into a card-reader that supports several flash-cards then the
 card-reader itself will be stopped.
 
- #Strg+1# - #Strg+8# schaltet zwischen verschiedene Arten von Anzeigen um:
+ #Ctrl+1# - #Ctrl+9# prepínajú zobrazenie rôznych informácií:
 
- #Strg+1# - ^<wrap>Laufwerkstyp;
- #Strg+2# - ^<wrap>Netzwerkname / Pfad, verknüpft mit SUBST Laufwerk
+ #Ctrl+1# - ^<wrap>typ disku;
+ #Ctrl+2# - ^<wrap>sieťový názov / a cestu, priradenú pomocou SUBST
 / path to virtual disk container;
- #Strg+3# - ^<wrap>Laufwerkslabel;
- #Strg+4# - ^<wrap>Dateisystem;
- #Strg+5# - ^<wrap>Gesamte und freie Laufwerkskapazität (this option has two
+ #Ctrl+3# - ^<wrap>názov disku;
+ #Ctrl+4# - ^<wrap>súborový systém;
+ #Ctrl+5# - ^<wrap>veľkosť celková a voľného miesta (this option has two
 display modes, press twice to see);
- #Strg+6# - ^<wrap>Anzeige von Wechselmedien-Parameter;
- #Strg+7# - ^<wrap>Anzeige von Plugin-Einträgen;
- #Strg68# - ^<wrap>Anzeige von CD Parametern;
+ #Ctrl+6# - ^<wrap>zobrazovanie parametrov vynímateľných diskov;
+ #Ctrl+7# - ^<wrap>zobrazovanie položiek modulov;
+ #Ctrl+8# - ^<wrap>zobrazovanie parametrov CD;
  #Ctrl+9# - ^<wrap>network parameters.
 
- Die Einstellung aus dem #Laufwerk wechseln#-Menü wird in der Far Konfiguration gesichert.
+ #Zmena jednotky# nastavenia sa ukladajú do konfigurácie Faru.
 
  #F9# shows the ~dialog~@ChangeDriveMode@ to control displaying
 of this information.
@@ -3793,42 +3709,40 @@ combinations are available:
 
  #Ctrl+Down#    - ^<wrap>Move a group down.
 
- Hervorgehobene Gruppen werden vom Beginn an anlysiert. Wenn eine Datei in
-eine bestimmte Gruppe passt, werden die restlichen Gruppen nicht weiter ausgewertet.
+ Zvýrazňované skupiny sú analyzované od začiatku. Ak súbor vyhovuje
+nejakej skupine, nebude už testovaný, či nepatrí do nejakej zo zvyšných.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @HighlightEdit
-$ #Files highlighting and sort groups: editing#
- Der #Dateihervorhebungen#-Dialog im Menü ~Optionen~@OptMenu@
-erlaubt die Defintion verschiedener Gruppen zur Dateihervorhebung.
-Jede Gruppendefinition ~beinhaltet~@Filter@:
+$ #Zvýrazňovanie súborov#
+ #Zvýrazňovanie súborov# z menu ~Nastavenia~@OptMenu@ dovoľuje
+definovanie skupín súborov pre zvýrazňovanie. Definícia každej skupiny ~zahŕňa~@Filter@:
 
- - eine oder mehrere ~Dateimasken~@FileMasks@;
+ - jednu alebo viac ~masiek~@FileMasks@;
 
- - Einschluß- und Ausschluß-Attribute:
-   #[x]# - ^<wrap>inclusion attribute - file must have this attribute.
-   #[ ]# - ^<wrap>exclusion attribute - file must not have this attribute.
+ - atribúty "vrátane" alebo "okrem";
+   #[x]# - ^<wrap>inclusion attribute - file musí mať this attribute.
+   #[ ]# - ^<wrap>exclusion attribute - file nesmie mať this attribute.
    #[?]# - ^<wrap>ignore this attribute;
 
- - Farbeneinstellungen für normale Dateinamen, ausgewählte
-Dateinamen, Dateiname unter dem Cursor und ausgewählte
-Dateinamen unter dem Cursor.
-Wenn Sie die Standardfarben benutzen wollen, wählen Sie
-die Farbkombination "Schwarz auf Schwarz";
+ - farbu použitú na zobrazenie mena súboru normálneho, označeného,
+pod kurzorom a označeného pod kurzorom. Ak chcete použiť štandardné
+farby, nastavte "čiernu na čiernej";
 
- - optionales Zeichen, um Dateien der Gruppe zu markieren. Es
-kann mit oder anstelle farblicher Hervorhebung benutzt werden.
+ - akékoľvek voliteľné znaky, ktoré budú označovať súbory skupiny.
+Môžu byť použité tak s farebným zvýraznením ako i namiesto neho.
 
  If the option "A file mask or several file masks" is turned off, file masks
 will not be analyzed, and only file attributes will be taken into account.
 
- Eine Datei fällt in eine hervorgehobene Gruppe, wenn:
- - ^<wrap>ihr Name wenigstens einer der Dateimasken entspricht (if file mask analysis is disabled,
+ Súbor patrí do zvýrazňovanej skupiny ak:
+ - ^<wrap>jeho meno zodpovedá aspoň jednej
+zo súborových masiek (if file mask analysis is disabled,
 the file name doesn't matter);
- - alle eingeschlossenen Attribute besitzt;
- - keines der ausgeschlossenen Attribute besitzt;
+ - má všetky atribúty "vrátane";
+ - nemá žiadne atribúty "okrem".
 
  The Compressed, Encrypted, Not indexed, Sparse, Temporary and Reparse point
 attributes are valid for NTFS drives only. The #Integrity stream# and
@@ -3837,23 +3751,22 @@ Windows Server 2012.
 
 
 @ViewerSettings
-$ #Betrachter-Einstellungen#
-    Dieser Dialog ermöglicht das Ändern der Standardeinstellungen
-für den internen und externen ~Betrachter~@Viewer@.
+$ #Nastavenie prezerača#
+ Toto okno dovoľuje zmeniť základné nastavenie interneho
+a externého ~prezerača~@Viewer@.
 
 @=
-^#Betrachter#
+^#Prezerač#
 @=
- #Use external viewer#     Start external viewer on #F3# key
- #for F3 instead of#       and internal viewer on #Alt+F3#
- #Alt+F3#                  key combination.
+ #Použiť F3#               Spusti externý prezerač cez #F3#
+ #namiesto Alt+F3#         a interný prezerač cez #Alt+F3#.
 
- #Kommando zum Aufruf#     Das Kommando zum Aufruf des externen
- #des Betrachters#         Betrachters. Benutzen Sie die
-                         ~Spezialsymbole~@MetaSymbols@ um den Namen der
-                         anzuzeigenden Datei zu spezifizieren.
+ #Príkaz pre zobrazenie#   Príkaz, ktorý spustí externý viewer.
+                         Na špecifikáciu mena súboru, ktorý sa má
+                         prezrieť použite ~špeciálne symboly~@FileAssoc@.
+
 @=
-^#Interner Betrachter#
+^#Interný prezerač#
 @=
  #Persistent selection#    Do not remove block selection after
                          moving the cursor.
@@ -3861,8 +3774,7 @@ für den internen und externen ~Betrachter~@Viewer@.
  #Search dialog#           Always returns focus to the search text field in
  #auto-focus#              the ~Viewer~@Viewer@ search dialog.
 
- #Tabulatorgröße#          Tab zeigt die entsprechende Anzahl
-                         Leerzeichen an.
+  #Veľkosť tabulátora#     Počet medzier reprezentujúcich znak tabulátora.
 
  #Show scrolling arrows#   Show scrolling arrows at the edges of the viewer
                          window if the text does not fit horizontally.
@@ -3875,11 +3787,10 @@ für den internen und externen ~Betrachter~@Viewer@.
                          option can also be switched by pressing
                          #Ctrl+S# in the internal viewer.
 @=
- #Dateiposition sichern#   Sichert und restauriert die Position in
-                         der zuletzt angezeigten Datei. Diese Option
-                         sichert und restauriert auch die Zeichen-
-                         satztabelle, wenn sie vom Benutzer von Hand
-                         ausgewählt wurde and ~view mode~@ViewerMode@.
+ #Uložiť pozíciu v súbore# Uloží pozíciu a vráti sa na ňu v naposledy
+                         prezeraných súboroch. This option also saves and restores
+                         the code page (if it was selected manually) and
+                         ~view mode~@ViewerMode@.
 
  #Save file code page#     Save and restore the code page selected for a file.
                          This is automatically enabled if #Save file position#
@@ -3908,9 +3819,8 @@ für den internen und externen ~Betrachter~@Viewer@.
  #Default code page#       Allows to select the default code page.
 @=
 
- Wenn der Aufruf des externen Betrachters der #F3#-Taste zugewiesen
-ist, wird dieser nur dann aufgerufen, wenn ein ~verknüpfter~@FileAssoc@
-Betrachter für den aktuellen Dateityp nicht existiert.
+ Ak je externý prezerač priradený klávesu #F3#, bude spustený len
+ak danému ~typu súboru~@FileAssoc@ nie je priradný vlastný prezerač.
 
  Changing of settings does not affect currently opened internal
 viewer windows.
@@ -3921,21 +3831,20 @@ will affect only the current session.
 
 
 @EditorSettings
-$ #Editor-Einstellungen#
- Dieser Dialog ermöglicht das Ändern der Standardeinstellungen
-für den ~internen~@Editor@ und externen Editor.
+$ #Nastavenie editora#
+ Toto okno dovoľuje zmeniť základné nastavenie externého a
+interného editora.
 
- Externer Editor
+ Externý editor
 
- #Aufruf mit F4#           Startet den externen Editor mit #F4# anstatt
+ #Použiť F4#               Spustí externý editor po stlačení #F4# namiesto
                          #Alt+F4#.
 
-  #Kommando zum Aufruf#     Das Kommando zum Aufruf des externen
-  #des Editors#             Betrachters. Benutzen Sie die
-                          ~Spezialsymbole~@MetaSymbols@ um den Namen der
-                          zu bearbeitenden Datei zu spezifizieren.
+ #Príkaz pre editovanie#   Príkaz, ktorý spustí externý editor.
+                         Na špecifikáciu mena súboru, ktorý sa má
+                         editovať použite ~špeciálne symboly~@MetaSymbols@.
 
- Interner Editor
+ Interný editor
 
  #Do not expand tabs#      Do not convert tabs to spaces while
                          editing the document.
@@ -3945,35 +3854,35 @@ für den ~internen~@Editor@ und externen Editor.
                          number of spaces. Other tabs won't be
                          converted.
 
- #Tabs durch Leerzeichen#  Ersetzt das Tabulator-Zeichen durch die
- #ersetzen#                Anzahl von Leerzeichen.
+ #Expand all tabs to#      Upon opening the document, all tabs in
+ #spaces#                  the document will be automatically
+                         converted to spaces.
 
- #Blöcke beibehalten#      Entfernt die Blockmarkierung nach
-                         Bewegen des Cursors nicht.
+ #Trvalé bloky#            Neodstráni označenie bloku pri pohybe
+                         kurzora.
 
- #Entf löscht Blöcke#      Wenn ein Block ausgewählt ist, löscht Entf
-                         nicht das Zeichen unter dem Cursor, sondern
-                         diesen Block.
+ #Del odstraňuje bloky#    Ak je označený blok, kláves Del
+                         neodstráni iba znak pod kurzorom, ale
+                         celý tento blok.
 
- #Dateiposition sichern#   Sichert und restauriert die Position in
-                         der zuletzt bearbeiteten Datei. Diese
-                         Option sichert und restauriert auch die
-                         Zeichensatztabelle, wenn sie vom Benutzer
-                         von Hand ausgewählt wurde.
+ #Uložiť pozíciu v súbore# Uloží pozíciu a vráti sa na ňu
+                         v naposledy editovaných súboroch. Ak
+                         bola predtým užívateľom manuálne
+                         nastavená tabuľka znakov, táto sa
+                         tiež sa tiež uloží a znovu nastaví.
 
  #Save bookmarks#          Save and restore bookmarks (current
                          positions) in recently edited files
                          (created with #RightCtrl+0…9# or
                          #Ctrl+Shift+0…9#)
 
- #Auto-Einfügemoduds#      Schaltet den Auto-Einfügemodus bei der
-                         Texteingabe ein.
+ #Automatické odsadenie#   Zapne mód automatického odsadzovania
+                         pri zadávaní textu.
 
- #Cursor hinter#           Erlaubt das Bewegen des Cursors hinter
- #Zeilenende#              das Zeilenende.
+ #Kurzor za koncom#        Dovolí presunúť kurzor aj za koniec riadku.
+ #riadku#
 
- #Tabulatorgröße#          Tab zeigt die entsprechende Anzahl
-                         Leerzeichen an.
+ #Veľkosť tabulátora#      Počet medzier reprezentujúcich znak tabulátora.
 
  #Show scrollbar#          Show scrollbar.
 
@@ -4005,9 +3914,8 @@ für den ~internen~@Editor@ und externen Editor.
 
  #Default code page#       Select the default code page.
 
- Wenn der Aufruf des externen Editors der #F4#-Taste zugewiesen ist,
-wird dieser nur dann aufgerufen, wenn ein ~verknüpfter~@FileAssoc@
-Editor für den aktuellen Dateityp nicht existiert.
+ Ak je externý editor priradený klávesu #F4#, bude spustený len
+ak danému ~typu súboru~@FileAssoc@ nie je priradný vlastný editor.
 
  Modifications of settings in this dialog do not affect previously opened
 internal editor windows.
@@ -4028,12 +3936,10 @@ non-typical text files.
 
 
 @FileAttrDlg
-$ #Dateiattribute#
- Mit diesem Befehl ist es möglich, Dateiattribute und -zeiten
-zu ändern. Es können entweder einzelne Dateien auch Dateigruppen
-bearbeitet werden. Wenn Sie keine Dateien in Unterverzeichnissen
-ändern wollen, schalten Sie die Option "Unterverzeichnisse
-einschließen" aus.
+$ #Atribúty súborov#
+ S týmto príkazom je možné zmeniť atribúty súborov a ich čas.
+Možno pracovať s jedným ako i skupinou súborov. Ak nechcete zvolené nastavenia
+použiť pre súbory v podadresároch, zrušte voľbu "Prejdi podadresáre".
 
  #File attributes#
 
@@ -4055,8 +3961,8 @@ folders, all checkboxes will always be 3-state.
  Only those attributes will be changed for which the state of the
 corresponding checkboxes was changed from the initial state.
 
- Die Attribute #Komprimiert#, #Encrypted#, #Not indexed#, #Sparse#, #Temporary#,
-#Offline#, #Reparse point# kann nur auf NTFS-Laufwerken geändert werden.
+ Atribúty #Komprimovaný#, #Encrypted#, #Not indexed#, #Sparse#, #Temporary#,
+#Offline#, #Reparse point# možno zmeniť len na jednotkách NTFS.
 The #Compressed# and #Encrypted# attributes are mutually exclusive, that is, you can set only
 one of them. You cannot clear the #Sparse# attribute in Windows 2000/XP/2003. The
 #Integrity stream# and #No scrub data# attributes are supported only on ReFS volumes starting from
@@ -4067,22 +3973,22 @@ If this information is not available, then the "#(data not available)#" message 
 
  #File date and time#
 
- Es werden vier verschiedene Dateizeiten unterstützt:
- - Datum der letzen Änderung;
- - Datum der Erzeugung;
- - Datum des letzen Zugriffs;
+ Podporované sú štyri rôzne časy súboru:
+ - čas poslednej zmeny;
+ - čas vytvorenia;
+ - čas posledného prístupu;
  - change time.
 
- Auf FAT Laufwerken sind die Stunden, Minuten und Sekunden der
-Zeit des letzten Zugriffs immer gleich 0.
+ Na jednotkách FAT sa hodiny, minúty a sekundy posledného prístupu
+vždy rovnajú nule.
 
- Wenn Sie die Dateizeit unverändert lassen wollen, lassen Sie das
-zugehörige Feld leer. You can push the #Blank# button to clear all the date and time fields
+ Ak nechcete zmeniť čas súboru, ponechajte príslušné pole prázdne.
+You can push the #Blank# button to clear all the date and time fields
 and then change an individual component of the date or time, for example, only
 month or only minutes. All the other date and time components will remain
 unchanged.
 
- Der #Aktuell# Button füllt die Dateizeitfelder mit der aktuellen Zeit.
+ Tlačítko #Súčasný# vyplní polia času súboru súčasným časom.
  The #Original# button fills the file time fields with their original
 values. Available only when the dialog is invoked for a single file object.
 
@@ -4091,15 +3997,15 @@ selected objects.
 
 
 @FolderShortcuts
-$ #Verzeichniskürzel#
- Verzeichniskürzel bieten einen schnellen Zugriff auf häufig benutzte
-Verzeichnisse. Drücken Sie Strg+Umsch+0…9 um ein Kürzel für das aktuelle Verzeichnis zu erzeugen.
-Um über das so aufgezeichnete Kürzel in das Verzeichnis zu wechseln,
-drücken Sie die RechtsStrg+0…9. Wird RechtsStrg+0…9 in
-einer Editierzeile gedrückt, wird der Pfad des zugehörigen Kürzels in die Zeile übernommen.
+$ #Skratky k adresárom#
+ Skratky k adresárom boli vytvorené na to, aby umožnili rýchly prístup
+k často používaným adresárom. Stlačením #Ctrl+Shift+0…9#,
+vytvoríte skratku k aktuálnemu adresáru. Potom na opätovné nastavenie adresára
+uloženého v skratke stačí stlačiť #PravýCtrl+0…9#. Ak sa #PravýCtrl+0…9# stlačí
+pri zadávaní textu, vloží sa cesta príslušnej skratky do tohto textu.
 
- Über den Eintrag #Verzeichniskürzel# im Menü ~Befehle~@CmdMenu@ können
-Verzeichniskürzel angezeigt, erzeugt, editiert und gelöscht werden.
+ Príkazom #Skratky k adresárom# nachádzajúcim sa v menu ~Príkazy (Commands)~@CmdMenu@ otvoríte
+okno, v ktorom môžete prezerať, nastavovať, editovať a vymazávať tieto skratky.
 
  When you are editing a shortcut (#F4#), you cannot create a shortcut to a
 plugin panel.
@@ -4108,14 +4014,14 @@ plugin panel.
 
 
 @FiltersMenu
-$ #Dateifensterfilter#
+$ #Filters menu#
  Using the #Filters menu# you can define a set of file types with user
 defined rules according to which files will be processed in the area of
 operation this menu was called from.
 
- The filters menu consists of two parts. In the upper part custom #User#
-#filters# are shown, the lower part contains file masks of all the files that
-exist in the current panel (including file masks that are selected in the
+ Menu filtra sa skladá z dvoch častí. V hornej časti sú zobrazené
+#užívateľské filtre#. Dolná časť menu filtra obsahuje masky všetkých súborov aktívneho
+súborového panelu (including file masks that are selected in the
 current area of operation the menu was called from even if there are no files
 that match those mask in the current panel).
 
@@ -4153,12 +4059,10 @@ masks) the following commands are available:
 
  #Shift+Backspace#     Clear selection from all items.
 
- Benutzerdefinierte Filterauswahlen werden in der Far
-Konfiguraton gespeichert.
+ Filters selection is stored in the Far configuration.
 
- Wenn in einem Fenster Dateifilter benutzt werden, wird dies durch
-einen ‘*’ hinter dem Sortiermodusbuchstaben in der oberen, linken
-Ecke des Fensters angezeigt.
+ When a filter is used in a panel, it is indicated by ‘*’ after the sort
+mode letter in the upper left corner of the panel.
 
  Filters menu is used in the following areas:
  - ~File panel~@FilePanel@;
@@ -4175,37 +4079,36 @@ in the ~Info panel~@InfoPanel@ as folder descriptions.
 
 
 @FileDiz
-$ #Dateibeschreibungen#
- Dateibeschreibungen werden dazu benutzt, um Dateien Textinformationen
-zuzuweisen. Beschreibungen zu in einem Verzeichnis enthaltenen Dateien
-werden in diesem Verzeichnis in einer Datei, die eine Liste der Beschreibungen
-enthält, gespeichert. Das Format eines Dateibeschreibungseintrags besteht
-aus dem Dateinamen, gefolgt von einem Leerzeichen und der eigentlichen
-Beschreibung selbst.
+$ #Popis súborov#
+ Popis súborov možno použiť na priradenie textovej informácie
+k súboru. Popisy súborov aktuálneho adresára sú uložené v tomto
+adresári v súbore so zoznamom popisov. V tomto súbore je na začiatku
+každého riadku názov súboru nasledovaný medzerami a akýmkoľvek textom.
 
- Beschreibungen werden im zugehörigen ~Dateifensteranzeigemodus~@PanelViewModes@
-angezeigt. Standardmäßig sind diese Modi #Beschreibung# und #Lange Beschreibung#.
+ Popisy si možno prezrieť v príslušných ~módoch~@PanelViewModes@
+súborového panelu. Štandardne sú týmito módmi #Popisy#
+a #Dlhé popisy#.
 
- Um ausgewählte Dateien zu beschreiben, wird der Befehl #Datei beschreiben#
-(#Strg+Z#) im Menü ~Dateien~@FilesMenu@ benutzt.
+ Popis možno k súboru/označeným súborom pridať príkazom
+#Popis súborov# (#Ctrl+Z#) z menu ~súbory~@FilesMenu@.
 
- Namen von Dateien, die eine Liste von Dateibeschreibungen enthalten,
-können im Dialog #Dateibeschreibungen# im Menü ~Optionen~@OptMenu@
-geändert werden. In diesem Dialog kann außerdem ein lokaler Modus zur
-Aktualisierung von Beschreibungsdateien gesetzt werden. Die Aktualisierung
-kann abgeschaltet sein, nur dann aktiv sein, wenn der aktuelle Anzeigemodus
-des Fensters Beschreibungen anzeigt, oder immer aktiviert sein.
+ Mená súborov z popismi môžu byť zmenené pomocou príkazu
+#Popisy súborov (File descriptions)# z menu ~Nastavenia~@OptMenu@.
+Tu možno nastaviť taktiež mód aktualizácie popisov. Táto môže byť
+celkom vypnutá, zapnutá len ak aktuálny panel zobrazuje popisy alebo
+zapnutá vždy. Štandardne Far nastavuje súborom s popismi príznak "Skrytý", ale
+toto správanie môžete zmeniť pomocou nastavenia "V nových zoznamoch popisov
+nastaviť atribút "Skrytý". Tu taktiež môžete určiť pozíciu na zarovnávanie
+nových popisov súborov v zozname popisov.
 
- Standardmäßig setzt Far bei angelegten Dateibeschreibungslisten immer
-das "Versteckt"-Attribut, Sie können dies jedoch durch Ausschalten der
-Option "Setze "Versteckt"-Attribut für neue Beschreibungslisten" in
-diesem Dialog verhindern. Außerdem können Sie hier die Position zur
-Ausrichtung neuer Dateibeschreibungen in der Liste festlegen.
+ If a description file has the "read-only" attribute set, Far does not
+attempt to update descriptions, and after moving or deleting file objects, an
+error message is shown. If the option "#Update read only description file#" is
+enabled, Far will attempt to update the descriptions correctly.
 
- Wenn eingeschaltet in der Konfiguration, aktualisiert Far die
-Dateibeschreibungen beim Kopieren, Verschieben oder Löschen von Dateien.
-Wenn ein Befehl jedoch Dateien in Unterverzeichnissen betrifft, werden
-die Dateibeschreibungen in diesen Unterverzeichnissen nicht aktualisiert.
+ Ak je aktualizácia zapnutá, Far aktualizuje popisy pri
+kopírovaní, presúvaní a vymazávaní súborov. Ale ak sa príkaz vykonáva
+aj na súboroch z podadresárov, popisy v nich sa neaktualizujú.
 
  Use ANSI code page by default
 
@@ -4213,22 +4116,21 @@ die Dateibeschreibungen in diesen Unterverzeichnissen nicht aktualisiert.
 
 
 @PanelViewModes
-$ #Ansichten im Dateifenster benutzerdefiniert anpassen#
- ~Dateifenster~@FilePanel@ zeigen ihre Informationen über 10
-vordefinierte Modi an: Kurz, Mittel, Voll, Weit, Detailliert, Beschreibung,
-Lange Beschreibung, Eigentümer, Link und Alternativ voll. Das ist gewöhnlich
-genug, aber wenn Sie möchten, können Sie entweder deren Parameter anpassen
-oder sie auch durch komplett neue Modi ersetzen.
+$ #Úprava módov zobrazenia súborov#
+~Súborový panel~@FilePanel@ môže zobrazovať informácie
+pomocou 10 preddefinovaných módov: stručne, stredne, úplne, široko, detailne,
+popisy, dlhé popisy, vlastníci súborov, linky súborov, alternatívne úplne.
+To zvyčajne stačí, ale kto chce, ten si môže prispôsobiť ich parametre
+alebo ich dokonca nahradiť úplne iným módmi.
 
- Das Ändern der Dateiansichten geschieht über den Befehl #Dateifenstermodi#
-im Menü ~Optionen~@OptMenu@. Hier können Sie aus einer Liste den gewünschten
-Modus auswählen. In dieser Liste entspricht "Kurz" der Kurzansicht (#LinksStrg+1#),
-"Mittel" einer mittelgroßen Ansicht (#LinksStrg+2#) usw.
-The last item, "Alternative full", corresponds to view mode called with
-#LeftCtrl+0#. After selecting the mode, you can change the following settings:
+ Príkaz #Módy zobrazenia súborov# v menu ~nastavenia~@OptMenu@ umožňuje
+zmeniť tieto módy. Najprv je potrebné vybrať želaný mód zo zoznamu.
+V tomto zozname "Stručný" zodpovedá stručnému/brief módu
+(#ĽavýCtrl+1#), "Stredný" zodpovedá strednému/medium módu (#ĽavýCtrl+2#) a tak
+ďalej. Posledné "Alternatívne úplne" zodpovedá módu vyvolanému cez
+#ĽavýCtrl+0#. Po tomto výbere sa objaví dialógové okno, kde môžete zmeniť nasledovné nastavenia:
 
-
- #Column types# - a comma-separated list. Each column type starts with
+ #Typy stĺpcov# - a comma-separated list. Each column type starts with
 a file property character, such as name, size, etc. Some file properties
 may be followed by modifiers. Supported column types (properties and
 their modifiers) are listed below.
@@ -4240,28 +4142,28 @@ will wrap from one stripe to the next like text of a newspaper article.
 If column type list cannot be properly split into the equal groups, the
 files will be listed on a single stripe.
 
- Erlaubte Spaltentypen sind:
+ The following column types are supported:
 
- N[M[D],O,R[F],N] - Dateiname, mit:
-                    M - ^<wrap>zeige Auswahlmarkierungen, mit:
+ N[M[D],O,R[F],N] - meno súboru, kde
+                    M - ^<wrap>zobrazuj zvýrazňujúce značky, kde
                         D - dynamic selection marks;
-                    O - ^<wrap>zeige Namen ohne Pfad (hauptsächlich für Plugins);
-                    R - ^<wrap>rechtsbündige Namen, mit:
+                    O - ^<wrap>zobrazuj mená bez cesty (určené najmä pre moduly/plugins);
+                    R - ^<wrap>mená zarovnané doprava, kde
                         F - right align all names;
                     N - ^<wrap>do not show extensions in name column;
 
- Diese Typen können in Kombination benutzt werden, Z.B. NMR
+ Tieto parametre možno kombinovať, napr. NMR.
 
  X[R]       - file extension, where:
               R - ^<wrap>right align file extension;
 
- S[C,T,F,E] - Dateigröße
- P[C,T,F,E] - gepackte Dateigröße
- G[C,T,F,E] - size of file streams, mit:
-              C - ^<wrap>formatiert Dateigröße durch the character from Windows settings;
-              T - ^<wrap>benutzt decimal units instead of binary,
-i.e., to calculate kilobytes, the size will be divided by 1000 instead
-of by 1024; in this mode unit character is shown in lower case, e.g. #k#,
+ S[C,T,F,E] - dĺžka súboru
+ P[C,T,F,E] - komprimovaná dĺžka súboru
+ G[C,T,F,E] - size of file streams, where:
+              C - ^<wrap>formátovanie dĺžky súboru čiarkami;
+              T - ^<wrap>používať 1000 namiesto 1024
+ako oddeľovač ak je stĺpec príliš úzky
+na zobrazenie celej dĺžky; in this mode unit character is shown in lower case, e.g. #k#,
 #m#, #g# instead of #K#, #M#, #G#;
               F - ^<wrap>show size as a decimal fraction with
 no more than three digits before decimal point, e.g. 999 bytes will
@@ -4270,28 +4172,28 @@ depends on whether the #T# modifier is used;
               E - ^<wrap>economic mode, no space between the
 size and the unit character, e.g. #1.00k#;
 
- D          - Datum der letzten Änderung der Datei;
- T          - Zeit der letzten Änderung der Datei;
+ D         - dátum modifikácie súboru
+ T         - čas modifikácie súboru
 
- DM[B,M]    - Datum/Zeit der letzten Änderung;
- DC[B,M]    - Datum/Zeit der Erzeugung;
- DA[B,M]    - Datum/Zeit des letzten Zugriffs;
+ DM[B,M]   - dátum a čas modifikácie súboru
+ DC[B,M]   - dátum a čas vytvorenia súboru
+ DA[B,M]   - dátum a čas posledného prístupu
  DE[B,M]    - file change date and time, where:
-              B - kurzes Dateizeitformat (Unix-Stil);
-              M - Monatsnamen als Text;
+              B - krátky (Unix štýl) formát času;
+              M - používať názvy mesiacov;
 
- A          - Dateiattribute;
- Z          - Dateibeschreibung;
+ A         - atribúty súboru;
+ Z         - popis súboru;
 
- O[L]       - Eigentümer, where:
+ O[L]      - majiteľ súboru, kde
               L - show domain name;
 
- LN         - Anzahl harter Links;
+ LN        - počet pevných linkov;
 
  F          - number of streams.
 
- Wenn die Definition des Spaltentyps mehr als eine Spalte für Dateinamen enthält,
-wird das Dateifenster in Mehrspaltenform dargestellt.
+ Ak popis typov stĺpcov obsahuje viac ako jeden stĺpec s menom
+súboru, súborový panel bude zobrazený viacstĺpcovo.
 
  File attributes are denoted as follows:
 
@@ -4317,95 +4219,91 @@ wird das Dateifenster in Mehrspaltenform dargestellt.
  By default the size of the attributes column is 6 characters. To display
 the additional attributes it is necessary to manually increase the size of the column.
 
-#Spaltenbreite# - zum Ändern der Breite der Fensterspalten.
-Wenn die Breite den Wert 0 besitzt, wird der Standardwert benutzt.
-Wenn die Breite der Spalte von Namen, Beschreibung oder Eigentümer
-0 ist, wird der Wert automatisch in Abhänggkeit von der Fensterbreite
-berechnet. Für ein korrektes Arbeiten bei unterschiedlichen
-Bildschirmbreiten wird dringend empfohlen, mindestens eine Spalte
-mit automatisch berechneter Breite zu benutzen.
+ #Šírky stĺpcov (Column widths)# - dovoľuje zmeniť šírky jednotlivých
+stĺpcov panelu. Ak sa rovná nule, použije sa štandardná hodnota. Ak je
+šírka názvu, popisu alebo majiteľa rovná nule, bude vypočítaná automaticky,
+v závislosti od šírky panelu. Pre správnu prácu s rôznymi šírkami obrazovky
+sa veľmi odporúča mať aspoň jeden stĺpec s automaticky vypočítavanou šírkou.
+Width can be also set as a percentage of
+remaining free space after the fixed width columns by adding the "%" character
+after the numerical value. If the total size of such columns exceeds 100%,
+their sizes are scaled.
 
- Das Erhöhen der Standardspaltenbreite für Dateizeiten (üblicherweise 5)
-oder Dateidatum/-zeit (üblicherweise 14) um 1 erzwingt ein 12-Stunden
-Zeitformat. Weiteres Erhöhen führt zur Anzeige von Sekunden und Millisekunden.
+ Zvýšenie štandardnej šírky stĺpca pre čas alebo dátum a čas súboru o 1
+spôsobí zobrazenie v 12-hodinovom formáte. Pri ďalšom zväčšení sa zobrazia
+sekundy resp. milisekundy.
 
- Um Jahreszahlen 4-stellig anzuzeigen, erhöhen Sie die Spaltenbreite
-für das Datum um 2.
+ Pre zobrazovanie roku vo formáte štyroch čísel stačí zväčšiť šírku stĺpca o dva.
 
  Enabling links, streams and owner columns (G, LN, F and O) can significantly
 slow down the directory reading.
 
- #Statuszeile Spaltentypen# and #Statuszeile Spaltenbreite# -
-wie "Spaltentypen" und "Spaltenbreite", jedoch für die Statuszeile des
-Fensters.
+ #Typy stavového riadku# a #Šírky stavového riadku# -
+sú podobné "Typom stĺpcov" a "Šírkam stĺpcov", ale platia pre stavový riadok.
 
- #Vollbildschirm# - erzwingt Anzeige des Fensters anstelle über der
-halben über die volle Bildschirmseite.
+ #Celá obrazovka# - nastaví jeden panel na celú obrazovku namiesto zvyčajnej polovičky.
 
- #Dateierweiterung anpassen# - zeigt Dateierweiterungen ausgerichtet
-an.
+ #Zarovnať prípony súborov# - bude zobrazovať prípony súborov zarovnané pod seba.
 
  #Align folder extensions# - show folder extensions aligned.
 
- #Verzeichnisnamen in Großbuchstaben# - zeigt alle Verzeichnisnamen,
-unabhängig von ihrer Original-Schreibweise in Großbuchstaben an.
+ #Adresáre veľkými písmenami# - zobrazí všetky mená adresárov veľkými písmenami,
+ignorujúc originálnu veľkosť písmen.
 
- #Dateinamen in Kleinbuchstaben# - zeigt alle Dateinamen, unabhängig
-von ihrer Original-Schreibweise in Kleinbuchstaben an.
+ #Súbory malými písmenami# - zobrazí všetky mená súborov malými písmenami,
+ignorujúc originálnu veľkosť písmen.
 
- #Großbuchstabige Dateinamen klein anzeigen# - zeigt alle Dateinamen
-bestehend aus Großbuchstaben in Kleinbuchstaben an. Standardmäßig ist
-diese Option an, wenn Sie jedoch die Namen immer in ihrer originalen
-Schreibweise sehen möchten, schalten Sie diese sowie die Optionen
-"Verzeichnisnamen in Großbuchstaben" und "Dateinamen in Kleinbuchstaben"
-aus. Alle diese Einstellungen wirken sich nur auf die Anzeige von
-Dateien aus, wenn Dateien bearbeitet werden, benutzt Far immer deren
-Original-Schreibweise.
+ #Súbory veľkými písmenami zobraziť malými# -
+zobrazí všetky mená súborov, ktoré obsahujú iba veľké písmená, iba malými
+písmenami. Táto možnosť je štandardne zapnutá, kto chce vidieť všetky mená
+so skutočnými názvami, ten môže túto, ako i dve predošlé vypnúť. Všetky
+tieto nastavenia však ovplyvňujú iba zobrazovanie súborov, pri operáciách
+Far vždy používa skutočné mená (vrátane veľkých/malých písmen).
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @SortGroups
-$ #Sortiergruppen#
- Dateisortiergruppen können in Sortiermodi benutzt werden #nach
-Name# und #nach Erweiterung# von ~Dateifenstern~@FilePanel@. Sie
-werden aufgerufen durch #Umsch+F11# und erlauben, zzgl. zu den bereits
-benutzten, die Definition weiterer Dateisortierfolgen.
+$ #Skupiny triedenia#
+ Skupiny triedenia možno použiť len pri zoraďovaní podľa #mena#
+alebo #prípony# v ~súborovom paneli~@FilePanel@.
+Zapnúť/vypnúť ich možno pomocou #Shift+F11#. Dovoľujú definovať dodatočné
+pravidlá pre zoraďovanie, rozširujúc práve nastavené.
 
- Jede Sortiergruppe beinhaltet eine oder mehrere durch Kommata
-getrennte ~Dateimasken~@FileMasks@. Wenn in mehreren Einträgen die
-gleiche Maske vorkommt, wird für diese Maske die Sortierung nach
-dem am höchsten plazierten Eintrag benutzt.
+ Každá skupina triedenia obsahuje jednu alebo niekoľko
+~masiek~@FileMasks@. Ak je niektorá skupina umiestnená
+v zozname skupín vyššie ako iná a je nastavené vzostupné zoraďovanie,
+všetky súbory patriace do tejto skupiny budú vyššie ako tie, patriace
+do druhej.
 
- Mit dem Befehl #Sortiergruppen bearbeiten# im Menü ~Befehle~@CmdMenu@
-können Sortiergruppen, gelöscht, angelegt und bearbeitet werden unter
-Benutzung von Entf, Einfg und F4. Die Gruppen oberhalb der Trennlinie
-wirken sich auf den Beginn des Dateifensters aus. Eingeschlossene Dateien
-werden höher im Fenster plaziert als jene, die keiner Gruppe angehören.
+ Príkaz #Nastavenie skupín triedenia# z menu
+~príkazy~@CmdMenu@ dovoľuje vymazávať, vytvárať a upravovať
+skupiny triedenia, pomocou kláves #Del#, #Ins# a #F4#. Súbory patriace do niektorej
+skupiny nad oddeľovačom budú umiestnené vyššie, ako tie, ktoré nepatria do
+žiadnej skupiny. Súbory patriace do niektorej skupiny pod oddeľovačom budú
+umiestnené nižšie, ako tie, ktoré nepatria do žiadnej skupiny.
 
 
 @FileMasks
-$ #Dateimasken#
- Dateimasken werden in Far oft benutzt, um einzelne Dateien und
-Verzeichnisse oder Gruppen davon auszuwählen. Masken können allgemein
-gültige Dateinamensymbole, Wildcards (‘*’ und ‘?’) und spezielle Ausdrücke enthalten:
+$ #Masky súborov#
+ Masky sú často použivané v príkazoch Faru na označenie jednotlivých
+súborov a adresárov alebo ich skupín. Masky môžu obsahovať zvyčajné
+symboly v menách súborov, náhradné znaky ('*' a '?') a špeciálne výrazy:
 
- #*#           ein unbestimmte Anzahl von Zeichen;
+ #*#           ľubovoľný počet znakov;
 
- #?#           ein einzelnes Zeichen;
+ #?#           ľubovoľný jeden znak;
 
- #[cx-z]#      ein Zeichen als Bestandteil der Klammern
-             Es sind sowohl einzelne Zeichen als auch
-             Zeichenbereiche erlaubt.
+ #[cx-z]#      ľubovoľný znak z tých, čo sú uzavreté v zátvorkách.
+             Dovolené sú tak samostatné znaky, ako i intervaly.
 
- Zum Beispiel können die Dateien ftp.exe, fc.exe und f.ext durch
-die Maske f*.ex? ausgewählt werden, Die Maske *co* wählt sowohl
-color.ini als auch edit.com, die Maske [c-ft]*.txt kann config.txt,
-demo.txt, faq.txt und tips.txt auswählen.
+ Napríklad, súbory ftp.exe, fc.exe a f.ext možno označiť použitím masky
+f*.ex?, maska *co* označí tak color.ini ako i edit.com, maskou [c-ft]*.txt
+možno označiť config.txt, demo.txt, faq.txt a tips.txt.
 
- Viele Far-Befehle erlauben die Angabe von mehreren, durch Kommata
-getrennte Dateimasken. Um Z.B. alle Dokumente auszuwählen, können Sie
-im Befehl "Gruppe auswählen" *.doc,*.txt,*.wri angeben.
+ Mnohé príkazy Faru dovoľujú zadať niekoľko masiek oddelených čiarkami.
+Napr. na označenie všetkých dokumentov môžete zadať *.doc, *.txt, *.wri
+v príkaze "Označiť skupinu".
 
  It is allowed to put any of the masks in quotes but not the whole list. For
 example, you have to do this when a mask contains any of the delimiter
@@ -4446,43 +4344,41 @@ and the ‘|’ character separates include masks from exclude masks.
 
 
 @SelectFiles
-$ #Dateien auswählen#
- Beim Bearbeiten von Dateien und Verzeichnissen im ~Dateifenster~@FilePanel@
-gibt es verschiedene Methoden, um diese auszwählen. Wenn keine Dateien ausgewählt sind, wird nur die Datei unter dem
-Cursor bearbeitet.
+$ #Označovanie súborov#
+ ~File panel~@FilePanel@ items (files and folders) can be selected
+for group processing. Ak nie sú označené žiadne súbory, bude sa pracovať len
+so súborom pod kurzorom.
 
  #Keyboard Selection#
 
- #Einfg# wählt die Datei unter dem Cursor und bewegt den Cursor nach unten.
+ #Ins# označí súbor pod kurzorom a posunie kurzor
+nižšie.
 
- #Umsch+Cursor# Tasten bewegen den Cursor in unterschiedliche Richtungen.
-The action (selection or deselection) depends
-on the state of the item under cursor before pressing the key
-combination.
+ #Shift+kurzorové klávesy# dovoľuje posúvať kurzor rôznymi smermi.
+#Medzerník (Space)# pracuje podobne ako Ins, ak sa použije príslušné
+makro (je súčasťou ukážkových makier) a príkazový
+riadok je prázdny.
 
- #Grau +# und #Grau -# selektieren und deselektieren Gruppen
-durch Benutzung einer oder mehrerer, durch Kommata getrennter
-~Dateimasken~@FileMasks@. #†#
+ #Sivý +# a #Sivý -# umožňujú označenie a odznačenie skupiny
+pomocou jednej alebo niekoľkých ~masiek~@FileMasks@ oddelených čiarkami. #†#
 
- #Grau *# kehrt die aktuelle Auswahl um. #†#
+ #Sivý *# invertuje aktuálne označenie. #†#
 
- #Strg+<Grau +># und #Strg+<Grau -># selektieren und
-deselektieren alle Dateien mit der gleichen Erweiterung wie die,
-auf der der Cursor/Auswahlbalken steht.
+ #Ctrl+<Sivý +># a #Ctrl+<Sivý -># označuje a odznačuje všetky
+súbory s rovnakou príponou, akú má súbor pod kurzorom.
 
- #Alt+<Grau +># und #Alt+<Grau -># selektieren und
-deselektieren alle Dateien mit dem gleichen #Namen# wie die,
-auf der der Cursor/Auswahlbalken steht. #†#
+ #Alt+<Gray +># a #Alt+<Gray -># označuje a odznačuje všetky
+súbory s rovnakým menom, aké má súbor pod kurzorom.
 
- #Umsch+<Grau +># and #Umsch+<Grau -># selektieren und deselektieren alle Dateien. #†#
+ #Shift+<Sivý +># a #Shift+<Sivý -># označuje a odznačuje všetky súbory. #†#
 
- #Strg+<Grau *># kehrt die aktuelle Auswahl einschließlich
-Verzeichnisse um.
+ #Ctrl+<Sivý *># invertuje aktuálne označenie
+vrátane adresárov.
 
- #Alt+<Grau *># inverts the current selection on files only,
+ #Alt+<Gray *># inverts the current selection on files only,
 folders are deselected.
 
- #Strg+M# stellte eine vorherige Auswahl wieder her.
+ #Ctrl+M# obnoví naposledy označenú skupinu.
 
  #Mouse Selection#
 
@@ -4503,19 +4399,17 @@ or deselected. Otherwise, the selection on the folders is changed as well.
 
 
 @CopyFiles
-$ #Kopieren, Verschieben, Umbenennen und Anlegen von Links#
- Folgende Befehle werden zum Kopieren, Verschieben und Umbenennen
-von Dateien und Verzeichnissen benutzt:
+$ #Kopírovanie, presúvanie, premenovávanie a vytváranie linkov#
+ Nasledovné príkazy možno použiť na kopírovanie, presúvanie a premenovávanie súborov a adresárov:
 
- ~Ausgewählte~@SelectFiles@ Dateien kopieren                                  #F5#
+ Skopíruj ~označené~@SelectFiles@ súbory                                      #F5#
 
- Datei unter dem Cursor unabhängig von einer Auswahl     #Shift+F5#
- kopieren
+ Skopíruj súbor pod kurzorom bez ohľadu na označenie     #Shift+F5#
 
- Ausgewählte Dateien umbenennen oder verschieben               #F6#
+ Premenuj alebo presuň označené súbory                         #F6#
 
- Datei unter dem Cursor unabhängig von einer Auswahl     #Shift+F6#
- umbenennen oder verschieben
+ Premenuj alebo presuň súbor pod kurzorom                #Shift+F6#
+ bez ohľadu na označenie
 
  Create ~file links~@HardSymLink@                                         #Alt+F6#
 
@@ -4536,26 +4430,26 @@ multiple copy or move targets on the input line. The targets should be separated
 with character “#;#” or “#,#”. If a target name contains these characters,
 enclose it in double quotes.
 
- If you want to create the destination folder before copying,
-append backslash to its name.
+ Ak chcete cieľový adresár vytvoriť pred kopírovaním, pripojte k jeho
+menu opačné lomítko.
 
  If ~Panel.Tree.TurnOffCompletely~@Panel.Tree.TurnOffCompletely@
 parameter in ~far:config~@FarConfig@ is set to “false,” you can use
-~Find folder~@FindFolder@ dialog to select the target path. The
-following shortcuts open the dialog with different pre-selected folders:
- - ^<wrap>#F10# selects the folder from the active panel.
- - ^<wrap>#Alt+F10# selects the folder from the passive panel.
+~Find folder~@FindFolder@ dialog to select the target path.
+ The following shortcuts open the dialog with different pre-selected folders:
+ - ^<wrap>#F10# stromu adresárov aktívneho panelu.
+ - ^<wrap>#Alt+F10# stromu adresárov pasívneho panelu.
  - ^<wrap>#Shift+F10# selects the specified target folder. If several
 paths are entered on the input line, only the first one is used.
 
  If the option “#Process multiple destinations#” is enabled, the folder
 selected in the tree is appended to the input line.
 
- Whether copying, moving or renaming files works for a plugin depends
-upon the plugin functionality.
- Die Option "Zugriffsrechte kopieren" ist nur gültig für das
-NTFS-Dateisystem und erlaubt das Kopieren von Informationen über
-Dateizugriffsrechte.
+ Možnosť kopírovania, presúvania a premenovávania súborov z prídavných
+modulov závisí od funkčnosti konkrétneho modulu.
+
+ The #Access rights# parameter is valid only for the NTFS file system
+and controls how access rights of the created files and folders are set.
 The #Default# option leaves access rights processing to the operating system.
 The #Copy# option applies the access rights of the original objects. The
 #Inherit# option applies the inheritable access rights of the
@@ -4575,10 +4469,9 @@ will be copied;
  - #Also ask on R/O files# - controls whether an additional confirmation
 dialog should be displayed for the read-only files.
 
- Die Option “#Systemkopierroutine benutzen#” im Dialog ~Systemeinstellungen~@SystemSettings@
-erzwingt die Benutzung der Windowsfunktion CopyFileEx anstelle der internen Implementation
-zum Kopieren von Dateien. Dies ist nützlich bei NTFS, weil CopyFileEx
-erweiterte Dateiattribute mitkopiert. If this option is off, the internal
+ Možnosť "#Použiť kopírovanie cez systém#" z ~nastavení systému~@SystemSettings@ prikáže
+používanie funkcie CopyFileEx z Windows namiesto internej implementácie kopírovania.
+Toto môže byť užitočné na NTFS, lebo CopyFileEx kopíruje aj rozšírené atribúty súboru. If this option is off, the internal
 implementation of the file copy routine is used. The internal
 function is also used if the source file is encrypted and is being
 copied to a different volume.
@@ -4769,28 +4662,27 @@ $ #Error: plugin not loaded#
 
 
 @ScrSwitch
-$ #Bildschirme umschalten#
- Far erlaubt es, mehrere Instanzen des internen Betrachters und Editors
-gleichzeitig zu öffnen. Mit #Strg+Tab#, #Strg+Umsch+Tab# oder #F12# können
-Sie zwischen dem Fenster und den Instanzen hin- und herschalten. #Strg+Tab# schaltet zum nächsten
-Bildschirm, #Strg+Umsch+Tab# zum vorherigen, #F12# zeigt eine Liste aller verfügbaren Bildschirme.
+$ #Prepínanie obrazoviek#
+ Far dovoľuje otvoriť niekoľko kópií interného prezerača a editora.
+Medzi panelmi a obrazovkami týchto kópií možno prepínať pomocou
+#Ctrl+Tab#, #Ctrl+Shift+Tab# alebo #F12#. #Ctrl+Tab# prepne na nasledujúcu
+obrazovku, #Ctrl+Shift+Tab# na predošlú a #F12# zobrazí zoznam všetkých
+existujúcich obrazoviek.
 
- Die Anzahl geöffneter Betrachter- und Editor-Sitzungen wird in der
-linken oberen Ecke des linken Fensters angezeigt. Diese Anzeige kann
-im Dialog ~Fenstereinstellungen~@PanelSettings@ abgeschaltet werden.
+ Počet prezeračov a editorov v pozadí je zobrazovaný v ľavom hornom rohu ľavého panelu.
+Jeho zobrazovanie môžete zakázať v ~nastavení panelov~@PanelSettings@.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @ApplyCmd
-$ #Befehl anwenden#
- Mit dem Menüpunkt #Befehl anwenden# im Menü ~Dateien~@FilesMenu@
-kann ein Befehl auf jede ausgewählte Datei angewendet werden. In der
-gleichen Weise wie in ~Dateiverknüpfungen~@FileAssoc@ beschrieben muß man
-Symbole benutzen um den Dateinamen festzulegen.
+$ #Vykonaj príkaz#
+ Pomocou položky #Vykonaj príkaz# z menu ~súbory~@FilesMenu@ je možné použiť zadaný príkaz
+na všetky označené súbory. Na zadanie mena súboru možno použiť ~špeciálne symboly~@MetaSymbols@
+rovanké ako ~pre typy súborov~@FileAssoc@.
 
- Z.B. 'type !.!' gibt zum Beispiel alle ausgewählten Dateien nacheinander
-auf dem Bildschirm aus, and the command 'rar32 m !.!.rar !.!' will move all selected files
+ Napríklad, 'type !.!' vypíše na obrazovku všetky označené súbory,
+jeden za druhým, and the command 'rar32 m !.!.rar !.!' will move all selected files
 into RAR archives with the same names. The command 'explorer /select,!.!' will
 start the Windows Explorer and set the cursor to the current file or directory.
 

@@ -10,27 +10,6 @@ LINK_OBJS = $(OBJDIR)\EMenu.obj \
 	$(OBJDIR)\Pidl.obj \
 	$(OBJDIR)\Plugin.obj
 
-DOCS = \
-	EMenuEng.hlf \
-	EMenuRus.hlf \
-	EMenuPol.hlf \
-	EMenuBel.hlf \
-	EMenuUkr.hlf \
-	EMenuCze.hlf \
-	EMenuEng.lng \
-	EMenuRus.lng \
-	EMenuSky.lng \
-	EMenuSpa.lng \
-	EMenuIta.lng \
-	EMenuPol.lng \
-	EMenuBel.lng \
-	EMenuUkr.lng \
-	EMenuCze.lng \
-	Hotkey.lua \
-	HotkeyClipboard.lua \
-	HotkeyProperties.lua \
-	Hotkey.farconfig \
-	changelog
 NOENTRY = 1
 NODEFLIB = 1
 INCLUDECRT = 1
