@@ -459,7 +459,7 @@ void PluginManager::LoadPlugins()
 
 			const auto PluginsDirectory = ConvertNameToLong(ConvertNameToFull(strFullName));
 
-			LOGINFO(L"Loading plugins from {}", PluginsDirectory);
+			LOGINFO(L"Loading plugins from {}"sv, PluginsDirectory);
 
 			ScTree.SetFindPath(PluginsDirectory, L"*"sv);
 
@@ -570,15 +570,15 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 	}
 
 	const auto ShowMenu = Global->Opt->PluginConfirm.OpenFilePlugin==BSTATE_3STATE? !(Type == OFP_NORMAL || Type == OFP_SEARCH) : Global->Opt->PluginConfirm.OpenFilePlugin != 0;
-	const auto ShowWarning = OpMode == OPM_NONE;
+
 	 //у анси плагинов OpMode нет.
 	if(Type==OFP_ALTERNATIVE) OpMode|=OPM_PGDN;
 	if(Type==OFP_COMMANDS) OpMode|=OPM_COMMANDS;
 
 	AnalyseInfo Info{ sizeof(Info), Name? Name->c_str() : nullptr, nullptr, 0, OpMode };
 	std::vector<BYTE> Buffer(Global->Opt->PluginMaxReadData);
-
 	bool DataRead = false;
+
 	for (const auto& i: SortedPlugins)
 	{
 		if (!(i->has(iAnalyse) && i->has(iOpen)) && !i->has(iOpenFilePlugin))
@@ -586,40 +586,40 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 
 		if(Name && !DataRead)
 		{
-			if (const auto File = os::fs::file(*Name, FILE_READ_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
+			LOGDEBUG(L"Reading {} bytes from {}"sv, Buffer.size(), *Name);
+
+			os::fs::file const File(*Name, FILE_READ_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
+			if (!File)
 			{
-				size_t DataSize = 0;
-				if (File.Read(Buffer.data(), Buffer.size(), DataSize))
-				{
-					Info.Buffer = Buffer.data();
-					Info.BufferSize = DataSize;
-					DataRead = true;
-				}
+				LOGWARNING(L"create_file({}): {}"sv, *Name, last_error());
+				return nullptr;
 			}
 
-			if(!DataRead)
+			size_t DataSize = 0;
+			if (!File.Read(Buffer.data(), Buffer.size(), DataSize))
 			{
-				if(ShowWarning)
-				{
-					const auto ErrorState = last_error();
-
-					Message(MSG_WARNING, ErrorState,
-						{},
-						{
-							msg(lng::MOpenPluginCannotOpenFile),
-							*Name
-						},
-						{ lng::MOk });
-				}
-				break;
+				LOGWARNING(L"read_file({}): {}"sv, *Name, last_error());
+				return nullptr;
 			}
+
+			Info.Buffer = Buffer.data();
+			Info.BufferSize = DataSize;
+			DataRead = true;
 		}
 
 		if (i->has(iAnalyse))
 		{
+			LOGDEBUG(L"Analyse: {}"sv, i->Title());
+
 			if (const auto analyse = i->Analyse(&Info))
 			{
 				items.emplace_back(i, nullptr, analyse);
+
+				LOGDEBUG(L"Analyse: {} accepted"sv, i->Title());
+			}
+			else
+			{
+				LOGDEBUG(L"Analyse: {} rejected"sv, i->Title());
 			}
 		}
 		else
@@ -627,16 +627,24 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 			if (Global->Opt->ShowCheckingFile)
 				ConsoleTitle::SetFarTitle(concat(msg(lng::MCheckingFileInPlugin), L" - ["sv, PointToName(i->ModuleName()), L"]…"sv), true);
 
+			LOGDEBUG(L"OpenFilePlugin: {}"sv, i->Title());
+
 			const auto hPlugin = i->OpenFilePlugin(Name? Name->c_str() : nullptr, static_cast<BYTE*>(Info.Buffer), Info.BufferSize, OpMode);
 			if (!hPlugin)
+			{
+				LOGDEBUG(L"OpenFilePlugin: {} rejected"sv, i->Title());
 				continue;
+			}
 
 			if (hPlugin == PANEL_STOP)   //сразу на выход, плагин решил нагло обработать все сам (Autorun/PictureView)!!!
 			{
+				LOGDEBUG(L"OpenFilePlugin: {} accepted and asked to stop processing"sv, i->Title());
+
 				StopProcessing = true;
 				return nullptr;
 			}
 
+			LOGDEBUG(L"OpenFilePlugin: {} accepted"sv, i->Title());
 			items.emplace_back(i, hPlugin, nullptr);
 		}
 
@@ -645,7 +653,12 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 	}
 
 	if (items.empty())
+	{
+		if (DataRead)
+			LOGDEBUG(L"No plugins accepted this file"sv);
+
 		return nullptr;
+	}
 
 	const auto OnlyOne = items.size() == 1 && !(Name && Global->Opt->PluginConfirm.OpenFilePlugin && Global->Opt->PluginConfirm.StandardAssociation && Global->Opt->PluginConfirm.EvenIfOnlyOnePlugin);
 
@@ -696,6 +709,8 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 		// and supposed to be deleted by it, so we should not call CloseAnalyse.
 		PluginIterator->set_analyse(nullptr);
 
+		LOGDEBUG(L"Opening {}"sv, PluginIterator->plugin()->Title());
+
 		const auto PanelHandle = PluginIterator->plugin()->Open(&oInfo);
 
 		if (!PanelHandle)
@@ -744,10 +759,16 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFindListPlugin(span<const Plugi
 		Info.Guid = &FarUuid;
 		Info.Data = 0;
 
+		LOGDEBUG(L"OpenFindListPlugin: {}"sv, i->Title());
+
 		const auto PluginHandle = i->Open(&Info);
 		if (!PluginHandle)
+		{
+			LOGDEBUG(L"OpenFindListPlugin: {} rejected"sv, i->Title());
 			continue;
+		}
 
+		LOGDEBUG(L"OpenFindListPlugin: {} accepted"sv, i->Title());
 		items.emplace_back(i, PluginHandle);
 
 		if (!Global->Opt->PluginConfirm.SetFindList)
@@ -782,6 +803,7 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFindListPlugin(span<const Plugi
 	Info.PanelItem = PanelItems.data();
 	Info.ItemsNumber = PanelItems.size();
 
+	LOGDEBUG(L"SetFindList: {}"sv, PluginIterator->plugin()->Title());
 	if (!PluginIterator->plugin()->SetFindList(&Info))
 		return nullptr;
 
@@ -1039,12 +1061,12 @@ bool PluginManager::GetFile(const plugin_panel* hPlugin, PluginPanelItem *PanelI
 		{
 			if (!os::fs::set_file_attributes(Result, FILE_ATTRIBUTE_NORMAL)) // BUGBUG
 			{
-				LOGWARNING(L"set_file_attributes({}): {}", Result, last_error());
+				LOGWARNING(L"set_file_attributes({}): {}"sv, Result, last_error());
 			}
 
 			if (!os::fs::delete_file(Result)) //BUGBUG
 			{
-				LOGWARNING(L"delete_file({}): {}", Result, last_error());
+				LOGWARNING(L"delete_file({}): {}"sv, Result, last_error());
 			}
 		}
 	}

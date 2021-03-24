@@ -235,7 +235,7 @@ elevation::~elevation()
 		}
 		catch (const far_exception& e)
 		{
-			LOGERROR(L"{}", e);
+			LOGERROR(L"{}"sv, e);
 		}
 	}
 
@@ -274,7 +274,7 @@ void elevation::RetrieveLastError() const
 {
 	const auto ErrorState = Read<error_state>();
 	SetLastError(ErrorState.Win32Error);
-	imports.RtlNtStatusToDosError(ErrorState.NtError);
+	os::set_last_error_from_ntstatus(ErrorState.NtError);
 }
 
 template<typename T>
@@ -315,7 +315,7 @@ auto elevation::execute(lng Why, string_view const Object, T Fallback, const F1&
 		m_Process.close();
 		m_Pipe.close();
 
-		LOGERROR(L"{}", e);
+		LOGERROR(L"{}"sv, e);
 		return Fallback;
 	}
 }
@@ -358,7 +358,7 @@ static os::handle create_job()
 	os::handle Job(CreateJobObject(nullptr, nullptr));
 	if (!Job)
 	{
-		LOGERROR(L"CreateJobObject: {}", last_error());
+		LOGERROR(L"CreateJobObject: {}"sv, last_error());
 		return nullptr;
 	}
 
@@ -366,7 +366,7 @@ static os::handle create_job()
 	jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 	if (!SetInformationJobObject(Job.native_handle(), JobObjectExtendedLimitInformation, &jeli, sizeof(jeli)))
 	{
-		LOGERROR(L"SetInformationJobObject: {}", last_error());
+		LOGERROR(L"SetInformationJobObject: {}"sv, last_error());
 		return nullptr;
 	}
 
@@ -953,7 +953,7 @@ bool ElevationRequired(ELEVATION_MODE Mode, bool UseNtStatus)
 
 	if(UseNtStatus && imports.RtlGetLastNtStatus)
 	{
-		const auto LastNtStatus = os::GetLastNtStatus();
+		const auto LastNtStatus = os::get_last_nt_status();
 		return LastNtStatus == STATUS_ACCESS_DENIED || LastNtStatus == STATUS_PRIVILEGE_NOT_HELD || LastNtStatus == STATUS_INVALID_OWNER;
 	}
 
@@ -995,11 +995,14 @@ public:
 				return GetLastError();
 
 			string ParentProcessFileName;
-			if (!os::fs::GetModuleFileName(ParentProcess.native_handle(), nullptr, ParentProcessFileName))
+			if (!os::fs::get_module_file_name(ParentProcess.native_handle(), {}, ParentProcessFileName))
 				return GetLastError();
 
+			// Do not use get_current_process_file_name here: even though it's implemented in terms of get_module_file_name,
+			// get_module_file_name uses a different path for the current process case and the results can be different
+			// if the path contains symlinks. See gh-371 for example.
 			string CurrentProcessFileName;
-			if (!os::fs::GetModuleFileName(GetCurrentProcess(), nullptr, CurrentProcessFileName))
+			if (!os::fs::get_module_file_name(GetCurrentProcess(), {}, CurrentProcessFileName))
 				return GetLastError();
 
 			if (!equal_icase(CurrentProcessFileName, ParentProcessFileName))
@@ -1345,7 +1348,7 @@ private:
 		}
 		catch (...)
 		{
-			LOGERROR(L"Unknown exception");
+			LOGERROR(L"Unknown exception"sv);
 			return false;
 		}
 	}

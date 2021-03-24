@@ -78,7 +78,7 @@ namespace os
 
 			default:
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"WaitForSingleobject returned {}"), Result));
+				throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"WaitForSingleobject returned {}"sv), Result));
 			}
 		}
 
@@ -100,7 +100,7 @@ namespace os
 			else
 			{
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"WaitForMultipleObjects returned {}"), Result));
+				throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"WaitForMultipleObjects returned {}"sv), Result));
 			}
 		}
 
@@ -128,9 +128,21 @@ namespace os
 		SetErrorMode(SetErrorMode(0) & ~Mask);
 	}
 
-NTSTATUS GetLastNtStatus()
+NTSTATUS get_last_nt_status()
 {
 	return imports.RtlGetLastNtStatus? imports.RtlGetLastNtStatus() : STATUS_SUCCESS;
+}
+
+void set_last_nt_status(NTSTATUS const Status)
+{
+	if (imports.RtlNtStatusToDosError)
+		imports.RtlNtStatusToDosError(Status);
+}
+
+void set_last_error_from_ntstatus(NTSTATUS const Status)
+{
+	if (imports.RtlNtStatusToDosError)
+		SetLastError(imports.RtlNtStatusToDosError(Status));
 }
 
 string GetErrorString(bool Nt, DWORD Code)
@@ -145,13 +157,13 @@ string GetErrorString(bool Nt, DWORD Code)
 
 string format_system_error(unsigned int const ErrorCode, string_view const ErrorMessage)
 {
-	return format(FSTR(L"0x{:0>8X} - {}"), ErrorCode, ErrorMessage);
+	return format(FSTR(L"0x{:0>8X} - {}"sv), ErrorCode, ErrorMessage);
 }
 
 
 last_error_guard::last_error_guard():
 	m_LastError(GetLastError()),
-	m_LastStatus(imports.RtlGetLastNtStatus()),
+	m_LastStatus(get_last_nt_status()),
 	m_Active(true)
 {
 }
@@ -162,7 +174,7 @@ last_error_guard::~last_error_guard()
 		return;
 
 	SetLastError(m_LastError);
-	imports.RtlNtStatusToDosError(m_LastStatus);
+	set_last_nt_status(m_LastStatus);
 }
 
 void last_error_guard::dismiss()
@@ -281,7 +293,17 @@ bool GetWindowText(HWND Hwnd, string& Text)
 #ifndef _WIN64
 bool IsWow64Process()
 {
-	static const auto Wow64Process = []{ BOOL Value = FALSE; return imports.IsWow64Process(GetCurrentProcess(), &Value) && Value; }();
+	static const auto Wow64Process = []
+	{
+		if (!imports.IsWow64Process)
+			return false;
+
+		BOOL Value = FALSE;
+		if (!imports.IsWow64Process(GetCurrentProcess(), &Value))
+			return false;
+
+		return Value != FALSE;
+	}();
 	return Wow64Process;
 }
 #endif
@@ -382,7 +404,7 @@ handle OpenConsoleActiveScreenBuffer()
 	namespace com
 	{
 		initialize::initialize():
-			m_Initialised(SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+			m_Initialised(SUCCEEDED(CoInitializeEx(nullptr, COINIT_DISABLE_OLE1DDE | COINIT_MULTITHREADED)))
 		{
 		}
 
@@ -461,6 +483,9 @@ handle OpenConsoleActiveScreenBuffer()
 
 		std::vector<uintptr_t> current_stack(size_t const FramesToSkip, size_t const FramesToCapture)
 		{
+			if (!imports.RtlCaptureStackBackTrace)
+				return {};
+
 			std::vector<uintptr_t> Stack;
 			Stack.reserve(128);
 
@@ -475,11 +500,12 @@ handle OpenConsoleActiveScreenBuffer()
 			{
 				void* Pointers[128];
 
+				DWORD DummyHash;
 				const auto Size = imports.RtlCaptureStackBackTrace(
 					static_cast<DWORD>(Skip + i),
 					static_cast<DWORD>(std::min(std::size(Pointers), Capture - i)),
 					Pointers,
-					{}
+					&DummyHash // MSDN says it's optional, but it's not true on Win2k
 				);
 
 				if (!Size)

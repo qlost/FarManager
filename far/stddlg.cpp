@@ -509,14 +509,28 @@ static os::com::ptr<IFileIsInUse> CreateIFileIsInUse(const string& File)
 
 static size_t enumerate_rm_processes(const string& Filename, DWORD& Reasons, function_ref<bool(string&&)> const Handler)
 {
+	if (!imports.RmStartSession)
+		return 0;
+
 	DWORD Session;
 	wchar_t SessionKey[CCH_RM_SESSION_KEY + 1] = {};
 	if (imports.RmStartSession(&Session, 0, SessionKey) != ERROR_SUCCESS)
 		return 0;
 
-	SCOPE_EXIT{ imports.RmEndSession(Session); };
+	SCOPE_EXIT
+	{
+		if (imports.RmEndSession)
+			imports.RmEndSession(Session);
+	};
+
+	if (!imports.RmRegisterResources)
+		return 0;
+
 	auto FilenamePtr = Filename.c_str();
 	if (imports.RmRegisterResources(Session, 1, &FilenamePtr, 0, nullptr, 0, nullptr) != ERROR_SUCCESS)
+		return 0;
+
+	if (!imports.RmGetList)
 		return 0;
 
 	DWORD RmGetListResult;
@@ -547,7 +561,7 @@ static size_t enumerate_rm_processes(const string& Filename, DWORD& Reasons, fun
 				os::chrono::nt_clock::from_filetime(Info.Process.ProcessStartTime) == CreationTime)
 			{
 				string Name;
-				if (os::fs::GetModuleFileName(Process.native_handle(), nullptr, Name))
+				if (os::fs::get_module_file_name(Process.native_handle(), {}, Name))
 				{
 					append(Str, L", "sv, Name);
 				}
@@ -566,7 +580,10 @@ static size_t enumerate_rm_processes(const string& Filename, DWORD& Reasons, fun
 operation OperationFailed(const error_state_ex& ErrorState, string_view const Object, lng Title, string Description, bool AllowSkip, bool AllowSkipAll)
 {
 	std::vector<string> Msg;
+
+	std::optional<os::com::initialize> ComInitialiser;
 	os::com::ptr<IFileIsInUse> FileIsInUse;
+
 	auto Reason = lng::MObjectLockedReasonOpened;
 	bool SwitchBtn = false, CloseBtn = false;
 	const auto Error = ErrorState.Win32Error;
@@ -576,6 +593,8 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 		Error == ERROR_DRIVE_LOCKED)
 	{
 		const auto FullName = ConvertNameToFull(Object);
+
+		ComInitialiser.emplace();
 		FileIsInUse = CreateIFileIsInUse(FullName);
 		if (FileIsInUse)
 		{
@@ -926,7 +945,7 @@ bool GoToRowCol(goto_coord& Row, goto_coord& Col, bool& Hex, string_view const H
 	}
 	catch (const std::exception& e)
 	{
-		LOGWARNING(L"{}", e);
+		LOGWARNING(L"{}"sv, e);
 		// maybe we need to display a message in case of an incorrect input
 		return false;
 	}

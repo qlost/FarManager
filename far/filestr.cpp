@@ -62,14 +62,11 @@ static_assert(BufferSize % sizeof(wchar_t) == 0);
 
 enum_lines::enum_lines(std::istream& Stream, uintptr_t CodePage):
 	m_Stream(Stream),
-	m_StreamExceptions(m_Stream.exceptions()),
 	m_BeginPos(m_Stream.tellg()),
 	m_CodePage(CodePage),
 	m_Eol(m_CodePage),
 	m_Buffer(BufferSize)
 {
-	Stream.exceptions(m_StreamExceptions & ~(Stream.failbit | Stream.eofbit));
-
 	if (IsUnicodeCodePage(m_CodePage))
 	{
 		m_Data.emplace<string>().reserve(default_capacity);
@@ -77,18 +74,6 @@ enum_lines::enum_lines(std::istream& Stream, uintptr_t CodePage):
 	else
 	{
 		m_Data.emplace<conversion_data>().m_Bytes.reserve(default_capacity);
-	}
-}
-
-enum_lines::~enum_lines()
-{
-	try
-	{
-		m_Stream.exceptions(m_StreamExceptions);
-	}
-	catch (const std::exception& e)
-	{
-		LOGERROR(L"{}", e);
 	}
 }
 
@@ -364,13 +349,17 @@ static bool GetCpUsingUniversalDetectorWithExceptions(std::string_view const Str
 		{
 			const auto CodepageType = codepages::GetFavorite(Codepage);
 			if (!(CodepageType & CPST_FAVORITE))
+			{
 				return false;
+			}
 		}
 	}
 	else
 	{
 		if (contains(enum_tokens(Global->Opt->strNoAutoDetectCP.Get(), L",;"sv), str(Codepage)))
+		{
 			return false;
+		}
 	}
 
 	return true;
@@ -400,7 +389,9 @@ static bool GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage,
 		return false;
 
 	if (GetUnicodeCpUsingWindows(Buffer.data(), ReadSize, Codepage))
+	{
 		return true;
+	}
 
 	NotUTF16 = true;
 

@@ -406,7 +406,7 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 			}
 
 			(LeftAlign? inplace::cut_right : inplace::cut_left)(Str, Width - 1);
-			Str.insert(LeftAlign? Str.end() : Str.begin(), L'\x2026');
+			Str.insert(LeftAlign? Str.end() : Str.begin(), L'…');
 			return Str;
 		};
 
@@ -722,8 +722,8 @@ namespace
 					else
 					{
 						static const std::wregex re(RE_BEGIN RE_ESCAPE(L"{") RE_C_GROUP(RE_ANY_OF(L"\\w\\s") RE_ZERO_OR_MORE_LAZY) RE_ESCAPE(L"}"), std::regex::optimize);
-						std::wcmatch CMatch;
-						if (std::regex_search(ReplaceStr.data() + TokenStart, ReplaceStr.data() + (ReplaceStr.size() - TokenStart), CMatch, re))
+						std::match_results<string_view::const_iterator> CMatch;
+						if (const auto Part = ReplaceStr.substr(TokenStart); std::regex_search(ALL_CONST_RANGE(Part), CMatch, re))
 						{
 							ShiftLength = CMatch[0].length();
 							if (HMatch)

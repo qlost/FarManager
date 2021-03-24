@@ -40,39 +40,119 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "console.hpp"
 
 // Platform:
+#include "platform.concurrency.hpp"
 
 // Common:
+#include "common/singleton.hpp"
 
 // External:
 
 //----------------------------------------------------------------------------
 
-taskbar::taskbar()
+class taskbar_impl : public singleton<taskbar_impl>
 {
-	CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, IID_PPV_ARGS_Helper(&ptr_setter(m_TaskbarList)));
-}
+	IMPLEMENTS_SINGLETON;
+
+public:
+	void set_state(TBPFLAG const State)
+	{
+		if (m_State == State)
+			return;
+
+		m_State = State;
+
+		m_StateEvent.set();
+	}
+
+	void set_value(unsigned long long const Completed, unsigned long long const Total)
+	{
+		if (m_State == TBPF_NORMAL && m_Completed == Completed && m_Total == Total)
+			return;
+
+		m_State = TBPF_NORMAL;
+		m_Completed = Completed;
+		m_Total = Total;
+
+		m_ValueEvent.set();
+	}
+
+
+	[[nodiscard]]
+	TBPFLAG last_state() const
+	{
+		return m_State;
+	}
+
+private:
+	taskbar_impl() = default;
+
+	~taskbar_impl()
+	{
+		m_ExitEvent.set();
+	}
+
+	void handler() const
+	{
+		SCOPED_ACTION(os::com::initialize);
+
+		os::com::ptr<ITaskbarList3> TaskbarList;
+		if (FAILED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, IID_PPV_ARGS_Helper(&ptr_setter(TaskbarList)))))
+			return;
+
+		if (!TaskbarList)
+			return;
+
+		for (;;)
+		{
+			const auto WaitResult = os::handle::wait_any(
+			{
+				m_ExitEvent.native_handle(),
+				m_StateEvent.native_handle(),
+				m_ValueEvent.native_handle(),
+			});
+
+			switch (WaitResult)
+			{
+			case 0:
+				return;
+
+			case 1:
+				TaskbarList->SetProgressState(console.GetWindow(), m_State);
+				break;
+
+			case 2:
+				TaskbarList->SetProgressValue(console.GetWindow(), m_Completed, m_Total);
+				break;
+			}
+		}
+	}
+
+	std::atomic<TBPFLAG> m_State{ TBPF_NOPROGRESS };
+	std::atomic_uint64_t
+		m_Completed{},
+		m_Total{};
+
+	os::event
+		m_ExitEvent{ os::event::type::manual, os::event::state::nonsignaled },
+		m_StateEvent{ os::event::type::automatic, os::event::state::nonsignaled },
+		m_ValueEvent{ os::event::type::automatic, os::event::state::nonsignaled };
+
+	os::thread m_ComThread{ os::thread::mode::join, &taskbar_impl::handler, this };
+};
 
 void taskbar::set_state(TBPFLAG const State)
 {
-	if (!m_TaskbarList)
-		return;
-
-	m_State = State;
-	m_TaskbarList->SetProgressState(console.GetWindow(), m_State);
+	taskbar_impl::instance().set_state(State);
 }
 
 void taskbar::set_value(unsigned long long const Completed, unsigned long long const Total)
 {
-	if (!m_TaskbarList)
-		return;
-
-	m_State = TBPF_NORMAL;
-	m_TaskbarList->SetProgressValue(console.GetWindow(), Completed, Total);
+	taskbar_impl::instance().set_value(Completed, Total);
 }
 
-TBPFLAG taskbar::last_state() const
+static auto last_state()
 {
-	return m_State;
+	return taskbar_impl::instance().last_state();
 }
 
 void taskbar::flash()
@@ -94,47 +174,35 @@ void taskbar::flash()
 taskbar::indeterminate::indeterminate(bool const EndFlash):
 	m_EndFlash(EndFlash)
 {
-	auto& Taskbar = instance();
-
-	if (Taskbar.last_state() != TBPF_INDETERMINATE)
-	{
-		Taskbar.set_state(TBPF_INDETERMINATE);
-	}
+	set_state(TBPF_INDETERMINATE);
 }
 
 taskbar::indeterminate::~indeterminate()
 {
-	auto& Taskbar = instance();
-
-	if (Taskbar.last_state() != TBPF_NOPROGRESS)
-	{
-		Taskbar.set_state(TBPF_NOPROGRESS);
-	}
+	set_state(TBPF_NOPROGRESS);
 
 	if(m_EndFlash)
 	{
-		Taskbar.flash();
+		flash();
 	}
 }
 
 taskbar::state::state(TBPFLAG const State):
-	m_PreviousState(instance().last_state())
+	m_PreviousState(last_state())
 {
 	if (m_PreviousState == State)
 		return;
 
-	auto& Taskbar = instance();
-
 	if (m_PreviousState == TBPF_INDETERMINATE || m_PreviousState == TBPF_NOPROGRESS)
 	{
-		Taskbar.set_value(1, 1);
+		set_value(1, 1);
 	}
 
-	Taskbar.set_state(State);
-	Taskbar.flash();
+	set_state(State);
+	flash();
 }
 
 taskbar::state::~state()
 {
-	instance().set_state(m_PreviousState);
+	set_state(m_PreviousState);
 }

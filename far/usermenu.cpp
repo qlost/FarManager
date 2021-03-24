@@ -288,7 +288,7 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 
 		if (!os::fs::set_file_attributes(MenuFileName, FileAttr & ~FILE_ATTRIBUTE_READONLY)) //BUGBUG
 		{
-			LOGWARNING(L"set_file_attributes({}): {}", MenuFileName, last_error());
+			LOGWARNING(L"set_file_attributes({}): {}"sv, MenuFileName, last_error());
 		}
 	}
 
@@ -361,8 +361,16 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileNa
 		// Пытаемся открыть файл на локальном диске
 		if (os::fs::is_file(strMenuFileFullPath))
 		{
-			if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING))
-				DeserializeMenu(m_Menu, MenuFile, m_MenuCP);
+			try
+			{
+				if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING))
+					DeserializeMenu(m_Menu, MenuFile, m_MenuCP);
+			}
+			catch (std::exception const& e)
+			{
+				m_Menu.clear();
+				LOGWARNING(L"{}"sv, e);
+			}
 		}
 		else if (m_MenuMode != menu_mode::user)
 		{
@@ -665,7 +673,16 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 					if (const auto MenuFile = os::fs::file(MenuFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING))
 					{
 						MenuRoot.clear();
-						DeserializeMenu(MenuRoot, MenuFile, m_MenuCP);
+						try
+						{
+							DeserializeMenu(MenuRoot, MenuFile, m_MenuCP);
+						}
+						catch (std::exception const& e)
+						{
+							MenuRoot.clear();
+							LOGWARNING(L"{}"sv, e);
+						}
+
 						ReturnCode = 0;
 						UserMenu->Close(-1);
 						return 1; // Закрыть меню

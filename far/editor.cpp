@@ -3523,7 +3523,7 @@ bool Editor::Search(bool Next)
 				const auto Total = FindAllReferences? Lines.size() : ReverseSearch? StartLine : Lines.size() - StartLine;
 				const auto Current = abs(CurPtr.Number() - StartLine);
 				EditorShowMsg(msg(lng::MEditSearchTitle), msg(lng::MEditSearchingFor), QuotedStr, Total > 0? Current * 100 / Total : 100);
-				taskbar::instance().set_value(Current,Total);
+				taskbar::set_value(Current,Total);
 			}
 
 			auto strReplaceStrCurrent = ReplaceMode? strReplaceStr : L""s;
@@ -3542,8 +3542,8 @@ bool Editor::Search(bool Next)
 					int NextPos = CurPos + (SearchLength? SearchLength : 1);
 
 					const int service_len = 12;
-					const auto Location = format(FSTR(L"{}:{}"), CurPtr.Number() + 1, CurPos + 1);
-					MenuItemEx Item(format(FSTR(L"{:{}}{}{}"), Location, service_len, BoxSymbols[BS_V1], CurPtr->GetString()));
+					const auto Location = format(FSTR(L"{}:{}"sv), CurPtr.Number() + 1, CurPos + 1);
+					MenuItemEx Item(format(FSTR(L"{:{}}{}{}"sv), Location, service_len, BoxSymbols[BS_V1], CurPtr->GetString()));
 					Item.Annotations.emplace_back(CurPos + service_len + 1, NextPos - CurPos);
 					Item.ComplexUserData = FindCoord{ CurPtr.Number(), CurPos, SearchLength };
 					FindAllList->AddItem(Item);

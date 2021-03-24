@@ -122,8 +122,8 @@ public:
 
 static bool OpenURL(string_view URLPath);
 
-static const auto HelpFormatLink = FSTR(L"<{}\\>{}");
-static const auto HelpFormatLinkModule = FSTR(L"<{}>{}");
+static const auto HelpFormatLink = FSTR(L"<{}\\>{}"sv);
+static const auto HelpFormatLinkModule = FSTR(L"<{}>{}"sv);
 
 class Help :public Modal
 {
@@ -370,12 +370,12 @@ bool Help::ReadHelp(string_view const Mask)
 			}
 			else
 			{
-				LOGWARNING(L"CtrlTabSize value {} is out of range", UserTabSize);
+				LOGWARNING(L"CtrlTabSize value {} is out of range"sv, UserTabSize);
 			}
 		}
 		else
 		{
-			LOGWARNING(L"CtrlTabSize value {} is invalid", strReadStr);
+			LOGWARNING(L"CtrlTabSize value {} is invalid"sv, strReadStr);
 		}
 	}
 
@@ -424,7 +424,7 @@ bool Help::ReadHelp(string_view const Mask)
 
 	os::fs::filebuf StreamBuffer(HelpFile, std::ios::in);
 	std::istream Stream(&StreamBuffer);
-	Stream.exceptions(Stream.badbit | Stream.failbit);
+	Stream.exceptions(Stream.badbit | Stream.failbit); // BUGBUG, add try/catch
 
 	enum_lines EnumFileLines(Stream, HelpFileCodePage);
 	auto FileIterator = EnumFileLines.begin();
@@ -2006,7 +2006,7 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 
 	os::fs::filebuf StreamBuffer(HelpFile, std::ios::in);
 	std::istream Stream(&StreamBuffer);
-	Stream.exceptions(Stream.badbit | Stream.failbit);
+	Stream.exceptions(Stream.badbit | Stream.failbit); // BUGBUG, add try/catch
 
 	for (const auto& i: enum_lines(Stream, nCodePage))
 	{

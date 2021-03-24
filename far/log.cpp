@@ -151,13 +151,13 @@ namespace
 		return
 		{
 			format(
-				FSTR(L"{:04}/{:02}/{:02}"),
+				FSTR(L"{:04}/{:02}/{:02}"sv),
 				SystemTime.wYear,
 				SystemTime.wMonth,
 				SystemTime.wDay
 			),
 			format(
-				FSTR(L"{:02}:{:02}:{:02}.{:03}"),
+				FSTR(L"{:02}:{:02}:{:02}.{:03}"sv),
 				SystemTime.wHour,
 				SystemTime.wMinute,
 				SystemTime.wSecond,
@@ -166,9 +166,9 @@ namespace
 		};
 	}
 
-	static string get_location(string_view const Function, string_view const Location)
+	static string get_location(std::string_view const Function, std::string_view const File, int const Line)
 	{
-		return concat(Function, L", "sv, Location);
+		return format(FSTR(L"{}, {}({})"sv), encoding::utf8::get_chars(Function), encoding::utf8::get_chars(File), Line);
 	}
 
 	static string get_thread_id()
@@ -178,11 +178,11 @@ namespace
 
 	struct message
 	{
-		message(string_view const Str, logging::level const Level, string_view const Function, string_view const Location, size_t const TraceDepth):
+		message(string_view const Str, logging::level const Level, std::string_view const Function, std::string_view const File, int const Line, size_t const TraceDepth):
 			m_ThreadId(get_thread_id()),
 			m_LevelString(level_to_string(Level)),
 			m_Data(Str),
-			m_Location(get_location(Function, Location)),
+			m_Location(get_location(Function, File, Line)),
 			m_Level(Level)
 		{
 			std::tie(m_Date, m_Time) = get_time();
@@ -403,7 +403,7 @@ namespace
 			{
 				m_File.Close();
 
-				LOGERROR(L"{}", e);
+				LOGERROR(L"{}"sv, e);
 			}
 		}
 
@@ -432,7 +432,7 @@ namespace
 			if (!File)
 				throw MAKE_FAR_EXCEPTION(L"Can't create a log file"sv);
 
-			LOGINFO(L"Logging to {}", File.GetName());
+			LOGINFO(L"Logging to {}"sv, File.GetName());
 
 			File.SetPointer(0, {}, FILE_END);
 			return File;
@@ -448,14 +448,6 @@ namespace
 	class sink_pipe: public discardable<true>, public sink_boilerplate<sink_pipe>
 	{
 	public:
-		explicit sink_pipe()
-		{
-			if (!os::fs::GetModuleFileName(nullptr, nullptr, m_ThisModule))
-			{
-				LOGWARNING(L"GetModuleFileName(): {}", last_error());
-			}
-		}
-
 		void connect()
 		{
 			if (!PeekNamedPipe(m_Pipe.native_handle(), {}, 0, {}, {}, {}))
@@ -467,9 +459,9 @@ namespace
 			STARTUPINFO si{ sizeof(si) };
 			PROCESS_INFORMATION pi{};
 
-			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(format(FSTR(L"\"{}\" {} {}"), m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
+			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(format(FSTR(L"\"{}\" {} {}"sv), m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
 			{
-				LOGERROR(L"{}", last_error());
+				LOGERROR(L"{}"sv, last_error());
 				return;
 			}
 
@@ -478,7 +470,7 @@ namespace
 
 			while (!ConnectNamedPipe(m_Pipe.native_handle(), {}) && GetLastError() != ERROR_PIPE_CONNECTED)
 			{
-				LOGWARNING(L"ConnectNamedPipe({}): {}", m_PipeName, last_error());
+				LOGWARNING(L"ConnectNamedPipe({}): {}"sv, m_PipeName, last_error());
 			}
 
 			m_Connected = true;
@@ -516,16 +508,16 @@ namespace
 			{
 				disconnect();
 
-				LOGERROR(L"{}", e);
+				LOGERROR(L"{}"sv, e);
 			}
 		}
 
 		static constexpr string_view name = L"pipe"sv;
 
 	private:
-		string m_PipeName{ format(FSTR(L"\\\\.\\pipe\\far_{}.log"), GetCurrentProcessId()) };
+		string m_PipeName{ format(FSTR(L"\\\\.\\pipe\\far_{}.log"sv), GetCurrentProcessId()) };
 		os::handle m_Pipe{ CreateNamedPipe(m_PipeName.c_str(), PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 0, 0, 0, {}) };
-		string m_ThisModule;
+		string m_ThisModule{ os::fs::get_current_process_file_name() };
 		bool m_Connected{};
 	};
 
@@ -551,7 +543,7 @@ namespace
 			if (m_Messages.size() > QueueBufferSize * 2)
 			{
 				m_Messages.clear();
-				LOGWARNING(L"Queue overflow");
+				LOGWARNING(L"Queue overflow"sv);
 			}
 
 			m_Messages.push(std::move(Message));
@@ -593,7 +585,7 @@ namespace
 				},
 				[](DWORD const ExceptionCode)
 				{
-					LOGERROR(L"SEH Exception {}", ExceptionCode);
+					LOGERROR(L"SEH Exception {}"sv, ExceptionCode);
 				});
 		}
 
@@ -746,11 +738,11 @@ namespace logging
 			m_QueuedMessagesCount = 0;
 		}
 
-		void log(string_view const Str, level const Level, string_view const Function, string_view const Location)
+		void log(string_view const Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
 		{
 			if (m_Status == engine_status::in_progress)
 			{
-				message Message(Str, Level, Function, Location, Level <= m_TraceLevel? m_TraceDepth : 0);
+				message Message(Str, Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0);
 				m_QueuedMessages.emplace(std::move(Message));
 				++m_QueuedMessagesCount;
 				return;
@@ -759,7 +751,7 @@ namespace logging
 			if (!filter(Level))
 				return;
 
-			submit({ Str, Level, Function, Location, Level <= m_TraceLevel? m_TraceDepth : 0 });
+			submit({ Str, Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
 		}
 
 	private:
@@ -790,7 +782,7 @@ namespace logging
 			if (m_Sinks.empty())
 				m_Level = level::off;
 			else
-				LOGINFO(L"Logging level: {}", level_to_string(m_Level));
+				LOGINFO(L"Logging level: {}"sv, level_to_string(m_Level));
 		}
 
 		void initialise()
@@ -805,7 +797,7 @@ namespace logging
 			if (contains(string_view{ GetCommandLine() }, log_argument))
 				return;
 
-			LOGINFO(L"{}", build::version_string());
+			LOGINFO(L"{}"sv, build::version_string());
 
 			configure_env();
 		}
@@ -827,7 +819,7 @@ namespace logging
 
 			if (const auto SinkIterator = std::find_if(ALL_CONST_RANGE(m_Sinks), same_sink); SinkIterator != m_Sinks.cend())
 			{
-				if (Needed && dynamic_cast<sink_mode const&>(**SinkIterator).get_mode() == NewSinkMode)
+				if (Needed && dynamic_cast<sink_mode const&>(**SinkIterator).get_mode() == *NewSinkMode)
 					return;
 
 				m_Sinks.erase(SinkIterator);
@@ -846,15 +838,15 @@ namespace logging
 
 			try
 			{
-				LOGINFO(L"Sink: {} ({})", T::name, NewSinkMode == sink_mode::mode::sync? L"sync"sv : L"async"sv);
+				LOGINFO(L"Sink: {} ({})"sv, T::name, *NewSinkMode == sink_mode::mode::sync? L"sync"sv : L"async"sv);
 
-				NewSinkMode == sink_mode::mode::sync?
+				*NewSinkMode == sink_mode::mode::sync?
 					m_Sinks.emplace_back(std::make_unique<sync<T>>()) :
 					m_Sinks.emplace_back(std::make_unique<async<T>>(T::is_discardable));
 			}
 			catch (const far_exception& e)
 			{
-				LOGERROR(L"{}", e);
+				LOGERROR(L"{}"sv, e);
 			}
 		}
 
@@ -880,11 +872,6 @@ namespace logging
 		std::atomic<engine_status> m_Status{ engine_status::incomplete };
 	};
 
-	string detail::wide(std::string_view const Str)
-	{
-		return encoding::ansi::get_chars(Str);
-	}
-
 	bool filter(level const Level)
 	{
 		return log_engine.filter(Level);
@@ -892,7 +879,7 @@ namespace logging
 
 	static thread_local size_t RecursionGuard{};
 
-	void log(string_view const Str, level const Level, string_view const Function, string_view const Location)
+	void log(string_view const Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
 	{
 		// Log can potentially log itself, directly or through other parts of the code.
 		// Allow one level of recursion for diagnostics
@@ -902,7 +889,7 @@ namespace logging
 		++RecursionGuard;
 		SCOPE_EXIT{ --RecursionGuard; };
 
-		log_engine.log(Str, Level, Function, Location);
+		log_engine.log(Str, Level, Function, File, Line);
 	}
 
 	void show()
@@ -930,7 +917,7 @@ namespace logging
 		while (!PipeFile.Open(PipeName, GENERIC_READ, 0, {}, OPEN_EXISTING))
 		{
 			const auto ErrorState = last_error();
-			std::wcerr << format(FSTR(L"Can't open pipe {}: {}"), PipeName, ErrorState.Win32ErrorStr()) << std::endl;
+			std::wcerr << format(FSTR(L"Can't open pipe {}: {}"sv), PipeName, ErrorState.Win32ErrorStr()) << std::endl;
 
 			if (!ConsoleYesNo(L"Retry"sv, false))
 				return EXIT_FAILURE;
@@ -957,7 +944,7 @@ namespace logging
 				if (e.Win32Error == ERROR_BROKEN_PIPE)
 					return EXIT_SUCCESS;
 
-				std::wcerr << format(FSTR(L"Error reading pipe {}: {}"), PipeName, e.format_error()) << std::endl;
+				std::wcerr << format(FSTR(L"Error reading pipe {}: {}"sv), PipeName, e.format_error()) << std::endl;
 				return EXIT_FAILURE;
 			}
 

@@ -377,7 +377,7 @@ void InfoList::DisplayObject()
 			if (UseAssocPath)
 				append(SectionTitle, L' ', strAssocPath);
 
-			strDiskNumber = format(FSTR(L"{:04X}-{:04X}"), HIWORD(VolumeNumber), LOWORD(VolumeNumber));
+			strDiskNumber = format(FSTR(L"{:04X}-{:04X}"sv), HIWORD(VolumeNumber), LOWORD(VolumeNumber));
 		}
 		else // Error!
 			SectionTitle = strDriveRoot;
@@ -446,7 +446,7 @@ void InfoList::DisplayObject()
 			PrintInfo(str(ms.dwMemoryLoad) + L'%');
 
 			ULONGLONG TotalMemoryInKilobytes=0;
-			if(imports.GetPhysicallyInstalledSystemMemory(&TotalMemoryInKilobytes))
+			if(imports.GetPhysicallyInstalledSystemMemory && imports.GetPhysicallyInstalledSystemMemory(&TotalMemoryInKilobytes))
 			{
 				GotoXY(m_Where.left + 2, CurY++);
 				PrintText(lng::MInfoMemoryInstalled);

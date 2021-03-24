@@ -47,6 +47,8 @@ cd ..
 #git clone must already exist
 cd FarColorer || exit 1
 rm -fR build
+git fetch || exit 1
+git checkout -B build-from-far origin/build-from-far || exit 1
 git pull || exit 1
 git submodule update --recursive || exit 1
 

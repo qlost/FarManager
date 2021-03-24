@@ -158,12 +158,14 @@ static os::event& CancelIoInProgress()
 	return s_CancelIoInProgress;
 }
 
-static unsigned int CancelSynchronousIoWrapper(void* Thread)
+static void CancelSynchronousIoWrapper(void* Thread)
 {
+	if (!imports.CancelSynchronousIo)
+		return;
+
 	// TODO: SEH guard, try/catch, exception_ptr
-	const auto Result = imports.CancelSynchronousIo(Thread);
+	imports.CancelSynchronousIo(Thread);
 	CancelIoInProgress().reset();
-	return Result;
 }
 
 static BOOL WINAPI CtrlHandler(DWORD CtrlType)
@@ -197,6 +199,8 @@ static BOOL WINAPI CtrlHandler(DWORD CtrlType)
 	case CTRL_CLOSE_EVENT:
 		Global->CloseFAR = true;
 		Global->AllowCancelExit = false;
+
+		LOGNOTICE(L"CTRL_CLOSE_EVENT: exiting the thread"sv);
 
 		// trick to let wmain() finish correctly
 		ExitThread(1);
@@ -1105,8 +1109,8 @@ bool ScrollBarEx(size_t X1, size_t Y1, size_t Length, unsigned long long Start, 
 		return false;
 
 	string Buffer(Length, BoxSymbols[BS_X_B0]);
-	Buffer.front() = L'\x25B2';
-	Buffer.back() = L'\x25BC';
+	Buffer.front() = L'▲';
+	Buffer.back() = L'▼';
 
 	const auto FieldBegin = Buffer.begin() + 1;
 	const auto FieldEnd = Buffer.end() - 1;
@@ -1219,7 +1223,7 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 	string StrPercent;
 	if (ShowPercent)
 	{
-		StrPercent = format(FSTR(L" {:3}%"), Percent);
+		StrPercent = format(FSTR(L" {:3}%"sv), Percent);
 		Size = Size > StrPercent.size()? Size - StrPercent.size(): 0;
 	}
 	string Str(Size, BoxSymbols[BS_X_B0]);
@@ -1231,7 +1235,7 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 	}
 	if (PropagateToTasbkar)
 	{
-		taskbar::instance().set_value(Percent, 100);
+		taskbar::set_value(Percent, 100);
 	}
 	return Str;
 }
@@ -1345,7 +1349,7 @@ size_t ConsoleChoice(string_view const Message, string_view const Choices, size_
 
 	for (;;)
 	{
-		std::wcout << format(FSTR(L"\n{} ({})? "), Message, join(Choices, L"/"sv)) << std::flush;
+		std::wcout << format(FSTR(L"\n{} ({})? "sv), Message, join(Choices, L"/"sv)) << std::flush;
 
 		wchar_t Input;
 		std::wcin.clear();
