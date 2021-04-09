@@ -17,5 +17,9 @@ INCLUDECRT = 1
 
 !include ..\makefile_vc_target_inc
 
+!if $(VC) >= 15
+CPPFLAGS = $(CPPFLAGS) /std:c++17 /permissive-
+!endif
+
 $(RES): resource.h
 $(OBJDIR)\Plugin.obj: FarMenu.h HMenu.h OleThread.h Pidl.h Plugin.h resource.h guid.hpp version.hpp
