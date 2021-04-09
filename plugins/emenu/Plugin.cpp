@@ -1,7 +1,4 @@
-﻿#include <cstdio>
-#include <cassert>
-
-#include <shlobj.h>
+﻿#include <shlobj.h>
 #include <comdef.h>
 #include <shlguid.h>
 
@@ -16,7 +13,7 @@
 #include "HMenu.h"
 #include "guid.hpp"
 
-void __stdcall _com_issue_error(HRESULT) throw() {}
+void __declspec(noreturn) __stdcall _com_issue_error(HRESULT)  {}
 
 // new version of PSDK doesn't contain standard smart-pointer declaration
 _COM_SMARTPTR_TYPEDEF(IContextMenu, __uuidof(IContextMenu));
@@ -30,13 +27,8 @@ _COM_SMARTPTR_TYPEDEF(IDropTarget, __uuidof(IDropTarget));
 _COM_SMARTPTR_TYPEDEF(IDataObject, __uuidof(IDataObject));
 #endif
 
-#ifdef __GNUC__
 #define SEH_TRY if(true)
 #define SEH_EXCEPT(h) if(false)
-#else
-#define SEH_TRY __try
-#define SEH_EXCEPT(h) __except(h)
-#endif
 
 #if _WIN32_WINNT >= 0x0603
 # include <versionhelpers.h>
