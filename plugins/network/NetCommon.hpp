@@ -12,7 +12,6 @@
 #include <lm.h>
 #include <plugin.hpp>
 #include "NetLng.hpp"
-#include "guid.hpp"
 
 extern struct Options
 {
@@ -30,8 +29,8 @@ extern struct Options
 	int NavigateToDomains;
 } Opt;
 
-extern struct PluginStartupInfo Info;
-extern struct FarStandardFunctions FSF;
+extern PluginStartupInfo PsInfo;
+extern FarStandardFunctions FSF;
 extern NETRESOURCE CommonCurResource;
 extern LPNETRESOURCE PCommonCurResource;
 extern BOOL IsFirstRun;
@@ -50,7 +49,7 @@ const wchar_t *GetMsg(int MsgId);
 
 BOOL DlgCreateFolder(wchar_t* lpBuffer, int nBufferSize);
 
-#define ShowMessage(x) Info.Message(&MainGuid, nullptr, FMSG_ALLINONE|FMSG_MB_OK, L"", (const wchar_t * const *) x, 0,0)
+#define ShowMessage(x) PsInfo.Message(&MainGuid, nullptr, FMSG_ALLINONE|FMSG_MB_OK, L"", reinterpret_cast<const wchar_t* const*>(x), 0,{})
 /* NO NEED THIS
 char* NextToken(char *szSource, char *szToken, int nBuff);
 */
