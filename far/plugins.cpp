@@ -118,18 +118,6 @@ bool PluginManager::plugin_less::operator()(const Plugin* a, const Plugin *b) co
 	return string_sort::less(PointToName(a->ModuleName()), PointToName(b->ModuleName()));
 }
 
-static void CallPluginSynchroEvent(const std::any& Payload)
-{
-	const auto& [Id, Param] = std::any_cast<const std::pair<UUID, void*>&>(Payload);
-	if (const auto pPlugin = Global->CtrlObject->Plugins->FindPlugin(Id))
-	{
-		ProcessSynchroEventInfo Info = { sizeof(Info) };
-		Info.Event = SE_COMMONSYNCHRO;
-		Info.Param = Param;
-		pPlugin->ProcessSynchroEvent(&Info);
-	}
-}
-
 static void EnsureLuaCpuCompatibility()
 {
 // All AMD64 processors have SSE2
@@ -144,7 +132,6 @@ static void EnsureLuaCpuCompatibility()
 }
 
 PluginManager::PluginManager():
-	m_PluginSynchro(plugin_synchro, &CallPluginSynchroEvent),
 #ifndef NO_WRAPPER
 	OemPluginsCount(),
 #endif // NO_WRAPPER
@@ -246,7 +233,7 @@ Plugin* PluginManager::LoadPlugin(const string& FileName, const os::fs::find_dat
 {
 	std::unique_ptr<Plugin> pPlugin;
 
-	if (!std::any_of(CONST_RANGE(PluginFactories, i) { return (pPlugin = i->CreatePlugin(FileName, FindData.FileSize)) != nullptr; }))
+	if (!std::any_of(CONST_RANGE(PluginFactories, i) { return (pPlugin = i->CreatePlugin(FileName)) != nullptr; }))
 		return nullptr;
 
 	auto Result = LoadToMem? false : pPlugin->LoadFromCache(FindData);

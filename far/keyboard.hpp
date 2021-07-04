@@ -61,7 +61,7 @@ enum
 };
 
 void ClearKeyQueue();
-void wake_main_loop();
+void main_loop_process_messages();
 
 struct FarKeyboardState
 {
@@ -135,22 +135,21 @@ string KeysToLocalizedText(args const... Keys)
 unsigned int InputRecordToKey(const INPUT_RECORD *Rec);
 bool KeyToInputRecord(int Key, INPUT_RECORD *Rec);
 void FarKeyToInputRecord(const FarKey& Key,INPUT_RECORD* Rec);
-DWORD GetInputRecord(INPUT_RECORD *rec,bool ExcludeMacro=false,bool ProcessMouse=false,bool AllowSynchro=true);
-DWORD GetInputRecordNoMacroArea(INPUT_RECORD *rec,bool AllowSynchro=true);
+DWORD GetInputRecord(INPUT_RECORD *rec,bool ExcludeMacro=false,bool ProcessMouse=false);
+DWORD GetInputRecordNoMacroArea(INPUT_RECORD *rec);
 DWORD PeekInputRecord(INPUT_RECORD *rec,bool ExcludeMacro=true);
 bool IsRepeatedKey();
-unsigned int ShieldCalcKeyCode(INPUT_RECORD* rec, bool RealKey, bool* NotMacros = nullptr);
-unsigned int CalcKeyCode(INPUT_RECORD* rec, bool RealKey, bool* NotMacros = nullptr);
-DWORD WaitKey(DWORD KeyWait = static_cast<DWORD>(-1), DWORD delayMS = 0, bool ExcludeMacro = true);
+DWORD WaitKey(DWORD KeyWait = static_cast<DWORD>(-1), std::optional<std::chrono::milliseconds> Timeout = {}, bool ExcludeMacro = true);
 int SetFLockState(unsigned vkKey, int State);
 bool WriteInput(int Key);
-int IsNavKey(DWORD Key);
-int IsShiftKey(DWORD Key);
 bool IsModifKey(DWORD Key);
 bool IsInternalKeyReal(unsigned int Key);
 bool IsCharKey(unsigned int Key);
 bool CheckForEsc();
 bool CheckForEscSilent();
 bool ConfirmAbortOp();
+
+void wakeup_for_clock(bool Value);
+void wakeup_for_screensaver(bool Value);
 
 #endif // KEYBOARD_HPP_63436F7A_609D_4E3B_8EF8_178B9829AB46

@@ -70,11 +70,6 @@ namespace os::fs
 		{
 			void operator()(HANDLE Handle) const noexcept;
 		};
-
-		struct file_unmapper
-		{
-			void operator()(const void* Data) const noexcept;
-		};
 	}
 
 	namespace state
@@ -86,8 +81,6 @@ namespace os::fs
 	using find_file_handle = os::detail::handle_t<detail::find_file_handle_closer>;
 	using find_volume_handle = os::detail::handle_t<detail::find_volume_handle_closer>;
 	using find_notification_handle = os::detail::handle_t<detail::find_notification_handle_closer>;
-
-	using file_view = std::unique_ptr<void, detail::file_unmapper>;
 
 	using drives_set = std::bitset<26>;
 
@@ -584,7 +577,10 @@ namespace os::fs
 	bool get_find_data(string_view FileName, find_data& FindData, bool ScanSymLink = true);
 
 	[[nodiscard]]
-	find_notification_handle FindFirstChangeNotification(const string& PathName, bool WatchSubtree, DWORD NotifyFilter);
+	find_notification_handle find_first_change_notification(const string& PathName, bool WatchSubtree, DWORD NotifyFilter);
+
+	[[nodiscard]]
+	bool find_next_change_notification(find_notification_handle const& Handle);
 
 	[[nodiscard]]
 	bool IsDiskInDrive(string_view Root);

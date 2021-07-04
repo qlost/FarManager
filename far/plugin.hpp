@@ -87,7 +87,7 @@ static const FARCOLORFLAGS
 	FCF_BG_4BIT       = 0x0000000000000002ULL,
 	FCF_4BITMASK      = 0x0000000000000003ULL, // FCF_FG_4BIT | FCF_BG_4BIT
 
-	FCF_IGNORE_STYLE  = 0x0000000000000004ULL,
+	FCF_INHERIT_STYLE = 0x0000000000000004ULL,
 
 	FCF_RAWATTR_MASK  = 0x000000000000FF00ULL, // stored console attributes
 
@@ -409,7 +409,6 @@ enum FARMESSAGE
 	DN_DRAWDIALOG                   = 4101,
 	DN_DRAWDLGITEM                  = 4102,
 	DN_EDITCHANGE                   = 4103,
-	DN_ENTERIDLE                    = 4104,
 	DN_GOTFOCUS                     = 4105,
 	DN_HELP                         = 4106,
 	DN_HOTKEY                       = 4107,

@@ -212,6 +212,8 @@ private:
 	string m_LastDirName;
 	Dialog* m_ResultsDialogPtr{};
 	bool m_EmptyArc{};
+
+	os::concurrency::timer m_UpdateTimer;
 };
 
 
@@ -1417,6 +1419,8 @@ static void clear_queue(std::queue<FindFiles::AddMenuData>&& Messages)
 	}
 }
 
+const auto DM_REFRESH = DM_USER + 1;
+
 intptr_t FindFiles::FindDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2)
 {
 	if (!m_ExceptionPtr)
@@ -1433,7 +1437,7 @@ intptr_t FindFiles::FindDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void
 
 	switch (Msg)
 	{
-	case DN_ENTERIDLE:
+	case DM_REFRESH:
 		{
 			if (Finalized)
 				break;
@@ -1468,27 +1472,30 @@ intptr_t FindFiles::FindDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void
 					const auto strDataStr = format(msg(lng::MFindFound), m_FileCount, m_DirCount);
 					Dlg->SendMessage(DM_SETTEXTPTR, FD_SEPARATOR1, UNSAFE_CSTR(strDataStr));
 
-					string strSearchStr;
-
-					if (!strFindStr.empty())
+					if (m_Searcher->Finished())
 					{
-						strSearchStr = format(msg(lng::MFindSearchingIn), quote_unconditional(truncate_right(strFindStr, 10)));
+						Dlg->SendMessage(DM_SETTEXTPTR, FD_TEXT_STATUS, {});
 					}
-
-					auto strFM = itd->GetFindMessage();
-					SMALL_RECT Rect;
-					Dlg->SendMessage(DM_GETITEMPOSITION, FD_TEXT_STATUS, &Rect);
-
-					if (!strSearchStr.empty())
+					else
 					{
-						strSearchStr += L' ';
-					}
+						string strSearchStr;
 
-					inplace::truncate_center(strFM, Rect.Right - Rect.Left + 1 - strSearchStr.size());
-					Dlg->SendMessage(DM_SETTEXTPTR, FD_TEXT_STATUS, UNSAFE_CSTR(strSearchStr + strFM));
-					if (!strFindStr.empty())
-					{
-						Dlg->SendMessage(DM_SETTEXTPTR, FD_TEXT_STATUS_PERCENTS, UNSAFE_CSTR(format(FSTR(L"{:3}%"sv), itd->GetPercent())));
+						if (!strFindStr.empty())
+						{
+							strSearchStr = format(msg(lng::MFindSearchingIn), quote_unconditional(truncate_right(strFindStr, 10)));
+							Dlg->SendMessage(DM_SETTEXTPTR, FD_TEXT_STATUS_PERCENTS, UNSAFE_CSTR(format(FSTR(L"{:3}%"sv), itd->GetPercent())));
+						}
+
+						SMALL_RECT Rect;
+						Dlg->SendMessage(DM_GETITEMPOSITION, FD_TEXT_STATUS, &Rect);
+
+						if (!strSearchStr.empty())
+						{
+							strSearchStr += L' ';
+						}
+						auto strFM = itd->GetFindMessage();
+						inplace::truncate_center(strFM, Rect.Right - Rect.Left + 1 - strSearchStr.size());
+						Dlg->SendMessage(DM_SETTEXTPTR, FD_TEXT_STATUS, UNSAFE_CSTR(strSearchStr + strFM));
 					}
 
 					if (m_LastFoundNumber)
@@ -1504,8 +1511,10 @@ intptr_t FindFiles::FindDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void
 				}
 			}
 
-			if (m_Searcher->Finished() && m_Messages.empty())
+			if (m_Searcher->Finished() && m_Messages.empty() && m_ExtractedMessages.empty())
 			{
+				m_UpdateTimer = {};
+
 				Finalized = true;
 
 				SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
@@ -2596,6 +2605,8 @@ struct THREADPARAM
 
 void background_searcher::Search()
 {
+	os::debug::set_thread_name(L"Find file");
+
 	seh_try_thread(m_ExceptionPtr, [this]
 	{
 		cpp_try(
@@ -2720,6 +2731,18 @@ bool FindFiles::FindFilesProcess()
 				m_Searcher->Stop();
 				m_Searcher = nullptr;
 			};
+
+			listener Listener([&]
+			{
+				Dlg->SendMessage(DM_REFRESH, 0, {});
+			});
+
+			m_UpdateTimer = os::concurrency::timer(till_next_second(), 1s, [&]
+			{
+				message_manager::instance().notify(Listener.GetEventName());
+			});
+
+			SCOPE_EXIT{ m_UpdateTimer = {}; };
 
 			Dlg->Process();
 
@@ -2963,7 +2986,6 @@ FindFiles::FindFiles():
 		const auto ActivePanel = Global->CtrlObject->Cp()->ActivePanel();
 		PluginMode = ActivePanel->GetMode() == panel_mode::PLUGIN_PANEL && ActivePanel->IsVisible();
 		PrepareDriveNameStr(strSearchFromRoot);
-		const wchar_t VSeparator[] = { BoxSymbols[BS_T_H1V1], BoxSymbols[BS_V1], BoxSymbols[BS_V1], BoxSymbols[BS_V1], BoxSymbols[BS_V1], BoxSymbols[BS_B_H1V1], 0 };
 
 		auto FindAskDlg = MakeDialogItems<FAD_COUNT>(
 		{
@@ -2986,7 +3008,7 @@ FindFiles::FindFiles():
 			{ DI_CHECKBOX,    {{41, 12}, {0,  12}}, DIF_NONE, msg(lng::MFindSymLinks), },
 			{ DI_CHECKBOX,    {{41, 13}, {0,  13}}, DIF_NONE, msg(lng::MFindAlternateStreams), },
 			{ DI_TEXT,        {{-1, 14}, {0,  14}}, DIF_SEPARATOR, },
-			{ DI_VTEXT,       {{39, 9 }, {0,  9 }}, DIF_BOXCOLOR, VSeparator },
+			{ DI_VTEXT,       {{39, 9 }, {39, 14}}, DIF_SEPARATORUSER, },
 			{ DI_TEXT,        {{5,  15}, {0,  15}}, DIF_NONE, msg(lng::MSearchWhere), },
 			{ DI_COMBOBOX,    {{5,  16}, {36, 16}}, DIF_DROPDOWNLIST | DIF_LISTNOAMPERSAND, },
 			{ DI_CHECKBOX,    {{41, 16}, {0,  16}}, DIF_AUTOMATION, msg(lng::MFindUseFilter), },
@@ -3002,6 +3024,7 @@ FindFiles::FindFiles():
 		FindAskDlg[FAD_EDIT_TEXT].strHistory = L"SearchText"sv;
 		FindAskDlg[FAD_EDIT_HEX].strMask = L"HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH HH"sv;
 		FindAskDlg[FAD_CHECKBOX_NOTCONTAINING].Selected = NotContaining;
+		FindAskDlg[FAD_SEPARATOR_3].strMask = { BoxSymbols[BS_T_H1V1], BoxSymbols[BS_V1], BoxSymbols[BS_B_H1V1] };
 		FindAskDlg[FAD_CHECKBOX_FILTER].Selected = UseFilter;
 
 		if (strFindStr.empty())

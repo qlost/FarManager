@@ -78,7 +78,7 @@ static bool is_visible(rectangle const& Where)
 	return Where.left <= ScrX && Where.top <= ScrY && Where.right >= 0 && Where.bottom >= 0;
 }
 
-void invalidate_broken_pairs_in_cache(matrix<FAR_CHAR_INFO>const& Buf, matrix<FAR_CHAR_INFO>& Shadow, rectangle const Where, point const Point)
+static void invalidate_broken_pairs_in_cache(matrix<FAR_CHAR_INFO>const& Buf, matrix<FAR_CHAR_INFO>& Shadow, rectangle const Where, point const Point)
 {
 	const auto
 		IsLeft = !Point.x && Where.left,
@@ -486,7 +486,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 								if (
 									WriteRegion.top - Last.bottom < 1 + MAX_DELTA &&
 									std::abs(WriteRegion.left - Last.left) < MAX_DELTA &&
-									std::abs(WriteRegion.right - Last.right < MAX_DELTA)
+									std::abs(WriteRegion.right - Last.right) < MAX_DELTA
 								)
 								{
 									Last.bottom = WriteRegion.bottom;
