@@ -70,6 +70,10 @@ namespace os::version
 	{
 		return is_win10_build_or_later(15063);
 	}
+
+	string get_file_version(string_view Name);
+
+	string os_version();
 }
 
 #endif // PLATFORM_VERSION_HPP_CC7E1536_485F_4A75_862F_E15DEF06C5C5

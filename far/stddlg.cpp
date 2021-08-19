@@ -56,15 +56,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "global.hpp"
 #include "language.hpp"
 #include "log.hpp"
+#include "copy_progress.hpp"
+#include "keyboard.hpp"
 
 // Platform:
-#include "platform.fs.hpp"
+#include "platform.com.hpp"
+#include "platform.process.hpp"
 
 // Common:
 #include "common/from_string.hpp"
 #include "common/function_ref.hpp"
-#include "common/function_traits.hpp"
-#include "common/scope_exit.hpp"
 
 // External:
 #include "format.hpp"
@@ -466,117 +467,6 @@ bool GetNameAndPassword(
 	return true;
 }
 
-static os::com::ptr<IFileIsInUse> CreateIFileIsInUse(const string& File)
-{
-	os::com::ptr<IRunningObjectTable> RunningObjectTable;
-	if (FAILED(GetRunningObjectTable(0, &ptr_setter(RunningObjectTable))))
-		return nullptr;
-
-	os::com::ptr<IMoniker> FileMoniker;
-	if (FAILED(CreateFileMoniker(File.c_str(), &ptr_setter(FileMoniker))))
-		return nullptr;
-
-	os::com::ptr<IEnumMoniker> EnumMoniker;
-	if (FAILED(RunningObjectTable->EnumRunning(&ptr_setter(EnumMoniker))))
-		return nullptr;
-
-	for(;;)
-	{
-		os::com::ptr<IMoniker> Moniker;
-		if (EnumMoniker->Next(1, &ptr_setter(Moniker), nullptr) == S_FALSE)
-			return nullptr;
-
-		DWORD Type;
-		if (FAILED(Moniker->IsSystemMoniker(&Type)) || Type != MKSYS_FILEMONIKER)
-			continue;
-
-		os::com::ptr<IMoniker> PrefixMoniker;
-		if (FAILED(FileMoniker->CommonPrefixWith(Moniker.get(), &ptr_setter(PrefixMoniker))))
-			continue;
-
-		if (FileMoniker->IsEqual(PrefixMoniker.get()) == S_FALSE)
-			continue;
-
-		os::com::ptr<IUnknown> Unknown;
-		if (RunningObjectTable->GetObject(Moniker.get(), &ptr_setter(Unknown)) == S_FALSE)
-			continue;
-
-		FN_RETURN_TYPE(CreateIFileIsInUse) FileIsInUse;
-		if (SUCCEEDED(Unknown->QueryInterface(IID_IFileIsInUse, IID_PPV_ARGS_Helper(&ptr_setter(FileIsInUse)))))
-			return FileIsInUse;
-	}
-}
-
-static size_t enumerate_rm_processes(const string& Filename, DWORD& Reasons, function_ref<bool(string&&)> const Handler)
-{
-	if (!imports.RmStartSession)
-		return 0;
-
-	DWORD Session;
-	wchar_t SessionKey[CCH_RM_SESSION_KEY + 1] = {};
-	if (imports.RmStartSession(&Session, 0, SessionKey) != ERROR_SUCCESS)
-		return 0;
-
-	SCOPE_EXIT
-	{
-		if (imports.RmEndSession)
-			imports.RmEndSession(Session);
-	};
-
-	if (!imports.RmRegisterResources)
-		return 0;
-
-	auto FilenamePtr = Filename.c_str();
-	if (imports.RmRegisterResources(Session, 1, &FilenamePtr, 0, nullptr, 0, nullptr) != ERROR_SUCCESS)
-		return 0;
-
-	if (!imports.RmGetList)
-		return 0;
-
-	DWORD RmGetListResult;
-	unsigned ProceccInfoSizeNeeded = 0, ProcessInfoSize = 1;
-	std::vector<RM_PROCESS_INFO> ProcessInfos(ProcessInfoSize);
-	while ((RmGetListResult = imports.RmGetList(Session, &ProceccInfoSizeNeeded, &ProcessInfoSize, ProcessInfos.data(), &Reasons)) == ERROR_MORE_DATA)
-	{
-		ProcessInfoSize = ProceccInfoSizeNeeded;
-		ProcessInfos.resize(ProcessInfoSize);
-	}
-
-	if (RmGetListResult != ERROR_SUCCESS)
-		return 0;
-
-	for (const auto& Info : ProcessInfos)
-	{
-		auto Str = *Info.strAppName? Info.strAppName : L"Unknown"s;
-
-		if (*Info.strServiceShortName)
-			append(Str, L" ["sv, Info.strServiceShortName, L']');
-
-		append(Str, L" (PID: "sv, str(Info.Process.dwProcessId));
-
-		if (const auto Process = os::handle(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, Info.Process.dwProcessId)))
-		{
-			os::chrono::time_point CreationTime;
-			if (os::chrono::get_process_creation_time(Process.native_handle(), CreationTime) &&
-				os::chrono::nt_clock::from_filetime(Info.Process.ProcessStartTime) == CreationTime)
-			{
-				string Name;
-				if (os::fs::get_module_file_name(Process.native_handle(), {}, Name))
-				{
-					append(Str, L", "sv, Name);
-				}
-			}
-		}
-
-		Str += L')';
-
-		if (!Handler(std::move(Str)))
-			break;
-	}
-
-	return ProcessInfos.size();
-}
-
 operation OperationFailed(const error_state_ex& ErrorState, string_view const Object, lng Title, string Description, bool AllowSkip, bool AllowSkipAll)
 {
 	std::vector<string> Msg;
@@ -586,21 +476,26 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 
 	auto Reason = lng::MObjectLockedReasonOpened;
 	bool SwitchBtn = false, CloseBtn = false;
-	const auto Error = ErrorState.Win32Error;
-	if(Error == ERROR_ACCESS_DENIED ||
-		Error == ERROR_SHARING_VIOLATION ||
-		Error == ERROR_LOCK_VIOLATION ||
-		Error == ERROR_DRIVE_LOCKED)
+
+	if(any_of(static_cast<long>(ErrorState.Win32Error),
+		ERROR_ACCESS_DENIED,
+		ERROR_SHARING_VIOLATION,
+		ERROR_LOCK_VIOLATION,
+		ERROR_DRIVE_LOCKED
+	))
 	{
 		const auto FullName = ConvertNameToFull(Object);
 
 		ComInitialiser.emplace();
-		FileIsInUse = CreateIFileIsInUse(FullName);
+		FileIsInUse = os::com::create_file_is_in_use(FullName);
 		if (FileIsInUse)
 		{
 			FILE_USAGE_TYPE UsageType;
-			if (FAILED(FileIsInUse->GetUsage(&UsageType)))
+			if (const auto Result = FileIsInUse->GetUsage(&UsageType); FAILED(Result))
+			{
+				LOGWARNING(L"GetUsage()"sv, os::format_error(Result));
 				UsageType = FUT_GENERIC;
+			}
 
 			switch (UsageType)
 			{
@@ -616,14 +511,22 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 			}
 
 			DWORD Capabilities;
-			if (SUCCEEDED(FileIsInUse->GetCapabilities(&Capabilities)))
+			if (const auto Result = FileIsInUse->GetCapabilities(&Capabilities); FAILED(Result))
+			{
+				LOGWARNING(L"GetCapabilities(): {}"sv, os::format_error(Result));
+			}
+			else
 			{
 				SwitchBtn = (Capabilities & OF_CAP_CANSWITCHTO) != 0;
 				CloseBtn = (Capabilities & OF_CAP_CANCLOSE) != 0;
 			}
 
 			wchar_t* AppName;
-			if(SUCCEEDED(FileIsInUse->GetAppName(&AppName)))
+			if (const auto Result = FileIsInUse->GetAppName(&AppName); FAILED(Result))
+			{
+				LOGWARNING(L"GetAppName(): {}"sv, os::format_error(Result));
+			}
+			else
 			{
 				Msg.emplace_back(AppName);
 			}
@@ -632,7 +535,7 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 		{
 			const size_t MaxRmProcesses = 5;
 			DWORD Reasons = RmRebootReasonNone;
-			const auto ProcessCount = enumerate_rm_processes(FullName, Reasons, [&](string&& Str)
+			const auto ProcessCount = os::process::enumerate_rm_processes(FullName, Reasons, [&](string&& Str)
 			{
 				Msg.emplace_back(std::move(Str));
 				return Msg.size() != MaxRmProcesses;
@@ -707,32 +610,39 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 		});
 	}
 
-	int Result;
+	message_result MsgResult;
 	for(;;)
 	{
-		Result = Message(MSG_WARNING, ErrorState,
+		MsgResult = Message(MSG_WARNING, ErrorState,
 			msg(Title),
 			Msgs,
 			Buttons);
 
 		if(SwitchBtn)
 		{
-			if(Result == Message::first_button)
+			if (MsgResult == message_result::first_button)
 			{
 				HWND Window = nullptr;
-				if (FileIsInUse && SUCCEEDED(FileIsInUse->GetSwitchToHWND(&Window)))
+				if (FileIsInUse)
 				{
-					message_manager::instance().notify(Listener->GetEventName(), Window);
+					if (const auto Result = FileIsInUse->GetSwitchToHWND(&Window); FAILED(Result))
+					{
+						LOGWARNING(L"GetSwitchToHWND(): {}"sv, os::format_error(Result));
+					}
+					else
+					{
+						message_manager::instance().notify(Listener->GetEventName(), Window);
+					}
 				}
 				continue;
 			}
-			else if(Result > 0)
+			else if (MsgResult != message_result::cancelled)
 			{
-				--Result;
+				MsgResult = static_cast<message_result>(static_cast<size_t>(MsgResult) - 1);
 			}
 		}
 
-		if(CloseBtn && Result == Message::first_button)
+		if(CloseBtn && MsgResult == message_result::first_button)
 		{
 			// close & retry
 			if (FileIsInUse)
@@ -743,10 +653,10 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 		break;
 	}
 
-	if (Result < 0 || static_cast<size_t>(Result) == Buttons.size() - 1)
+	if (MsgResult == message_result::cancelled || static_cast<size_t>(MsgResult) == Buttons.size() - 1)
 		return operation::cancel;
 
-	return static_cast<operation>(Result);
+	return static_cast<operation>(MsgResult);
 }
 
 bool retryable_ui_operation(function_ref<bool()> const Action, string_view const Name, lng const ErrorDescription, bool& SkipErrors)
@@ -951,6 +861,31 @@ bool GoToRowCol(goto_coord& Row, goto_coord& Col, bool& Hex, string_view const H
 	}
 }
 
+bool ConfirmAbort()
+{
+	if (!Global->Opt->Confirm.Esc)
+		return true;
+
+	if (Global->CloseFAR)
+		return true;
+
+	// BUGBUG MSG_WARNING overrides TBPF_PAUSED with TBPF_ERROR
+	SCOPED_ACTION(taskbar::state)(TBPF_PAUSED);
+	const auto Result = Message(MSG_WARNING | MSG_KILLSAVESCREEN,
+		msg(lng::MKeyESCWasPressed),
+		{
+			msg(Global->Opt->Confirm.EscTwiceToInterrupt? lng::MDoYouWantToContinue : lng::MDoYouWantToCancel)
+		},
+		{ lng::MYes, lng::MNo });
+
+	return Global->Opt->Confirm.EscTwiceToInterrupt.Get() == (Result != message_result::first_button);
+}
+
+bool CheckForEscAndConfirmAbort()
+{
+	return CheckForEscSilent() && ConfirmAbort();
+}
+
 bool RetryAbort(std::vector<string>&& Messages)
 {
 	if (Global->WindowManager && !Global->WindowManager->ManagerIsDown() && far_language::instance().is_loaded())
@@ -958,7 +893,7 @@ bool RetryAbort(std::vector<string>&& Messages)
 		return Message(FMSG_WARNING,
 			msg(lng::MError),
 			std::move(Messages),
-			{ lng::MRetry, lng::MAbort }) == Message::first_button;
+			{ lng::MRetry, lng::MAbort }) == message_result::first_button;
 	}
 
 	std::wcerr << L"\nError:\n\n"sv;
@@ -967,4 +902,136 @@ bool RetryAbort(std::vector<string>&& Messages)
 		std::wcerr << i << L'\n';
 
 	return ConsoleYesNo(L"Retry"sv, false);
+}
+
+progress_impl::~progress_impl()
+{
+	if (m_Dialog)
+		m_Dialog->CloseDialog();
+}
+
+void progress_impl::init(span<DialogItemEx> const Items, rectangle const Position)
+{
+	m_Dialog = Dialog::create(Items, [](Dialog* const Dlg, intptr_t const Msg, intptr_t const Param1, void* const Param2)
+	{
+		if (Msg == DN_RESIZECONSOLE)
+		{
+			COORD CenterPosition{ -1, -1 };
+			Dlg->SendMessage(DM_MOVEDIALOG, 1, &CenterPosition);
+		}
+
+		return Dlg->DefProc(Msg, Param1, Param2);
+	});
+
+	m_Dialog->SetPosition(Position);
+	m_Dialog->SetCanLoseFocus(true);
+	m_Dialog->Process();
+
+	Global->WindowManager->PluginCommit();
+}
+
+struct single_progress_detail
+{
+	enum
+	{
+		DlgW = 76,
+		DlgH = 6,
+	};
+
+	enum items
+	{
+		pr_console_title,
+		pr_doublebox,
+		pr_message,
+		pr_progress,
+
+		pr_count
+	};
+};
+
+single_progress::single_progress(string_view const Title, string_view const Msg, size_t const Percent)
+{
+	const auto
+		DlgW = single_progress_detail::DlgW,
+		DlgH = single_progress_detail::DlgH;
+
+	auto ProgressDlgItems = MakeDialogItems<single_progress_detail::items::pr_count>(
+	{
+		{ DI_TEXT,      {{ 0, 0 }, { 0,               0 }}, DIF_HIDDEN, {}, },
+		{ DI_DOUBLEBOX, {{ 3, 1 }, { DlgW - 4, DlgH - 2 }}, DIF_NONE,   Title, },
+		{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE,   Msg },
+		{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_NONE,   make_progressbar(DlgW - 10, Percent, true, true) },
+	});
+
+	init(ProgressDlgItems, { -1, -1, DlgW, DlgH });
+}
+
+void single_progress::update(string_view const Msg) const
+{
+	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_message, UNSAFE_CSTR(null_terminated(Msg)));
+}
+
+void single_progress::update(size_t const Percent) const
+{
+	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_progress, UNSAFE_CSTR(make_progressbar(single_progress_detail::DlgW - 10, Percent, true, true)));
+
+	const auto Title = reinterpret_cast<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
+	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_console_title, UNSAFE_CSTR(concat(L'{', str(Percent), L"%} "sv, Title)));
+}
+
+struct dirinfo_progress_detail
+{
+	enum
+	{
+		DlgW = 76,
+		DlgH = 9,
+	};
+
+	enum items
+	{
+		pr_doublebox,
+		pr_scanning,
+		pr_message,
+		pr_separator,
+		pr_files,
+		pr_bytes,
+
+		pr_count
+	};
+};
+
+dirinfo_progress::dirinfo_progress(string_view const Title)
+{
+	const auto
+		DlgW = dirinfo_progress_detail::DlgW,
+		DlgH = dirinfo_progress_detail::DlgH;
+
+	auto ProgressDlgItems = MakeDialogItems<dirinfo_progress_detail::items::pr_count>(
+	{
+		{ DI_DOUBLEBOX, {{ 3, 1 }, { DlgW - 4, DlgH - 2 }}, DIF_NONE,      Title, },
+		{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE,      msg(lng::MScanningFolder) },
+		{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_NONE,      {} },
+		{ DI_TEXT,      {{ 5, 4 }, { DlgW - 6,        4 }}, DIF_SEPARATOR, {} },
+		{ DI_TEXT,      {{ 5, 5 }, { DlgW - 6,        5 }}, DIF_NONE,      {} },
+		{ DI_TEXT,      {{ 5, 6 }, { DlgW - 6,        6 }}, DIF_NONE,      {} },
+	});
+
+	init(ProgressDlgItems, { -1, -1, DlgW, DlgH });
+}
+
+void dirinfo_progress::set_name(string_view const Msg) const
+{
+	m_Dialog->SendMessage(DM_SETTEXTPTR, dirinfo_progress_detail::items::pr_message, UNSAFE_CSTR(null_terminated(Msg)));
+}
+
+void dirinfo_progress::set_count(unsigned long long const Count) const
+{
+	const auto Str = copy_progress::FormatCounter(lng::MCopyFilesTotalInfo, lng::MCopyBytesTotalInfo, Count, 0, false, copy_progress::CanvasWidth() - 5);
+	m_Dialog->SendMessage(DM_SETTEXTPTR, dirinfo_progress_detail::items::pr_files, UNSAFE_CSTR(Str));
+}
+
+void dirinfo_progress::set_size(unsigned long long const Size) const
+{
+	const auto Str = copy_progress::FormatCounter(lng::MCopyBytesTotalInfo, lng::MCopyFilesTotalInfo, Size, 0, false, copy_progress::CanvasWidth() - 5);
+	m_Dialog->SendMessage(DM_SETTEXTPTR, dirinfo_progress_detail::items::pr_bytes, UNSAFE_CSTR(Str));
 }

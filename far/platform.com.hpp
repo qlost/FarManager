@@ -1,14 +1,12 @@
-﻿#ifndef DESKTOP_HPP_16E84F3B_443F_487F_A5E6_FC6432462DB5
-#define DESKTOP_HPP_16E84F3B_443F_487F_A5E6_FC6432462DB5
+﻿#ifndef PLATFORM_COM_HPP_4E1C5B1E_3366_45BB_A55B_AD2B1357CA7D
+#define PLATFORM_COM_HPP_4E1C5B1E_3366_45BB_A55B_AD2B1357CA7D
 #pragma once
 
 /*
-desktop.hpp
-
-
+platform.com.hpp
 */
 /*
-Copyright © 2014 Far Group
+Copyright © 2021 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -35,40 +33,58 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 // Internal:
-#include "window.hpp"
-#include "console_session.hpp"
 
 // Platform:
 
 // Common:
+#include "common/preprocessor.hpp"
 
 // External:
 
 //----------------------------------------------------------------------------
 
-class desktop final: public window
+namespace os::com
 {
-	struct private_tag {};
+	class initialize
+	{
+	public:
+		NONCOPYABLE(initialize);
 
-public:
-	static desktop_ptr create();
-	explicit desktop(private_tag);
+		initialize();
+		~initialize();
 
-	int GetType() const override { return windowtype_desktop; }
-	int GetTypeAndName(string& Type, string& Name) override { Type = GetTitle();  return GetType(); }
-	void ResizeConsole() override;
-	bool ProcessKey(const Manager::Key& Key) override;
+	private:
+		const bool m_Initialised;
+	};
 
-	void TakeSnapshot();
+	namespace detail
+	{
+		template<typename T>
+		struct releaser
+		{
+			void operator()(T* Object) const
+			{
+				Object->Release();
+			}
+		};
 
-	console_session& ConsoleSession() { return m_ConsoleSession; }
+		struct memory_releaser
+		{
+			void operator()(const void* Object) const;
+		};
+	}
 
-private:
-	string GetTitle() const override { return L"Desktop"s; } // TODO: localization
-	void DisplayObject() override;
+	template<typename T>
+	using ptr = std::unique_ptr<T, detail::releaser<T>>;
 
-	std::unique_ptr<SaveScreen> m_Background;
-	console_session m_ConsoleSession;
-};
+	template<typename T>
+	using memory = std::unique_ptr<std::remove_pointer_t<T>, detail::memory_releaser>;
 
-#endif // DESKTOP_HPP_16E84F3B_443F_487F_A5E6_FC6432462DB5
+	string get_shell_name(string_view Path);
+
+	string get_shell_filetype_description(string_view FileName);
+
+	ptr<IFileIsInUse> create_file_is_in_use(const string& File);
+}
+
+#endif // PLATFORM_COM_HPP_4E1C5B1E_3366_45BB_A55B_AD2B1357CA7D

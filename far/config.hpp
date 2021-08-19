@@ -323,7 +323,7 @@ namespace detail
 	};
 }
 
-class BoolOption: public detail::OptionImpl<bool, BoolOption>
+class BoolOption final: public detail::OptionImpl<bool, BoolOption>
 {
 public:
 	using impl_type::OptionImpl;
@@ -343,7 +343,7 @@ public:
 	operator bool() const { return Get(); }
 };
 
-class Bool3Option: public detail::OptionImpl<long long, Bool3Option>
+class Bool3Option final: public detail::OptionImpl<long long, Bool3Option>
 {
 public:
 	using impl_type::OptionImpl;
@@ -363,7 +363,7 @@ public:
 	operator FARCHECKEDSTATE() const { return static_cast<FARCHECKEDSTATE>(Get()); }
 };
 
-class IntOption: public detail::OptionImpl<long long, IntOption>
+class IntOption final: public detail::OptionImpl<long long, IntOption>
 {
 public:
 	using impl_type::OptionImpl;
@@ -392,7 +392,7 @@ public:
 	operator long long() const { return Get(); }
 };
 
-class StringOption: public detail::OptionImpl<string, StringOption>
+class StringOption final: public detail::OptionImpl<string, StringOption>
 {
 public:
 	using impl_type::OptionImpl;
@@ -1086,6 +1086,6 @@ private:
 string GetFarIniString(string_view AppName, string_view KeyName, string_view Default);
 int GetFarIniInt(string_view AppName, string_view KeyName, int Default);
 
-std::chrono::steady_clock::duration GetRedrawTimeout() noexcept;
+std::chrono::milliseconds GetRedrawTimeout() noexcept;
 
 #endif // CONFIG_HPP_E468759B_688C_4D45_A5BA_CF1D4FCC9A08

@@ -42,7 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "config.hpp"
 #include "dialog.hpp"
 #include "interf.hpp"
-#include "keyboard.hpp"
 #include "lang.hpp"
 #include "language.hpp"
 #include "message.hpp"
@@ -220,35 +219,13 @@ static bool write_minidump(const exception_context& Context, string_view const F
 	return imports.MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), DumpFile.get().native_handle(), Type, &Mei, nullptr, nullptr) != FALSE;
 }
 
-static string file_version(string_view const Name)
-{
-	os::version::file_version Version;
-	if (!Version.read(Name))
-		return L"Unknown"s;
-
-	if (const auto Str = Version.get_string(L"FileVersion"sv))
-		return Str;
-
-	const auto FixedInfo = Version.get_fixed_info();
-	if (!FixedInfo)
-		return L"Unknown"s;
-
-	return format(FSTR(L"{}.{}.{}.{}"sv),
-		HIWORD(FixedInfo->dwFileVersionMS),
-		LOWORD(FixedInfo->dwFileVersionMS),
-		HIWORD(FixedInfo->dwFileVersionLS),
-		LOWORD(FixedInfo->dwFileVersionLS)
-	);
-}
-
 static void read_modules(span<HMODULE const> const Modules, string& To, string_view const Eol)
 {
 	string Name;
 	for (const auto& i: Modules)
 	{
-
 		if (os::fs::get_module_file_name({}, i, Name))
-			append(To, Name, L' ', file_version(Name), Eol);
+			append(To, Name, L' ', os::version::get_file_version(Name), Eol);
 		else
 			append(To, str(static_cast<void const*>(i)), Eol);
 	}
@@ -284,61 +261,9 @@ static string self_version()
 	return ScmRevision.empty()? Version : Version + format(FSTR(L" ({:.7})"sv), ScmRevision);
 }
 
-static bool get_os_version(OSVERSIONINFOEX& Info)
-{
-	const auto InfoPtr = static_cast<OSVERSIONINFO*>(static_cast<void*>(&Info));
-
-	if (imports.RtlGetVersion && imports.RtlGetVersion(InfoPtr) == STATUS_SUCCESS)
-		return true;
-
-WARNING_PUSH()
-WARNING_DISABLE_MSC(4996) // 'GetVersionExW': was declared deprecated. So helpful. :(
-WARNING_DISABLE_CLANG("-Wdeprecated-declarations")
-	return GetVersionEx(InfoPtr) != FALSE;
-WARNING_POP()
-}
-
-static string os_version_from_api()
-{
-	OSVERSIONINFOEX Info{ sizeof(Info) };
-	if (!get_os_version(Info))
-		return L"Unknown"s;
-
-	return format(FSTR(L"{}.{}.{}.{}.{}.{}.{}.{}"sv),
-		Info.dwMajorVersion,
-		Info.dwMinorVersion,
-		Info.dwBuildNumber,
-		Info.dwPlatformId,
-		Info.wServicePackMajor,
-		Info.wServicePackMinor,
-		Info.wSuiteMask,
-		Info.wProductType
-	);
-}
-
-// Mental OS - mental methods *facepalm*
-static string os_version_from_registry()
-{
-	const auto Key = os::reg::key::open(os::reg::key::local_machine, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"sv, KEY_QUERY_VALUE);
-	if (!Key)
-		return {};
-
-	string DisplayVersion, CurrentBuild;
-	unsigned UBR;
-	if ((!Key.get(L"DisplayVersion"sv, DisplayVersion) && !Key.get(L"ReleaseId"sv, DisplayVersion)) || !Key.get(L"CurrentBuild"sv, CurrentBuild) || !Key.get(L"UBR"sv, UBR))
-		return {};
-
-	return format(FSTR(L" (version {}, OS build {}.{})"sv), DisplayVersion, CurrentBuild, UBR);
-}
-
-static string os_version()
-{
-	return os_version_from_api() + os_version_from_registry();
-}
-
 static string kernel_version()
 {
-	return file_version(L"ntoskrnl.exe"sv);
+	return os::version::get_file_version(L"ntoskrnl.exe"sv);
 }
 
 struct dialog_data_type
@@ -442,12 +367,12 @@ static bool ExcDialog(string const& ReportLocation, bool const CanUnload)
 	if (CanUnload)
 	{
 		lng const MsgIDs[]{ lng::MExcTerminate, lng::MExcUnload, lng::MIgnore };
-		Builder.AddButtons(MsgIDs, 0, 2);
+		Builder.AddButtons(MsgIDs, 0, std::size(MsgIDs) - 1);
 	}
 	else
 	{
 		lng const MsgIDs[]{ lng::MExcTerminate, lng::MIgnore };
-		Builder.AddButtons(MsgIDs, 0, 1);
+		Builder.AddButtons(MsgIDs, 0, std::size(MsgIDs) - 1);
 	}
 
 	Builder.SetDialogMode(DMODE_WARNINGSTYLE | DMODE_NOPLUGINS);
@@ -529,7 +454,7 @@ static bool ShowExceptionUI(
 
 	const auto Errors = ErrorState.format_errors();
 	const auto Version = self_version();
-	const auto OsVersion = os_version();
+	const auto OsVersion = os::version::os_version();
 	const auto KernelVersion = kernel_version();
 
 	std::pair<string_view, string_view> const BasicInfo[]
@@ -977,7 +902,7 @@ static EXCEPTION_POINTERS exception_information()
 	};
 }
 
-class far_wrapper_exception: public far_exception
+class far_wrapper_exception final: public far_exception
 {
 public:
 	far_wrapper_exception(std::string_view const Function, std::string_view const File, int const Line):
@@ -1057,7 +982,7 @@ static std::pair<string, string> extract_nested_exceptions(EXCEPTION_RECORD cons
 	return Result;
 }
 
-class seh_exception: public far_exception
+class seh_exception final: public far_exception
 {
 public:
 	template<typename... args>

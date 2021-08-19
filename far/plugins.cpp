@@ -626,7 +626,7 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 
 			if (hPlugin == PANEL_STOP)   //сразу на выход, плагин решил нагло обработать все сам (Autorun/PictureView)!!!
 			{
-				LOGDEBUG(L"OpenFilePlugin: {} accepted and asked to stop processing"sv, i->Title());
+				LOGINFO(L"OpenFilePlugin: {} accepted and asked to stop processing"sv, i->Title());
 
 				StopProcessing = true;
 				return nullptr;
@@ -1138,7 +1138,7 @@ void PluginManager::GetOpenPanelInfo(const plugin_panel* hPlugin, OpenPanelInfo 
 
 	*Info = {};
 
-	Info->StructSize = sizeof(OpenPanelInfo);
+	Info->StructSize = sizeof(*Info);
 	Info->hPanel = hPlugin->panel();
 	hPlugin->plugin()->GetOpenPanelInfo(Info);
 
@@ -1591,9 +1591,12 @@ int PluginManager::CommandsMenu(int ModalType,int StartPos,const wchar_t *Histor
 
 	// restore title for old plugins only.
 #ifndef NO_WRAPPER
-	if (item.pPlugin->IsOemPlugin() && Editor && Global->WindowManager->GetCurrentEditor())
+	if (item.pPlugin->IsOemPlugin() && Editor)
 	{
-		Global->WindowManager->GetCurrentEditor()->SetPluginTitle(nullptr);
+		if (const auto CurrentEditor = Global->WindowManager->GetCurrentEditor())
+		{
+			CurrentEditor->SetPluginTitle(nullptr);
+		}
 	}
 #endif // NO_WRAPPER
 	return TRUE;
@@ -2289,9 +2292,12 @@ bool PluginManager::CallPluginItem(const UUID& Uuid, CallPluginInfo *Data) const
 
 	// restore title for old plugins only.
 #ifndef NO_WRAPPER
-	if (Data->pPlugin->IsOemPlugin() && Editor && Global->WindowManager->GetCurrentEditor())
+	if (Data->pPlugin->IsOemPlugin() && Editor)
 	{
-		Global->WindowManager->GetCurrentEditor()->SetPluginTitle(nullptr);
+		if (const auto CurrentEditor = Global->WindowManager->GetCurrentEditor())
+		{
+			CurrentEditor->SetPluginTitle(nullptr);
+		}
 	}
 #endif // NO_WRAPPER
 

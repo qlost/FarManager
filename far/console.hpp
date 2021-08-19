@@ -164,8 +164,6 @@ namespace console_detail
 		bool ResetPosition() const;
 		bool ResetViewportPosition() const;
 
-		bool GetColorDialog(FarColor& Color, bool Centered = false, const FarColor* BaseColor = nullptr) const;
-
 		bool ScrollNonClientArea(size_t NumLines, const FAR_CHAR_INFO& Fill) const;
 
 		bool IsViewportVisible() const;
@@ -175,6 +173,9 @@ namespace console_detail
 
 		[[nodiscard]]
 		bool IsVtEnabled() const;
+
+		[[nodiscard]]
+		bool ExternalRendererLoaded() const;
 
 		[[nodiscard]]
 		bool IsWidePreciseExpensive(unsigned int Codepoint, bool ClearCacheOnly = false);

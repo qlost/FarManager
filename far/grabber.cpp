@@ -295,17 +295,8 @@ void Grabber::DisplayObject()
 					}
 				}
 
-				Destination.BackgroundColor = colors::alpha_value(CurColor.BackgroundColor) | (
-					CurColor.IsBg4Bit()?
-						colors::index_value(~colors::index_value(CurColor.BackgroundColor)) :
-						colors::color_value(~colors::color_value(CurColor.BackgroundColor))
-					);
-
-				Destination.ForegroundColor = colors::alpha_value(CurColor.ForegroundColor) | (
-					CurColor.IsFg4Bit()?
-						colors::index_value(~colors::index_value(CurColor.ForegroundColor)) :
-						colors::color_value(~colors::color_value(CurColor.ForegroundColor))
-					);
+				colors::make_invert(Destination.BackgroundColor, CurColor.IsBg4Bit());
+				colors::make_invert(Destination.ForegroundColor, CurColor.IsFg4Bit());
 			}
 		}
 
@@ -709,8 +700,8 @@ bool Grabber::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 		ResetArea = false;
 	}
 
-	GArea.Current.x = std::clamp(IntKeyState.MousePos.x, 0, int(ScrX));
-	GArea.Current.y = std::clamp(IntKeyState.MousePos.y, 0, int(ScrY));
+	GArea.Current.x = std::clamp(IntKeyState.MousePos.x, 0, static_cast<int>(ScrX));
+	GArea.Current.y = std::clamp(IntKeyState.MousePos.y, 0, static_cast<int>(ScrY));
 
 	if (MouseEvent->dwEventFlags == MOUSE_MOVED)
 	{

@@ -76,7 +76,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/scope_exit.hpp"
 #include "common/uuid.hpp"
 #include "common/view/select.hpp"
-#include "common/view/select.hpp"
 #include "common/view/zip.hpp"
 
 // External:
@@ -118,7 +117,22 @@ DECLARE_PLUGIN_FUNCTION(iProcessDialogEvent,  int    (WINAPI*)(int Event, void *
 
 #undef DECLARE_PLUGIN_FUNCTION
 
-class oem_plugin_module: public native_plugin_module
+namespace oldfar
+{
+	// This was removed in 3.x and the enums don't match anymore :(
+	constexpr auto COL_RESERVED0 = 71;
+}
+
+static_assert(COL_DIALOGLISTSCROLLBAR == COL_VIEWERARROWS + 1);
+static_assert(COL_VIEWERARROWS == oldfar::COL_RESERVED0 - 1);
+static_assert(COL_DIALOGLISTSCROLLBAR == oldfar::COL_RESERVED0);
+
+static int old_palette_to_palette(int const Color)
+{
+	return Color < oldfar::COL_RESERVED0? Color : Color - 1;
+}
+
+class oem_plugin_module final: public native_plugin_module
 {
 public:
 	NONCOPYABLE(oem_plugin_module);
@@ -131,7 +145,7 @@ public:
 	os::version::file_version m_FileVersion;
 };
 
-class oem_plugin_factory: public native_plugin_factory
+class oem_plugin_factory final: public native_plugin_factory
 {
 public:
 	NONCOPYABLE(oem_plugin_factory);
@@ -263,29 +277,29 @@ static void LocalUpperInit()
 
 		for (size_t I = 0; I != std::size(LowerToUpper); ++I)
 		{
-			const auto Char = to_ansi(char(I));
+			const auto Char = to_ansi(static_cast<char>(I));
 
-			if (IsCharAlphaA(Char) && to_oem(Char) == char(I))
+			if (IsCharAlphaA(Char) && to_oem(Char) == static_cast<char>(I))
 			{
 				if (IsCharLowerA(Char))
 				{
 					UpperOrLower[I] = case_lower;
 					LowerToUpper[I] = to_oem(to_upper(Char));
-					UpperToLower[I] = char(I);
+					UpperToLower[I] = static_cast<char>(I);
 					continue;
 				}
 
 				if (IsCharUpperA(Char))
 				{
 					UpperOrLower[I] = case_upper;
-					LowerToUpper[I] = char(I);
+					LowerToUpper[I] = static_cast<char>(I);
 					UpperToLower[I] = to_oem(to_lower(Char));
 					continue;
 				}
 			}
 
 			UpperOrLower[I] = case_none;
-			LowerToUpper[I] = UpperToLower[I] = char(I);
+			LowerToUpper[I] = UpperToLower[I] = static_cast<char>(I);
 		}
 		return true;
 	}();
@@ -1104,9 +1118,8 @@ static void AnsiDialogItemToUnicode(const oldfar::FarDialogItem &diA, FarDialogI
 
 	if (diA.Type == oldfar::DI_USERCONTROL)
 	{
-		auto Data = std::make_unique<wchar_t[]>(std::size(diA.Data));
-		copy_memory(diA.Data, Data.get(), sizeof(diA.Data));
-		di.Data = Data.release();
+		// Data is opaque, no need to propagate it
+		di.Data = {};
 		di.MaxLength = 0;
 	}
 	else if ((diA.Type == oldfar::DI_EDIT || diA.Type == oldfar::DI_COMBOBOX) && diA.Flags&oldfar::DIF_VAREDIT)
@@ -1282,8 +1295,7 @@ static oldfar::FarDialogItem* UnicodeDialogItemToAnsi(FarDialogItem &di, HANDLE 
 
 	if (diA->Type == oldfar::DI_USERCONTROL)
 	{
-		if (di.Data)
-			copy_memory(di.Data, diA->Data, sizeof(diA->Data));
+		// Data is opaque, no need to touch it
 	}
 	else if ((diA->Type == oldfar::DI_EDIT || diA->Type == oldfar::DI_COMBOBOX) && diA->Flags&oldfar::DIF_VAREDIT)
 	{
@@ -3931,13 +3943,7 @@ static intptr_t WINAPI FarAdvControlA(intptr_t ModuleNumber, oldfar::ADVANCED_CO
 			case oldfar::ACTL_GETCOLOR:
 				{
 					FarColor Color;
-					int ColorIndex = static_cast<int>(reinterpret_cast<intptr_t>(Param));
-
-					// there was a reserved position after COL_VIEWERARROWS in Far 1.x.
-					if(ColorIndex > COL_VIEWERARROWS)
-					{
-						ColorIndex--;
-					}
+					const auto ColorIndex = old_palette_to_palette(static_cast<int>(reinterpret_cast<intptr_t>(Param)));
 					return pluginapi::apiAdvControl(GetPluginUuid(ModuleNumber), ACTL_GETCOLOR, ColorIndex, &Color)? colors::FarColorToConsoleColor(Color) :-1;
 				}
 
@@ -3946,8 +3952,9 @@ static intptr_t WINAPI FarAdvControlA(intptr_t ModuleNumber, oldfar::ADVANCED_CO
 					const auto PaletteSize = pluginapi::apiAdvControl(GetPluginUuid(ModuleNumber), ACTL_GETARRAYCOLOR, 0, nullptr);
 					if(Param)
 					{
-						std::vector<FarColor> Color(PaletteSize);
-						pluginapi::apiAdvControl(GetPluginUuid(ModuleNumber), ACTL_GETARRAYCOLOR, 0, Color.data());
+						std::vector<FarColor> Color(PaletteSize + 1);
+						pluginapi::apiAdvControl(GetPluginUuid(ModuleNumber), ACTL_GETARRAYCOLOR, Color.size(), Color.data());
+						Color.insert(Color.begin() + oldfar::COL_RESERVED0, FarColor{});
 						const auto OldColors = static_cast<LPBYTE>(Param);
 						std::transform(ALL_CONST_RANGE(Color), OldColors, colors::FarColorToConsoleColor);
 					}
@@ -4179,6 +4186,7 @@ static intptr_t WINAPI FarAdvControlA(intptr_t ModuleNumber, oldfar::ADVANCED_CO
 				const auto scA = static_cast<const oldfar::FarSetColors*>(Param);
 				std::vector<FarColor> Colors(scA->ColorCount);
 				std::transform(scA->Colors, scA->Colors + scA->ColorCount, Colors.begin(), colors::ConsoleColorToFarColor);
+				Colors.erase(Colors.begin() + oldfar::COL_RESERVED0);
 				FarSetColors sc = {sizeof(FarSetColors), 0, static_cast<size_t>(scA->StartIndex), Colors.size(), Colors.data()};
 				if (scA->Flags&oldfar::FCLR_REDRAW)
 					sc.Flags|=FSETCLR_REDRAW;
@@ -5007,7 +5015,7 @@ static void UpdatePluginPanelItemFlags(const oldfar::PluginPanelItem* From, Plug
 
 // TODO: PluginA class shouldn't be derived from Plugin.
 // All exports should be provided by oem_plugin_factory.
-class PluginA: public Plugin
+class PluginA final: public Plugin
 {
 public:
 	NONCOPYABLE(PluginA);
@@ -5339,7 +5347,7 @@ WARNING_POP()
 
 	void GetOpenPanelInfo(OpenPanelInfo *Info) override
 	{
-		Info->StructSize = sizeof(OpenPanelInfo);
+		Info->StructSize = sizeof(*Info);
 
 		AnsiExecuteStruct<iGetOpenPanelInfo> es;
 		if (exception_handling_in_progress() || !has(es))

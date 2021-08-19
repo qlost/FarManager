@@ -149,8 +149,7 @@ private:
 	void SetSecurity(const string& FileName, const os::security::descriptor& sd);
 	void ResetSecurity(const string& FileName);
 
-	// called by copy_selected_items
-	void CalcTotalSize() const;
+	std::pair<unsigned long long, unsigned long long> CalcTotalSize() const;
 
 	void ShellSetAttr(const string& Dest, os::fs::attributes Attr);
 	void SetDestDizPath(const string& DestPath);
@@ -186,10 +185,11 @@ private:
 	string strRenamedName;
 	string strRenamedFilesPath;
 	overwrite OvrMode{ overwrite::no };
-	int ReadOnlyOvrMode{-1};
-	int ReadOnlyDelMode{-1};
+	std::optional<bool>
+		m_OverwriteReadOnly,
+		m_DeleteReadOnly,
+		m_AllowDecrypt;
 	bool SkipErrors{};     // ...для пропуска при копировании залоченных файлов.
-	int SkipEncMode{-1};
 	bool SkipDeleteErrors{};
 	bool SkipSecurityErrors{};
 	std::vector<string> m_DestList;
@@ -206,7 +206,6 @@ private:
 	bool FilesPresent{};
 	bool AskRO{};
 	bool m_UseFilter{};
-	bool m_TotalSizeCalculated{};
 	HANDLE m_FileHandleForStreamSizeFix{};
 	size_t m_NumberOfTargets{};
 	std::list<created_folders> m_CreatedFolders;
@@ -1105,7 +1104,10 @@ ShellCopy::ShellCopy(
 	}
 	else
 	{
-		ReadOnlyOvrMode=AskRO?-1:1;
+		if (AskRO)
+			m_OverwriteReadOnly.reset();
+		else
+			m_OverwriteReadOnly = true;
 
 		switch (CopyDlg[ID_SC_COMBO].ListPos)
 		{
@@ -1119,7 +1121,10 @@ ShellCopy::ShellCopy(
 
 		case CM_SKIP:
 			OvrMode = overwrite::skip_all;
-			ReadOnlyOvrMode=AskRO?-1:3;
+			if (AskRO)
+				m_OverwriteReadOnly.reset();
+			else
+				m_OverwriteReadOnly = false;
 			break;
 
 		case CM_RENAME:
@@ -1236,6 +1241,15 @@ ShellCopy::ShellCopy(
 		Global->CtrlObject->Cp()->Redraw();
 	};
 
+	struct total_info
+	{
+		unsigned long long
+			TotalFiles{},
+			TotalBytes{};
+	};
+
+	std::optional<total_info> TotalInfo, TotalInfoWithCopySymlink;
+
 	for (const auto& i: m_DestList)
 	{
 		bool LastIteration = false;
@@ -1296,17 +1310,41 @@ ShellCopy::ShellCopy(
 			}
 		}
 
-		if (!CP)
-			CP = std::make_unique<copy_progress>(Move, ShowTotalCopySize, ShowCopyTime);
-
-		CP->reset_current();
-
-		if (SelCount == 1 && !FolderPresent)
+		const auto OldCopySymlinkContents = (Flags & FCOPY_COPYSYMLINKCONTENTS) != 0;
+		// собственно - один проход копирования
+		// Mantis#45: Необходимо привести копирование ссылок на папки с NTFS на FAT к более логичному виду
 		{
-			CP->set_total_files(1);
-			CP->set_total_bytes(SingleSelectedFileSize);
-			CP->set_current_total(SingleSelectedFileSize);
+			DWORD FilesystemFlags;
+			if (os::fs::GetVolumeInformation(GetPathRoot(strNameTmp), {}, {}, {}, &FilesystemFlags, {}) && !(FilesystemFlags & FILE_SUPPORTS_REPARSE_POINTS))
+				Flags |= FCOPY_COPYSYMLINKCONTENTS;
 		}
+
+		auto& CurrentTotalInfo = Flags & FCOPY_COPYSYMLINKCONTENTS? TotalInfoWithCopySymlink : TotalInfo;
+		if (!CurrentTotalInfo)
+		{
+			CurrentTotalInfo.emplace();
+
+			if (SelCount != 1 || FolderPresent)
+			{
+				// Не сканируем каталоги при создании линков
+				if (ShowTotalCopySize && !(Flags & FCOPY_LINK))
+					std::tie(CurrentTotalInfo->TotalFiles, CurrentTotalInfo->TotalBytes) = CalcTotalSize();
+			}
+			else
+			{
+				CurrentTotalInfo->TotalFiles = 1;
+				CurrentTotalInfo->TotalBytes = SingleSelectedFileSize;
+			}
+		}
+
+		if (!CP)
+		{
+			CP = std::make_unique<copy_progress>(Move, ShowTotalCopySize, ShowCopyTime);
+		}
+
+		CP->set_total_files(CurrentTotalInfo->TotalFiles);
+		CP->set_total_bytes(CurrentTotalInfo->TotalBytes);
+		CP->reset_current();
 
 		// Обнулим инфу про дизы
 		strDestDizPath.clear();
@@ -1314,23 +1352,12 @@ ShellCopy::ShellCopy(
 		// сохраним выделение
 		SrcPanel->SaveSelection();
 		strDestFSName.clear();
-		int OldCopySymlinkContents=Flags&FCOPY_COPYSYMLINKCONTENTS;
-		// собственно - один проход копирования
-		// Mantis#45: Необходимо привести копирование ссылок на папки с NTFS на FAT к более логичному виду
-		{
-			DWORD FilesystemFlags;
-			if (os::fs::GetVolumeInformation(GetPathRoot(strNameTmp), nullptr, nullptr, nullptr, &FilesystemFlags, nullptr) && !(FilesystemFlags&FILE_SUPPORTS_REPARSE_POINTS))
-				Flags|=FCOPY_COPYSYMLINKCONTENTS;
-		}
 
 		NeedDizUpdate = true;
 
 		copy_selected_items(strNameTmp);
 
-		if (OldCopySymlinkContents)
-			Flags|=FCOPY_COPYSYMLINKCONTENTS;
-		else
-			Flags&=~FCOPY_COPYSYMLINKCONTENTS;
+		flags::change(Flags, FCOPY_COPYSYMLINKCONTENTS, OldCopySymlinkContents);
 
 		// если "есть порох в пороховницах" - восстановим выделение
 		if (!LastIteration)
@@ -1366,19 +1393,6 @@ void ShellCopy::copy_selected_items(const string& Dest)
 	const auto copy_to_null = (0 != (Flags & FCOPY_COPYTONUL));
 	const auto move_rename = (0 != (Flags & FCOPY_MOVE));
 	bool SameDisk = false;
-
-	if (!m_TotalSizeCalculated)
-	{
-		//  ! Не сканируем каталоги при создании линков
-		if (CP->IsTotalVisible() && !(Flags & FCOPY_LINK))
-			CalcTotalSize();
-
-		m_TotalSizeCalculated = true;
-	}
-	else
-	{
-		CP->reset_current();
-	}
 
 	// Основной цикл копирования одной порции.
 	//
@@ -1453,10 +1467,10 @@ void ShellCopy::copy_selected_items(const string& Dest)
 				},
 				{ lng::MCopyDirectoryOrFileDirectory, lng::MCopyDirectoryOrFileFile, lng::MCancel }))
 			{
-			case Message::first_button:
+			case message_result::first_button:
 				AddEndSlash(strDest);
 				[[fallthrough]];
-			case Message::second_button:
+			case message_result::second_button:
 				break;
 
 			default:
@@ -2003,7 +2017,7 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 					sd? &SecAttr : nullptr))
 				{
 					const auto ErrorState = last_error();
-					const int MsgCode = Message(MSG_WARNING, ErrorState,
+					const auto MsgCode = Message(MSG_WARNING, ErrorState,
 						msg(lng::MError),
 						{
 							msg(lng::MCopyCannotCreateFolder),
@@ -2011,11 +2025,11 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 						},
 						{ lng::MCopyRetry, lng::MCopySkip, lng::MCopyCancel });
 
-					if (MsgCode == Message::first_button) // Retry
+					if (MsgCode == message_result::first_button) // Retry
 					{
 						continue;
 					}
-					else if (MsgCode == Message::second_button) // Skip
+					else if (MsgCode == message_result::second_button) // Skip
 					{
 						return COPY_SKIPPED;
 					}
@@ -2194,14 +2208,14 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 			const auto MsgMCannot = Flags & FCOPY_LINK? lng::MCannotLink : Flags & FCOPY_MOVE? lng::MCannotMove : lng::MCannotCopy;
 			const auto strMsg1 = quote_unconditional(Src);
 			const auto strMsg2 = quote_unconditional(strDestPath);
-			int MsgCode;
+			message_result MsgCode;
 			if (SrcData.Attributes&FILE_ATTRIBUTE_ENCRYPTED)
 			{
-				if (SkipEncMode != -1)
+				if (m_AllowDecrypt)
 				{
-					MsgCode = SkipEncMode;
+					MsgCode = *m_AllowDecrypt? message_result::first_button : message_result::third_button;
 
-					if (SkipEncMode == Message::first_button)
+					if (*m_AllowDecrypt)
 						Flags |= FCOPY_DECRYPTED_DESTINATION;
 				}
 				else
@@ -2225,17 +2239,17 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 				}
 				switch (MsgCode)
 				{
-				case Message::second_button:
-					SkipEncMode = Message::first_button;
+				case message_result::second_button:
+					m_AllowDecrypt = true;
 					[[fallthrough]];
-				case Message::first_button:
+				case message_result::first_button:
 					Flags |= FCOPY_DECRYPTED_DESTINATION;
 					break;
 
-				case Message::fourth_button:
-					SkipEncMode = Message::third_button;
+				case message_result::fourth_button:
+					m_AllowDecrypt = false;
 					[[fallthrough]];
-				case Message::third_button:
+				case message_result::third_button:
 					return COPY_SKIPPED;
 
 				default:
@@ -2261,19 +2275,19 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 				}
 				else
 				{
-					MsgCode = Message::second_button;
+					MsgCode = message_result::second_button;
 				}
 
 				switch (MsgCode)
 				{
-				case Message::first_button:
+				case message_result::first_button:
 					CP->undo();
 					return COPY_RETRY;
 
-				case Message::third_button:
+				case message_result::third_button:
 					SkipErrors = true;
 					[[fallthrough]];
-				case Message::second_button:
+				case message_result::second_button:
 					return COPY_SKIPPED;
 
 				default:
@@ -2326,10 +2340,10 @@ void ShellCopy::CheckStreams(const string& Src, const string& DestPath)
 		},
 		L"WarnCopyStream"sv))
 	{
-	case Message::second_button:
+	case message_result::second_button:
 		Flags |= FCOPY_STREAMSKIPALL;
 		[[fallthrough]];
-	case Message::first_button:
+	case message_result::first_button:
 		return;
 
 	default:
@@ -2342,15 +2356,18 @@ bool ShellCopy::DeleteAfterMove(const string& Name, os::fs::attributes Attr)
 	const auto FullName = ConvertNameToFull(Name);
 	if (Attr & FILE_ATTRIBUTE_READONLY)
 	{
-		int MsgCode;
+		message_result MsgCode;
 
 		if (!Global->Opt->Confirm.RO)
-			ReadOnlyDelMode=1;
+			m_DeleteReadOnly = true;
 
-		if (ReadOnlyDelMode!=-1)
-			MsgCode=ReadOnlyDelMode;
+		if (m_DeleteReadOnly)
+		{
+			MsgCode = *m_DeleteReadOnly? message_result::first_button : message_result::third_button;
+		}
 		else
-			MsgCode=Message(MSG_WARNING,
+		{
+			MsgCode = Message(MSG_WARNING,
 				msg(lng::MWarning),
 				{
 					msg(lng::MCopyFileRO),
@@ -2358,19 +2375,20 @@ bool ShellCopy::DeleteAfterMove(const string& Name, os::fs::attributes Attr)
 					msg(lng::MCopyAskDelete),
 				},
 				{ lng::MCopyDeleteRO, lng::MCopyDeleteAllRO, lng::MCopySkip, lng::MCopySkipAll, lng::MCopyCancel });
+		}
 
 		switch (MsgCode)
 		{
-		case Message::second_button:
-			ReadOnlyDelMode = 1;
+		case message_result::second_button:
+			m_DeleteReadOnly = true;
 			[[fallthrough]];
-		case Message::first_button:
+		case message_result::first_button:
 			break;
 
-		case Message::fourth_button:
-			ReadOnlyDelMode = 3;
+		case message_result::fourth_button:
+			m_DeleteReadOnly = false;
 			[[fallthrough]];
-		case Message::third_button:
+		case message_result::third_button:
 			return COPY_SKIPPED;
 
 		default:
@@ -2432,13 +2450,13 @@ bool ShellCopy::ShellCopyFile(
 		os::fs::GetVolumeInformation(GetPathRoot(strDestName), nullptr, nullptr, nullptr, &FilesystemFlags, nullptr) &&
 		!(FilesystemFlags & FILE_SUPPORTS_ENCRYPTION))
 	{
-		int MsgCode;
+		message_result MsgCode;
 
-		if (SkipEncMode!=-1)
+		if (m_AllowDecrypt)
 		{
-			MsgCode=SkipEncMode;
+			MsgCode = *m_AllowDecrypt? message_result::first_button : message_result::third_button;
 
-			if (SkipEncMode == 1)
+			if (*m_AllowDecrypt)
 				Flags|=FCOPY_DECRYPTED_DESTINATION;
 		}
 		else
@@ -2449,25 +2467,27 @@ bool ShellCopy::ShellCopyFile(
 					msg(lng::MCopyEncryptWarn1),
 					quote_unconditional(SrcName),
 					msg(lng::MCopyEncryptWarn2),
-					msg(lng::MCopyEncryptWarn3)
 				},
-				{ lng::MCopyIgnore, lng::MCopyIgnoreAll, lng::MCopyCancel },
+				{ lng::MCopyDecrypt, lng::MCopyDecryptAll, lng::MCopySkip, lng::MCopySkipAll, lng::MCopyCancel },
 				L"WarnCopyEncrypt"sv);
 		}
 
 		switch (MsgCode)
 		{
-			case  0:
-				Flags|=FCOPY_DECRYPTED_DESTINATION;
-				break;//return COPY_NEXT;
+		case message_result::second_button:
+			m_AllowDecrypt = true;
+			[[fallthrough]];
+		case message_result::first_button:
+			Flags |= FCOPY_DECRYPTED_DESTINATION;
+			break;
+		case message_result::fourth_button:
+			m_AllowDecrypt = false;
+			[[fallthrough]];
+		case message_result::third_button:
+			return COPY_SKIPPED;
 
-			case  1:
-				SkipEncMode=1;
-				Flags|=FCOPY_DECRYPTED_DESTINATION;
-				break;//return COPY_NEXT;
-
-			default:
-				cancel_operation();
+		default:
+			cancel_operation();
 		}
 	}
 
@@ -2628,7 +2648,7 @@ bool ShellCopy::ShellCopyFile(
 			while (!SrcFile.Read(CopyBuffer.data(), SrcFile.GetChunkSize(), BytesRead))
 			{
 				ErrorState = last_error();
-				const int MsgCode = Message(MSG_WARNING, *ErrorState,
+				const auto MsgCode = Message(MSG_WARNING, *ErrorState,
 					msg(lng::MError),
 					{
 						msg(lng::MCopyReadError),
@@ -2636,13 +2656,13 @@ bool ShellCopy::ShellCopyFile(
 					},
 					{ lng::MRetry, lng::MSkip, lng::MCancel });
 
-				if (MsgCode == Message::first_button)
+				if (MsgCode == message_result::first_button)
 					continue;
 
 				SrcFile.Close();
 				UndoDestFile();
 
-				if (MsgCode == Message::second_button)
+				if (MsgCode == message_result::second_button)
 				{
 					return false;
 				}
@@ -2663,7 +2683,7 @@ bool ShellCopy::ShellCopyFile(
 				while (!DestFile.Write(CopyBuffer.data(), BytesRead))
 				{
 					ErrorState = last_error();
-					const int MsgCode = Message(MSG_WARNING, *ErrorState,
+					const auto MsgCode = Message(MSG_WARNING, *ErrorState,
 						msg(lng::MError),
 						{
 							msg(lng::MCopyWriteError),
@@ -2671,13 +2691,13 @@ bool ShellCopy::ShellCopyFile(
 						},
 						{ lng::MRetry, lng::MSkip, lng::MCancel });
 
-					if (MsgCode == Message::first_button)
+					if (MsgCode == message_result::first_button)
 						continue;
 
 					SrcFile.Close();
 					UndoDestFile();
 
-					if (MsgCode == Message::second_button)
+					if (MsgCode == message_result::second_button)
 					{
 						return false;
 					}
@@ -3069,13 +3089,13 @@ bool ShellCopy::AskOverwrite(
 	{
 		if (DestAttr & FILE_ATTRIBUTE_READONLY)
 		{
-			int MsgCode=0;
+			auto MsgCode = message_result::first_button;
 
 			if (!SameName)
 			{
-				if (ReadOnlyOvrMode!=-1)
+				if (m_OverwriteReadOnly)
 				{
-					MsgCode=ReadOnlyOvrMode;
+					MsgCode = *m_OverwriteReadOnly? message_result::first_button : message_result::third_button;
 				}
 				else
 				{
@@ -3115,15 +3135,21 @@ bool ShellCopy::AskOverwrite(
 					switch (WarnDlg->GetExitCode())
 					{
 						case WDLG_OVERWRITE:
-							MsgCode=WarnCopyDlg[WDLG_CHECKBOX].Selected?1:0;
+							MsgCode = WarnCopyDlg[WDLG_CHECKBOX].Selected?
+								message_result::second_button :
+								message_result::first_button;
 							break;
+
 						case WDLG_SKIP:
-							MsgCode=WarnCopyDlg[WDLG_CHECKBOX].Selected?3:2;
+							MsgCode = WarnCopyDlg[WDLG_CHECKBOX].Selected?
+								message_result::fourth_button :
+								message_result::third_button;
 							break;
+
 						case -1:
 						case -2:
 						case WDLG_CANCEL:
-							MsgCode=8;
+							MsgCode = message_result::cancelled;
 							break;
 					}
 				}
@@ -3131,16 +3157,16 @@ bool ShellCopy::AskOverwrite(
 
 			switch (MsgCode)
 			{
-				case 1:
-					ReadOnlyOvrMode=1;
+				case message_result::second_button:
+					m_OverwriteReadOnly = true;
 					[[fallthrough]];
-				case 0:
+				case message_result::first_button:
 					break;
 
-				case 3:
-					ReadOnlyOvrMode=2;
+				case message_result::fourth_button:
+					m_OverwriteReadOnly = false;
 					[[fallthrough]];
-				case 2:
+				case message_result::third_button:
 					return false;
 
 				default:
@@ -3332,16 +3358,21 @@ DWORD ShellCopy::CopyProgressRoutine(unsigned long long TotalFileSize, unsigned 
 	return Abort?PROGRESS_CANCEL:PROGRESS_CONTINUE;
 }
 
-void ShellCopy::CalcTotalSize() const
+std::pair<unsigned long long, unsigned long long> ShellCopy::CalcTotalSize() const
 {
 	unsigned long long Files{}, Bytes{};
 
 	const time_check TimeCheck;
+	dirinfo_progress const DirinfoProgress(msg(Flags & FCOPY_MOVE? lng::MMoveDlgTitle : lng::MCopyDlgTitle));
 
 	const auto DirInfoCallback = [&](string_view const Name, unsigned long long const ItemsCount, unsigned long long const Size)
 	{
-		if (TimeCheck)
-			DirInfoMsg(msg(Flags & FCOPY_MOVE? lng::MMoveDlgTitle : lng::MCopyDlgTitle), Name, Files + ItemsCount, Bytes + Size);
+		if (!TimeCheck)
+			return;
+
+		DirinfoProgress.set_name(Name);
+		DirinfoProgress.set_count(Files + ItemsCount);
+		DirinfoProgress.set_size(Bytes + Size);
 	};
 
 	for (const auto& i: SrcPanel->enum_selected())
@@ -3373,8 +3404,11 @@ void ShellCopy::CalcTotalSize() const
 	}
 
 	// INFO: Это для варианта, когда "ВСЕГО = общий размер * количество целей"
-	CP->set_total_files(Files * m_NumberOfTargets);
-	CP->set_total_bytes(Bytes * m_NumberOfTargets);
+	return
+	{
+		Files * m_NumberOfTargets,
+		Bytes * m_NumberOfTargets
+	};
 }
 
 /*

@@ -265,7 +265,6 @@ namespace console_detail
 			DECLARE_IMPORT_FUNCTION(GetTextAttributes,    BOOL(WINAPI*)(FarColor* Attributes));
 			DECLARE_IMPORT_FUNCTION(SetTextAttributes,    BOOL(WINAPI*)(const FarColor* Attributes));
 			DECLARE_IMPORT_FUNCTION(ClearExtraRegions,    BOOL(WINAPI*)(const FarColor* Color, int Mode));
-			DECLARE_IMPORT_FUNCTION(GetColorDialog,       BOOL(WINAPI*)(FarColor* Color, BOOL Centered, BOOL AddTransparent));
 
 #undef DECLARE_IMPORT_FUNCTION
 		}
@@ -557,7 +556,8 @@ namespace console_detail
 
 		// in XP FontInfo.dwFontSize contains something else than the size in pixels.
 		FontInfo.dwFontSize = GetConsoleFontSize(OutputHandle, FontInfo.nFont);
-		return true;
+
+		return FontInfo.dwFontSize.X && FontInfo.dwFontSize.Y;
 	}
 
 	// Workaround for a bug in the classic console: mouse position is screen-based
@@ -1563,14 +1563,6 @@ namespace console_detail
 			SetCursorPosition({ 0, static_cast<int>(WindowRect.height() - 1) });
 	}
 
-	bool console::GetColorDialog(FarColor& Color, bool const Centered, const FarColor* const BaseColor) const
-	{
-		if (ExternalConsole.Imports.pGetColorDialog)
-			return ExternalConsole.Imports.pGetColorDialog(&Color, Centered, BaseColor != nullptr) != FALSE;
-
-		return GetColorDialogInternal(Color, Centered, BaseColor);
-	}
-
 	short console::GetDelta() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -1676,6 +1668,11 @@ namespace console_detail
 		return sEnableVirtualTerminal && GetMode(GetOutputHandle(), Mode) && Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 	}
 
+	bool console::ExternalRendererLoaded() const
+	{
+		return ExternalConsole.Imports.pWriteOutput.operator bool();
+	}
+
 	bool console::IsWidePreciseExpensive(unsigned int const Codepoint, bool const ClearCacheOnly)
 	{
 		// It ain't stupid if it works
@@ -1755,7 +1752,7 @@ enum
 	BufferSize = 8192
 };
 
-class consolebuf : public std::wstreambuf
+class consolebuf final: public std::wstreambuf
 {
 public:
 	NONCOPYABLE(consolebuf);

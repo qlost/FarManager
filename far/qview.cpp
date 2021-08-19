@@ -61,11 +61,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "global.hpp"
 #include "exception.hpp"
 #include "log.hpp"
+#include "stddlg.hpp"
 
 
 // Platform:
+#include "platform.com.hpp"
 #include "platform.fs.hpp"
-#include "platform.reg.hpp"
 
 // Common:
 
@@ -371,57 +372,6 @@ void QuickView::Update(int Mode)
 	Redraw();
 }
 
-static bool IsProperProgID(string_view const ProgID)
-{
-	return !ProgID.empty() && os::reg::key::open(os::reg::key::classes_root, ProgID, KEY_QUERY_VALUE);
-}
-
-static bool GetShellType(const string_view Ext, string& strType)
-{
-	if (imports.SHCreateAssociationRegistration)
-	{
-		os::com::ptr<IApplicationAssociationRegistration> AAR;
-		if (FAILED(imports.SHCreateAssociationRegistration(IID_IApplicationAssociationRegistration, IID_PPV_ARGS_Helper(&ptr_setter(AAR)))))
-			return false;
-
-		os::com::memory<wchar_t*> Association;
-		if (FAILED(AAR->QueryCurrentDefault(null_terminated(Ext).c_str(), AT_FILEEXTENSION, AL_EFFECTIVE, &ptr_setter(Association))))
-			return false;
-
-		strType = Association.get();
-		return true;
-	}
-
-	if (const auto UserKey = os::reg::key::open(os::reg::key::current_user, concat(L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"sv, Ext), KEY_QUERY_VALUE))
-	{
-		if (string Value; UserKey.get(L"ProgId"sv, Value) && IsProperProgID(Value))
-		{
-			strType = std::move(Value);
-			return true;
-		}
-
-		if (string Value; UserKey.get(L"Application"sv, Value))
-		{
-			if (auto ProgId = L"Applications\\"sv + Value; IsProperProgID(ProgId))
-			{
-				strType = std::move(ProgId);
-				return true;
-			}
-		}
-	}
-
-	if (const auto CRKey = os::reg::key::open(os::reg::key::classes_root, Ext, KEY_QUERY_VALUE))
-	{
-		if (string Value; CRKey.get({}, Value) && IsProperProgID(Value))
-		{
-			strType = std::move(Value);
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void QuickView::ShowFile(string_view const FileName, const UserDataItem* const UserData, bool const TempFile, const plugin_panel* const hDirPlugin)
 {
 	CloseFile();
@@ -446,32 +396,24 @@ void QuickView::ShowFile(string_view const FileName, const UserDataItem* const U
 	if (UserData)
 		CurUserData = *UserData;
 
-	const auto pos = strCurFileName.rfind(L'.');
-	if (pos != string::npos)
-	{
-		string strValue;
-
-		if (GetShellType(string_view(strCurFileName).substr(pos), strValue))
-		{
-			// BUGBUG check result
-			if (!os::reg::key::classes_root.get(strValue, {}, strCurFileType))
-			{
-				LOGWARNING(L"classes_root.get({}): {}"sv, strValue, last_error());
-			}
-		}
-	}
+	strCurFileType.clear();
 
 	if (hDirPlugin || os::fs::is_directory(strCurFileName))
 	{
-		// Не показывать тип файла для каталогов в "Быстром просмотре"
-		strCurFileType.clear();
-
 		const time_check TimeCheck;
+		std::optional<dirinfo_progress> DirinfoProgress;
 
 		const auto DirInfoCallback = [&](string_view const Name, unsigned long long const ItemsCount, unsigned long long const Size)
 		{
-			if (TimeCheck)
-				DirInfoMsg(msg(lng::MQuickViewTitle), Name, ItemsCount, Size);
+			if (!TimeCheck)
+				return;
+
+			if (!DirinfoProgress)
+				DirinfoProgress.emplace(msg(lng::MQuickViewTitle));
+
+			DirinfoProgress->set_name(Name);
+			DirinfoProgress->set_count(ItemsCount);
+			DirinfoProgress->set_size(Size);
 		};
 
 		if (SameFile && !hDirPlugin)
@@ -489,15 +431,12 @@ void QuickView::ShowFile(string_view const FileName, const UserDataItem* const U
 			const auto ExitCode = GetDirInfo(strCurFileName, Data, nullptr, DirInfoCallback, GETDIRINFO_ENHBREAK | GETDIRINFO_SCANSYMLINKDEF);
 			m_DirectoryScanStatus = ExitCode == -1? scan_status::real_fail : scan_status::real_ok; // ExitCode: 1=done; 0=Esc,CtrlBreak; -1=Other
 			uncomplete_dirscan = ExitCode != 1;
-
-			if (const auto Window = m_Owner.lock())
-			{
-				Window->Redraw();
-			}
 		}
 	}
 	else
 	{
+		strCurFileType = os::com::get_shell_filetype_description(strCurFileName);
+
 		if (!strCurFileName.empty())
 		{
 			QView = std::make_unique<Viewer>(GetOwner(), true);

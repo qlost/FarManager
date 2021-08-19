@@ -49,6 +49,10 @@ struct FarColor;
 
 namespace colors
 {
+	COLORREF index_bits(COLORREF Colour);
+	COLORREF color_bits(COLORREF Colour);
+	COLORREF alpha_bits(COLORREF Colour);
+
 	COLORREF index_value(COLORREF Colour);
 	COLORREF color_value(COLORREF Colour);
 	COLORREF alpha_value(COLORREF Colour);
@@ -56,11 +60,22 @@ namespace colors
 	bool is_opaque(COLORREF Colour);
 	bool is_transparent(COLORREF Colour);
 
+	void set_index_bits(COLORREF& Value, COLORREF Index);
+	void set_color_bits(COLORREF& Value, COLORREF Colour);
+	void set_alpha_bits(COLORREF& Value, COLORREF Alpha);
+
+	void set_index_value(COLORREF& Value, COLORREF Index);
+	void set_color_value(COLORREF& Value, COLORREF Colour);
+	void set_alpha_value(COLORREF& Value, COLORREF Alpha);
+
 	COLORREF opaque(COLORREF Colour);
 	COLORREF transparent(COLORREF Colour);
 
 	void make_opaque(COLORREF& Colour);
 	void make_transparent(COLORREF& Colour);
+
+	COLORREF invert(COLORREF Colour, bool IsIndex);
+	void make_invert(COLORREF& Colour, bool IsIndex);
 
 	size_t color_hash(const FarColor& Value);
 
