@@ -2235,7 +2235,7 @@ $ #Dateiverknüpfungen#
 actions to running, viewing and editing files with a specified
 ~mask~@FileMasks@.
 
- You can add new associations with the #Edit associations# command in the
+ You can add new associations with the #File associations# command in the
 ~Commands menu~@CmdMenu@.
 
  You can define several associations for one file type and select the
@@ -3786,7 +3786,8 @@ combinations are available:
  #Ctrl+Down#    - ^<wrap>Move a group down.
 
  Hervorgehobene Gruppen werden vom Beginn an anlysiert. Wenn eine Datei in
-eine bestimmte Gruppe passt, werden die restlichen Gruppen nicht weiter ausgewertet.
+eine bestimmte Gruppe passt, werden die restlichen Gruppen nicht weiter ausgewertet,
+unless #[x] Continue processing# is set in the group.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
@@ -4008,9 +4009,7 @@ non-typical text files.
 $ #Dateiattribute#
  Mit diesem Befehl ist es möglich, Dateiattribute und -zeiten
 zu ändern. Es können entweder einzelne Dateien auch Dateigruppen
-bearbeitet werden. Wenn Sie keine Dateien in Unterverzeichnissen
-ändern wollen, schalten Sie die Option "Unterverzeichnisse
-einschließen" aus.
+bearbeitet werden.
 
  #File attributes#
 

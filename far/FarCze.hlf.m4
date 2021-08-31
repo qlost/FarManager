@@ -3744,7 +3744,8 @@ kombinace kláves:
  #Ctrl+Dolů#     - ^<wrap>Přesune skupinu níže.
 
  Zvýrazněné skupiny jsou kontrolovány z hora dolů. Pokud je zjištěno,
-že daný soubor patří do skupiny, nejsou další skupiny kontrolovány.
+že daný soubor patří do skupiny, nejsou další skupiny kontrolovány,
+unless #[x] Continue processing# is set in the group.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
@@ -3963,8 +3964,7 @@ non-typical text files.
 @FileAttrDlg
 $ #Dialog Atributy souboru#
  Tento příkaz umí změnit atributy a časy souboru. Aplikován může být na kterýkoliv soubor,
-nebo skupinu souborů. Pokud si nepřejete změnit atributy v podadresářích odznačte nastavení
-"Změnit soubory v podadresářích".
+nebo skupinu souborů.
 
  #Atributy souboru#
 

@@ -3706,7 +3706,8 @@ combinations are available:
  #Ctrl+Down#    - ^<wrap>Move a group down.
 
  Zvýrazňované skupiny sú analyzované od začiatku. Ak súbor vyhovuje
-nejakej skupine, nebude už testovaný, či nepatrí do nejakej zo zvyšných.
+nejakej skupine, nebude už testovaný, či nepatrí do nejakej zo zvyšných,
+unless #[x] Continue processing# is set in the group.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
@@ -3925,8 +3926,7 @@ non-typical text files.
 @FileAttrDlg
 $ #Atribúty súborov#
  S týmto príkazom je možné zmeniť atribúty súborov a ich čas.
-Možno pracovať s jedným ako i skupinou súborov. Ak nechcete zvolené nastavenia
-použiť pre súbory v podadresároch, zrušte voľbu "Prejdi podadresáre".
+Možno pracovať s jedným ako i skupinou súborov.
 
  #File attributes#
 

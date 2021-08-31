@@ -3802,7 +3802,8 @@ műveleteket hajthatunk végre a csoportok listáján, a következő billentyűk
  #Ctrl+Le#        - A csoportot lefelé mozgatja
 
  A Far a csoportkiemeléseket felülről lefelé haladva vizsgálja. Ha érzékeli,
-hogy a fájl valamelyik csoport tagja, további hovatartozását nem vizsgálja.
+hogy a fájl valamelyik csoport tagja, további hovatartozását nem vizsgálja,
+unless #[x] Continue processing# is set in the group.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
@@ -4024,8 +4025,7 @@ garantálható, különösen, ha rövid vagy nem tipikus szövegfájlt nyitunk m
 $ #Fájl attribútumok párbeszédablak#
  A párbeszédablakban a fájlobjektumok attribútumait, valamint dátumát és
 idejét változtathatjuk meg. Használhatjuk egyetlen fájlra vagy fájlok
-csoportjára is. Ha nem szeretnénk, hogy a változtatások almappákban is
-végbemenjenek, "Az almappákon is" opciót ne kapcsoljuk be.
+csoportjára is.
 
  #Fájl attribútumok#
 

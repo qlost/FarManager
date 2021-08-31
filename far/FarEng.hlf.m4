@@ -1454,7 +1454,7 @@ $ #Menus: commands menu#
                       You can press #Ins# to insert, #Del# to delete
                       and #F4# to edit menu records.
 
- #Edit associations#    Displays the list of ~file associations~@FileAssoc@.
+ #File associations#    Displays the list of ~file associations~@FileAssoc@.
                       You can press #Ins# to insert, #Del# to delete
                       and #F4# to edit file associations.
 
@@ -2161,7 +2161,7 @@ $ #File associations#
 actions to running, viewing and editing files with a specified
 ~mask~@FileMasks@.
 
- You can add new associations with the #Edit associations# command in the
+ You can add new associations with the #File associations# command in the
 ~Commands menu~@CmdMenu@.
 
  You can define several associations for one file type and select the
@@ -3711,7 +3711,8 @@ combinations are available:
  #Ctrl+Down#    - ^<wrap>Move a group down.
 
  The highlighting groups are checked from top to bottom. If it is detected
-that a file belongs to a group, no further groups are checked.
+that a file belongs to a group, no further groups are checked,
+unless #[x] Continue processing# is set in the group.
 
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
@@ -3930,8 +3931,7 @@ non-typical text files.
 @FileAttrDlg
 $ #File attributes dialog#
  With this command it is possible to change file attributes and file time.
-Either single file or group of files can be processed. If you do not want to
-process files in subfolders, clear the "Process subfolders" option.
+Either single file or group of files can be processed.
 
  #File attributes#
 
