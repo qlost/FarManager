@@ -11,13 +11,27 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SrcRoot)plugins\common\unicode;$(SrcRoot)plugins\common;$(SrcRoot)\far\common;$(SrcRoot)\far\thirdparty\fmt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CRT_NON_CONFORMING_WCSTOK;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>4668</DisableSpecificWarnings>
+      <PreprocessorDefinitions>NOMINMAX;_CRT_NON_CONFORMING_WCSTOK;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WIN32_WINNT=0x0600;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <WarningLevel>Level3</WarningLevel>
+      <StringPooling>true</StringPooling>
+      <PrecompiledHeader></PrecompiledHeader>
+      <ExceptionHandling></ExceptionHandling>
+      <AdditionalOptions>/EHs-c- /J /Gs10000 /Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
+      <AdditionalDependencies>$(SrcRoot)plugins\common\CRT\final.$(PlatformArchitecture).vc\libCRTwide.lib;kernel32.lib;user32.lib;advapi32.lib;shell32.lib;ole32.lib;uuid.lib;mpr.lib;version.lib;oleaut32.lib;netapi32.lib;wbemuuid.lib;Rpcrt4.lib;psapi.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SrcRoot)plugins\common;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <GenerateMapFile>true</GenerateMapFile>
+      <!--MinimumRequiredVersion>5.0</MinimumRequiredVersion-->
       <ModuleDefinitionFile>$(ProjectName)W.vc.def</ModuleDefinitionFile>
+      <ImportLibrary>$(IntDir)$(ProjectName).lib</ImportLibrary>
+      <MergeSections>.pdata=.rdata</MergeSections>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SrcRoot)plugins\common\unicode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
