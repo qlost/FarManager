@@ -1,8 +1,6 @@
-!include ../makefile_vc_base
-
 NAME = HlfViewer
 
-LINK_OBJS = $(OBJDIR)\HlfViewer.obj
+LINK_OBJS = $(INTDIR)\HlfViewer.obj
 
 USERLIBS = rpcrt4.lib
 NOENTRY = 1
@@ -10,11 +8,10 @@ NODEFLIB = 1
 INCLUDECRT = 1
 
 !include ..\makefile_vc_def_inc
-
 !include ..\makefile_vc_target_inc
 
 !if $(VC) >= 15
 CPPFLAGS = $(CPPFLAGS) /std:c++17 /permissive-
 !endif
 
-$(OBJDIR)\HlfViewer.obj: HlfViewer.cpp Lang.hpp guid.hpp version.hpp $(COMINC)\plugin.hpp $(COMINC)\PluginSettings.hpp $(COMINC)\DlgBuilder.hpp $(COMINC)\farversion.hpp
+$(INTDIR)\HlfViewer.obj: HlfViewer.cpp Lang.hpp guid.hpp version.hpp $(COMINC)\plugin.hpp $(COMINC)\PluginSettings.hpp $(COMINC)\DlgBuilder.hpp

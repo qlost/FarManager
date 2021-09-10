@@ -1871,7 +1871,6 @@ void NetBrowser::DisconnectFromServer(NETRESOURCE *nr)
 							lpBuff = {};
 					}
 				}
-				}
 
 				WNetCloseEnum(hEnum);
 

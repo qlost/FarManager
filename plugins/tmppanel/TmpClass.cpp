@@ -10,6 +10,7 @@ Temporary panel plugin class implementation
 #define _CSTDIO_
 #define _CWCHAR_
 //#include <cwchar>
+#include <cstdlib>
 #include "plugin.hpp"
 
 #include "TmpLng.hpp"

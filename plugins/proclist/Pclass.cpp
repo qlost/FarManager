@@ -10,6 +10,8 @@
 #include <DlgBuilder.hpp>
 #include <PluginSettings.hpp>
 
+#include <winperf.h>
+
 using namespace std::literals;
 
 const auto FarSortModeSlot = SM_CHTIME;

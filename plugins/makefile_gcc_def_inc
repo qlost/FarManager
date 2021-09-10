@@ -49,13 +49,13 @@ WIDE = -U UNICODE -U _UNICODE
 endif
 
 ifndef DEBUG
-DIRNAME := final
+DIRNAME := Release
 C_DEBUG := -O3 -fomit-frame-pointer -DNDEBUG
 ifndef USE_OBJDUMP_MAPS
 L_DEBUG := -s
 endif
 else
-DIRNAME := debug
+DIRNAME := Debug
 C_DEBUG := -g -D_DEBUG
 L_DEBUG :=
 endif
@@ -64,7 +64,7 @@ BASEDIR = ./$(DIRNAME).$(DIRBIT)$(DIRSURF).gcc
 OBJDIR := $(BASEDIR)/obj
 REOBJDIR = \.\/$(DIRNAME)\.$(DIRBIT)$(DIRSURF)\.gcc\/obj\/
 DLLDIR ?= $(BASEDIR)$(ADDOUTDIR)
-COMMON ?= ../common
+COMMON ?= $(MAKEFILE_DIR)/common
 COMINC = $(COMMON)/$(if $(ANSI),ascii,unicode)
 EXT ?= dll
 DLLNAME = $(NAME).$(EXT)
@@ -109,7 +109,7 @@ endif
 CFLAGS  += -I $(COMMON) -I $(COMINC) $(WIDE) $(USERC)
 CPPFLAGS += -Wno-old-style-cast $(USERCPP)
 LNKFLAGS += $(USERLIBS)
-RCFLAGS  += -I $(COMINC) $(WIDE) $(USERRC)
+RCFLAGS  += -I $(COMMON) -I $(COMINC) $(WIDE) $(USERRC)
 
 C_OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(filter %.c,$(SRCS)))
 CPP_OBJS = $(patsubst %.cpp,$(OBJDIR)/%.o,$(filter %.cpp,$(SRCS)))
