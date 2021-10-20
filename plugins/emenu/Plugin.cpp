@@ -1,4 +1,8 @@
-﻿#include <shlobj.h>
+﻿#include <cstdio>
+#include <cassert>
+#include <utility>
+
+#include <shlobj.h>
 #include <comdef.h>
 #include <shlguid.h>
 
@@ -1244,7 +1248,7 @@ bool CPlugin::ShowTextMenu(HMENU hMenu, LPCONTEXTMENU pPreferredMenu, LPCONTEXTM
               //if (szLeft.Len() > szRight.Len())
                 //szSub = szLeft;
               //else
-                szSub = szRight;
+                szSub = std::move(szRight);
             }
           }
 

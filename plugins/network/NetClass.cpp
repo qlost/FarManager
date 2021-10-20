@@ -239,11 +239,14 @@ NetBrowser::NetBrowser()
 
 
 NetBrowser::~NetBrowser()
-{
 #ifdef NETWORK_LOGGING
+{
 	CloseLogfile();
-#endif
 }
+#else
+= default;
+#endif
+
 
 #ifdef NETWORK_LOGGING
 
