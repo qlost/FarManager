@@ -1,7 +1,14 @@
 NAME = DrawLine
-NOENTRY = 1
-NODEFLIB = 1
-INCLUDECRT = 1
+NOENTRY=1
+NODEFLIB=1
+INCLUDECRT=1
+USERCPP=/W3 /analyze- /WX- /Gs10000 /GS- /GR- /EHs-c- /D_HAS_EXCEPTIONS=0
+!ifndef DEBUG
+USERCPP=$(USERCPP) /O1 /Oi /Os /Oy
+!else
+USERCPP=$(USERCPP) /DDEBUG /Od
+!endif
+ENV_LIB_OPT=/merge:.pdata=.rdata /safeseh:no /debug:none
 
 LINK_OBJS = $(INTDIR)\DrawLine.obj
 

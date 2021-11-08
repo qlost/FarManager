@@ -1,4 +1,17 @@
 NAME = EMenu
+NOENTRY=1
+NODEFLIB=1
+INCLUDECRT=1
+USERCPP=/W3 /analyze- /WX- /Gs10000 /GS- /GR- /EHs-c- /D_HAS_EXCEPTIONS=0
+!ifndef DEBUG
+USERCPP=$(USERCPP) /O1 /Oi /Os /Oy
+!else
+USERCPP=$(USERCPP) /DDEBUG /Od
+!endif
+#!if $(VC) >= 15
+#USERCPP = $(USERCPP) /std:c++17
+#!endif
+ENV_LIB_OPT=/merge:.pdata=.rdata /safeseh:no /debug:none
 
 LINK_OBJS = \
 	$(INTDIR)\EMenu.obj \
@@ -8,16 +21,8 @@ LINK_OBJS = \
 	$(INTDIR)\Pidl.obj \
 	$(INTDIR)\Plugin.obj
 
-NOENTRY = 1
-NODEFLIB = 1
-INCLUDECRT = 1
-
 !include ..\makefile_vc_def_inc
 !include ..\makefile_vc_target_inc
-
-!if $(VC) >= 15
-CPPFLAGS = $(CPPFLAGS) /std:c++17 /permissive-
-!endif
 
 $(RES): resource.h
 $(INTDIR)\Plugin.obj: FarMenu.h HMenu.h OleThread.h Pidl.h Plugin.h resource.h guid.hpp version.hpp

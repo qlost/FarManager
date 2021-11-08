@@ -114,11 +114,8 @@ RES = $(INTDIR)\$(NAME).res
 
 CPPFLAGS = $(CPPFLAGS) /LD /I"$(COMMON)" /I"$(COMINC)" $(ENV_INC_OPT) $(CPP_WIDE) /D_CRT_NON_CONFORMING_WCSTOK /D_CRT_NONSTDC_NO_WARNINGS /D_CRT_NON_CONFORMING_SWPRINTFS $(USERCPP)
 
-#CPPFLAGS = /nologo /MP /c /W3 /Gy /GF /J /analyze- /WX- /Gs10000 /GS- /GR- /EHs-c- /LD /I"$(COMMON)" /I"$(COMINC)" $(ENV_INC_OPT) $(CPP_WIDE) /DNOMINMAX /D_CRT_NON_CONFORMING_WCSTOK /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_WARNINGS /D_CRT_NON_CONFORMING_SWPRINTFS /D_WIN32_WINNT=0x0502 /D_HAS_EXCEPTIONS=0 $(USERCPP) /Fo"$(OBJDIR)\\" /Fd"$(OBJDIR)\\"
-#!ifndef DEBUG
-#CPPFLAGS=$(CPPFLAGS) /DNDEBUG /O1 /Oi /Os /Oy /GL
-#CPPFLAGS = $(CPPFLAGS) /Zc:threadSafeInit- /Zc:inline
-FIXCRT_CPPFLAGS = /Zc:threadSafeInit- /Zc:inline
+CPPFLAGS = $(CPPFLAGS) /Zc:threadSafeInit-
+FIXCRT_CPPFLAGS = /Zc:threadSafeInit-
 
 RFLAGS = /nologo /I"$(COMMON)" /I"$(COMINC)" $(ENV_INC_OPT) $(RC_WIDE)
 
@@ -141,7 +138,6 @@ COMMONLIB = $(COMMON)\libCRT.lib
 !endif
 
 LIBS = $(COMMONLIB) $(LINK_LIBS) $(USERLIBS)
-#LIBS = $(COMMONLIB) kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib ole32.lib uuid.lib mpr.lib Netapi32.lib version.lib oleaut32.lib wbemuuid.lib psapi.lib $(USERLIBS)
 
 !ifdef _BIN_PATH_
 !ifndef _ML_PATH_
@@ -168,8 +164,6 @@ NOENTRY_FLAG = /noentry
 NODEFLIB_FLAG = /nodefaultlib
 !endif
 LINKFLAGS = $(LINKFLAGS) /dll /implib:$(INTDIR)/$(NAME).lib $(NOENTRY_FLAG) $(NODEFLIB_FLAG) $(ENV_LIB_OPT) $(DEFOPT) /map:"$(MAP)" /out:"$(DLLFULLNAME)"
-#LINK_FLAGS=$(SUBSYSTEM) /nologo /dll /release /dynamicbase /merge:.pdata=.rdata /safeseh:no $(NOENTRY_FLAG) $(NODEFLIB_FLAG) $(ENV_LIB_OPT) $(DEFOPT) /map:"$(MAP)" /out:"$(DLLFULLNAME)"
-#LINK_FLAGS=$(LINK_FLAGS) /incremental:no /OPT:REF /OPT:ICF /LTCG
 !else
 LNK=$(_ULINK_PATH_)ulink.exe +-
 !ifdef NOENTRY
