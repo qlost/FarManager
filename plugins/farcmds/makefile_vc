@@ -15,7 +15,7 @@ LINK_OBJS = \
 	$(INTDIR)\Mix.obj \
 	$(INTDIR)\OpenCmd.obj
 
-USERLIBS = rpcrt4.lib
+USERLIBS = rpcrt4.lib uuid.lib
 
 !include ..\makefile_vc_def_inc
 !include ..\makefile_vc_target_inc

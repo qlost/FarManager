@@ -12,6 +12,7 @@ USERCPP=$(USERCPP) /DDEBUG /Od
 #USERCPP = $(USERCPP) /std:c++17
 #!endif
 ENV_LIB_OPT=/merge:.pdata=.rdata /safeseh:no /debug:none
+USERLIBS=uuid.lib
 
 LINK_OBJS = \
 	$(INTDIR)\EMenu.obj \

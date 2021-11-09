@@ -1872,6 +1872,7 @@ void NetBrowser::DisconnectFromServer(NETRESOURCE *nr)
 						{
 							free(lpBuff);
 							lpBuff = {};
+						}
 					}
 				}
 
