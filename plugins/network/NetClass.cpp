@@ -1,4 +1,7 @@
 ﻿#include "CRT\crt.hpp"
+#define _CSTDIO_
+#define _CWCHAR_
+#define _IOSFWD_
 #include <windows.h>
 #include <lm.h>
 #include "NetCommon.hpp"
@@ -2454,7 +2457,7 @@ void NetBrowser::CreateFavSubFolder()
 
 	wchar_t buff[MAX_PATH];
 
-	if (DlgCreateFolder(buff, std::size(buff)))
+	if (DlgCreateFolder(buff, ARRAYSIZE(buff)))
 	{
 		if (!CreateSubFolder(PCurResource->lpRemoteName, buff))
 		{

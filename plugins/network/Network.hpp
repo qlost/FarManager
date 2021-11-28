@@ -1,7 +1,7 @@
 ﻿#ifndef __NETWORK_HPP__
 #define __NETWORK_HPP__
 
-#include <memory>
+//#include <memory>
 #include "NetClass.hpp"
 
 extern PluginStartupInfo PsInfo;

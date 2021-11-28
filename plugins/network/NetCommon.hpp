@@ -1,8 +1,7 @@
 ﻿#ifndef __NETCOMMON_HPP__
 #define __NETCOMMON_HPP__
 
-#define _CSTDIO_
-#define _CWCHAR_#include <plugin.hpp>
+#include <plugin.hpp>
 
 extern struct Options
 {

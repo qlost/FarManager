@@ -42,7 +42,7 @@ void WINAPI GetPluginInfoW(PluginInfo* Info)
 		DiskMenuStrings[0] = GetMsg(MDiskMenuString);
 		Info->DiskMenu.Guids = &MenuGuid;
 		Info->DiskMenu.Strings = DiskMenuStrings;
-		Info->DiskMenu.Count = std::size(DiskMenuStrings);
+		Info->DiskMenu.Count = ARRAYSIZE(DiskMenuStrings);
 	}
 
 	static const wchar_t* PluginMenuStrings[1];
@@ -52,12 +52,12 @@ void WINAPI GetPluginInfoW(PluginInfo* Info)
 	{
 		Info->PluginMenu.Guids = &MenuGuid;
 		Info->PluginMenu.Strings = PluginMenuStrings;
-		Info->PluginMenu.Count = std::size(PluginMenuStrings);
+		Info->PluginMenu.Count = ARRAYSIZE(PluginMenuStrings);
 	}
 
 	Info->PluginConfig.Guids = &MenuGuid;
 	Info->PluginConfig.Strings = PluginMenuStrings;
-	Info->PluginConfig.Count = std::size(PluginMenuStrings);
+	Info->PluginConfig.Count = ARRAYSIZE(PluginMenuStrings);
 	Info->CommandPrefix = L"net:netg";
 }
 
