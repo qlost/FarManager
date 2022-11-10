@@ -53,7 +53,7 @@ struct SortItemParam;
 
 class VMenu2 final: public Dialog
 {
-	struct private_tag {};
+	struct private_tag { explicit private_tag() = default; };
 
 public:
 	static vmenu2_ptr create(const string& Title, span<const menu_item> Data, int MaxHeight=0, DWORD Flags=0);
@@ -125,7 +125,7 @@ public:
 	void Pack();
 	MenuItemEx& at(size_t n);
 	MenuItemEx& current();
-	int GetShowItemCount();
+	int GetShowItemCount() const;
 
 private:
 	intptr_t VMenu2DlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2);

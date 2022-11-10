@@ -50,7 +50,6 @@ $^#Menedżer plików i archiwów#
 `$^#'FULLVERSION`#'
 $^#Copyright © 1996-2000 Eugene Roshal#
 `$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
- UWAGA: Plik pomocy w trakcie tłumaczenia
  ~Indeks pomocy~@Index@
  ~Jak używać pomocy~@Help@
 
@@ -112,7 +111,7 @@ $^#Copyright © 1996-2000 Eugene Roshal#
  ~Wewnętrzny edytor~@Editor@
 
  ~Maski plików~@FileMasks@
- ~Polecenia makro (sterowanie klawiaturą)~@KeyMacro@
+ ~Makropolecenia (sterowanie klawiaturą)~@KeyMacro@
 
 
 @Help
@@ -222,10 +221,10 @@ zostaną załadowane z cache;
 'Plugins' zapisanego w profilu użytkownika (domyślnie: #%APPDATA%\\Far Manager\\Profile#).
 
  #-m#
- Far nie będzie wczytywał makr podczas uruchamiania.
+ Far nie będzie wczytywał makropoleceń podczas uruchamiania.
 
  #-ma#
- Makra z opcją "Uruchom po starcie Far" nie będą uruchamiane po uruchomieniu programu.
+ Makropolecenia z opcją "Uruchom po starcie Far" nie będą uruchamiane po uruchomieniu programu.
 
  #-s <ścieżka_profilu> [<lokalna_ścieżka_profilu>]#
  Położenie plików konfiguracyjnych programu, ustalone przez użytkownika (nadpisuje
@@ -249,14 +248,14 @@ dir, jak w przykładzie),
  Far będzie czekał na koniec strumienia danych dopóki nie zostaną wciśnięte Ctrl+Break.
 
  #-w[-]#
- Rozciąga do okna konsoli zamiast do bufora konsoli, lub na odwrót.
+ Pokazuje interfejs w obrębie okna konsoli zamiast bufora konsoli lub odwrotnie.
 
  #-t szablon_profilu#
  Położenie pliku konfiguracyjnego szablonu Far (nadpisuje ustawienia z pliku ini).
 
  #-title[:<tytuł>]#
  Jeżeli podano <tytuł>, będzie on używany jako tytułu okna; w innym przypadku
-będzie to tytuł okna konsoli. Makro #%Default%# w tytule użytkownika zostanie
+będzie to tytuł okna konsoli. Makropolecenie #%Default%# w tytule użytkownika zostanie
 zastąpione standardowym tekstem okna Far, zależnym od kontekstu programu.
 
  #-clearcache [ścieżka_profilu [lokalna_ścieżka_profilu]]#
@@ -316,7 +315,7 @@ $ #Polecenia kontroli menu#
  Menu filtru lub pozycje listy                      #Ctrl+Alt+F,RAlt#
  Zablokuj filtr                                          #Ctrl+Alt+L#
 
- Zobacz także listę ~klawiszy makro~@KeyMacroMenuList@, dostępnych w menu.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroMenuList@, dostępnych w menu.
 
 
 @PanelCmd
@@ -327,7 +326,7 @@ $ #Polecenia kontroli panelu#
  Zamień panele                                               #Ctrl+U#
  Odśwież panel                                               #Ctrl+R#
  Przełącz panel informacyjny                                 #Ctrl+L#
- Przełącz panel ~szybkiego podglądu~@QViewPanel@                          #Ctrl+Q#
+ Przełącz panel ~szybkiego podglądu~@QViewPanel@                           #Ctrl+Q#
  Przełącz panel ~drzewa~@TreePanel@                                       #Ctrl+T#
  Ukryj/pokaż oba panele                                      #Ctrl+O#
  Tymczasowo ukryj oba panele                         #Ctrl+Alt+Shift#
@@ -347,8 +346,8 @@ $ #Polecenia kontroli panelu#
 
  #Polecenie panelu plików#
 
- ~Zaznacz/odznacz plik~@SelectFiles@                        #Ins, Shift+Klawisze kursora#
-                                                #Prawy klawisz myszy#
+ ~Zaznacz/odznacz plik~@SelectFiles@                   #Ins, Shift+Klawisze kursora#
+                                               #Prawy przycisk myszy#
  Zaznacz grupę                                              #Szary +#
  Odznacz grupę                                              #Szary -#
  Odwróć zaznaczenie                                         #Szary *#
@@ -393,7 +392,7 @@ $ #Polecenia kontroli panelu#
  Sortuj pliki w aktywnym panelu wg daty dostępu             #Ctrl+F9#
  Sortuj pliki w aktywnym panelu wg opisu                   #Ctrl+F10#
  Sortuj pliki w aktywnym panelu wg właściciela pliku       #Ctrl+F11#
- Wyświetl menu ~sposobów sortowania~@PanelCmdSort@         #Ctrl+F12#
+ Wyświetl menu ~sposobów sortowania~@PanelCmdSort@                         #Ctrl+F12#
  Użyj grup sortowania                                     #Shift+F11#
  Pokaż najpierw zaznaczone pliki                          #Shift+F12#
 
@@ -424,13 +423,13 @@ lecz w pasywnym oknie panelu.
 
  Pliki, skopiowane lub cięcie z paneli, mogą być kopiowane do innej aplikacji, np. Explorer.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroShellList@, dostępnych w panelach.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroShellList@, dostępnych w panelach.
 
  Uwaga:
 
  1. ^<wrap>Jeżeli opcja "Włącz możliwość odwrotnego sortowania" w ~Ustawieniach panelu~@PanelSettings@
 jest włączona, wciskając ten sam skrót trybu sortowania zmieniamy kierunek sortowania
-z rosnącego na malejący lub odwrotnie;
+z rosnącego na malejący lub odwrotnie.
 
  2. ^<wrap>Kombinacja #Alt+Lewo# i #Alt+Prawo#, używana do przesuwania długich nazw plików i opisów,
 nie działa tylko z klawiszami z klawiatury numerycznej. Przyczyną jest fakt, że po wciśnięciu
@@ -466,7 +465,47 @@ $ #Tryby sortowania#
  Użyj sortowania grup                                     #Shift+F11#
  Pokaż najpierw zaznaczone pliki                          #Shift+F12#
 
+ Można także ~dostroić~@PanelSortCriteria@ tryby sortowania wciskając klawisz #F4#.
+
  Zobacz także: ogólne polecenia ~menu~@MenuCmd@.
+
+
+@PanelSortCriteria
+$ #Kryteria sortowania#
+ Kiedy pliki są traktowane równoważnie używając wybranego trybu sortowania, pod uwagę brane są dodatkowe ktyteria sortowania.
+ Na przykład, jeżeli pliki są sortowane wg wielkości i zarówno "a.txt" i "b.txt" mają tę samą wielkość, "a.txt"
+ będzie wyświetlane pierwszy, tak jakby były posortowane według nazw.
+	W tym menu można dostosować zestawy kryteriów związanych z wybranym trybem sortowania.
+
+ #Ins#
+ Dodaj kryterium do zestawu.
+
+ #Del#
+ Usuń zaznaczone kryterium.
+
+ #F4#
+ Edytuj/zastąp wybrane kryterium.
+
+ #+#
+ Użyj kolejności rosnąco.
+
+ #-#
+ Użyj kolejności malejąco.
+
+ #*#
+ Zmiana kolejności.
+
+ #=#
+ Przejmij kolejność z odpowiedniego trybu sortowania.
+
+ #Ctrl+Góra#
+ Przenieś kryterium wyżej.
+
+ #Ctrl+Dół#
+ Przenieś kryterium niżej.
+
+ #Ctrl+R#
+ Przywrócenie domyślnych kryteriów.
 
 
 @FastFind
@@ -488,7 +527,7 @@ do pola wyszukiwania. Jeżeli wprowadzony tekst będzie transliterowany, to będ
 wyszukiwany jako nowy tekst. Zobacz flagę ~XLat.Flags~@XLat.Flags@ jak ustawić
 klawisz skrótu dla transliteracji.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroSearchList@, dostępnych w szybkim szukaniu.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroSearchList@, dostępnych w szybkim szukaniu.
 
 
 @CmdLineCmd
@@ -735,12 +774,12 @@ $ #Zrzut ekranu#
  Zrzut ekranu pozwala na zaznaczenie i skopiowanie do schowka dowolnego fragmentu okna.
 
  Aby przełączyć pomiędzy zaznaczeniem ciągu i bloku należy wcisnąć klawisz #Spacja#.
- Aby przesunąć kursor użyj #strzałek# lub kliknij #lewym klawiszem myszy#.
- Aby zaznaczyć tekst użyj klawiszy #Shift+strzałka# lub przeciągnij kursor myszy trzymając
-wciśnięty #lewy klawisz myszy#.
+ Aby przesunąć kursor użyj #strzałek# lub kliknij #lewym przyciskiem myszy#.
+ Aby zaznaczyć tekst użyj klawiszy #Shift+strzałka# lub przeciągnij kursor myszy
+trzymając wciśnięty #lewy przycisk myszy#.
  Aby rozszerzyć lub zmniejszyć zaznaczony obszar użyj klawiszy #Alt+Shift+strzałka#.
  Aby przenieść zaznaczenie użyj klawiszy #Alt+strzałka#.
- #Enter#, #Ctrl+Ins#, #prawy klawisz myszy# lub #podwójne kliknięcie# kopiują
+ #Enter#, #Ctrl+Ins#, #prawy przycisk myszy# lub #podwójne kliknięcie# kopiują
 zaznaczony tekst do schowka, #Ctrl+<Szary +># dołączają tekst do zawartości schowka.
  #Esc# opuszcza tryb zaznaczania.
  #Ctrl+A# - zaznacza cały ekran.
@@ -751,9 +790,9 @@ zaznaczony tekst do schowka, #Ctrl+<Szary +># dołączają tekst do zawartości 
 
 @MiscCmd
 $ #Polecenia sterowania programem#
- #Makra klawiatury#
+ #Makropolecenia klawiatury#
 
- Nagraj ~makro klawiatury~@KeyMacro@                                   #Ctrl+<.>#
+ Nagraj ~makropolecenie~@KeyMacro@                                     #Ctrl+<.>#
 
  #Menu i listy rozwijane#
 
@@ -795,7 +834,8 @@ za wyjątkiem wiersza poleceń, włączając okna dialogowe i ~wewnętrzny edyto
  - zmień na nieoznaczone (#[?]#)                              #Szara *#
    (dla pól trój-stanowych)
 
- Możesz przenieść okno dialogowe przeciągając myszą lub wciskając #Ctrl+F5# i używając klawiszy #strzałek#.
+ Możesz przenieść okno dialogowe przeciągając myszą lub wciskając #Ctrl+F5#
+i używając klawiszy #strzałek#.
 
  #Lewe kliknięcie# poza oknem dialogowym działa jak wciśnięcie #Esc#.
 
@@ -803,7 +843,7 @@ za wyjątkiem wiersza poleceń, włączając okna dialogowe i ~wewnętrzny edyto
 
  #Mysz#
 
- Kliknięcie #środkowym klawiszem myszy# w ~panelu~@PanelCmd@ daje ten sam efekt
+ Kliknięcie #środkowym przyciskiem myszy# w ~panelu~@PanelCmd@ daje ten sam efekt
 jak wciśnięcie klawisza #Enter#. Także z klawiszami modyfikującymi polecenie
 (#Ctrl#, #Alt#, #Shift#). Jeżeli ~wiersz poleceń~@CmdLineCmd@ nie jest pusty,
 jego zawartość zostanie wykonana.
@@ -857,9 +897,10 @@ Po wykryciu nowej wtyczki Far zapisuje informację o niej, a później wczytuje 
 gdy jest potrzebna - nie używane wtyczki nie zajmują dodatkowej pamięci.
 Ale jeżeli któraś wtyczka nie będzie już potrzebna, można ją usunąć oszczędzając miejsce na dysku.
 
- Wtyczki mogą być wywołane z menu ~Zmień dysk~@DriveDlg@ lub ~Listy wtyczek~@PluginCommands@ włączanej klawiszem
-#F11# lub odpowiadającemu menu ~Polecenia~@CmdMenu@. Wciśnięcie #F4# na ~"Liście wtyczek"~@PluginCommands@
-pozwala przypisać klawisz skrótu do menu (ułatwia to wywoływanie wtyczek w ~makrach klawiatury~@KeyMacro@).
+ Wtyczki mogą być wywołane z menu ~Zmień dysk~@DriveDlg@ lub ~Listy wtyczek~@PluginCommands@
+włączanej klawiszem #F11# lub odpowiadającemu menu ~Polecenia~@CmdMenu@. Wciśnięcie #F4#
+na ~"Liście wtyczek"~@PluginCommands@ pozwala przypisać klawisz skrótu do menu (ułatwia
+to wywoływanie wtyczek w ~makropoleceniach~@KeyMacro@).
 Menu to jest dostępne w panelu plików, oknach dialogowych oraz (tylko po wciśnięciu klawisza #F11#)
 w oknie podglądu i edycji. Tylko specjalnie przygotowane wtyczki będą wywoływane w oknach dialogowych,
 przeglądarce lub edytorze.
@@ -902,7 +943,7 @@ są tylko wtyczki potrafiące pracować w panelu plików;
 z przeglądarką lub edytorem plików.
 
  Każdej wtyczce w menu konfiguracyjnym można przypisać klawisz skrótu za pomocą
-klawisza #F4#, możliwość ta jest stosowane w ~makrach~@KeyMacro@. Przypisany klawisz
+klawisza #F4#, możliwość ta jest stosowane w ~makropoleceniach~@KeyMacro@. Przypisany klawisz
 skrótu będzie wyświetlany po lewej stronie listy. Znak #A# w kolumnie po lewej stronie
 oznacza, że wtyczka została napisana dla Far 1.7x i nie obsługuje w pełni możliwości
 zawartych w Far 3 (np. znaki Unicode w nazwach plików i edytorze).
@@ -947,10 +988,10 @@ nie zawiera plików pomocy, pomoc kontekstowa nie zostanie wyświetlona.
 zostanie główny temat z pliku.
 
  Każdej wtyczce w menu konfiguracyjnym można przypisać klawisz skrótu za pomocą
-klawisza #F4#, możliwość ta jest stosowane w ~makrach~@KeyMacro@. Przypisany klawisz
-skrótu będzie wyświetlany po lewej stronie listy. Znak #A# w kolumnie po lewej stronie
-oznacza, że wtyczka została napisana dla Far 1.7x i nie obsługuje w pełni możliwości
-zawartych w Far 3 (np. znaki Unicode w nazwach plików i edytorze).
+klawisza #F4#, możliwość ta jest stosowane w ~makropoleceniach~@KeyMacro@. Przypisany
+klawisz skrótu będzie wyświetlany po lewej stronie listy. Znak #A# w kolumnie po lewej
+stronie oznacza, że wtyczka została napisana dla Far 1.7x i nie obsługuje w pełni
+możliwości zawartych w Far 3 (np. znaki Unicode w nazwach plików i edytorze).
 
  Wciśnięcie #F3# pokaże informacje techniczne o wskazanej wtyczce.
 
@@ -1072,7 +1113,7 @@ automatycznie ustawiony na panel plików.
  Operacja ~szybkiego szukania~@FastFind@ może być użyta jako odnośnik do żądanego
 plików po pierwszej literze jego nazwy.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroShellList@, dostępnych w panelach.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroShellList@, dostępnych w panelach.
 
 
 @TreePanel
@@ -1095,7 +1136,7 @@ Wciśnięcie #Ctrl+Enter# przeniesie do następnego folderu o takim samym począ
  Klawisze #Szary +# i #Szary -# przesuwają przesuwają w górę i w dół do następnej gałęzi
 tego samego poziomu.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroTreeList@, dostępną dla panelu drzewa.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroTreeList@, dostępnych dla panelu drzewa.
 
 
 @InfoPanel
@@ -1129,7 +1170,7 @@ fizycznej pamięci (dostępnej dla Windows), pamięć wirtualna i plik stronicow
  4. ^<wrap>Plik #opisu folderu#.
     ^<wrap>Można podejrzeć zawartość pliku opisu foldera na pełnym ekranie wciskając klawisz
 #F3# lub klikając #lewym przyciskiem myszy#. Do edycji lub utworzenia pliku opisu należy
-wcisnąć klawisz #F4# lub kliknąć #prawym klawiszem myszy#. Można także użyć wielu poleceń
+wcisnąć klawisz #F4# lub kliknąć #prawym przyciskiem myszy#. Można także użyć wielu poleceń
 ~podglądu~@Viewer@ (wyszukiwanie, wybór strony kodowej, itd.) w trakcie podglądu pliku opisu
 folderu.
     ^<wrap>Lista możliwych plików opisu folderu może być zdefiniowana używając
@@ -1154,7 +1195,7 @@ wartość ta może być zbyt niedokładna do rzeczywistości).
  Wszystkie sekcje (za wyjątkiem nazwy komputera i użytkownika) mogą być widoczne lub ukryte (zobacz
 ~Tryby wyświetlania panelu informacyjnego~@InfoPanelShowMode@).
 
- Zobacz także listę ~klawiszy makr~@KeyMacroInfoList@, dostępnych w panelu informacyjnym.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroInfoList@, dostępnych w panelu informacyjnym.
 
 
 @InfoPanelShowMode
@@ -1275,7 +1316,7 @@ klastra na dysku, rzeczywistą wielkość pliku z ilością utraconej pojemnośc
 Dotyczy to także ~Panelu informacyjnego~@InfoPanel@ i linii statusu w ~Panelu plików~@FilePanel@.
 Bieżący tryb - far:config #Panel.ShowBytes# (domyślnie=fałsz).
 
- Zobacz także listę ~klawiszy makro~@KeyMacroQViewList@, dostępnych w panelu szybkiego poglądu.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroQViewList@, dostępnych w panelu szybkiego poglądu.
 
 
 @DragAndDrop
@@ -1288,9 +1329,9 @@ myszy na pliku źródłowym, przeciągnąć go do drugiego panelu i zwolnić prz
 zaznaczyć przed przeciągnięciem, kliknąć lewym przyciskiem myszy w panelu
 źródłowym i przeciągnąć do drugiego panelu.
 
- Można zamienić operacje kopiowania i przenoszenia wciskają prawy klawisz
+ Można zamienić operacje kopiowania i przenoszenia wciskają prawy przycisk
 myszy podczas przeciągania. Można także nacisnąć i przytrzymać klawisz
-#Shift# przy wciśniętym lewym klawiszy myszy.
+#Shift# przy wciśniętym lewym przycisku myszy.
 
 
 @Menus
@@ -1313,7 +1354,7 @@ do menu pasywnego panelu.
  ~Menu Polecenia~@CmdMenu@
  ~Menu Opcje~@OptMenu@
 
- Zobacz także listę ~klawiszy makro~@KeyMacroMainMenuList@, dostępną w głównym menu.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroMainMenuList@, dostępną w głównym menu.
 
 
 @LeftRightMenu
@@ -1519,8 +1560,7 @@ $ #Menu: Menu opcje#
 
  #Strony kodowe#         Pokazuje listę ~Stron kodowych~@CodePagesMenu@ plików.
 
- #Kolory#                Pozwala na wybór kolorów dla różnych elementów ekranu, pozwala zmienić
-                       cały wygląd programu Far na czarno/biały lub ustawić domyślne kolory.
+ #Kolory#                Pokazuje menu ~Grup kolorów~@ColorGroups@.
 
  #Wyróżnianie plików#    Pokazuje okno ~Wyróżniania plików~@Highlight@ i sortowania grup plików.
  #i sortowanie grup#
@@ -1607,8 +1647,8 @@ plik może przetworzyć kilka wtyczek.
 $ #Utwórz folder#
  Funkcja pozwala tworzyć foldery. W linii edycji można użyć zmiennych
 systemowych, które zostaną rozwinięte w pełną ścieżkę przed utworzeniem
-folderu. Można utworzyć całą ścieżkę w jednym czasie: wystarczy użyć znaku ukośnika
-wstecznego (backslash). Na przykład:
+folderu. Można utworzyć całą ścieżkę w jednym czasie: wystarczy użyć znaku
+odwrotnego ukośnika (backslash). Na przykład:
 
  #%USERDOMAIN%\\%USERNAME%\\Folder3#
 
@@ -1644,7 +1684,7 @@ opcje #Uwzględnij wielkość znaków#, #Tylko całe wyrazy#, #Użyj strony kodo
 i #Szukaj folderów# zostaną wyłączone i ich wcześniejsze zaznaczenie nie ma
 żadnego wpływu na proces wyszukiwania.
 
- Zaznaczenie #Not containing# pozwoli odszukać pliki #nie# zawierające podany
+ Zaznaczenie #Nie zawierające# pozwoli odszukać pliki #nie# zawierające podany
 tekst lub kod.
 
  Rozwijana lista #Użyj strony kodowej# pozwala wybrać stroną kodową znaków
@@ -1851,8 +1891,8 @@ do poprzedniej wielkości.
  Wciśnięcie #Ctrl+Enter# pozwala na przejście do następnego folderu z wprowadzoną
 wcześniej nazwą. #Ctrl+Shift+Enter# przechodzi do poprzedniego folderu.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroFindFolderList@, dostępnych w oknie
-dialogowym szukania.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroFindFolderList@, dostępnych
+w oknie dialogowym szukania.
 
 
 @Filter
@@ -1988,7 +2028,7 @@ kursorów, dodatkowo dostępne są poniższe skróty klawiszowe:
 
  Zablokuj/odblokuj pozycję na liście                             #Ins#
 
- Odśwież listę i usuń nieistniejące pozycje                   #Ctrl+R#
+ Odśwież listę i usuń nieistniejące elementy                  #Ctrl+R#
 
  Skopiuj tekst bieżącego polecenia do schowka                 #Ctrl+C#
  bez zamykania listy                                    lub #Ctrl+Ins#
@@ -2007,7 +2047,7 @@ odpowiednią opcję w ~Ustawieniach systemowych~@SystemSettings@ programu.
 
  1. ^<wrap>Operacja odświeżenia listy (Ctrl+R) może zająć dużo czasu jeżeli plik
 jest zablokowany lub nie jest dostępny zasób zewnętrzny.
- 2. ^<wrap>Zablokowane pozycje nie będą usuwane przy czyszczeniu lub odświeżaniu historii.
+ 2. ^<wrap>Zablokowane elementy nie będą usuwane przy czyszczeniu lub odświeżaniu historii.
 
  Zobacz także: polecenia ~menu~@MenuCmd@.
 
@@ -2029,7 +2069,7 @@ poruszać się za pomocą klawiszy kursorów, dodatkowo dostępne są poniższe 
 
  Zablokuj/odblokuj pozycję na liście                             #Ins#
 
- Odśwież listę i usuń nieistniejące pozycje                   #Ctrl+R#
+ Odśwież listę i usuń nieistniejące elementy                  #Ctrl+R#
 
  Skopiuj tekst bieżącej pozycji listy do schowka              #Ctrl+C#
  bez zamykania listy                                    lub #Ctrl+Ins#
@@ -2044,7 +2084,7 @@ odpowiednią opcję w ~Ustawieniach systemowych~@SystemSettings@ programu.
 
  1. ^<wrap>Operacja odświeżenia listy (Ctrl+R) może zająć dużo czasu jeżeli plik
 jest zablokowany lub nie jest dostępny zasób zewnętrzny.
- 2. ^<wrap>Zablokowane pozycje nie będą usuwane przy czyszczeniu lub odświeżaniu historii.
+ 2. ^<wrap>Zablokowane elementy nie będą usuwane przy czyszczeniu lub odświeżaniu historii.
 
  Zobacz także: polecenia ~menu~@MenuCmd@.
 
@@ -2105,14 +2145,14 @@ poleceń. Należy zwrócić uwagę na symbole #!?<tytuł>?<wejście>!#, które s
 do wprowadzenia dodatkowych parametrów przed wykonaniem poleceń.
 
  Za pomocą polecenia #Edytuj menu użytkownika# z ~Menu Polecenia~@CmdMenu@ można
-edytować lub tworzyć menu główne lub użytkownika. Można utworzyć tylko jedno
-główne menu. Menu to jest wywoływane, jeżeli nie ma menu lokalnego dla bieżącego
+edytować lub tworzyć menu główne lub menu użytkownika. Można utworzyć tylko jedno
+główne menu. Jest ono wywoływane, jeżeli nie ma menu lokalnego dla bieżącego
 folderu. Menu lokalne może być umieszczone w dowolnym folderze. Można przełączać się
-między menu głównym a lokalnym za pomocą skrótu #Shift+F2#. Można wywołać także
+między menu głównym, a lokalnym za pomocą skrótu #Shift+F2#. Można wywołać także
 menu użytkownika folderu nadrzędnego wciskając klawisz #Backspace#.
 
  Można dodać separator do poleceń menu. Należy dodać nowe polecenie menu i zdefiniować
-"#--#" jako "klawisz skrótu". Jeżeli zostanie wartość pola Etykieta, to będzie ona
+"#--#" jako "klawisz skrótu". Jeżeli zostanie nadana wartość pola Etykieta, to będzie ona
 wyświetlana w separatorze. Aby usunąć separator menu, należy przejść do edycji pliku
 menu za pomocą klawiszy #Alt+F4#.
 
@@ -2139,16 +2179,16 @@ oraz sekwencję poleceń do wykonania, gdy ta pozycja zostanie wybrana.
 skrótu i nazwę pozycji.
 
  Menu użytkownika są przechowywane w plikach tekstowych o nazwie #FarMenu.Ini#:
- - ^<wrap>Globalne menu użytkownika, domyślne, umieszczone w folderze Far Manager.
-Jeżeli istnieje plik globalny zastępuje on menu specyficzne dla użytkownika.
+ - ^<wrap>Globalne menu użytkownika (domyślne) umieszczone w folderze Far Manager.
+Jeżeli istnieje plik globalny, to zastępuje on menu specyficzne dla użytkownika.
  - Menu dla użytkownika jest umieszczone w profilu użytkownika.
  - Lokalne menu użytkownika znajduje się w bieżącym folderze.
 
- Aby zamknąć menu nawet gdy otwarte jest podmenu, należy nacisnąć klawisze #Shift+F10#.
+ Aby zamknąć menu, nawet gdy otwarte jest podmenu, należy nacisnąć klawisze #Shift+F10#.
 
  Zobacz także:
 
- Lista ~klawiszy makro~@KeyMacroUserMenuList@, dostępne w menu użytkownika.
+ Lista ~klawiszy makropoleceń~@KeyMacroUserMenuList@, dostępnych w menu użytkownika.
  Wspólne ~polecenia menu~@MenuCmd@.
 
 
@@ -2271,6 +2311,20 @@ Np. !^!.! oznacza nazwę bieżącego pliku w panelu aktywnym,
 !##!\\!^!.! - plik w panelu pasywnym z taką samą nazwą jak
 bieżący plik w aktywnym panelu.
 
+ #![#
+ Przedrostek "![" wymusza na wszystkich kolejnych symbolach
+specjalnych, aby odnosiły się do lewego panelu (zobacz uwaga
+nr 4). Np. ![!.! oznacza bieżącą nazwę pliku w lewym panelu,
+![!\\!^!.! - plik w lewym panelu o takiej samej nazwie jak
+nazwa bieżącego pliku w aktywnym panelu.
+
+ #!]#
+ Przedrostek "!]" wymusza na wszystkich kolejnych symbolach
+specjalnych, aby odnosiły się do prawego panelu (zobacz uwaga
+nr 4). Np. !]!.! oznacza bieżącą nazwę pliku w prawym panelu,
+!]!\\!^!.! - plik w prawym panelu o takiej samej nazwie jak
+nazwa bieżącego pliku w aktywnym panelu.
+
  Uwagi:
 
  1. ^<wrap>Podczas obsługi znaków specjalnych, Far podstawia tylko
@@ -2300,8 +2354,8 @@ plików, w kodowaniu ANSI, z pełnymi ścieżkami, każdy ujęty w cudzysłów".
  3. ^<wrap>Jeżeli określono wiele skojarzeń, meta-znaki !@@! oraz !$! są pokazywane w menu bez zmian.
 Znaki te są tłumaczone podczas wykonywania poleceń.
 
- 4. ^<wrap>Przedrostki "!##" oraz "!^" działają jako przełączniki. Efekt ich działania trwa
-aż do następnego podobnego przedrostka. Np.
+ 4. ^<wrap>Przedrostki "!##", "!^", "![" oraz "!]" działają jako przełączniki.
+Efekt ich działania trwa aż do następnego podobnego przedrostka, np.
 
     if exist !##!\\!^!.! diff -c -p !##!\\!^!.! !\\!.!
 
@@ -2338,13 +2392,6 @@ modyfikowany w tym samym czasie co kopiowanie.
  Skanuje ~linki symboliczne~@HardSymLink@ łącznie z podfolderami podczas tworzenia drzewa folderów,
 określania całkowitej wielkości plików w podfolderach.
 
- #Aktualizuj panele tylko gdy Far jest aktywny#
- Jeżeli opcja jest włączona, to panele plików będą monitorowały zmiany tylko gdy okno Far jest aktywne, panele nie będą
-aktualizowane gdy okno Far będzie przysłonięte.
-Pozwala to uniknąć blokowania folderów otwartych w panelach.
-Jednak, czasami aktualizacja paneli nie jest poprawnie wykonywana po uzyskaniu fokusu okna Far, więc ta opcja jest domyślnie
-wyłączona, a foldery są zawsze monitorowane.
-
  #Zapisz historię poleceń#
  Wymusza zapisywanie ~historii poleceń~@History@ przed zamknięciem i jest przywracana po uruchomieniu Far.
 
@@ -2369,7 +2416,7 @@ program przypisany do tego typu pliku.
 Far pozwala na ponowienie operacji przy użyciu uprzywilejowanego konta.
  Dostępne opcje:
  - ^<wrap>#do modyfikacji#: zezwalaj na żądanie uprawnień do operacji, które zmieniają stan systemu plików (np. tworzenie/modyfikacja/usuwanie pliku lub folderu);
- - ^<wrap>#do odczytu#: zezwalaj na żądanie uprawnień do operacji, które nie zmieniają stanu systemu plików (np. czytanie plików lub wyświetlanie katalogów);
+ - ^<wrap>#do odczytu#: zezwalaj na żądanie uprawnień do operacji, które nie zmieniają stanu systemu plików (np. czytanie plików lub wyświetlanie folderów);
  - ^<wrap>#użyj dodatkowych uprawnień#: spróbuj uzyskać dostęp do wszystkich plików z pominięciem list kontroli dostępów (ACL).
 Opcji tej należy używać z uwagą i ostrożnością.
 
@@ -2418,8 +2465,8 @@ $ #Okno ustawień: Panel#
 będą wyłącznie pliki.
 
  #Prawy klik zaznacza pliki#
- Po włączeniu tej opcji, #kliknięcie prawym klawiszem myszy# zaznacza pliki. Po wyłączeniu otwiera się menu
-kontekstowe Eksploratora Windows.
+ Po włączeniu tej opcji, #kliknięcie prawym przyciskiem myszy# zaznacza pliki. Po wyłączeniu
+otwiera się menu kontekstowe Eksploratora Windows.
 
  #Sortuj nazwy folderów wg rozszerzeń#
  Stosuje sortowanie wg rozszerzenie nie tylko do plików, ale także do folderów. Jeżeli opcja ta jest włączona,
@@ -2524,8 +2571,8 @@ całkowitą liczbę plików.
 wyświetlona lista współdzielonych zasobów serwera.
 
  #Użyj Terminalu Wirtualnego do renderowania#
- Renderuj dane wyjściowe za pomocą sekwencji ANSI escape.
- Pozwala to na użycie 24-bitowych kolorów i pozwala (lub nie) pracować lepiej (lub gorzej) z niektórymi znakami Unicode.
+ Renderuj dane wyjściowe za pomocą sekwencji ANSI escape. Więcej informacji znajdziesz ~tutaj~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@ (po angielsku).
+ Pozwala to na użycie 8 i 24-bitowych kolorów, stylów tekstu, i pozwala (lub nie) pracować lepiej (lub gorzej) z niektórymi znakami Unicode.
  Wymaga Windows 10 lub nowszego.
 
  #Renderowanie na pełnej szerokości#
@@ -2574,17 +2621,17 @@ $ #Okno ustawień: Okna#
                          listę historii lub polach kombi. Gdy opcja jest wyłączona,
                          można użyć skrótu #Ctrl+End# aby uzupełnić linię.
                          AutoUzupełnianie jest wyłączone, gdy nagrywane
-                         lub uruchamiane jest makro.
+                         lub uruchamiane jest makropolecenie.
 
  #BACKSPACE usuwa#         Jeżeli opcja jest włączona, naciśnięcie #Backspace#
  #nie zmieniony tekst#     na nie zmienionym tekście usuwa cały ciąg tekstu,
                          tak samo jak naciśnięcie klawisza #Del#.
 
- #Kliknięcie myszy#        Kliknięcie #prawym/lewym klawiszem myszy# poza oknem
+ #Kliknięcie myszy#        Kliknięcie #prawym/lewym przyciskiem myszy# poza oknem
  #poza oknem zamyka je#    dialogowym, zamyka to okno (zobacz ~Polecenia sterowania~@MiscCmd@).
                          Opcja ta pozwala na wyłączenie tej funkcjonalności.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroDialogList@, dostępną w oknach dialogowych.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroDialogList@, dostępnych w oknach dialogowych.
 
 
 @VMenuSettings
@@ -2605,7 +2652,7 @@ $ #Okno ustawień: Wiersz poleceń#
  #AutoUzupełnianie#
  Pozwala na użycie funkcji AutoUzupełniania w wierszu poleceń. Gdy opcja jest wyłączona,
 możesz użyć skrótu #Ctrl+Spacja# aby uzupełnić wiersz. AutoUzupełnianie jest wyłączona
-automatycznie podczas nagrywania lub wykonywania makro.
+automatycznie podczas nagrywania lub wykonywania makropoleceń.
 
  #Wygląd znaku zachęty wiersza poleceń#
  Ta opcja pozwala ustawić domyślny ~format zachęty~@CommandPrompt@ wiersza poleceń Far.
@@ -2794,7 +2841,7 @@ Użyj klawiszy nawigacyjnych po pierwszym kliknięciu, aby przesunąć pozycję
 końcową na ekran. Koniec zaznaczonego obszaru może być przed lub za tekstem
 początkowym.
 
- Zobacz także listę ~klawiszy makro~@KeyMacroViewerList@ dostępnych w podglądzie.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroViewerList@, dostępnych w podglądzie.
 
  Uwagi:
 
@@ -3129,7 +3176,7 @@ kodowa ANSI, ale można zmienić to ustawienie w oknie ~Ustawień edytora~@Edito
  #Ctrl+B#                  Pokazuje/ukrywa pasek klawiszy w dolnej linii
  #Ctrl+Shift+B#            Pokazuje/ukrywa górną linię statusu
 
- Zobacz także listę ~klawiszy makro~@KeyMacroEditList@, dostępnych w edytorze.
+ Zobacz także listę ~klawiszy makropoleceń~@KeyMacroEditList@, dostępnych w edytorze.
 
  Uwagi:
 
@@ -3569,6 +3616,8 @@ dysku i zamyka menu.
  Wciśnięcie #Shift+Enter# wywołuje Eksploratora Windows i otwiera w nim
 główny folder wybranego dysku (działa tylko dla dysków, a dla wtyczek).
 
+ #Ctrl+H# pokazuje odłączone (odmapowane) wolumeny.
+
  #Ctrl+R# pozwala odświeżyć menu wyboru dysku.
 
  Jeżeli tryb #Parametry dysku optycznego# jest włączony (#Ctrl+8#), Far próbuje
@@ -3597,7 +3646,7 @@ dla Far 1.7x i nie obsługuje wszystkich możliwości dostępnych w Far 3
 
  Zobacz także:
 
- Lista ~klawiszy makro~@KeyMacroDisksList@, dostępnych w menu dysku.
+ Lista ~klawiszy makropoleceń~@KeyMacroDisksList@, dostępnych w menu dysku.
  Polecenia ~menu~@MenuCmd@.
 
 
@@ -3728,12 +3777,12 @@ grupy podświetlenia plików. Każda definicja grupy ~zawiera~@Filter@:
    #[ ]# - ^<wrap>atrybut wyłączenia - plik nie może posiadać tego atrybutu,
    #[?]# - ^<wrap>ignoruj ten atrybut;
 
- - kolory do wyświetlania nazw plików - zwykła nazwa, zaznaczona nazwa,
+ - ^<wrap>kolory do wyświetlania nazw plików - zwykła nazwa, zaznaczona nazwa,
 nazwa pod kursorem oraz zaznaczona nazwa pod kursorem.
 Jeżeli mają być użyte domyślne kolory, należy ustawić kolor "Czarny na czarnym";
 
- - opcjonalny znak do oznaczania plików z grupy.
-   Mogą być użyte zarówno z lub zamiast kolorów podświetlania.
+ - ^<wrap>oznaczenie plików z grupy.
+Mogą być użyte zarówno z lub zamiast kolorów podświetlania.
 
  Plik należy do grupy podświetlenia jeżeli:
  - ^<wrap>analiza maski jest włączona i nazwa pliku jest zgodna przynajmniej
@@ -3887,7 +3936,7 @@ Wcześniej wprowadzone tabulacji nie zostaną przekonwertowane.
 jeżeli została ona ręcznie ustawiona przez użytkownika.
 
  #Zapisz zakładki#
- Zapisuje i przywraca zakładki (bieżące pozycje) w ostatnio edytowanych plikach (tworzenie za pomocą
+ Zapisuje i przywraca zakładki (bieżące elementy) w ostatnio edytowanych plikach (tworzenie za pomocą
 kombinacji klawiszy #PrawyCtrl+0…9# lub #Ctrl+Shift+0…9#).
 
  #Zezwól na edycję plików otwartych do zapisu#
@@ -3899,7 +3948,7 @@ plików otwartych na długi czas, ale może być niebezpieczna, jeżeli pliki zo
 edytowanego tekstu podobnie do wciśnięcia #Ctrl+L#.
 
  #Ostrzeż przed otwieraniem plików tylko do odczytu#
- Przy otwarciu plików z atrybutem Tylko-do-odczytu zostanie pokazane okno ostrzeżenia.
+ Przy otwarciu plików z atrybutem "Tylko-do-odczytu" zostanie pokazane okno ostrzeżenia.
 
  #Rozpoznaj stronę kodową#
  ~Automatyczne wykrywanie~@CodePageAuto@ strony kodowej edytowanego pliku.
@@ -4032,13 +4081,13 @@ pasujących do masek w bieżącym panelu).
  Aby kontrolować #Filtry użytkownika# oraz automatycznie generowane filtry
 (maski plików), można użyć następujących poleceń:
 
- #Spacja#,             Pozycje zaznaczone przez naciśnięcie #Spacji#
+ #Spacja#,             Elementy zaznaczone przez naciśnięcie #Spacji#
  #Plus#                lub #‘+’# będą oznaczone znakiem ‘+’. Jeżeli takie
-                     pozycje są widoczne, to tylko one będą uwzględnione
+                     elementy są widoczne, to tylko one będą uwzględnione
                      przy przetwarzaniu.
 
- #Minus#               Pozycje oznaczone wciśnięciem ‘#-#’ będą oznaczone
-                     znakiem ‘-’, i te pozycje nie będą przetwarzane.
+ #Minus#               Elementy oznaczone wciśnięciem ‘#-#’ będą oznaczone
+                     znakiem ‘-’, i te elementy nie będą przetwarzane.
 
  #I# i #X#               Odpowiednio podobne do znaków #Plus# i #Minus#,
                      ale mają większy priorytet przy przetwarzaniu.
@@ -4109,7 +4158,7 @@ od opcji powyżej), ale zostanie zapisany w stronie kodowej UTF-8 po dodaniu,
 usunięciu lub aktualizacji opisu.
 
  #Uwaga#: opcje te nie są stosowane gdy plik posiada sygnaturę UTF-8 (BOM).
-W takim przypadku plik opisu zawsze jest odczytywani i zapisywany w UTF-8.
+W takim przypadku plik opisu zawsze jest odczytywany i zapisywany w UTF-8.
 
 
 @PanelViewModes
@@ -4257,6 +4306,102 @@ podczas przetwarzania plików Far zawsze używa oryginalnych wielkości znaków.
  Zobacz także: polecenia ~menu~@MenuCmd@.
 
 
+@ColorGroups
+$ #Grupy kolorów#
+ To menu pozwala na wybór kolorów dla różnych elementów ekranu lub ustawić domyślne kolory.
+
+ #Ustaw kolory domyślne#
+ Przywraca kolory do wartości domyślnych, wyrażonych jako indeksy w palecie kolorów.
+
+ #Ustaw kolory domyślne (RGB)#
+ Przyraca kolory do wartości domyślnych, wyrażonych jako kolory w przestrzeni barw RGB,
+normalnie używanych do odpowiednich indeksów palety konsoli.
+ W przeciwieństwie do indeksów palety konsoli, wartości RGB są niezleżne od urządzenia
+i zawsze będą tak samo wyglądać w dowolnym terminalu.
+ Na przykład, domyślna #indeksu# tła panelu jest #1#, który zwykle (ale nie zawsze),
+jest mapowany na jakiś nieokreślony odcień koloru niebieskiego.
+ Domyślną wartością #RGB# tła panelu jest zawsze wartość #000080#.
+
+ #Uwaga#: kolory RGB wymagają renderowania opartego na Wirtualnym Terminalu, który można
+włączyć w ~Ustawieniach interfejsu~@InterfSettings@.
+Jeżeli nie jest włączony lub wybrany terminal nie obsługuje kolorów RGB, kolory będą ustawione
+na zbliżone do najbliższych indeksów palety konsoli.
+
+ Oto bieżąca paleta:
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ Oto domyślna reprezentacja RGB:
+
+ \(T0:T000000)  \(T0:T000080)  \(T0:T008000)  \(T0:T008080)  \(T0:T800000)  \(T0:T800080)  \(T0:T808000)  \(T0:TC0C0C0)  \-
+ \(T0:T808080)  \(T0:T0000FF)  \(T0:T00FF00)  \(T0:T00FFFF)  \(T0:TFF0000)  \(T0:TFF00FF)  \(T0:TFFFF00)  \(T0:TFFFFFF)  \-
+
+
+@ColorPicker
+$ #Wybór kolorów#
+ To okno dialogowe pozwala zdefiniować kolor wyświetlania znaków, kolor tła i styl tekstu.
+
+ Kolory wyświetlanych znaków i tła mogą być:
+ - jednym z 16 kolorów ze standardowej palety Konsoli Windows,
+ - jednym z 256 kolorów z palety Xterm, lub
+ - jednym z 16 milionów kolorów z przestrzeni barw RGB.
+
+ Standardowa 16-kolorowa paleta jest dostępna w oknie dialogowym.
+ Aby skorzystać z ~256-kolorowej palety~@ColorPicker256@ i przestrzeni barw RGB należy użyć odpowiednich przycisków.
+
+ Wartość kolorów jest także przedstawiania w postaci szesnastkowej, gdzie:
+ - #AA______# - kanał alfa, oznaczający stopień przezroczystości od pełnej przejrzystości (00) do pełnego koloru (FF).
+ - #______##### - indeks palety od 00 do FF.
+ - #__RRGGBB# - kanały czerwony (Red), zielony (Green) i niebieski (Blue) z przestrzeni barw RGB, każdy od 00 do FF.
+
+ Jeżeli kolor nie jest w pełni nieprzezroczysty, brany jest pod uwagę poprzedni kolor w logicznym porządku Z.
+
+ Styl tekstu pierwszoplanowego może zawierać atrybuty podobne do ANSI/VT100 wymienione po prawej stronie.
+ Jeżeli opcja #Dziedziczenie# jest zaznaczona, uwzględniany jest poprzedni styl tekstu pierwszoplanowego
+ w logicznym porządku Z.
+
+ W sekcji podglądu (poniżej opcji) wyświetlany jest wynik końcowy.
+
+ #Uwaga#
+ Tylko standardowa 16 kolorowa paleta jest gwarantem poprawnej pracy na wszystkich komputerach.
+ Obsługa wszystkich innych jest warunkowa i definiowana przez Twój terminal.
+
+ Rozszerzone kolory i style wymagają Terminalu Wirtualnego, który można włączyć w ~Ustawieniach interfejsu~@InterfSettings@.
+Więcej informacji znajdziesz ~tutaj~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@ (po angielsku).
+
+
+@ColorPicker256
+$ #Wybór z 256 kolorów#
+ To okno dialogowe pozwala wybrać kolor z 256-kolorowej palety Xterm.
+
+ Pierwsze 16 kolorów są takie same, jak standardowa paleta dostępna w ~głównym oknie~@ColorPicker@.
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ Następne 216 kolorów są prezentowane w postaci kostki 6x6x6. Paleta zawiera zwykle 6 poziomów dla każdego koloru podstawowego i tworzy jednorodną kostkę RGB.
+ Użyj przycisków po prawej stronie, aby obrócić sześcian, uzyskać dostęp do jego wewnętrznych poziomów lub bezpośrednio wymieszaj kolory podstawowe.
+
+ \(:10)  \(:11)  \(:12)  \(:13)  \(:14)  \(:15)  \-  \(:34)  \(:35)  \(:36)  \(:37)  \(:38)  \(:39)  \-  \(:58)  \(:59)  \(:5A)  \(:5B)  \(:5C)  \(:5D)  \-
+ \(:16)  \(:17)  \(:18)  \(:19)  \(:1A)  \(:1B)  \-  \(:3A)  \(:3B)  \(:3C)  \(:3D)  \(:3E)  \(:3F)  \-  \(:5E)  \(:5F)  \(:60)  \(:61)  \(:62)  \(:63)  \-
+ \(:1C)  \(:1D)  \(:1E)  \(:1F)  \(:20)  \(:21)  \-  \(:40)  \(:41)  \(:42)  \(:43)  \(:44)  \(:45)  \-  \(:64)  \(:65)  \(:66)  \(:67)  \(:68)  \(:69)  \-
+ \(:22)  \(:23)  \(:24)  \(:25)  \(:26)  \(:27)  \-  \(:46)  \(:47)  \(:48)  \(:49)  \(:4A)  \(:4B)  \-  \(:6A)  \(:6B)  \(:6C)  \(:6D)  \(:6E)  \(:6F)  \-
+ \(:28)  \(:29)  \(:2A)  \(:2B)  \(:2C)  \(:2D)  \-  \(:4C)  \(:4D)  \(:4E)  \(:4F)  \(:50)  \(:51)  \-  \(:70)  \(:71)  \(:72)  \(:73)  \(:74)  \(:75)  \-
+ \(:2E)  \(:2F)  \(:30)  \(:31)  \(:32)  \(:33)  \-  \(:52)  \(:53)  \(:54)  \(:55)  \(:56)  \(:57)  \-  \(:76)  \(:77)  \(:78)  \(:79)  \(:7A)  \(:7B)  \-
+
+ \(:7C)  \(:7D)  \(:7E)  \(:7F)  \(:80)  \(:81)  \-  \(:A0)  \(:A1)  \(:A2)  \(:A3)  \(:A4)  \(:A5)  \-  \(:C4)  \(:C5)  \(:C6)  \(:C7)  \(:C8)  \(:C9)  \-
+ \(:82)  \(:83)  \(:84)  \(:85)  \(:86)  \(:87)  \-  \(:A6)  \(:A7)  \(:A8)  \(:A9)  \(:AA)  \(:AB)  \-  \(:CA)  \(:CB)  \(:CC)  \(:CD)  \(:CE)  \(:CF)  \-
+ \(:88)  \(:89)  \(:8A)  \(:8B)  \(:8C)  \(:8D)  \-  \(:AC)  \(:AD)  \(:AE)  \(:AF)  \(:B0)  \(:B1)  \-  \(:D0)  \(:D1)  \(:D2)  \(:D3)  \(:D4)  \(:D5)  \-
+ \(:8E)  \(:8F)  \(:90)  \(:91)  \(:92)  \(:93)  \-  \(:B2)  \(:B3)  \(:B4)  \(:B5)  \(:B6)  \(:B7)  \-  \(:D6)  \(:D7)  \(:D8)  \(:D9)  \(:DA)  \(:DB)  \-
+ \(:94)  \(:95)  \(:96)  \(:97)  \(:98)  \(:99)  \-  \(:B8)  \(:B9)  \(:BA)  \(:BB)  \(:BC)  \(:BD)  \-  \(:DC)  \(:DD)  \(:DE)  \(:DF)  \(:E0)  \(:E1)  \-
+ \(:9A)  \(:9B)  \(:9C)  \(:9D)  \(:9E)  \(:9F)  \-  \(:BE)  \(:BF)  \(:C0)  \(:C1)  \(:C2)  \(:C3)  \-  \(:E2)  \(:E3)  \(:E4)  \(:E5)  \(:E6)  \(:E7)  \-
+
+ Ostatnie 24 kolory zwykle zdefiniowane są jako skala szarości.
+
+ \(:E8)  \(:E9)  \(:EA)  \(:EB)  \(:EC)  \(:ED)  \(:EE)  \(:EF)  \(:F0)  \(:F1)  \(:F2)  \(:F3)  \(:F4)  \(:F5)  \(:F6)  \(:F7)  \(:F8)  \(:F9)  \(:FA)  \(:FB)  \(:FC)  \(:FD)  \(:FE)  \(:FF)  \-
+
+
 @SortGroups
 $ #Sortowanie grup#
  Grupy sortowanie plików mogą być używane #według nazwy# i #według rozszerzenia#
@@ -4336,32 +4481,32 @@ oddziela maski zaznaczania od masek wykluczania.
 
 @SelectFiles
 $ #Zaznaczanie plików#
- Pozycje ~Panelu plików~@FilePanel@ (pliki foldery) można zaznaczać,
+ Elementy ~Panelu plików~@FilePanel@ (pliki foldery) można zaznaczać,
 aby przetwarzać je grupowo. Jeżeli żadna pozycja nie będzie zaznaczona,
-to przetwarzana będzie tylko pozycja oznaczona kursorem.
+to przetwarzany będzie tylko element oznaczony kursorem.
 
  #Zaznaczanie klawiaturą#
 
- #Ins# przełącza zaznaczanie pozycji pod kursorem i przenosi kursor niżej.
+ #Ins# przełącza zaznaczanie elementów pod kursorem i przenosi kursor niżej.
 
  #Shift+klawisze strzałek# przenoszą kursor podczas zaznaczania lub odznaczania
-pozycji w czasie przesuwania. Czynność (zaznaczania lub odznaczania) zależy
-od stanu pozycji pod kursorem przed naciśnięciem kombinacji klawiszy.
+elementów w czasie przesuwania. Czynność (zaznaczania lub odznaczania) zależy
+od stanu elementu pod kursorem przed naciśnięciem kombinacji klawiszy.
 
- #Szary +# zaznacza, a #Szary -# odznacza pozycje zaznaczone poprzez jedną
+ #Szary +# zaznacza, a #Szary -# odznacza elementy zaznaczone poprzez jedną
 lub więcej ~Masek plików~@FileMasks@. #†#
 
  #Szara *# odwraca bieżące zaznaczenie. #†#
 
- #Ctrl+<Szary +># zaznacza, a #Ctrl+<Szary -># odznacza wszystkie pozycje
-z tym samym #rozszerzeniem# jak pozycja pod kursorem. #†#
+ #Ctrl+<Szary +># zaznacza, a #Ctrl+<Szary -># odznacza wszystkie elementy
+z tym samym #rozszerzeniem#, jak element pod kursorem. #†#
 
- #Alt+<Szary +># zaznacza, a #Alt+<Szary -># odznacza wszystkie pozycje
-z tą samą #nazwą# jak pozycja pod kursorem. #†#
+ #Alt+<Szary +># zaznacza, a #Alt+<Szary -># odznacza wszystkie elementy
+z tą samą #nazwą#, jak element pod kursorem. #†#
 
- #Shift+<Szary +># zaznacza, a #Shift+<Szary -># odznacza wszystkie pozycje. #†#
+ #Shift+<Szary +># zaznacza, a #Shift+<Szary -># odznacza wszystkie elementy. #†#
 
- #Ctrl+<Szara *># odwraca bieżące zaznaczenie na wszystkich pozycjach,
+ #Ctrl+<Szara *># odwraca bieżące zaznaczenie na wszystkich elementach,
 włączając foldery.
 
  #Alt+<Szary *># odwraca zaznaczenie tylko dla plików, foldery są odznaczane.
@@ -4370,8 +4515,8 @@ włączając foldery.
 
  #Zaznaczanie myszką#
 
- #Prawy przycisk# przełącza zaznaczenie na klikniętej pozycji i przenosi
-kursor na tę pozycję. Zobacz także opcję #Prawy klik zaznacza pliki#
+ #Prawy przycisk# przełącza zaznaczenie na klikniętym elemencie i przenosi
+kursor na ten element. Zobacz także opcję #Prawy klik zaznacza pliki#
 w oknie ~Ustawień panelu~@PanelSettings@.
 
  #Prawy przycisk i przytrzymanie# na #linii statusu# lub #tytule kolumny#
@@ -4464,7 +4609,7 @@ Wewnętrzna funkcja jest również używana, gdy plik źródłowy jest zaszyfrow
 i jest kopiowany na inny wolumin.
 
  Parametr “#Kopiuj zawartość linków symbolicznych#” kontroluje
-~logikę~@CopyRule@ przetwarzania ~linków symbolicznych~@HardSymLink@.
+~zasady~@CopyRule@ przetwarzania ~linków symbolicznych~@HardSymLink@.
 
  Podczas przenoszenia plików, aby określić, czy należy wykonać operacje
 jako kopia z późniejszym usunięciem lub bezpośrednie przeniesienie
@@ -4726,9 +4871,9 @@ zdefiniowana (jeżeli dodano warunek “NOT”).
 a “zmienna” jest zdefiniowana:
  #if exist plik1 if not exist plik2 if defined zmienna polecenie#
 
- #PUSHD ścieżka#
- Zachowuje bieżącą ścieżkę do użycia przez polecenie “POPD”,
-następnie zmienia na ścieżkę z aktywnego panelu plików.
+ #PUSHD [ścieżka]#
+ Zachowuje bieżącą ścieżkę do użycia przez polecenie “POPD”.
+If “path” is specified, changes the current path on the active panel to it.
 
  #POPD#
  Zmienia bieżącą ścieżkę w aktywnym panelu na ścieżkę zachowaną poleceniem “PUSHD”.
@@ -4786,1792 +4931,1784 @@ $ #Wyrażenia regularne#
  Ogólna forma: #wyrażenie# lub /#wyrażenie#/#opcje#.
 
  #Opcje#:
- #i# - ignore character case;
- #s# - ^<wrap>consider the whole text as one line, ‘.’ matches any character;
- #m# - ^<wrap>consider the whole text as multiple lines. ‘#^#’ and ‘#$#’ match the
-beginning and the end of any "inner" string;
- #x# - ^<wrap>ignore space characters (unescaped ones, i.e. without backslash before).
-This is useful to outline the complex expressions.
+ #i# - ignoruje wielkość znaków;
+ #s# - ^<wrap>traktuje cały tekst jako jedną linię, ‘.’ oznacza dowolny znak;
+ #m# - ^<wrap>traktuje cały tekst jako wiele linii. ‘#^#’ i ‘#$#’ wyznaczają
+początek i koniec dowolnego "wewnętrznego" ciągu.
+ #x# - ^<wrap>ignoruje znaki spacji (bez kodu specjalnego, np. bez poprzedzenia
+znakiem backslash). Przydatne do zaznaczania złożonych wyrażeń.
 
- #regexp# - the sequence of characters and metacharacters. The characters are
-letters and digits, any other character is used verbatim when escaped, i.e.
-prepended by the backslash ‘#\#’.
+ #wyrażenie# - sekwencja znaków i metaznaków. Znaki to litery i cyfry, wszystkie
+inne znaki są używane w dosłownym brzmieniu jeżeli są poprzedzone znakiem
+sterującym, np. odwrotnym ukośnikiem (backslash) ‘#\#’.
 
- Pay attention that all slashes and backslashes in a regular expression must
-be escaped (prepended by the ‘#\#’ character) to be treated literally
-rather than escape other characters themselves or mark
-the end of expression. An example: the string "big\white/scary" looks in the
-form of regular expression like "big\\\\white\/scary".
+ Należy zwrócić uwagę, że wszystkie ukośniki i odwrotne ukośniki w wyrażeniu
+regularnym muszą być poprzedzone znakiem sterującym (‘#\#’), aby były traktowane
+dosłownie, a nie jako wstęp do innego znaku lub oznaczały koniec wyrażenia.
+Np. łańcuch "duży\biały/straszny" w formie wyrażenia regularnego wygląda jak
+"duży\\\\biały\/straszny".
 
- #Metacharacters#
+ #Metaznaki#
 
- #\#  - ^<wrap>the next character is treated verbatim, not a metacharacter;
- #^#  - ^<wrap>the beginning of string;
- #$#  - ^<wrap>the end of string;
- #|#  - ^<wrap>the alternative. Either expression before or after ‘#|#’ has to match.
-      Example: "\d+\w+|Hello\d+" means "(\d+\w+)|(Hello\d+)", not "\d+(\w+|H)ello\d+".
- #()# - ^<wrap>grouping - it is used for references or when replacing matched text.
- #[]# - ^<wrap>character class - the metacharacter which matches any character
-or range of characters enumerated in #[]#. Ranges are defined as [a-z].
-Metacharacters are not taken into account in character classes. If the first
-character inside the brackets is ‘#^#’ then this is a negative class. If the ‘#^#’ character itself
-needs to be added to a class, then it must be either not the first one or escaped by a ‘#\#’.
+ #\#  - ^<wrap>następny znak będzie traktowany dosłownie, nie jako metaznak;
+ #^#  - ^<wrap>początek łańcucha;
+ #$#  - ^<wrap>koniec łańcucha;
+ #|#  - ^<wrap>alternatywa. Każde wyrażenie przed lub po ‘#|#’ musi pasować.
+      Przykład: "\d+\w+|Witaj\d+" means "(\d+\w+)|(Witaj\d+)", a nie "\d+(\w+|W)itaj\d+";
+ #()# - ^<wrap>grupowanie - używane do odwołań lub przy zastępowaniu pasującego tekstu;
+ #[]# - ^<wrap>klasa znaków - metaznak, który pasuje do dowolnego znaku lub zakresu znaków
+objętych #[]#. Zakresy są zdefiniowane jako [a-z].
+Metaznaki nie są brane pod uwagę w klasach znaków. Jeżeli pierwszym znakiem wewnątrz
+nawiasów jest ‘#^#’, to jest to klasa zanegowana. Jeżeli sam znak ‘#^#’ ma być dodany
+do klasy, to nie może on być pierwszym znakiem lub musi być poprzedzony znakiem ‘#\#’.
 
- Except grouping, the parentheses are used for the following operations:
- #(?:pattern)#  - ^<wrap>usual grouping, but it does not get a number.
- #(?=pattern)#  - ^<wrap>the forward lookup. The matching continues from
-the same place, but only if the pattern in these parentheses has matched. For
-example, #\w+(?=\s)# matches the word followed by space character, and the space
-is not included into the search result.
- #(?!pattern)#  - ^<wrap>the negation of forward lookup. The matching
-continues from the same place if the pattern does not match. For example,
-#foo(?!bar)# matches any "foo" without following "bar". Remember that this
-expression has zero size, which means that #a(?!b)d# matches #ad# because #a#
-is followed by the character which is not #b# (but #d#), and #d# follows the
-zero-size expression.
- #(?<=pattern)# - ^<wrap>the backward lookup. Unfortunately, the pattern must have fixed length.
- #(?<!pattern)# - ^<wrap>the negation of backward lookup. The same restriction.
+ Poza grupowaniem, nawiasy są używane także do następujących operacji:
+ #(?:wzorzec)#  - ^<wrap>zwykłe grupowanie, ale nie obejmuje liczb.
+ #(?=wzorzec)#  - ^<wrap>przeszukiwanie do przodu. Dopasowanie rozpoczyna się od tego
+samego miejsca, ale tylko gdy zgadza się wzorzec w nawiasach. Np. #\w+(?=\s)#
+dopasowuje słowo, po którym następuje spacja, a spacja nie jest uwzględniana w wynikach
+szukania.
+ #(?!wzorzec)#  - ^<wrap>negacja wyszukiwania do przodu. Dopasowanie kontynuuje od tego
+samego miejsca, jeżeli wzorzec się nie zgadza. Np. #foo(?!bar)# dopasowuje dowolne
+"foo" bez następującego "bar". Należy pamiętać że wyrażenie ma wielkość zero, co oznacza
+że #a(?!b)d# pasuje do #ad#, ponieważ po #a# następuje znak który nie jest #b# (lecz #d#),
+a #d# następuje po wyrażeniu o zerowym rozmiarze.
+ #(?<=wzorzec)# - ^<wrap>wyszukiwanie wstecz. Niestety, wzorzec musi mieć określoną długość.
+ #(?<!wzorzec)# - ^<wrap>negacja wyszukiwania wstecz. Takie same ograniczenia jak przy negacji
+wyszukiwania do przodu.
 
- #(?{name}pattern)# - group with a name. The name can be empty (in such case you
-cannot refer to this group) or must contain only word characters (#\w#) and spaces (#\s#).
+ #(?{nazwa}wzorzec)# - grupa z nazwą. Nazwa może zawierać tylko litery (#\w#) i spacje (#\s#).
 
- #Quantifiers#
+ #Kwantyfikatory#
 
- Any character, group or class can be followed by a quantifier:
+ Dowolny znak, grupa lub klasa może być poprzedzona kwantyfikatorem:
 
- #?#      - ^<wrap>Match 0 or 1 time, greedily.
- #??#     - ^<wrap>Match 0 or 1 time, not greedily.
- #*#      - ^<wrap>Match 0 or more times, greedily.
- #*?#     - ^<wrap>Match 0 or more times, not greedily.
- #+#      - ^<wrap>Match 1 or more times, greedily.
- #+?#     - ^<wrap>Match 1 or more times, not greedily
- #{n}#    - ^<wrap>Match exactly n times.
- #{n,}#   - ^<wrap>Match at least n times, greedily.
- #{n,}?#  - ^<wrap>Match at least n times, not greedily.
- #{n,m}#  - ^<wrap>Match at least n but not more than m times, greedily.
- #{n,m}?# - ^<wrap>Match at least n but not more than m times, not greedily.
- #{,m}#   - ^<wrap>equals to {0,m}
- #{,m}?#  - ^<wrap>equals to {0,m}?
+ #?#      - ^<wrap>Dopasowuje 0 lub 1 razy, chciwy (greedily).
+ #??#     - ^<wrap>Dopasowuje 0 lub 1 razy, leniwy (not greedily).
+ #*#      - ^<wrap>Dopasowuje 0 lub więcej razy, chciwy (greedily).
+ #*?#     - ^<wrap>Dopasowuje 0 lub więcej razy, leniwy (not greedily).
+ #+#      - ^<wrap>Dopasowuje 1 lub więcej razy, chciwy (greedily).
+ #+?#     - ^<wrap>Dopasowuje 1 lub więcej razy, leniwy (not greedily).
+ #{n}#    - ^<wrap>Dopasowuje dokładnie n razy.
+ #{n,}#   - ^<wrap>Dopasowuje co najmniej n razy, chciwy (greedily).
+ #{n,}?#  - ^<wrap>Dopasowuje co najmniej n razy, leniwy (not greedily).
+ #{n,m}#  - ^<wrap>Dopasowuje co najmniej n ale nie więcej niż m razy, chciwy (greedily).
+ #{n,m}?# - ^<wrap>Dopasowuje co najmniej n ale nie więcej niż m razy, leniwy (not greedily).
+ #{,m}#   - ^<wrap>równe do {0,m}
+ #{,m}?#  - ^<wrap>równe do {0,m}?
 
- #"Greedy" and "not greedy" quantifiers#
+ #Kwantyfikatory "chciwy (greedy)" i "leniwy (not greedy)"#
 
- Greedy quantifier captures as many characters as possible, and only if
-further match fails, it "returns" the captured string (the rollback
-happens, which is rather expensive).
- When expression "A.*Z" is matched to string
-"AZXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", #.*# captures the whole string, and then
-rolls back character by character until it finds Z. On the opposite, if the expression
-is "A.*?Z" then Z is found at once. Not greedy quantifier is also known as
-#minimizing#, it captures as few characters as possible, and only if
-further match fails it captures more.
+ Kwantyfikator chciwy (greedy) przechwytuje jak najwięcej znaków i, tylko
+gdy dalsze dopasowanie kończy się niepowodzeniem, "zwraca" przechwycony
+ciąg (zdarza się także wycofywanie, które jest raczej rzadkie).
+ Gdy wyrażenie "A.*Z" jest dopasowywane do łańcucha "AZXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+#.*# przechwytuje cały ciąg, a następnie cofa znak po znaku aż znajdzie znak Z.
+Z drugiej strony, jeżeli wyrażeniem jest "A.*?Z", to znak Z jest znajdowane od razu.
+Leniwy kwantyfikator jest także znany jako #minimalistyczny#, przechwytuje jak najmniej
+znaków i tylko wtedy gdy dopasowanie kończy się niepowodzeniem, przechwytuje dalej.
 
- #Special characters#
+ #Znaki specjalne#
 
- Non-letter and non-digit character can be prepended by ‘#\#’ in most cases,
-but in case of letters and digits this must be done with care because this is
-the way the special characters are written:
+ Znaki, które nie są literami ani cyframi mogą być poprzedzone w większości
+przypadków znakiem ‘#\#’, ale w przypadku liter i cyfr należy to robić ostrożnie,
+ponieważ jest to sposób opisywania znaków specjalnych:
 
- #.#    - ^<wrap>any character except carriage return. If there is “#s#” among
-the options then dot matches any character.
- #\t#   - tab (0x09)
- #\n#   - new line (LF, 0x0a)
- #\r#   - carriage return (CR, 0x0d)
- #\f#   - form feed (0x0c)
- #\a#   - bell (0x07)
+ #.#    - ^<wrap>dowolny znak za wyjątkiem powrotu karetki. Jeśli wśród opcji znajduje się
+“#s#”, to wtedy kropka dopasowuje dowolny znak.
+ #\t#   - tabulator (0x09)
+ #\n#   - nowa linia (LF, 0x0a)
+ #\r#   - powrót karetki (CR, 0x0d)
+ #\f#   - wysunięcie strony (0x0c)
+ #\a#   - dzwonek (0x07)
  #\e#   - escape (0x1b)
- #\xNNNN# - hex character, where N - [0-9A-Fa-f].
- #\Q#   - ^<wrap>the beginning of metacharacters quoting - the whole quoted
-text is treated as text itself, not the regular expression
- #\E#   - the end of metacharacters quoting
- #\w#   - letter, digit or underscore (‘_’).
- #\W#   - not \w
- #\s#   - space character (tab/space/LF/CR).
- #\S#   - not \s
- #\d#   - digit
- #\D#   - not digit
- #\i#   - letter
- #\I#   - not letter
- #\l#   - lower case character
- #\L#   - not lower case character
- #\u#   - upper case character
- #\U#   - not upper case character
- #\b#   - ^<wrap>the word boundary - means that there is a word character to either left or right
- from the current position, and to the right or left, accordingly, there is a non-word character.
- #\B#   - not \b
- #\A#   - the beginning of the text, disregard the option “m”
- #\Z#   - the end of the text, disregard the option “m”
- #\O#   - ^<wrap>the no-return point. If the matching has passed by this character,
-it won't roll back and and will return "no match". It can be used in complex expressions
-after mandatory fragment with quantifier. This special character can be used when
-big amounts of data are processed.
-        Example:
-        /.*?name\O=(['"])(.*?)\1\O.*?value\O=(['"])(.*?)\3/
-        ^<wrap>Strings containing "name=", but not containing "value=", are processed (in fact, skipped) faster.
+ #\xNNNN# - znak szesnastkowy (hex), gdzie N - [0-9A-Fa-f].
+ #\Q#   - ^<wrap>początek cytowania metaznaków - cały cytowany tekst
+jest traktowany jako tekst, a nie jako wyrażenie regularne
+ #\E#   - koniec cytowania metaznaków
+ #\w#   - litera, cyfra lub podkreślenie (‘_’).
+ #\W#   - przeciwieństwo \w
+ #\s#   - znak odstępu (tabulator/spacja/nowa linia/powrót karetki).
+ #\S#   - przeciwieństwo \s
+ #\d#   - cyfra
+ #\D#   - nie cyfra
+ #\i#   - litera
+ #\I#   - nie litera
+ #\l#   - znak pisany małą literą
+ #\L#   - znak nie pisany małą literą
+ #\u#   - znak pisany wielką literą
+ #\U#   - znak pisany nie wielką literą
+ #\b#   - ^<wrap>granica słowa - oznacza, że po lewej lub prawej stronie od bieżącej pozycji
+znajduje się litera i odpowiednio po prawej i lewej stronie znajduje się znak nie będący literą.
+ #\B#   - przeciwieństwo \b
+ #\A#   - początek tekstu, ignoruje opcję “m”
+ #\Z#   - koniec tekstu, ignoruje opcję “m”
+ #\O#   - ^<wrap>punkt bez powrotu. Jeżeli dopasowanie przekroczyło ten znak, nie będzie mogło
+się cofnąć i zwróci komunikat "brak dopasowania". Może być używane w złożonych wyrażeniach
+po obowiązkowym fragmencie z kwantyfikatorem. Ten znak specjalny może być użyty przy przetwarzaniu
+dużej ilości danych.
+        Na przykład:
+        /.*?nazwa\O=(['"])(.*?)\1\O.*?wartosc\O=(['"])(.*?)\3/
+        ^<wrap>Łańcuchy zawierające "nazwa=", ale nie zawierające "wartosc", są przetwarzane
+(w rzeczywistości - omijane) szybciej.
 
- #\NN#  - ^<wrap>reference to earlier matched parentheses. NN is a positive integer.
-Each parentheses except (?:pattern), (?=pattern), (?!pattern), (?<=pattern), (?<!pattern) and (?{name}pattern)
-have a number (in the order of appearance).
-        Example:
-        "(['"])hello\1" matches to "hello" or 'hello'.
+ #\NN#  - ^<wrap>odniesienie do wcześniej dopasowanych nawiasów. NN jest liczbą całkowitą dodatnią.
+Wszystkie nawiasy oprócz (?:wzorzec), (?=wzorzec), (?!wzorzec), (?<=wzorzec) i (?<!wzorzec)
+posiadają numer (w kolejności występowania).
+        Przykład:
+        "(['"])witaj\1" pasuje do "witaj" lub 'witaj'.
 
- #\p{name}# - ^<wrap>inner regexp reference to it's parsed bracket with specified #name#.
+ #\p{nazwa}# - ^<wrap>wewnętrzne odwołanie regexp do jego sparsowanego nawiasu o podanej #nazwie#.
 
- #Examples:#
+ #Przykłady:#
 
- #/foobar/# matches to "foobar", but not to "FOOBAR"
- #/ FOO bar /ix# matches to "foobar" and "FOOBAR"
- #/(foo)?bar/# matches to "foobar" and "bar"
- #/^foobar$/# matches to "foobar" only, but not to "foofoofoobarfoobar"
- #/[\d\.]+/# matches to any number with decimal point
- #/(foo|bar)+/# matches to "foofoofoobarfoobar" and "bar"
- #/\Q.)))$\E/# equals to "\.\)\)\)\$"
+ #/foobar/# pasuje do "foobar", ale nie do "FOOBAR"
+ #/ FOO bar /ix# pasuje do "foobar" i "FOOBAR"
+ #/(foo)?bar/# pasuje do "foobar" i "bar"
+ #/^foobar$/# pasuje tylko do "foobar" ale nie do "foofoofoobarfoobar"
+ #/[\d\.]+/# pasuje do dowolnej liczby z przecinkiem dziesiętnym
+ #/(foo|bar)+/# pasuje do "foofoofoobarfoobar" i "bar"
+ #/\Q.)))$\E/# odpowiada do "\.\)\)\)\$"
 
 
 @RegExpRepl
 $ #Wyrażenia regularne w zastępowaniu#
- In "Replace with" line one can use special replace string regular
-expressions:
+ W linii "Zamień na" można użyć specjalnych wyrażeń regularnych zastępujących łańcuchy:
 
  #$0#…#$N#
 
- The found group numbers, they are replaced with appropriate groups.
-The numbers are assigned to the groups in order of opening parentheses
-sequence in regular expression. #$0# means the whole found sequence.
+ Znalezione numery grup, są zastępowane odpowiednimi grupami.
+Numery są przypisywane do grup w kolejności sekwencji otwartych nawiasów
+w wyrażeniu regularnym. #$0# oznacza całą znalezioną sekwencję.
 
- $#{#name#}#     Found pattern with specified #name#.
+ $#{#nazwa#}#     Znaleziono wzór o podanej #nazwie#.
 
 
 @ElevationDlg
 $ #Wymagane uprawnienia administratora#
- The current user may not have enough rights for certain file system
-operations. In this case Far asks permission to retry the operation with
-the elevated (administrative) rights.
+ Bieżący użytkownik może nie mieć wystarczających uprawnień do niektórych
+operacji systemu plików. W takim przypadku Far prosi o pozwolenie
+na wykonanie operacji za pomocą podwyższonych uprawnień (administracyjnych).
 
- Available options:
+ Dostępne opcje:
 
- #Do this for all current objects#
- Do not ask for elevated rights during the current file system
-operation.
+ #Wykonaj dla wszystkich obiektów#
+ Nie pytaj o podniesienie uprawnień dla operacji w bieżącym
+systemie plików.
 
- #Do not ask again in the current session#
- During the current session Far will elevate rights without asking
-the user.
+ #Nie pytaj ponownie dla tej sesji#
+ Podczas bieżącej sesji Far będzie podnosił uprawnienia bez pytania
+użytkownika.
 
- See also #Request administrator rights# option in the
-~System settings~@SystemSettings@ dialog.
+ Zobacz także opcję #Wymagane uprawnienia administratora# w oknie
+~Ustawień systemowych~@SystemSettings@.
 
 
 @KeyMacro
-$ #Macro commands#
- By default macros are loaded from files with #.lua# and #.moon# extensions residing in folder
-#%FARPROFILE%\\Macros\\scripts#. See more details in #%FARHOME%\\Encyclopedia\\macroapi_manual.en.chm#.
+$ #Makropolecenia#
+ Domyślnie makropolecenia są wczytywanie z plików z rozszerzeniami #.lua# i #.moon# zapisanych w folderze
+#%FARPROFILE%\\Macros\\scripts#. Więcej szczegółów w pliku #%FARHOME%\\Encyclopedia\\macroapi_manual.en.chm#.
 
- Keyboard macro commands or macro commands - are recorded sequences of key
-presses that can be used to perform repetitive task unlimited number of times
-by pressing a single hotkey.
+ Makropolecenia klawiaturowe lub makropolecenia - są to nagrywane sekwencje
+klawiszy, które można wykorzystać do wykonania powtarzalnych zadań
+nieograniczoną ilość razy naciskając pojedynczy klawisz skrótu.
 
- Each macro command has the following parameters:
- - ^<wrap>a hotkey, that will execute the recorded sequence when pressed;
- - additional ~settings~@KeyMacroSetting@, that influence the method and
-   the area of execution of the recorded sequence.
+ Każde makropolecenie ma następujący parametry:
+ - ^<wrap>klawisz skrótu, po naciśnięciu którego wykonana zostanie nagrana sekwencja;
+ - dodatkowe ~ustawienia~@KeyMacroSetting@, które mają wpływ na metodę i obszar
+   wykonania nagrywanej sekwencji.
 
- Macro commands are mostly used for:
- - ^<wrap>Performing repetitive task unlimited number of times by
-pressing a single hotkey.
- - Execution of special functions, which are represented by
-special commands in the text of the macro command.
- - Redefine standard hotkeys, which are used by Far for
-execution of internal commands.
+ Makropolecenia są najczęściej używane do:
+ - ^<wrap>Wykonywania powtarzalnych zadań nieograniczoną liczbę razy
+poprzez naciśnięcie jednej kombinacji klawiszy.
+ - Wykonywanie funkcji specjalnych, które są reprezentowane przez polecenia
+specjalne w tekście makropolecenia.
+ - Przedefiniowanie standardowych skrótów klawiszowych, które są używane
+w Far do wykonywania poleceń wewnętrznych.
 
- The main usage of macro commands is assignment of hotkeys for calling
-external plugins and for overloading Far actions.
+ Głównym zastosowaniem makropoleceń jest przypisanie klawiszy skrótów
+do wywoływanie zewnętrznych wtyczek i przeciążania akcji Far.
 
- See also:
+ Zobacz także:
 
- ~Macro command areas of execution~@KeyMacroArea@
- ~Hotkeys~@KeyMacroAssign@
- ~Recording and playing-back macro commands~@KeyMacroRecPlay@
- ~Deleting a macro command~@KeyMacroDelete@
- ~Macro command settings~@KeyMacroSetting@
- ~The list of installed macros~@KeyMacroList@
+ ~Obszary wykonywań makropoleceń~@KeyMacroArea@
+ ~Klawisze skrótów~@KeyMacroAssign@
+ ~Nagrywanie i odtwarzanie poleceń makropoleceń~@KeyMacroRecPlay@
+ ~Usuwanie makropoleceń~@KeyMacroDelete@
+ ~Ustawienia makropoleceń~@KeyMacroSetting@
+ ~Lista zainstalowanych makropoleceń~@KeyMacroList@
 
 
 @KeyMacroArea
-$ #Macro command: areas of execution#
- Far allows the creation of independent ~macro commands~@KeyMacro@ (commands with
-identical hotkeys) for different areas of execution.
+$ #Obszary wykonywań makropoleceń#
+ Far umożliwia tworzenie niezależnych ~makropoleceń~@KeyMacro@ (poleceń
+z identycznymi skrótami klawiszowymi) dla różnych obszarów wykonywań.
 
- #Attention#: The area of execution, to which the macro command will
-belong, is determined by the location in which the
-recording of the macro command has been #started#.
+ #Uwaga#: Obszary wykonania, do których makropolecenie
+zostanie skierowane, należy do lokalizacji w której
+#rozpoczęte# zostało nagrywanie makropolecenia.
 
- Currently those are the available independent areas:
- - file panels;
- - internal viewer;
- - internal editor;
- - dialogs;
- - quick file search;
- - select drive menu;
- - main menu;
- - other menus;
- - help window;
- - info panel;
- - quick view panel;
- - tree panel;
- - user menu;
- - screen grabber, vertical menus.
+ Obecnie dostępne są następujące niezależne obszary:
+ - panele plików;
+ - wewnętrzny podgląd;
+ - wewnętrzny edytor;
+ - okna dialogowe;
+ - szybkie wyszukiwania pliku;
+ - menu wyboru dysku;
+ - menu główne;
+ - pozostałe menu;
+ - okno pomocy;
+ - panel informacyjny;
+ - panel szybkiego podglądu;
+ - panel drzewka;
+ - menu użytkownika;
+ - zrzuty ekranu, pionowe menu.
 
- It is impossible to assign a macro command to an already used hotkey. When
-such an attempt is made, a warning message will appear telling that the macro
-command that is assigned to this hotkey will be deleted.
+ Nie można przypisać makropolecenia do już użytego skrótu.
+Przy próbie takiego przypisania, zostanie wyświetlony komunikat ostzegawczy
+informujący, że makropolecenie przypisane do tego skrótu zostanie usunięte.
 
- This way you can have identical hotkeys for different macro commands only
-in different areas of execution.
+ W taki sposób można mieć identyczne skróty dla różnych makropoleceń,
+ale przypisanych do różnych obszarów wykonań.
 
 
 @KeyMacroAssign
-$ #Macro command: hotkeys#
- A ~macro command~@KeyMacro@ can be assigned to:
- - ^<wrap>any key;
- - any key combination with #Ctrl#, #Alt# and #Shift# modifiers;
- - any key combination with two modifiers.
-   Far allows to use the following double modifiers:
-   #Ctrl+Shift+<key>#, #Ctrl+Alt+<key># and #Alt+Shift+<key>#
+$ #Makropolecenia: klawisze skrótów#
+ ~Makropolecenie~@KeyMacro@ może być przypisane do:
+ - ^<wrap>dowolnego znaku;
+ - dowolnej kombinacji klawiszy z modyfikatorami #Ctrl#, #Alt# i #Shift#;
+ - dowolnej kombinacji klawiszy z dwoma modyfikatorami.
+   Far pozwala na użycie następujących podwójnych modyfikatorów:
+   #Ctrl+Shift+<klawisz>#, #Ctrl+Alt+<klawisz># and #Alt+Shift+<klawisz>#
 
- A macro command #can't# be assigned to the following key combinations:
+ Makropolecenie #nie może# być przypisane do następujących kombinacji klawiszy:
 #Alt+Ins#, #Ctrl+<.>#, #Ctrl+Shift+<.>#, #Ctrl+Alt#, #Ctrl+Shift#, #Shift+Alt#,
-#Shift+<character>#.
+#Shift+<znak>#.
 
- It is impossible to enter some key combinations (in particular #Enter#,
-#Esc#, #F1#, #Ctrl+F5#, #MsWheelUp# and #MsWheelDown# with #Ctrl#, #Shift#,
-#Alt#) in the hotkey assignment dialog because of their special meanings. To
-assign a macro command to such key combination, select it from the dropdown
-list.
+ Nie jest możliwe wprowadzenie niektórych kombinacji klawiszy (w szczególności
+#Enter#, #Esc#, #F1#, #Ctrl+F5#, #RolkaDoGóry# and #RolkaWDół# razem z #Ctrl#,
+#Shift#, #Alt#) ze względu na ich specjalne przeznaczenie. Aby przypisać
+makropolecenie do takiej kombinacji klawiszy, należy ją wybrać z rozwijanej listy.
 
 
 @KeyMacroRecPlay
-$ #Macro command: recording and playing-back#
- A ~macro command~@KeyMacro@ can be played-back in one of the two following modes:
+$ #Makropolecenia: nagrywanie i odtwarzanie#
+ ~Makropolecenie~@KeyMacro@ może zostać odtworzone w jednym z dwóch trybów:
 
- 1. ^<wrap>General mode: keys pressed during the recording or the
-playing-back #will be# sent to plugins.
- 2. ^<wrap>Special mode: keys pressed during the recording or the
-playing-back #will not be# sent to plugins that intercept editor events.
+ 1. ^<wrap>Tryb ogólny: klawisze wciśnięte podczas nagrywania
+lub odtwarzania #zostaną# wysłane do wtyczek.
+ 2. ^<wrap>Tryb specjalny: klawisze wciśnięte podczas nagrywania
+lub odtwarzanie #nie zostaną# wysłane do wtyczek, które przechwytują
+zdarzenia edytora.
 
- For example, if some plugin processes the key combination - #Ctrl+A#, then
-in the special mode this plugin will not receive focus and will not do what it
-usually does as a reaction to this combination.
+ Przykładowo, jeżeli jakaś wtyczka przetwarza kombinację klawiszy - #Ctrl+A#,
+to w trybie specjalnym wtyczka ta nie uzyska fokusu i nie wykona tego,
+co zwykle wykonuje po wciśnięciu takiej kombinacji klawiszy.
 
- Creation of a macro command is achieved by the following actions:
+ Tworzenie makropoleceń można wywołać następującymi czynnościami:
 
- #Start recording a macro command#
- Press #Ctrl+<.># (#Ctrl# and a period pressed together) to record
-a macro in the general mode or #Ctrl+Shift+<.># (#Ctrl#, #Shift# and
-a period pressed together) to record a macro in the special mode.
- As the recording begins, the '\CFR\-' character will appear in the
-upper left corner of the screen.
+ #Rozpoczęcie nagrywania makropoleceń#
+ Naciśnięcie #Ctrl+<.># (#Ctrl# i kropka wciśnięte razem), aby nagrać
+makropolecenie w trybie ogólnym lub #Ctrl+Shift+<.># (#Ctrl#, #Shift#
+i kropka wciśnięte razem), aby nagrać makropolecenie w trybie specjalnym.
+ Po rozpoczęciu nagrywania, znak '\CFR\-' będzie widoczny w lewym
+górnym rogu ekranu.
 
- #Enter Contents of the macro command#
- All keys pressed during the recording will be saved with the following exceptions:
- - ^<wrap>only keys processed by Far will be saved. Meaning that if
-during the macro recording process an external program is
-run inside the current console then only the keys pressed
-before the execution and after completion of that program
-will be saved.
+ #Wprowadzenie zawartości makropolecenia#
+ Wszystkie klawisze wciskane podczas nagrywania zostaną zapisane z następującymi wyjątkami:
+ - ^<wrap>zapisane będą tylko klawisze wciskane w Far. Oznacza to,
+że jeżeli podczas nagrywania makropolecenia zostanie uruchomiony
+program zewnętrzny z poziomu bieżącej konsoli, to nagrane będą
+wciśnięcia wykonane przed uruchomieniem i po zakończeniu tego
+programu.
 
- #Note#: During macro recording, all other macros are disabled. Thus,
-it is impossible to create a “multilevel” macro which would call
-previously recorded macros.
+ #Uwaga#: Podczas nagrywania makropolecenia, wszystkie inne makropolecenia są wyłączone.
+Przez to nie możliwe jest tworzenie “wielopoziomowych” makropoleceń,
+które wywołują poprzednio nagrane makropolecenia.
 
- #Finish recording the macro command#
- To finish a macro recording there are special key
-combinations. Because a macro command can be additionally
-configured there are two such combinations: #Ctrl+<.># (#Ctrl#
-and a period pressed together) and #Ctrl+Shift+<.># (#Ctrl#,
-Shift and a period pressed together). Pressing the first
-combination will end the recording of the macro command
-and will use the default settings for its playback. Pressing
-the second combination will end the recording of the macro
-command and a dialog showing macro command ~options~@KeyMacroSetting@
-will appear.
+ #Zakończenie nagrywania makropolecenia#
+ Do zakończenia nagrywania makropoleceń służą specjalne
+kombinacje klawiszy. Ponieważ makropolecenia można dodatkowo
+skonfigurować, istnieją dwie kombinacje klawiszy: #Ctrl+<.># (#Ctrl#
+i kropka wciśnięte razem) oraz #Ctrl+Shift+<.># (#Ctrl#, #Shift#
+i kropka naciśnięte razem). Wciśnięcie pierwszej kombinacji kończy
+nagrywanie makropolecenia, a przy odtwarzaniu zastosowane zostaną domyślne
+ustawienia. Wciśnięcie drugiej kombinacji kończy nagrywanie
+makropoleceń i wyświetla okno ~ustawień~@KeyMacroSetting@ makropolecenia.
 
- #Assign a hotkey to the macro command#
- When the macro recording is finished and all the options are set the
-~hotkey assignment~@KeyMacroSetting@ dialog will appear, where the hotkey that
-will be used to execute the recorded sequence can be set.
+ #Przypisane skrótu do makropolecenia#
+ Po zakończeniu nagrywania makropoleceniaa i ustawieniu wszystkich opcji, wyświetlone
+zostanie okno ~przypisania klawiszy skrótu ~@KeyMacroSetting@, gdzie można
+ustawić klawisz szybkiego dostępu, który będzie użyty do wykonania nagranej
+sekwencji.
 
- Playing back a macro is indicated by showing the '\2FP\-' character in the upper-left screen corner.
-See also "~Macros.ShowPlayIndicator~@Macros.ShowPlayIndicator@" for turning that indication on/off.
+ Odtworzenie makropolecenia jest sygnalizowane przez wyświetlenie znaku '\2FP\-'
+w lewym górnym rogu ekranu. Zobacz także "~Macros.ShowPlayIndicator~@Macros.ShowPlayIndicator@",
+aby włączyć/wyłączyć ten znacznik.
 
 
 @KeyMacroDelete
-$ #Macro command: deleting a macro command#
- To delete a ~macro command~@KeyMacro@ an empty (containing no commands)
-macro should be recorded and assigned the hotkey of the macro command that
-needs to be deleted.
+$ #Makropolecenia: usuwanie makropoleceń#
+ Aby usunąć ~makropolecenie~@KeyMacro@ należy nagrać puste (nie zawierające
+poleceń) makropolecenie i przypisać ten sam klawisz skrótu, jak makropolecenie do usunięcia.
 
- This can be achieved by the following steps:
- 1. ^<wrap>Start recording a macro command (#Ctrl+<.>#)
- 2. Stop recording a macro command (#Ctrl+<.>#)
- 3. Enter or select in the hotkey assignment
-dialog the hotkey of the macro command that
-needs to be deleted.
+ Można to osiągnąć poprzez następujące kroki:
+ 1. ^<wrap>Rozpoczęcie nagrywania makropolecenia (#Ctrl+<.>#)
+ 2. Zatrzymanie nagrywania (#Ctrl+<.>#)
+ 3. Wprowadzenie lub wybranie w oknie dialogowym przypisania
+klawisz skrótu makropolecenia, które ma zostać usunięte.
 
- #Attention#: after deleting a macro command, the key combination
-(hotkey) that was used for its execution will begin
-to function as it was meant to, originally. That is
-if that key combination was somehow processed by Far
-or some plugin then after deleting the macro command
-the key combination would be processed by them as in
-the past.
+ #Uwaga#: po usunięciu makropolecenia, kombinacja
+klawiszy (skrót), który został użyty do jego wykonania
+zacznie funkcjonować tak, jak to było pierwotnie zamierzone.
+Oznacza to, że jeśli jakaś kombinacja była obsługiwana
+przez Far lub jakąś wtyczkę, to po usunięciu makropolecenia
+kombinacja klawiszy będzie przetwarzania jak w przeszłości.
 
 
 @KeyMacroSetting
-$ #Macro command: settings#
- To specify additional ~macro command~@KeyMacro@ settings, start or finish
-macro recording with #Ctrl+Shift+<.># instead of #Ctrl+<.># and select the
-desired options in the dialog:
+$ #Makropolecenia: ustawienia#
+ Aby określić dodatkowe ustawienia ~makropolecenia~@KeyMacro@, należy
+rozpocząć lub zakończyć nagrywanie za pomocą klawiszy #Ctrl+Shift+<.>#
+zamiast #Ctrl+<.># i wybrać żądane opcje w oknie dialogowym:
 
- #Sequence:#
- Allows to edit the recorded key sequence.
+ #Sekwencja:#
+ Pozwala na edycję nagranej sekwencji klawiszy.
 
- #Description:#
- Allows to edit the description of key sequence.
+ #Opis:#
+ Pozwala na edycję opisu sekwencji klawiszy.
 
- #Allow screen output while executing macro#
- If this option is not set during the macro command execution Far Manager
-does not redraw the screen. All the updates will be displayed when the macro
-command playback is finished.
+ #Zezwalaj na zapis na ekranie podczas wykonywania#
+ Jeżeli opcja nie jest włączona to podczas uruchomienia makropolecenia
+Far Manager nie przerysowuje ekranu. Wszystkie aktualizacje zostaną wyświetlone
+po zakończeniu odtwarzania poleceń.
 
- #Execute after Far start#
- Allows to execute the macro command immediately after the Far Manager is started.
+ #Wykonaj po starcie Far#
+ Pozwala na wykonanie makropolecenia bezpośrednio po uruchomieniu Far Manager.
 
- The following execution conditions can be applied for the active and passive panels:
+ Poniższe warunki uruchamiania można zastosować dla aktywnego i pasywnego panelu:
 
- #Plugin panel#
- [x] - ^<wrap>execute only if the current panel is a plugin panel
- [ ] - execute only if the current panel is a file panel
- [?] - ignore the panel type
+ #Panel wtyczek#
+ [x] - ^<wrap>wykonaj tylko wtedy, gdy bieżący panel jest panelem wtyczki
+ [ ] - wykonaj tylko wtedy, gdy bieżący panel to panel plików
+ [?] - ignoruj typ panelu
 
- #Execute for folders#
- [x] - ^<wrap>execute only if a folder is under the panel cursor
- [ ] - execute only if a file is under the panel cursor
- [?] - execute for both folders and files
+ #Wykonaj dla folderów#
+ [x] - ^<wrap>wykonaj tylko wtedy, gdy pod kursorem znajduje się folder
+ [ ] - wykonaj tylko wtedy, gdy pod kursorem znajduje się plik
+ [?] - wykonaj zarówno dla folderów jak i plików
 
- #Selection exists#
- [x] - ^<wrap>execute only if there are marked files/directories on the panel
- [ ] - execute only if there are no marked files/directories on the panel
- [?] - ignore the file selection state
+ #Aktualne zaznaczenie#
+ [x] - ^<wrap>wykonaj tylko wtedy, gdy w panelu zaznaczone są pliki/foldery
+ [ ] - wykonaj tylko wtedy, gdy w panelu nic nie jest zaznaczone
+ [?] - ignoruj stan zaznaczania plików/folderów
 
- Other execution conditions:
+ Pozostałe warunki wykonywania:
 
- #Empty command line#
- [x] - ^<wrap>execute only if the command line is empty
- [ ] - execute only if the command line is not empty
- [?] - ignore the command line state
+ #Pusta linia poleceń#
+ [x] - ^<wrap>wykonaj tylko wtedy, gdy linia poleceń jest pusta
+ [ ] - wykonaj tylko wtedy, gdy linia poleceń nie jest pusta
+ [?] - ignoruj stan linii poleceń
 
- #Selection block present#
- [x] - ^<wrap>execute only if there is a selection block present in the editor, viewer, command line or dialog input line
- [ ] - execute only if there is no selection present
- [?] - ignore selection state
+ #Obecny blok zaznaczenia#
+ [x] - ^<wrap>wykonaj tylko wtedy, gdy w edytorze, podglądzie, linii poleceń lub linii wejściowej okna dialogowego
+znajduje się zaznaczony blok
+ [ ] - wykonaj tylko wtedy, gdy nie ma zaznaczenia
+ [?] - ignoruj stan zaznaczenia
 
- Notes:
+ Uwagi:
 
- 1. ^<wrap>Before executing a macro command, all of the above conditions are checked.
+ 1. ^<wrap>Przed uruchomieniem makropolecenia, sprawdzane są wszystkie powyższe warunki.
 
- 2. ^<wrap>Some key combinations (including #Enter#, #Esc#, #F1# and #Ctrl+F5#,
-#MsWheelUp#, #MsWheelDown# and other mouse keys combined with #Ctrl#, #Shift#, #Alt#) cannot be entered
-directly because they have special functions in the dialog. To ~assign a macro~@KeyMacroAssign@
-to one of those key combinations, select it from the drop-down list.
+ 2. ^<wrap>Niektóre kombinacje klawiszy (w tym #Enter#, #Esc#, #F1# i #Ctrl+F5#,
+#RolkaDoGóry#, #RolkaWDół# oraz inne przyciski myszy w kombinacji z #Ctrl#, #Shift#,
+#Alt#) nie mogą być wprowadzone bezpośrednio, ponieważ mają one przypisane funkcje
+specjalne w oknach dialogowych.
+Aby ~przypisać makropolecenie~@KeyMacroAssign@ do jednego z tych kombinacji klawiszy,
+należy wybrać ją z rozwijanej listy.
 
 
 @KeyMacroList
-$ #Macros: The list of installed macros#
- The following is a list of topics where you can find out which ~macros~@KeyMacro@
-are available in the current Far Manager session.
+$ #Makropolecenia: lista zainstalowanych makropoleceń#
+ Poniżej znajduje się lista tematów, gdzie można dowiedzieć się które ~makropolecenia~@KeyMacro@
+są dostępne w bieżącej sesji Far Manager.
 
- ~Common macros#~@KeyMacroCommonList@
+ ~Makropolecenia ogólne#~@KeyMacroCommonList@
 
- ~File panels~@KeyMacroShellList@
- ~Quick View panel~@KeyMacroQViewList@
- ~Tree panel~@KeyMacroTreeList@
- ~Info panel~@KeyMacroInfoList@
- ~Autocompletion in panels~@KeyMacroShellAutoCompletionList@
+ ~Panele plików~@KeyMacroShellList@
+ ~Panel szybkiego podglądu~@KeyMacroQViewList@
+ ~Panel drzewa~@KeyMacroTreeList@
+ ~Panel informacyjny~@KeyMacroInfoList@
+ ~Autouzupełnianie w panelach~@KeyMacroShellAutoCompletionList@
 
- ~Fast Find in panels~@KeyMacroSearchList@
- ~Find Folder~@KeyMacroFindFolderList@
+ ~Szybkie wyszukiwanie w panelach~@KeyMacroSearchList@
+ ~Znajdź folder~@KeyMacroFindFolderList@
 
- ~Dialogs~@KeyMacroDialogList@
- ~Autocompletion in dialogs~@KeyMacroDialogAutoCompletionList@
+ ~Okna dialogowe~@KeyMacroDialogList@
+ ~Autouzupełnianie w oknach dialogowych~@KeyMacroDialogAutoCompletionList@
 
- ~Main menu~@KeyMacroMainMenuList@
- ~Change drive menu~@KeyMacroDisksList@
- ~User menu~@KeyMacroUserMenuList@
- ~Other menus~@KeyMacroMenuList@
+ ~Menu główne~@KeyMacroMainMenuList@
+ ~Menu zmiany dysku~@KeyMacroDisksList@
+ ~Menu użytkownika~@KeyMacroUserMenuList@
+ ~Inne menu~@KeyMacroMenuList@
 
- ~Viewer~@KeyMacroViewerList@
- ~Editor~@KeyMacroEditList@
+ ~Podgląd~@KeyMacroViewerList@
+ ~Edytor~@KeyMacroEditList@
 
- ~Help window#~@KeyMacroHelpList@
+ ~Okno pomocy~@KeyMacroHelpList@
 
- ~Other areas~@KeyMacroOtherList@
+ ~Inne obszary~@KeyMacroOtherList@
 
 
 @KeyMacroCommonList
-$ #Macros: Common macros#
- The following macro keys are available in all areas.
+$ #Makropolecenia: makropolecenia ogólne#
+ Następujące makropolecenia są dostępne we wszystkich obszarach.
 
 <!Macro:Common!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroQViewList
-$ #Macros: Quick View panel#
- The following macro keys are available in Quick View panel.
+$ #Makropolecenia: panel szybkiego podglądu#
+ Następujące makropolecenia są dostępne w panelu szybkiego podglądu.
 
 <!Macro:Common!>
 
 <!Macro:Qview!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroMainMenuList
-$ #Macros: Main Menu#
- The following macro keys are available in Main Menu.
+$ #Makropolecenia: menu główne#
+ Następujące makropolecenia są dostępne w głównym menu.
 
 <!Macro:Common!>
 
 <!Macro:MainMenu!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroTreeList
-$ #Macros: Tree Panel#
- The following macro keys are available in Tree Panel.
+$ #Makropolecenia: panel drzewa#
+ Następujące makropolecenia są dostępne w panelu drzewka.
 
 <!Macro:Common!>
 
 <!Macro:Tree!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroDialogList
-$ #Macros: Dialogs#
- The following macro keys are available in dialogs.
+$ #Makropolecenia: okna dialogowe#
+ Następujące makropolecenia są dostępne w oknach dialogowych.
 
 <!Macro:Common!>
 
 <!Macro:Dialog!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroInfoList
-$ #Macros: Info Panel#
- The following macro keys are available in Info Panel.
+$ #Makropolecenia: panel informacyjny#
+ Następujące makropolecenia są dostępne w Panelu informacyjnym.
 
 <!Macro:Common!>
 
 <!Macro:Info!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroDisksList
-$ #Macros: Change Drive menu#
- The following macro keys are available in Change Drive menu.
+$ #Makropolecenia: menu zmiany dysku#
+ Następujące makropolecenia są dostępne w menu Zmień dysk.
 
 <!Macro:Common!>
 
 <!Macro:Disks!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroUserMenuList
-$ #Macros: User Menu#
- The following macro keys are available in User Menu.
+$ #Makropolecenia: menu użytkownika#
+ Następujące makropolecenia są dostępne w Menu użytkownika.
 
 <!Macro:Common!>
 
 <!Macro:UserMenu!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroShellList
-$ #Macros: File panels#
- The following macro keys are available in file panels.
+$ #Makropolecenia: panele plików#
+ Następujące makropolecenia są dostępne w panelach plików.
 
 <!Macro:Common!>
 
 <!Macro:Shell!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroSearchList
-$ #Macros: Fast Find in panels#
- The following macro keys are available in Fast Find dialog.
+$ #Makropolecenia: szybkie wyszukiwanie w panelach#
+ Następujące makropolecenia są dostępne w oknie Szybkiego wyszukiwania.
 
 <!Macro:Common!>
 
 <!Macro:Search!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroFindFolderList
-$ #Macros: Find Folder#
- The following macro keys are available in Find Folder window.
+$ #Makropolecenia: znajdź folder#
+ Następujące makropolecenia są dostępne w oknie Znajdź folder.
 
 <!Macro:Common!>
 
 <!Macro:FindFolder!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroEditList
-$ #Macros: Editor#
- Macro-commands available in the editor are listed below.
+$ #Makropolecenia: edytor#
+ Makropolecenia dostępne w edytorze są dostępne poniżej.
 
 <!Macro:Common!>
 
 <!Macro:Editor!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroViewerList
-$ #Macros: Viewer#
- Macro-commands available in the viewer are listed below.
+$ #Makropolecenia: podgląd#
+ Makropolecenia dostępne w podglądzie są dostępne poniżej.
 
 <!Macro:Common!>
 
 <!Macro:Viewer!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroMenuList
-$ #Macros: Other menus#
- The following macro keys are available in other menus.
+$ #Makropolecenia: inne menu#
+ Następujące makropolecenia są dostępne w innych menu.
 
 <!Macro:Common!>
 
 <!Macro:Menu!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroHelpList
-$ #Macros: Help window#
- The following macro keys are available in Help window.
+$ #Makropolecenia: okno pomocy#
+ Następujące makropolecenia są dostępne w oknie Pomocy.
 
 <!Macro:Common!>
 
 <!Macro:Help!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroOtherList
-$ #Macros: Other areas#
- The following macro keys are available in other areas: screen grabber, vertical menus.
+$ #Makropolecenia: Inne obszary#
+ Następujące makropolecenia są dostępne w innych obszarach: zrzuty ekranu, menu pionowe.
 
 <!Macro:Common!>
 
 <!Macro:Other!>
 
- See also ~"The list of installed macros"~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroShellAutoCompletionList
-$ #Macros: Autocompletion in panels#
- The following macro keys are available in Autocompletion in panels.
+$ #Makropolecenia: autouzupełnianie w panelach#
+ Następujące makropolecenia są dostępne w autouzupełnianiu paneli.
 
 <!Macro:Common!>
 
 <!Macro:ShellAutoCompletion!>
 
- See also ~«The list of installed macros»~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @KeyMacroDialogAutoCompletionList
-$ #Macros: Autocompletion in dialogs#
- The following macro keys are available in Autocompletion in dialogs.
+$ #Makropolecenia: autouzupełnianie w oknach dialogowych#
+ Następujące makropolecenia są dostępne w autouzupełnianiu okien dialogowych.
 
 <!Macro:Common!>
 
 <!Macro:DialogAutoCompletion!>
 
- See also ~«The list of installed macros»~@KeyMacroList@
+ Zobacz także ~"Lista zainstalowanych makropoleceń"~@KeyMacroList@
 
 
 @FarAbout
-$ #Version information#
- Starts with the command #far:about#
+$ #Informacja o wersji#
+ Wywoływana poleceniem #far:about#
 
- Displays:
- - Far Manager version and bitness
- - versions of the third-party libraries used in the project
- - names and versions of the active plugins
+ Wyświetla:
+ - wersję i kompilację Far Manager;
+ - wersję dodatkowych bibliotek użytych w projekcie;
+ - nazwy i wersje aktywnych wtyczek.
 
 
 @FarConfig
-$ #Configuration editor#
- Starts with the command #far:config#
+$ #Edytor konfiguracji#
+ Wywoływany poleceniem #far:config#
 
- Allows to view and edit all Far Manager’s options.
- Most options can be changed from the ~Options menu~@OptMenu@, however some options are available only here or using configuration import.
-The options are displayed in a list with three fields per item: the name in the SectionName.ParamName format (for example, Editor.TabSize),
-the type (boolean, 3-state, integer, string), and the value (for the integer type, hexadecimal and symbolic representations additionally displayed).
-If current value of an option is other than the default, the option is marked with the ‘*’ character to the left of the name.
+ Pozwala na obejrzenie i edycję wszystkich opcji Far Manager.
+ Większość opcji można ustawić w menu ~Opcje~@OptMenu@, ale niektóre z nich są dostępne
+tylko tutaj lub poprzez import konfiguracji. Opcje są wyświetlane w postaci listy
+z trzema polami, wyświetlanymi w języku angielskim: nazwa w formacie NazwaSekcji.NazwaParametru
+(np. Editor.TabSize), typ wartości (boolean <prawda/fałsz>, trój-stanowa,
+integer <liczba całkowita>, string <tekst>) oraz wartość (dla liczb całkowitych
+dodatkowo wyświetlana jest wartość szesnastkowa i symboliczna.
+Jeżeli bieżąca wartość opcji jest inna niż domyślna, opcja jest oznaczona znakiem gwiazdki ‘*’ po lewej stronie nazwy.
 
- Besides the list navigation keys, the following key combinations are supported:
+ Oprócz klawiszy nawigacyjnych, obsługiwane są następujące kombinacje klawiszy:
 
- #Enter# or #F4#
- Toggle or edit the value.
+ #Enter# lub #F4#
+ Przełącza lub edytuje wartość.
 
  #Shift+F4#
- Edit the integer value as a hexadecimal number. For other types works as #F4#.
+ Edytuje wartość całkowitą jako liczbę szesnastkową. Dla innych typów działa jak #F4#.
 
  #Alt+F4#
- Edit the integer value as a binary number. For other types works as #F4#.
+ Edytuje wartość całkowitą jak liczbę binarną. Dla innych typów działa jak #F4#.
 
  #Del#
- Reset the option to its default value.
+ Przywraca domyślną wartość opcji.
 
  #Ctrl+H#
- Toggle display of unchanged options.
+ Przełącza wyświetlanie nie zmienionych opcji.
 
  #Shift+F1#
- Show the help for the current option, if available.
+ Pokazuje pomoc dla bieżącej opcji, jeżeli jest dostępna.
 
  #Ctrl+Alt+F#
- Toggle quick filtering mode.
+ Przełącza tryb szybkiego filtrowania.
 
 
 @Codepages.NoAutoDetectCP
 $ #far:config Codepages.NoAutoDetectCP#
- This string parameter defines the code pages which will be excluded
-from Universal Codepage Detector (UCD) autodetect. Sometimes, especially
-on small files, UCD annoyingly chooses wrong code pages.
+ Ten parametr tekstowy pozwala wykluczyć specyficzne strony kodowe z wyników
+heurystycznego wykrywania stron kodowych. Takie wykrywanie jest z definicji
+zawodne: zależy od danych statystycznych i może się mylić, zwłaszcza gdy
+ilość danych wejściowych jest mała.
 
- The default value is empty string #""#. In this case all code pages
-detectable by UCD (about 20, much less than there is usually available
-in the system) are enabled.
+ Domyślnie parametr jest pusty i nie istnieją żadne ograniczenia, co do heurystycznego
+wykrywania stron kodowych.
 
- If this parameter is set to string #"-1"# and the #Other# section
-of the ~Code pages~@CodePagesMenu@ menu is hidden (#Ctrl+H# key
-combination), only #System# (ANSI, OEM), #Unicode#, and #Favorites# code
-pages will be enabled for UCD. If the #Other# section is visible, all
-code pages are enabled.
+ Jeżeli parametr jest ustawiony na #-1#, to tylko strony kodowe widoczne w menu
+~Strony kodowe~@CodePagesMenu@ zostaną zaakceptowane.
+Można kontrolować, które strony kodowe mają być widoczne w sekcji #Ulubione#
+za pomocą kombinacji klawiszy #Ctrl+H#.
 
- Otherwise, this parameter should contain comma separated list
-of code page numbers disabled for UCD. For example,
-#"1250,1252,1253,1255,855,10005,28592,28595,28597,28598,38598"#.
+ Jeżeli parametr ten zawiera listę stron kodowych oddzieloną przecinkami, to wszystkie
+wymienione tutaj strony kodowe zostaną wykluczone z wykrywania heurystycznego.
 
- Since Unicode code pages (1200, 1201, 65001) are detected outside
-of UCD, they cannot be disabled even if they appear on the exclusions
-list.
-
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Help.ActivateURL
 $ #far:config Help.ActivateURL#
- This numeric parameter controls whether Far will open (activate) URL
-links in help files:
+ Parametr liczbowy kontroluje czy Far będzie otwierał (aktywował) link
+URL w plikach pomocy:
 
- 0 - ^<wrap>URL links are not opened;
- 1 - URL links are opened;
- 2 - URL links are opened after user’s confirmation.
+ 0 - ^<wrap>linki URL nie będą otwierane;
+ 1 - linki URL będą otwierane;
+ 2 - linki URL będą otwierane po potwierdzeniu przez użytkownika.
 
- Default value: 1 (links are opened).
+ Domyślna wartość: 1 (linki będą otwierane).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Confirmations.EscTwiceToInterrupt
 $ #far:config Confirmations.EscTwiceToInterrupt#
- This Boolean parameter controls the behavior of #Esc# key in the
-confirmation dialog for canceling an operation.
+ Ten parametr logiczny (boolean) kontroluje zachowanie klawisza #Esc#
+w oknach dialogowych do operacji anulowania.
 
- False - ^<wrap>#Esc# key closes the dialog and continues the operation;
- True  - #Esc# key closes the dialog and cancels the operation.
+ False - ^<wrap>Klawisz #Esc# zamyka okno dialogowe i kontynuuje operację;
+ True  - Klawisz #Esc# zamyka okno dialogowe i anuluje operację.
 
- Default value: False (close the dialog and continue operation).
+ Domyślna wartość: False (zamyka okno dialogowe i kontynuuje operację).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.AllCtrlAltShiftRule
 $ #far:config System.AllCtrlAltShiftRule#
- This numeric parameter controls which user interface objects can be
-temporarily hidden with #Ctrl+Alt+Shift# key combination. Each bit
-corresponds to a certain object type.
+ Parametr liczbowy kontroluje, które obiekty interfejsu użytkownika
+mogą być tymczasowo ukryte za pomocą kombinacje klawiszy #Ctrl+Alt+Shift#.
+Każdy bit odpowiada określonemu typowi obiektu.
 
- Bit numbers:
- 0 - Panels;
- 1 - Editor;
- 2 - Viewer;
- 3 - Help window;
- 4 - Dialogs and menus.
+ Numery bitów:
+ 0 - Panele;
+ 1 - Edytor;
+ 2 - Podgląd;
+ 3 - Okno pomocy;
+ 4 - Okna dialogowe i menu.
 
- If a bit is set, objects of the corresponding type can be hidden.
+ Jeżeli bit jest ustawiony, obiekty odpowiadającego typu mogę być ukryte.
 
- By default, all objects can be hidden.
+ Domyślnie, wszystkie obiekty mogą być ukryte.
 
- See also ~System.CASRule~@System.CASRule@.
+ Zobacz także ~System.CASRule~@System.CASRule@.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.CASRule
 $ #far:config System.CASRule#
- This numeric parameter allows to disable #Ctrl+Alt+Shift# key
-combination for temporary hiding user interface objects. Individual
-bits control the behavior of left and right key combinations.
+ Parametr liczbowy pozwala wyłączyć kombinację klawiszy #Ctrl+Alt+Shift#
+dla tymczasowego ukrycia obiektów interfejsu użytkownika. Poszczególne
+bity kontrolują zachowanie lewej i prawej kombinacji klawiszy.
 
- Bit numbers:
- 0 - Left #Ctrl+Alt+Shift# key combination;
- 1 - Right #Ctrl+Alt+Shift# key combination.
+ Numery bitów:
+ 0 - Lewa kombinacja klawiszy #Ctrl+Alt+Shift#;
+ 1 - Prawa kombinacja klawiszy #Ctrl+Alt+Shift#.
 
- If a bit is set, corresponding key combination hides interface objects.
+ Jeżeli dany bit jest ustawiony, odpowiadająca kombinacja klawiszy ukrywa
+obiekty interfejsu.
 
- By default, both key combinations are enabled.
+ Domyślnie obie kombinacje klawiszy są włączone.
 
- See also ~System.AllCtrlAltShiftRule~@System.AllCtrlAltShiftRule@.
+ Zobacz także ~System.AllCtrlAltShiftRule~@System.AllCtrlAltShiftRule@.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.ShellRightLeftArrowsRule
 $ #far:config Panel.ShellRightLeftArrowsRule#
- This Boolean parameter controls the behavior of left and right arrow
-keys, both on main keyboard and numeric keypad.
+ Ten parametr logiczny kontroluje zachowanie lewego i prawego klawisza
+strzałki (kursora), zarówno na klawiaturze głównej jak i numerycznej.
 
- False - ^<wrap>As in Far 1.70. If command line is not empty, the
-behavior of #Left#, #Right#, #Numpad4#, and #Numpad6# keys depends
-on the ~panel view mode~@PanelViewModes@.
-         - ^<wrap>If file names are displayed in multiple stripes (panel
-modes 2 and 3 by default), then the keys move panel cursor, just like
-with empty command line.
-         - ^<wrap>If file names are displayed in a single stripe (all
-other panel modes by default), the keys control the command line caret.
- True  - ^<wrap>When the panel is on, the #Left#, #Right#, #Numpad4#,
-and #Numpad6# keys always move panel cursor, even if the command line
-is not empty. The behavior does not depend on the current panel mode.
+ False - ^<wrap>Tak jak w Far 1.70. Jeżeli wiersz poleceń nie jest pusty,
+zachowanie klawiszy #Lewo#, #Prawo#, #Numpad4# i #Numpad6# zależą od
+~trybu widoku panelu~@PanelViewModes@.
+         - ^<wrap>Jeżeli nazwy plików wyświetlane są w wielu kolumnach
+(domyślny tryb panelu - 2 lub 3 kolumny), to klawisze te przesuwają
+kursor w panelach, tak jak przy pustym wierszu poleceń.
+         - ^<wrap>Jeżeli nazwy plików wyświetlane są w jednej kolumnie
+(domyślnie wszystkie inne tryby panelu), to klawisze sterują kursorem
+w wierszu poleceń.
+ True  - ^<wrap>Jeżeli panel jest włączony, to klawisze #Lewo#, #Prawo#,
+#Numpad4#, i #Numpad6# zawsze przesuwają kursor w panelu plików,
+nawal jeżeli wiersz poleceń nie jest pusty. Zachowanie to nie zależy
+od bieżącego trybu panelu.
 
- Note: The #Ctrl+D# and #Ctrl+S# keys always move command line caret.
+ Uwaga: Klawisze #Ctrl+D# i #Ctrl+S# zawsze przesuwają kursor wiersza poleceń.
 
- Default value: False (traditional behavior).
+ Domyślna wartość: False (tradycyjne zachowanie).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.Layout.ScrollbarMenu
 $ #far:config Panel.Layout.ScrollbarMenu#
- This Boolean parameter enables menu scrollbar when there are more menu
-items than can fit vertically.
+ Ten parametr logiczny włącza pasek przewijania menu, gdy w menu znajduje się
+więcej pozycji, niż można zmieścić w pionie.
 
- False - ^<wrap>Never show menu scrollbar;
- True  - Show menu scrollbar if needed.
+ False - ^<wrap>Nigdy nie pokazuj paska przewijania;
+ True  - Pokaż pasek przewijania, jeżeli będzie potrzebny.
 
- Default value: True (show menu scrollbar if needed).
+ Domyślna wartość: True (pokaż pasek przewijania, gdy będzie potrzebny).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.CtrlFRule
 $ #far:config Panel.CtrlFRule#
- This Boolean parameter controls the behavior of #Ctrl+F# key
-combination in the ~command line~@CmdLineCmd@.
+ Ten parametr logiczny kontroluje zachowanie kombinacji klawiszy #Ctrl+F5#
+w ~wierszu poleceń~@CmdLineCmd@.
 
- False - ^<wrap>The file name is inserted into the command line as it is
-recorded in the file system;
- True  - The file name is inserted as it appears on the file panel,
-possibly in lowercase or using the short name.
+ False - ^<wrap>Nazwa pliku wstawiana jest do wiersza poleceń tak,
+jak zapisana jest w systemie plików;
+ True  - Nazwa pliku wstawiana jest tak wygląda w panelu plików,
+najczęściej małymi literami lub używając krótkich nazw.
 
- Default value: False (insert as is).
+ Domyślna wartość: False (wstawia tak jak wygląda).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.CtrlAltShiftRule
 $ #far:config Panel.CtrlAltShiftRule#
- This numeric parameter controls the behavior of #Ctrl+Alt+Shift# key
-combination for temporary hiding file panels.
+ Ten parametr numeryczny kontroluje zachowanie kombinacji klawiszy
+#Ctrl+Alt+Shift# do tymczasowego ukrycia paneli plików.
 
- 0 - ^<wrap>Hide panels only (like #Ctrl+O# key combination);
- 1 - Hide panels and command line;
- 2 - Hide panels, command line, and functional key bar at the bottom
-line.
+ 0 - ^<wrap>Ukrywa tylko panele (tak jak kombinacja klawiszy #Ctrl+O#);
+ 1 - Ukrywa panele i wiersz poleceń;
+ 2 - Ukrywa panele, wiersz poleceń i dolny pasek klawiszy funkcyjnych.
 
- Default value: 0 (hide panels only).
+ Domyślna wartość: 0 (ukrywa tylko panele).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.RightClickRule
 $ #far:config Panel.RightClickRule#
- This numeric parameter controls the behavior of #right mouse click#
-on an empty stripe of file panel.
+ Ten parametr numeryczny kontroluje zachowanie #kliknięcia prawego przycisku myszy#
+na pustej kolumnie panelu plików.
 
- 0 - ^<wrap>Move panel cursor to the last file in the previous stripe
-and select the file;
- 1 - Move panel cursor to the last file in the previous stripe without
-selecting the file (like the #left mouse click#);
- 2 - Do not move panel cursor or select any file.
+ 0 - ^<wrap>Przesuwa kursor panelu do ostatniego pliku w poprzedniej kolumnie
+i zaznacza ten plik;
+ 1 - Przesuwa kursor do ostatniego pliku w poprzedniej kolumnie bez zaznaczania
+pliku (tak jak #kliknięcie lewym przyciskiem myszy#);
+ 2 - Nie przesuwaj kursora panelu ani nie zaznaczaj żadnego pliku.
 
- Note: If the stripe is not empty the last file is always selected.
+ Uwaga: Jeżeli kolumna nie jest pusta, to zawsze zaznaczany jest ostatni plik.
 
- Default value: 2 (do nothing).
+ Domyślna wartość: 2 (nic nie rób).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.ExcludeCmdHistory
 $ #far:config System.ExcludeCmdHistory#
- This numeric parameter suppresses saving commands of certain categories
-to the history. If a bit in the parameter’s value is set, commands
-of the corresponding category will not be saved.
+ Ten parametr numeryczny wyłącza zapisywanie poleceń z niektórych kategorii
+do historii. Jeżeli bit w parametrze jest ustawiony, to polecenia
+z odpowiadającej kategorii nie będą zapisywane.
 
- Bit numbers and corresponding command categories:
- 0 - ^<wrap>Windows file type associations;
- 1 - Far ~file associations~@FileAssoc@;
- 2 - Executable files under cursor on ~file panel~@FuncCmd@;
- 3 - Commands entered on ~command line~@CmdLineCmd@.
+ Numery bitów i odpowiadające im kategorie poleceń:
+ 0 - ^<wrap>Skojarzenia typów plików Windows;
+ 1 - ~Przypisania plików~@FileAssoc@ Far;
+ 2 - Pliki wykonywalne pod kursorem w ~panelu plików~@FuncCmd@;
+ 3 - Komendy wpisywane w ~wierszu poleceń~@CmdLineCmd@.
 
- Default value: 0 (save commands of all categories).
+ Domyślna wartość: 0 (zapisu polecenia z wszystkich kategorii).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.Executor.RestoreCP
 $ #far:config System.Executor.RestoreCP#
- This Boolean parameter controls whether Far will restore console code
-page after the execution of an external program has completed. Some
-programs change console code page during execution and do not restore
-it before exiting. Use this parameter to compensate for this behavior.
+ Ten parametr logiczny kontroluje, czy Far przywróci stronę kodową
+konsoli po zakończeniu wykonywania zewnętrznego programu. Niektóre
+programy zmieniają stronę kodową podczas pracy i nie przywracają
+poprzedniej przed zakończeniem. Użyj tego parametru, aby kontrolować
+to zachowanie.
 
- False - ^<wrap>Leave it as is; do not restore console code page;
- True  - Restore console code page after an external program exited.
+ False - ^<wrap>Zostaw tak jak jest; nie przywracaj strony kodowej;
+ True  - Przywróć stronę kodową konsoli po zakończeniu zewnętrznego programu.
 
- Default value: True (restore console code page).
+ Domyślna wartość: True (restore console code page).
 
- See also #CHCP# ~Operating system~@OSCommands@ command.
+ Zobacz także polecenie ~Systemu operacyjnego~@OSCommands@ #CHCP#.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.Executor.ExcludeCmds
 $ #far:config System.Executor.ExcludeCmds#
- This string parameter defines commands which will be directly passed
-for execution to the operating system command processor (specified
-by the #ComSpec# environment variable), without searching the current
-directory, directories listed on the #PATH# environment variable,
-or any other predefined places.
+ Ten parametr tekstowy definiuje polecenia, które będą przekazywane
+bezpośrednio do wykonania przez procesor poleceń systemu operacyjnego
+(określonego przez zmienną środowiskową #ComSpec#), bez przeszukiwania
+bieżącego folderu, folderów umieszczonych w zmiennej środowiskowej
+#PATH# lub w innych predefiniowanych miejscach.
 
- The commands are separated by semicolon (#;#). Environment variables
-surrounded by the percent sign (#%#) will be substituted.
+ Polecenia oddzielone są średnikami (#;#). Zmienne środowiskowe
+poprzedzone znakiem procentu (#%#) zostaną zastąpione ich zawartością.
 
- For example, if the value of this parameter is “DATE;ECHO” and “date”
-is entered on the command line, the internal command processor’s #DATE#
-command will be executed. To execute an external program “date.exe”,
-type the file name verbatim, including extension. However, if “DATE”
-is not listed in this parameter and the program “date.exe” exists
-in one of the #PATH# directories, the internal command processor’s
-command can never be executed.
+ Np. jeżeli wartością tego parametru jest test “DATE;ECHO” i wpisane
+zostanie w wierszy poleceń “date”, to zostanie uruchomione polecenie
+#DATE# wewnętrznego procesora danych . Aby wykonać zewnętrzny program
+o nazwie “date.exe”, należy wpisać dokładnie nazwę pliku, wraz z rozszerzeniem.
+Jednakże, jeżeli “DATE” nie jest wymieniona w tym parametrze, a program
+o nazwie “date.exe” istnieje w jednym z folderów zmiennej #PATH#,
+to polecenie wewnętrznego procesora może nie zostanie nigdy uruchomione.
 
- Ready-made settings for CMD.EXE, COMMAND.COM, and other well-known
-command processors can be found in the
-#Addons\SetUp\Executor.*.farconfig# files.
+ Gotowe ustawienia dla CMD.EXE, COMMAND.COM i innych znanych procesorów
+poleceń można znaleźć w plikach #Addons\SetUp\Executor.*.farconfig#.
 
- Note: Far executes some ~operating system~@OSCommands@ commands
-internally, without invoking operating system command processor. These
-commands are not included in #Executor.*.farconfig# files. Some other
-OS commands Far executes with the limited functionality. If the syntax
-does not match exactly that specified in the
-~Operating system commands~@OSCommands@ help topic, the command will
-be passed for execution to the command processor.
+ Uwaga: Far wykonuje niektóre polecenia ~systemu operacyjnego~@OSCommands@
+wewnętrznie, bez wywoływania procesora poleceń systemu operacyjnego.
+Polecenia te nie są zawarte w plikach #Executor.*.farconfig#.
+Niektóre inne polecenia systemowe Far wykonuje z ograniczoną funkcjonalnością.
+Jeżeli składnia nie odpowiada dokładnie tej określonej w poleceniach
+~systemu operacyjnego~@OSCommands@, to polecenie zostanie przekazane
+do wykonania procesorowi poleceń.
 
- Default value: empty string #""#.
+ Domyślna wartość: pusty łańcuch #""#.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.Executor.ComspecArguments
 $ #far:config System.Executor.ComspecArguments#
- This string parameter defines the arguments which Far will use to
-invoke the operating system command processor (specified by the
-#ComSpec# environment variable).
+ Ten parametr tekstowy określa argumenty, których Far użyje do wywołania
+procesora poleceń systemu operacyjnego (określonego przez zmienną
+systemową #ComSpec#).
 
- The #{0}# placeholder will be replaced with the text of the command.
-This parameter is handy with non-standard command processors requiring
-unusual command line options or quoting.
+ Parametr #{0}# zostanie zastąpiony tekstem polecenia. Ten parametr
+jest przydatny przy niestandardowych poleceniach procesora wymagających
+nietypowych opcji wiersza poleceń lub cytowań.
 
- Default value: #/S /C "{0}"# (compatible with CMD.EXE).
+ Domyślna wartość: #/S /C "{0}"# (zgodne z CMD.EXE).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.FormatNumberSeparators
 $ #far:config Interface.FormatNumberSeparators#
- This string parameter allows to override digit grouping symbol and
-decimal symbol in OS regional settings.
+ Ten parametr tekstowy pozwala na nadpisanie symboli grupowania cyfr
+(tysięcy) i symbolu dziesiętnego (ułamki) w regionalnych ustawieniach
+systemu operacyjnego.
 
- First symbol  - ^<wrap>digit grouping symbol;
- Second symbol - decimal separator symbol.
+ Pierwszy symbol  - ^<wrap>symbol grupowania cyfr (rozdzielenie tysięcy);
+ Drugi symbol - symbol separatora dziesiętnego (ułamka).
 
- Default value: empty string #""# (use OS regional settings).
+ Domyślna wartość: pusty ciąg #""# (użyj ustawień regionalnych systemu).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.CmdHistoryRule
 $ #far:config System.CmdHistoryRule#
- This Boolean parameter defines whether the current position
-in ~commands history~@History@ will change if #Esc# is pressed after
-#Ctrl+E# or #Ctrl+X# key combinations.
+ Ten parametr logiczny określa czy bieżąca pozycja w ~historii poleceń~@History@
+zmieni się po naciśnięciu klawisza #Esc# po wciśnięciu kombinacji klawiszy
+#Ctrl+E# lub #Ctrl+X#.
 
- False - ^<wrap>The current command in the history will remain the one
-recalled with #Ctrl+E# / #Ctrl+X#.
- True  - The current command in the history will be reset to the latest
-(newest) command.
+ False - ^<wrap>Aktualnym poleceniem w historii pozostanie polecenie
+wywołane za pomocą #Ctrl+E# / #Ctrl+X#.
+ True  - Bieżące polecenie w historii zostanie zresetowanie do ostatniego
+(najnowszego) polecenia.
 
- Note: The order of the commands in the history does not change in any
-case.
+ Uwaga: Kolejność poleceń w historii nie ulega zmianie w żadnym przypadku.
 
- Default value: False (change the current position in the commands
-history).
+ Domyślna wartość: False (zmienia bieżącą pozycję historii poleceń).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.ConsoleDetachKey
 $ #far:config System.ConsoleDetachKey#
- This string parameter specifies key combination to detach Far console
-from a non-interactive process running in it.
+ Ten parametr tekstowy określa kombinację klawiszy do odłączenia konsoli
+Far od nie-interaktywnego procesu uruchomionego w konsoli.
 
- If a long-running process is using Far console, press this key
-combination to create a new Far console where Far will continue running
-as if the process has already ended, while leaving the old console
-to the process.
+ Jeżeli długo trwający proces używa konsoli Far, można nacisnąć tę kombinację
+klawiszy, aby utworzyć nową konsolę Far w której Far będzie kontynuował
+pracę tak jakby ten proces zakończył się, pozostawiając dla procesu
+starą konsolę.
 
- This feature can come handy if, for example, an archiver process
-started from the Far command line is taking more time than you
-expected, and you want to continue editing a file opened in background
-Editor, or simply do not want to launch a new Far instance.
+ Funkcja może się przydać np. jeżeli proces archiwizacji uruchomiony z wiersza
+poleceń Far zabiera więcej czasu niż się spodziewane, a użytkownik chce w tym
+czasie edytować plik wcześniej otwarty w Edytorze (działający w tle)
+lub nie chce uruchamiać nowej instancji Far.
 
- Default value: #"CtrlShiftTab"# (the #Ctrl+Shift+Tab# key combination
-detaches Far console).
+ Domyślna wartość: #"CtrlShiftTab"# (kombinacja klawiszy #Ctrl+Shift+Tab#
+odłącza konsolę Far).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.QuotedSymbols
 $ #far:config System.QuotedSymbols#
- This string parameter defines special characters that require quoting
-of file and folder names. If a name contains one of these characters,
-Far will surround it with double quotes when inserting into the command
-line or editor, or copying to the clipboard.
+ Ten parametr tekstowy definiuje znaki specjalne, które wymagają użycia
+znaków cytowania, aby użyć nazw plików lub folderów. Jeżeli nazwa zawiera
+jeden z tych znaków, Far otoczy ją podwójnym cudzysłowem podczas wstawiania
+do wiersza poleceń, edytora lub kopiowania do schowka.
 
- Default value: #" &()[]{}^=;!'+,` "#. The first symbol is
-~Space (U+0020)~@https://en.wikipedia.org/wiki/Space_(punctuation)@;
-the last symbol is ~Non-breaking space (U+00A0)~@https://en.wikipedia.org/wiki/Non-breaking_space@.
+ Domyślna wartość: #" &()[]{}^=;!'+,` "#. Pierwszy symbol to Spacja (U+0020)
+~Wikipedia EN~@https://en.wikipedia.org/wiki/Space_(punctuation)@ / ~Wikipedia PL~@https://pl.wikipedia.org/wiki/Spacja@;
+ostatni symbol to Spacja niełamiąca (U+00A0) ~Wikipedia EN~@https://en.wikipedia.org/wiki/Non-breaking_space@
+/ ~Wikipedia PL~@https://pl.wikipedia.org/wiki/Spacja_nie%C5%82ami%C4%85ca@.
 
- See also ~System.QuotedName~@System.QuotedName@.
+ Zobacz także ~System.QuotedName~@System.QuotedName@.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.QuotedName
 $ #far:config System.QuotedName#
- This numeric parameter controls whether Far will surround with double
-quotes file and folder names containing special characters (see
-~System.QuotedSymbols~@System.QuotedSymbols@ parameter). Individual
-bits control the behavior in different contexts.
+ Ten parametr liczbowy określa, czy Far otacza znakami cudzysłowu nazwy
+plików i folderów zawierające znaki specjalne (zobacz parametr
+~System.QuotedSymbols~@System.QuotedSymbols@). Poszczególne bity
+kontrolują zachowanie w różnych sytuacjach kontekstowych.
 
- Bit numbers:
- 0 - ^<wrap>Quote names when inserting into the command line or editor;
- 1 - Quote names when copying to the clipboard.
+ Numery bitów:
+ 0 - ^<wrap>Otaczaj nazwy podczas wstawiania do wiersza poleceń lub edytora;
+ 1 - Otaczaj nazwy podczas kopiowania do schowka.
 
- Default value: 1 (quote when inserting into the command line or editor).
+ Domyślna wartość: 1 (Otaczaj nazwy podczas kopiowania do schowka) - bit nr 0 ustawiony na 1.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.AltF9
 $ #far:config Interface.AltF9#
- This Boolean parameter controls the behavior of the #Alt+F9# key
-combination (toggle the size of the Far console window).
+ Ten parametr logiczny kontroluje zachowanie wciśnięcia klawiszy
+#Alt+F9# (przełączanie wielkości okna konsoli Far).
 
- False - ^<wrap>Toggle Far window height between 25 and 50 lines; set
-window width to 80 columns;
- True  - Maximize Far window or restore it to normal size.
+ False - ^<wrap>Przełącza wielkość okna Far pomiędzy 25 a 50 linii;
+ustawia szerokość okna na 80 kolumn;
+ True  - Maksymalizuje okno Far lub przywraca do normalnej wielkości.
 
- Default value: True (maximize / restore).
+ Domyślna wartość: True (maksymalizuj / przywróć).
 
- Note: This parameter affects the behavior only in windowed mode.
+ Uwaga: Ten parametr obejmuje zachowanie programu tylko w trybie okna (nie pełnego ekranu).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Dialog.CBoxMaxHeight
 $ #far:config Dialog.CBoxMaxHeight#
- This numeric parameter specifies the maximum height of history list
-in dialogs.
+ Ten parametr liczbowy określa maksymalną wysokość listy historii
+w oknach dialogowych.
 
- Default value: 8.
+ Domyślna wartość: 8.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.UndoDataSize
 $ #far:config Editor.UndoDataSize#
- This numeric parameter limits the size of undo memory buffer in Editor.
+ Ten parametr liczbowy określa wielkość bufora pamięci do cofnięcia operacji w Edytorze.
 
- Default value: 104857600 (100MB).
+ Domyślna wartość: 104857600 (100MB).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.CharCodeBase
 $ #far:config Editor.CharCodeBase#
- This numeric parameter defines how the code of the character under the
-cursor is represented on Editor’s status line.
+ Ten parametr liczbowy określa jaki kod znaku pod kursorem wyświetlany jest
+na linii statusu Edytora.
 
- 0 - Octal value (6 digits with the leading zero);
- 1 - Decimal value (up to 5 digits);
- 2 - Hexadecimal value (4 digits followed by the character ‘h’).
+ 0 - Wartość ósemkowa (6 liczb z zerami wiodącymi);
+ 1 - Wartość dziesiętna (do 5 cyfr);
+ 2 - Wartość szesnastkowa (do 4 znaków, po których następuje znak ‘h’).
 
- Default value: 1 (decimal).
+ Domyślna wartość: 1 (dziesiętna).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.BSLikeDel
 $ #far:config Editor.BSLikeDel#
- This Boolean parameter defines the behavior of the #BackSpace# key when
-a vertical block is selected in Editor.
+ Ten parametr logiczny definiuje zachowanie klawisza #BackSpace#,
+gdy w Edytorze zaznaczony jest pionowy blok.
 
- False - ^<wrap>Deletes the character to the left of the cursor; keeps
-the (vertical) selection;
- True  - Deletes the selected vertical block, like the #Del# key does.
+ False - ^<wrap>Usuwa znak na lewo od kursora; zachowuje (pionowe)
+zaznaczenie;
+ True  - Usuwa zaznaczony pionowy blok, tak samo jak klawisz #Del#.
 
- Default value: True (deletes the selection).
+ Domyślna wartość: True (usuwa zaznaczenie).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.AllowEmptySpaceAfterEof
 $ #far:config Editor.AllowEmptySpaceAfterEof#
- This Boolean parameter defines whether scrolling down in Editor (e.g.,
-with the #Ctrl+Down# key combination) can leave empty space at the
-bottom of the window.
+ Ten parametr logiczny określa czy przewijanie w dół w Edytorze
+(np. za pomocą kombinacji klawiszy #Ctrl+Down#) może pozostawić
+puste miejsce na dole okna.
 
- False - ^<wrap>Stop scrolling when the last line of the file appears
-at the bottom of the window;
- True  - Continue scrolling until the last line of the file reaches the
-cursor leaving empty space under the cursor.
+ False - ^<wrap>Zatrzymuje przewijanie, gdy ostatnia linia pliku
+pojawi się na dole okna;
+ True  - Kontynuuje przewijanie aż ostatnia linia dotrze do kursora
+pozostawiając pustą przestrzeń poniżej kursora.
 
- Default value: False (stop scrolling).
+ Domyślna wartość: False (zatrzymuje przewijanie).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.RedrawTimeout
 $ #far:config Interface.RedrawTimeout#
- This numeric parameter specifies the refresh time (in milliseconds)
-of the progress dialog displayed during various long-running
-operations, such as copying, moving, deleting and searching files and
-folders, applying access rights after moving files and folders,
-scanning the file system.
+ Ten parametr liczony określa czas odświeżania (w milisekundach)
+okna postępu wyświetlanego podczas różnych długo trwających operacji
+takich jak kopiowanie, przenoszenie, usuwanie i wyszukiwanie plików/folderów,
+stosowania praw dostępu po przenoszeniu plików i folderów, skanowania
+systemu plików.
 
- The larger the value, the less frequently the information about the
-operation is displayed, the faster the operation itself is performed.
+ Im większa wartość, tym rzadziej wyświetlane będą informacje o operacji,
+co będzie skutkować szybszym wykonaniem operacji.
 
- Default value: 200 ms.
+ Domyślna wartość: 200 ms.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @TitleFormat
 $ #far:config Interface.ViewerTitleFormat, Interface.EditorTitleFormat#
- These string parameters define console window title for
-~Editor~@Editor@ and ~Viewer~@Viewer@.
+ Te parametry tekstowe definiują tytuł okna konsoli w ~Edytorze~@Editor@
+i ~Podglądzie~@Viewer@ plików.
 
- Macro #%File# is expanded to the name of the file being edited
-or viewed.
+ Makropolecenie #%File# jest interpretowane jako nazwa edytowanego
+lub przeglądanego pliku.
 
- Macro #%Lng# is replaced with the word “edit” or “view” in the current
-language, see ~Options menu~@OptMenu@.
+ Makropolecenie #%Lng# jest zastępowane słowami “edit” lub “view”
+w bieżącym języku, zobacz ~Menu Opcje~@OptMenu@.
 
- The #Far window title addons# string of the
-~Interface settings~@InterfSettings@ will be automatically appended
-to the console window title.
+ Tekst ustawiony w opcji #Okno tytułowe Far# opcji
+~Ustawień interfejsu~@InterfSettings@ zostanie automatycznie dołączony
+do tytułu okna konsoli.
 
- Default value: #"%Lng %File"#.
+ Domyślna wartość: #"%Lng %File"#.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.WipeSymbol
 $ #far:config System.WipeSymbol#
- This numeric parameter defines the filler byte for the
-~wipe file~@DeleteFile@ operation (#Alt+Del# key combination).
+ Ten parametr liczbowy definiuje bajt wypełniający plik
+dla operacji ~wymazywania plików~@DeleteFile@ (kombinacja
+klawiszy #Alt+Del#).
 
- Each byte of the file is overwritten with the least significant byte
-of the parameter. If the parameter is set to #-1#, random values will
-be used.
+ Każdy bajt pliku będzie nadpisywany najmniej znaczącym bajtem parametru.
+Jeżeli parametr będzie ustawiony na #-1#, wówczas zostanie użyta losowa wartość.
 
- Default value: 0.
+ Domyślna wartość: 0.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.ShowCheckingFile
 $ #far:config System.ShowCheckingFile#
- This Boolean parameter controls whether plugin’s name is displayed
-in the console window title while the plugin is checking a file.
+ Ten parametr logiczny kontroluje czy nazwa wtyczki będzie wyświetlana
+w tytule okna konsoli Far, podczas przetwarzania pliku przez wtyczkę.
 
- When the user presses #Enter# or #Ctrl+PgDn#, Far invokes registered
-plugins one by one to check if they can “open” or otherwise render the
-file. If this parameter is True, Far will show plugin’s name in the
-console window title while the plugin is checking the file.
+ Gdy użytkownik naciśnie klawisze #Enter# lub #Ctrl+PgDn#, Far wywołuje
+kolejno zarejestrowane wtyczki po kolei, aby sprawdzić czy mogą one
+“otworzyć” lub w inny sposób przetwarzać plik. Jeżeli wartość parametru
+ustawiona jest na True, Far pokaże nazwę wtyczki w tytule okna konsoli
+podczas sprawdzania pliku przez wtyczkę.
 
- Default value: False (do not show plugins’ names).
+ Domyślna wartość: False (nie pokazuj nazwy wtyczki).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.PluginMaxReadData
 $ #far:config System.PluginMaxReadData#
- This numeric parameter defines the maximum amount of file data used
-to find the plugin which supports the file.
+ Ten parametr liczbowy definiuje maksymalną ilość danych używanych
+do znalezienia wtyczki obsługującej dany plik.
 
- When the user presses #Enter# or #Ctrl+PgDn#, Far reads the number
-of bytes specified by this parameter from the beginning of the file and
-passes the data to registered plugins to check if they can “open”
-or otherwise render the file.
+ Gdy użytkownik naciśnie #Enter# lub #Ctrl+PgDn#, Far odczyta
+określoną przez ten parametr liczbę bajtów od początku pliku
+i przekaże te dane do zarejestrowanych wtyczek, aby sprawdzić
+czy mogą one “otworzyć” lub przetworzyć plik.
 
- Minimum value is 131072 (128 KiB). The maximum is limited only by the
-size of the logical address space (2^32 - 1 or 2^64 – 1).
+ Minimalna wartość do 131072 (128KB). Maksymalna wartość ograniczona
+jest jedynie wielkością logicznej przestrzeni adresowej (2^32 - 1 lub 2^64 – 1).
 
- Setting the value of this parameter above 5 MiB is not recommended.
+ Nie jest zalecane ustawienie wartości tego parametru powyżej 5MB.
 
- Default value: 131072 (0x20000).
+ Domyślna wartość: 131072 (0x20000).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.SetAttrFolderRules
 $ #far:config System.SetAttrFolderRules#
- This Boolean parameter defines the default value of the
-#Process subfolders# option of the file ~Attributes~@FileAttrDlg@ dialog
-when changing attributes of a single directory.
+ Ten parametr logiczny określa domyślną wartość opcji
+#Przetwarzaj podfoldery# okna dialogowego ~Atrybuty plików~@FileAttrDlg@
+podczas zmiany atrybutów pojedynczego folderu.
 
- False - ^<wrap>The #Process subfolders# option is on; date and time
-fields are cleared.
- True  - The #Process subfolders# option is off; date and time fields
-are set to the actual values.
+ False - ^<wrap>Opcja #Przetwarzaj podfoldery# jest włączona; data
+i czas są wyczyszczone.
+ True  - Opcja #Przetwarzaj podfoldery# jest wyłączona; pola
+daty i czasu są ustawione na aktualne wartości.
 
- Default value: True (do not process subfolders).
+ Domyślna wartość: True (nie przetwarzaj podfolderów).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.CopyBufferSize
 $ #far:config System.CopyBufferSize#
- This numeric parameter defines the size of the buffer used by the
-internal file copy routine (see #Use system copy routine# option of the
-~System settings~@SystemSettings@ dialog).
+ Ten parametr liczbowy definiuje wielkość bufora używane przez wewnętrzną
+procedurę kopiowania (zobacz opcję #Używaj systemowej procedury kopiowania#
+okna ~Ustawień systemowych~@SystemSettings@).
 
- If the value of this parameter is zero, the default buffer size
-of 32768 bytes is used.
+ Jeżeli wartość parametru jest ustawiona na zero, używana jest domyślna
+wielkość buforu wynosząca 32768 bajtów (32KB).
 
- Default value: 0 (buffer size is 32768 bytes).
+ Domyślna wartość: 0 (wielkość bufora ustawiona na 32768 bajtów).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.SubstNameRule
 $ #far:config System.SubstNameRule#
- This numeric parameter specifies the types of physical drives which
-will be queried when Far detects drives assigned using #SUBST# command.
+ Ten parametr liczbowy określa typy napędów fizycznych, które będą
+odpytywane podczas wykrywania napędów przypisanych poleceniem #SUBST#.
 
- Far attempts to detect if a drive was substituted to display
-appropriate information on the ~Change drive~@DriveDlg@ menu and
-~Info panel~@InfoPanel@, as well as in some other cases.
+ Far próbuje wykryć, czy napęd został podstawiony (ang.: substituted),
+aby wyświetlić odpowiednie informacje w menu ~Zmień dysk~@DriveDlg@
+i ~Panelu informacyjnym~@InfoPanel@, a także w kilku innych przypadkach.
 
- Bit numbers:
- 0 - Query removable drives;
- 1 - Query drives of all other types.
+ Numery bitów:
+ 0 - Wyszukuj dyski wymienne;
+ 1 - Wyszukuj dyski wszystkich innych typów.
 
- Default value: 2 (query all non-removable drives). For example,
-if a drive is associated with a CD-ROM path, it will not be detected
-as substituted.
+ Domyślna wartość: 2 (wyszukuj wszystkie niewymienne dyski). Np. jeżeli dysk
+został skojarzony ze ścieżką napędu optycznego (CD/DVD), nie zostanie wykryty
+jako podstawiony.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.SubstPluginPrefix
 $ #far:config System.SubstPluginPrefix#
- This Boolean parameter controls whether Far prepends plugin prefix
-to the path to plugin panel’s object when inserting the path into the
-command line (#Ctrl+F#, #Ctrl+[#, etc.) or copying it to the clipboard
+ Ten parametr logiczny kontroluje czy Far dodaje przedrostki wtyczek
+do ścieżki obiektu panelu wtyczek, podczas wstawiania ścieżki do wiersza
+poleceń (#Ctrl+F#, #Ctrl+[#, itd.) lub kopiowania do schowka
 (#Alt+Shift+Ins#, #Ctrl+Alt+Ins#).
 
- False - ^<wrap>Do not prepend plugin prefix to the path to an object
-on plugin panel.
- True  - Prepend plugin prefix except when the plugin manages real
-files, like #Temporary panel# does.
+ False - ^<wrap>Nie dodawaj przedrostków wtyczek do ścieżku obiektu w panelu
+wtyczek.
+ True  - Dodawaj przedrostki wtyczek z wyjątkiem sytuacji, gdy wtyczka
+zarządza prawdziwymi plikami, tak jak #Panel tymczasowy#..
 
- Default value: False (do not prepend plugin prefix).
+ Domyślna wartość: False (nie dodawaj przedrostków wtyczek).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.CopySecurityOptions
 $ #far:config System.CopySecurityOptions#
- This numeric parameter controls the initial state of the
-#Access rights# option in the ~Copy / Move~@CopyFiles@ dialog.
+ Ten parametr liczbowy kontroluje stan początkowy opcji
+#Prawa dostępu# w oknie dialogowym ~Kopiuj / Przenieś~@CopyFiles@.
 
- The #Access rights# option specifies the access rights assigned
-to newly created files and folders and can be one of:
+ Opcja #Prawa dostępu# określa prawa przypisane do nowo utworzonych
+plików i folderów i może przyjąć jedną z następujących opcji:
 
- #Default# - ^<wrap>Access rights are controlled by the operating system;
- #Copy#    - Copy access rights of the source objects;
- #Inherit# - Inherit access rights of the parent folder.
+ #Domyślne#  - ^<wrap>Prawa dostępu są kontrolowane przez system operacyjny;
+ #Kopiuj#    - Kopiuj prawa dostępu z obiektów źródłowych;
+ #Dziedzicz# - Dziedziczenie praw dostępu z folderu nadrzędnego.
 
- The initial state of the #Access rights# option when the dialog
-is opened is controlled by three bits of the
-#System.CopySecurityOptions# parameter. Bits 0, 1, and 2 control the
-state of the option in the Move dialog; bits 3, 4, and 5 -- in the Copy
-dialog.
+ Początkowy stan opcji #Prawa dostępu# po otwarciu okna dialogowego
+kontrolowane jest przez trzy bity parametru #System.CopySecurityOptions#.
+Bity 0, 1 i 2 kontrolują stan okna dialogowego Przenieś; bity 3, 4 i 5
+-- okna dialogowego Kopiuj.
 
 @=
- Copy     Move     ^<wrap>Initial state of the #Access rights#
- Dialog   Dialog   option when the dialog is opened
+ Okno     Okno      ^<wrap>Początkowy stan opcji #Prawa dostępu#
+ Kopiuj   Przenieś  po otwarciu okna dialogowego
 @=
- Bit 0    Bit 3    0 - ^<wrap>#Default# (bits 1 / 4 are ignored)
-                   1 - controlled by bits 1 / 4
+ Bit 0    Bit 3     0 - ^<wrap>#Domyślny# (bity 1 / 4 są ignorowane)
+                    1 - kontrolowane przez bity 1 / 4
 
- Bit 1    Bit 4    0 - ^<wrap>#Copy# (if bit 0 / 3 is set to 1)
-                   1 - #Inherit# (if bit 0 / 3 is set to 1)
+ Bit 1    Bit 4     0 - ^<wrap>#Kopiuj# (jeżeli bit 0 / 3 jest ustawiony na 1)
+                    1 - #Dziedzicz# (jeżeli bit 0 / 3 jest ustawiony na 1)
 
- Bit 2    Bit 5    0 - ^<wrap>Defined by bits 0 and 1 / 3 and 4 of this parameter
-                   1 - The last user’s choice (within the current Far session)
+ Bit 2    Bit 5     0 - ^<wrap>Określony przez bity 0 i 1 / 3 i 4 tego parametru
+                    1 - Ostatni wybór użytkownika (w bieżącej sesji Far)
 
- Default value: 0 (when the dialog is opened, the #Access rights# option
-is always set to #Default#; user’s choices are not remembered).
+ Domyślna wartość: 0 (gdy okno dialogowe jest otwierane, opcja #Prawa użytkownika#
+jest zawsze ustawiona na #Domyślne#; wybór użytkownika nie jest zapamiętywany).
 
- Examples:
+ Przykłady:
 
- #0x21# (binary 100'001)
+ #0x21# (binarnie 100'001)
 
- - ^<wrap>In the Move dialog, the #Access rights# option is always set
-to #Copy#.
- - In the Copy dialog, the option is initially set to #Default#; then
-the previous user’s choice is remembered (within the current Far
-session).
+ - ^<wrap>W oknie Przenieś, opcja #Prawa dostępu# są zawsze ustawiana na #Kopiuj#.
+ - W oknie Kopiuj, opcja początkowo ustawiana jest na #Domyślnie#; poprzedni wybór
+użytkownika jest zapamiętywany (w bieżącej sesji Far).
 
- #0x1C# (binary 011'100)
+ #0x1C# (binarnie 011'100)
 
- - ^<wrap>In the Move dialog, the #Access rights# option is initially
-set to #Default#; then the previous user’s choice is remembered (within
-the current Far session).
- - In the Copy dialog, the option is always set to #Inherit#.
+ - ^<wrap>W oknie Przenieś, opcja #Prawa dostępu# jest początkowo ustawiana
+na #Domyślnie#; poprzedni wybór użytkownika jest zapamiętywany (w bieżącej
+sesji Far).
+ - W oknie Kopiuj, opcja jest zawsze ustawiania na #Dziedzicz#.
 
- Note: The #System.CopySecurityOptions# parameter does not affect
-creation of links (#Alt+F6#). In this case access rights are always
-copied.
+ Uwaga: Parametr #System.CopySecurityOptions# nie ma wpływu na tworzenie
+linków (#Alt+F6#). W tym przypadku prawa dostępu zawsze są kopiowane.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.CursorSize
 $ #far:config Interface.CursorSizeX#
- These numeric parameters control cursor size in Far console window.
-Cursor size can be set separately for insert and override mode, as well
-as for windowed and fullscreen mode.
+ Te parametry liczbowe sterują wielkością kursora w oknie konsoli Far.
+Rozmiar kursora można ustawiać osobno dla trybu wstawiania i zastępowania,
+a także dla trybu okienkowego i pełnoekranowego.
 
 @-
  ┌──────────╥───────────────────────┬───────────────────────┐
- │ Mode     ║ Windowed              │ Fullscreen            │
+ │ Tryb     ║ Okno                  │ Pełny ekran           │
  ╞══════════╬═══════════════════════╪═══════════════════════╡
- │ Insert   ║ Interface.CursorSize1 │ Interface.CursorSize2 │
+ │ Wstaw    ║ Interface.CursorSize1 │ Interface.CursorSize2 │
  ├──────────╫───────────────────────┼───────────────────────┤
- │ Override ║ Interface.CursorSize3 │ Interface.CursorSize4 │
+ │ Zastąp   ║ Interface.CursorSize3 │ Interface.CursorSize4 │
  └──────────╨───────────────────────┴───────────────────────┘
 @+
 
- The parameters specify the fraction of the character cell in percents
-filled by the cursor. Parameters’ values may vary from 1 to 100
-corresponding to the cursor changing from the single horizontal line
-at the bottom of the cell to the solid block filling the entire cell.
-If parameter’s value is zero, the system console setting is used.
+ Parametry określają ułamek komórki znakowej wypełnionej w procentach
+przez znak kursora. Wartości parametrów mogą zmieniać się w zakresie
+od 1 do 100 co odpowiada zmianie kursora z pojedynczej poziomej linii
+u dołu komórki do jednolitego bloku wypełniającego całą komórkę.
+Jeżeli parametr jest równy zero, zostanie użyte ustawienie konsoli
+systemowej.
 
- Default values:
+ Domyślne wartości:
  Interface.CursorSize1: 15
  Interface.CursorSize2: 10
  Interface.CursorSize3: 99
  Interface.CursorSize4: 99
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.WordDiv
 $ #far:config System.WordDiv#
- This string parameter defines additional word delimiters besides
-#Space# and #Tab#.
+ Ten parametr tekstowy definiuje dodatkowe ograniczniki wyrazów
+poza znakami #Spacja# i #Tab#.
 
- Default value: #~~!%^&*()+|{}:"<>?`-=\\[];',./#
+ Domyślna wartość: #~~!%^&*()+|{}:"<>?`-=\\[];',./#
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @XLat.WordDivForXlat
 $ #far:config XLat.WordDivForXlat#
- This string parameter defines word delimiters for transliteration
-(#XLat# function) of the current word without selecting it.
+ Ten parametr tekstowy definiuje ograniczniki dla transliteracji
+(funkcja #XLat#) bieżącego słowa bez jego zaznaczania.
 
- Default value: #Space#, #Tab# and characters #!##$%^&*()+|=\\/@?#.
+ Domyślna wartość: #Space#, #Tab# and characters #!##$%^&*()+|=\\/@?#.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.ReadOnlyLock
 $ #far:config Editor.ReadOnlyLock#
- This numeric parameter controls the behavior of the Editor when opening
-files with #Read-only#, #Hidden# or #System# attributes.
+ Ten parametr liczbowy kontroluje zachowanie Edytora podczas otwierania
+plików z atrybutami #Tylko-do-odczytu#, #Ukryty#, #System#.
 
- Bit numbers:
- 0 - ^<wrap>Lock down editing of read-only files;
- 1 - Warn when opening read-only files;
- 2 - Unused;
- 3 - Unused;
- 4 - Unused;
- 5 - Also, apply the behavior defined by bits 0 and 1 to hidden files;
- 6 - Also, apply the behavior defined by bits 0 and 1 to system files.
+ Numery bitów:
+ 0 - ^<wrap>Zablokuj edycję plików tylko do odczytu;
+ 1 - Ostrzegaj przy otwieraniu plików tylko do odczytu;
+ 2 - Nieużywany;
+ 3 - Nieużywany;
+ 4 - Nieużywany;
+ 5 - Dodatkowo, stosuje zachowanie ustawione w bitach 0 i 1 do plików ukrytych;
+ 6 - Dodatkowo, stosuje zachowanie ustawione w bitach 0 i 2 do plików systemowych.
 
- Default value: 0 (allow editing of any files without warnings).
+ Domyślna wartość: 0 (zezwalaj edytować wszystkie pliki bez ostrzeżenia).
 
- For example, if this parameter is set to #0x43# (binary 0100'0011),
-warning will be shown when opening read-only and system files; editing
-of such files will be disabled.
+ Np. jeżeli parametr ma wartość #0x43# (binarni 0100'0011), przy otwieraniu
+plików tylko do odczytu i systemowych wyświetlane będzie ostrzeżenie;
+edycja takich plików będzie wyłączona.
 
- This parameter can be changed via ~far:config~@FarConfig@. Bits 0 and
-1 are also controlled by the options #Lock editing of read-only files#
-and #Warn when opening read-only files# of the ~Editor~@EditorSettings@
-settings dialog.
+ Parametr ten można zmienić w ~far:config~@FarConfig@. Bity 0 i 1
+są także kontrolowane przez opcje #Nie edytuj plików tylko do odczytu#
+i #Ostrzeż przed otwieraniem plików tylko do odczytu# w oknie dialogowym
+ustawień ~Edytora~@EditorSettings@.
 
 
 @Editor.FileSizeLimit
 $ #far:config Editor.FileSizeLimit#
- This numeric parameter defines file size limit; when exceeded,
-a warning message will be shown before opening the file in Editor.
+ Ten parametr liczbowy określa limit rozmiaru pliku; po jego przekroczeniu
+zostanie wyświetlony komunikat ostrzegawczy przed jego otwarciem w Edytorze.
 
- If the value of this parameter is zero, the warning is disabled. The
-limit is defined in bytes.
+ Jeżeli wartość parametru wynosi zero, ostrzeżenie zostanie wyłączone.
+Limit jest określony w bajtach.
 
- Default value: 0 (file size is not checked, and the warning is never
-displayed).
+ Domyślna wartość: 0 (wielkość pliku nie jest sprawdzana, ostrzeżenie nigdy
+nie jest wyświetlane).
 
- Note: When a file is opened in Editor, its entire content is loaded
-into memory. Thus, opening very large files could be undesirable. The
-warning enabled by this parameter helps to avoid opening of large files
-inadvertently.
+ Uwaga: Gdy plik jest otwierany w Edytorze, cała jego zawartość
+jest wczytywana do pamięci. Dlatego otwieranie bardzo dużych plików
+może być niepożądane. Włączenie ostrzeżenia przez ten parametr pozwoli
+uniknąć przypadkowemu otwieraniu dużych plików.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.MsWheelDelta
 $ #far:config System.MsWheelDelta* & System.MsHWheelDelta*#
- These numeric parameters define scroll speed when mouse wheel is rolled
-or tilted. Scroll speed can be specified separately for different
-directions and different areas.
+ Te parametry liczbowe definiują szybkość przewijania, gdy rolowane
+(obracane) lub przechylana jest rolka myszki. Szybkość przewijania
+można określić dla różnych kierunków i obszarów.
 
- Roll the wheel one notch to scroll the specified number of lines at
-a time vertically:
+ Aby przewinąć określoną liczbę wierszy jednocześnie w pionie, należy
+obrócić rolkę o jeden przeskok w pionie:
 
- System.MsWheelDeltaView  - ^<wrap>in the internal Viewer
- System.MsWheelDeltaEdit  - in the internal Editor
- System.MsWheelDeltaHelp  - on help pages
- System.MsWheelDelta      - in other areas
+ System.MsWheelDeltaView  - ^<wrap>w wewnętrznym Podglądzie
+ System.MsWheelDeltaEdit  - w wewnętrznym Edytorze
+ System.MsWheelDeltaHelp  - na stronach pomocy
+ System.MsWheelDelta      - w innych obszarach
 
- Tilt the wheel to scroll the specified number of characters at a time
-horizontally (Windows Vista and above):
+ Przechylenie rolki przewija określoną liczbę znaków jednocześnie w poziomie
+(Windows Vista i nowsze):
 
- System.MsHWheelDeltaView - ^<wrap>in the internal Viewer
- System.MsHWheelDeltaEdit - in the internal Editor
- System.MsHWheelDelta     - in other areas
+ System.MsHWheelDeltaView - ^<wrap>w wewnętrznym Podglądzie
+ System.MsHWheelDeltaEdit - w wewnętrznym Edytorze
+ System.MsHWheelDelta     - w innych obszarach
 
- Default value: 1 (for all parameters).
+ Domyślna wartość: 1 (dla wszystkich parametrów).
 
- Note: Rolling or tilting mouse wheel while holding #Alt# key always
-scrolls one line or character at a time.
+ Uwaga: Rolowanie lub przechylanie rolki myszki przy wciśniętym
+klawiszu #Alt# zawsze przewija o jedną linię lub jeden znak na raz.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @System.CopyTimeRule
 $ #far:config System.CopyTimeRule#
- This numeric parameter specifies whether the progress (speed, time, and
-estimated remaining time) is displayed during file copy operations.
+ Ten parametr liczbowy określa czy postęp (prędkość, czas i szacowany
+pozostały czas) jest wyświetlany podczas operacji kopiowania.
 
- Bit numbers:
- 0 - ^<wrap>If set, show progress while copying to NUL;
- 1 - If set, show progress during regular file copy operations.
+ Numery bitów:
+ 0 - ^<wrap>Jeżeli ustawiony, pokazuj postęp podczas kopiowania do NUL;
+ 1 - Jeżeli ustawiony, pokazuj postęp podczas zwykłych operacji kopiowania plików.
 
- Default value: 3 (always display progress of file copy operations).
+ Domyślna wartość: 3 (zawsze pokazuj postęp dla wszystkich operacji kopiowania).
 
- Note: Since this feature requires some time to gather statistics, it is
-likely that no progress is displayed for small files if the option
-#Show total copy progress indicator# is turned off in the
-~Interface settings~@InterfSettings@ dialog.
+ Uwaga: Ponieważ funkcja ta wymaga pewnego czasu na zebranie statystyk, istnieje
+prawdopodobieństwo, że dla małych plików postęp nie zostanie wyświetlony, jeżeli
+opcja #Pokaż całkowity postęp kopiowania# zostanie wyłączona w
+~Ustawieniach interfejsu~@InterfSettings@.
 
- This parameter can be changed via ~far:config~@FarConfig@ or by the
-#Show copying time information# option of the
-~Interface settings~@InterfSettings@ dialog. However, only values 0 or
-3 can be set using this option.
+ Parametr ten można zmienić w ~far:config~@FarConfig@ lub w opcji
+#Pokaż informację o czasie kopiowania# w ~Ustawieniach interfejsu~@InterfSettings@.
+Przełączenie tej opcji odpowiada ustawieniu wartości 0 lub 3.
 
 
 @Policies.ShowHiddenDrives
 $ #far:config Policies.ShowHiddenDrives#
- This Boolean parameter specifies whether Far honors the
-#Hide these specified drives in My Computer# Windows Group Policy.
+ Ten parametr logiczny określa czy Far honoruje regułę #Ukryj określone tutaj dyski w oknie Mój komputer#
+(ang. #Hide these specified drives in My Computer#) w Zasadach Polityk
+Windows.
 
- False - ^<wrap>Far shows only drives visible (not hidden) in Windows
-Explorer;
- True  - Far shows all drives (ignores the Group Policy).
+ False - ^<wrap>Far pokazuje tylko widoczne (nie ukryte) dyski w Eksploratorze
+Windows;
+ True  - Far pokazuje wszystkie dyski (ignoruje Zasady polityk).
 
- Default value: True (show all drives).
+ Domyślna wartość: True (pokazuj wszystkie dyski).
 
- Note: The state of this Group Policy is stored in the #NoDrives# value
-of the
-#\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer# key in
-both #HKLM# and #HKCU# hives of Windows Registry. If the NoDrives value
-in HKLM hive is zero (no hidden files on Local Machine), the value
-in HKCU hive is ignored.
+ Uwaga: stan tej Zasady Polityki jest zapisywany w wartości #NoDrives#
+w kluczu #\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer#
+zarówno w gałęzi #HKLM# jak i #HKCU# Rejestru Windows. Jeżeli wartość
+NoDrives w gałęzi HKLM jest równa zero (brak ukrytych dysków na Komputerze
+Lokalnym), to wartość w gałęzi HKCU jest ignorowana.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.KeepEditorEOL
 $ #far:config Editor.KeepEditorEOL#
- This Boolean parameter controls how line breaks within the text on the
-clipboard are pasted into the edited file.
+ Ten parametr logiczny określa w jaki sposób łamanie linii w tekście
+znajdującym się w schowku jest wklejane do edytowanego pliku.
 
- False - ^<wrap>Line breaks in the pasted text are preserved. After the
-paste operation, line breaks in the edited file may have different styles.
- True  - If the file is not empty, line breaks in the pasted text are
-changed to match the line break style of the edited file. If the file
-is empty, line breaks are not changed; this parameter has no effect.
+ False - ^<wrap>Podziały linii we wklejanym tekście są zachowywane.
+Po operacji wklejania, łamania linii mogą mieć różne style.
+ True  - Jeżeli plik nie jest pusty, łamania linii we wklejanym tekście
+są zmieniane aby dopasować do stylu łamania linii w pliku. Jeżeli plik
+jest pusty, łamania linii nie są zmieniane - parametr nie jest uwzględniany.
 
- Default value: True (match line break style of the edited file).
+ Domyślna wartość: True (dopasuj łamania linii do edytowanego pliku).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.AddUnicodeBOM
 $ #far:config Editor.AddUnicodeBOM#
- This Boolean parameter specifies whether Byte Order Mark (BOM) is added
-at the beginning of the files created by the Editor and saved in
-a UNICODE encoding (UTF-8, UTF-16LE, UTF-16BE).
+ Ten parametr logiczny określa czy Znak Kolejności bajtów (ang. BOM) będzie
+dodawany na początku plików tworzonych w Edytorze i zapisywanych w stronach
+kodowych UNICODE (UTF-8, UTF-16LE, UTF-16BE).
 
- False - ^<wrap>BOM is not added.
- True  - BOM is added.
+ False - ^<wrap>BOM nie jest dodawany.
+ True  - BOM jest dodawany.
 
- Default value: True (BOM is added).
+ Domyślna wartość: True (BOM jest dodawany).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.NewFileUnixEOL
 $ #far:config Editor.NewFileUnixEOL#
- This Boolean parameter specifies line break style in the files created
-by the Editor.
+ Ten parametr logiczny określa styl łamania linii w plikach tworzonych
+w Edytorze.
 
- False - ^<wrap>Files are created with Windows line break style (CR LF).
- True  - Files are created with Unix line break style (LF).
+ False - ^<wrap>Pliki są tworzone z użyciem stylu łamania linii Windows (CR LF).
+ True  - Pliki są tworzone z użyciem łamania linii Unix (LF).
 
- Default value: False (Windows line break style).
+ Domyślna wartość: False (styl łamania linii Windows).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.ShortcutAlwaysChdir
 $ #far:config Panel.ShortcutAlwaysChdir#
- This Boolean parameter controls the behavior of
-~folder shortcuts~@FolderShortcuts@ (#RightCtrl+0…9# key combinations)
-when the panels are hidden.
+ Ten parametr logiczny kontroluje zachowanie ~Skrótów do folderów~@FolderShortcuts@
+(kombinacje klawiszy #PrawyCtrl+0…9#), gdy panele są ukryte.
 
- False - ^<wrap>Folder shortcuts insert the associated path into the
-command line.
- True  - Folder shortcuts change the current folder even if the panels
-are hidden.
+ False - ^<wrap>Skróty do folderów wstawiają powiązaną z nimi ścieżkę do wiersza
+poleceń.
+ True  - Skróty do folderów zmieniają bieżący folder, nawet jeżeli panele są ukryte.
 
- Default value: False (inset the shortcut path).
+ Domyślna wartość: False (wstaw ścieżkę skrótu).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Macros.ShowPlayIndicator
 $ #far:config Macros.ShowPlayIndicator#
- This Boolean parameter turns macro playback indicator (symbol ‘\2FP\-’
-at the top left-hand corner of the screen) on or off.
+ Ten parametr logiczny włącza lub wyłącza wskaźnik odtwarzania makropolecenia
+(symbol ‘\2FP\-’ w lewym górnym rogu ekranu).
 
- False - ^<wrap>The indicator is turned off.
- True  - The indicator is turned on.
+ False - ^<wrap>Wskaźnik jest wyłączony.
+ True  - Wskaźnik jest włączony.
 
- Default value: True (the indicator is on).
+ Domyślna wartość: True (wskaźnik jest włączony).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Viewer.SearchWrapStop
 $ #far:config Viewer.SearchWrapStop#
- This tri-state parameter controls the behavior of the “continue search”
-key combinations in the Viewer (#Shift+F7#, #Space#, #Alt+F7#) when
-search wraps around the beginning or end of the file or passes the
-search starting point.
+ Ten trój-stanowy parametr struje zachowaniem kombinacji klawiszy
+“Kontynuuj szukanie” w Podglądzie (#Shift+F7#, #Spacja#, #Alt+F7#),
+gdy wyszukiwanie wraca na początek lub koniec pliku lub osiągnie początkowy
+punkt wyszukiwania.
 
- False - ^<wrap>Silently wrap around the beginning or end of the file
-or the search starting point.
- True  - Show message when wrapping around the beginning or end of the file.
- Other - Show message when passing the search starting point.
+ False - ^<wrap>Po cichu kontynuuje po osiągnięciu początku lub końca pliku
+lub osiągnie początkowy punkt wyszukiwania.
+ True  - Pokazuje komunikat po osiągnięciu początkowego punktu wyszukiwania.
+ Other - Pokazuje komunikat po przejściu początkowego punktu wyszukiwania.
 
- Default value: True (silently wrap around).
+ Domyślna wartość: True (po cichu przechodzi przez początek/koniec pliku).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @XLat.Layouts
 $ #far:config XLat.Layouts#
- This string parameter defines the input locales (keyboard layouts)
-which Far will cycle through. If this parameter is specified, system
-input locales will be ignored.
+ Ten parametr tekstowy definiuje języki wejściowe (układy klawiatury),
+które Far będzie przechodził cyklicznie. Jeżeli ten parametr będzie
+określony to ustawienia systemowe będą ignorowane.
 
- This parameter contains semicolon (#;#) separated list of hexadecimal
-input locale identifiers. For example, value #0409;0419# (or
-#04090409;04190419#) can be used to switch between input locales
-“en-US” and “ru-RU”.
+ Parametr zawiera rozdzielaną średnikami (#;#) listę identyfikatorów
+stron kodowych zapisanych szesnastkowo. Np. wartości #0409;0415#
+(lub #04090409;04150415#) można użyć do przełączania między językami
+“en-US” i “pl-PL”.
 
- If less than two input locale identifiers are specified, Far will use
-input locales installed in the system.
+ Jeżeli podano mniej niż dwa identyfikatory, Far użyje układu zdefiniowanego
+w systemie.
 
- Only first 10 locales are used, the rest of the list is ignored.
+ Używanych jest tylko 10 pierwszych języków, reszta jest ignorowana.
 
- Default value: empty string (use system input locales).
+ Domyślna wartość: pusty łańcuch (używa układu systemowego).
 
- See also Addons\XLat\Russian\Qwerty.farconfig.
+ Zobacz także Addons\XLat\Russian\Qwerty.farconfig.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @XLat.Flags
 $ #far:config XLat.Flags#
- This numeric parameter controls the behavior of Far API function XLat
-(string transcoding based on keyboard layout).
+ Ten parametr liczbowy definiuje zachowanie funkcji XLat w Far API
+(kodowanie tekstów bazujące na układzie klawiatury).
 
- Bit numbers:
- 0  - ^<wrap>Automatically switch keyboard layout after transcoding
-operation. Far cycles through all system keyboard layouts or layouts
-defined in ~XLat.Layouts~@XLat.Layouts@ config parameter.
- 1  - Sound beep after switching keyboard layout.
- 2  - When a character could not be transcoded using
-~XLat.Tables~@XLat.Tables@, Far will attempt to apply special
-~XLat.Rules~@XLat.Rules@. If this bit is set and there is a named rule
-corresponding to the current keyboard layout, this rule will be used;
-otherwise, one of the three numbered rules will be used.
- 16 - Transcode the entire command line if nothing is selected.
+ Numery bitów:
+ 0  - ^<wrap>Automatyczne przełączanie układu klawiatury po operacji
+przekodowania. Przechodzi cyklicznie przez wszystkie układy klawiatury
+lub układy zdefiniowane w parametrze konfiguracyjnym ~XLat.Layouts~@XLat.Layouts@.
+ 1  - Sygnał dźwiękowy po przełączeniu układu klawiatury.
+ 2  - Gdy znak nie może zostać przekodowany przez ~XLat.Tables~@XLat.Tables@,
+Far będzie próbować zastosować specjalne reguły ~XLat.Rules~@XLat.Rules@.
+Jeżeli ten bit jest ustawiony i istnieje nazwana reguła odpowiadająca
+bieżącemu układowi klawiatury, to zostanie ona użyta; w innym przypadku
+zostanie użyta jedna z trzech ponumerowanych reguł.
+ 16 - Przekoduj cały wiersz poleceń, jeżeli nic nie zostało zaznaczone.
 
- Default value: 0x00010001 (switch keyboard layout and transcode the
-entire command line if no selection).
+ Domyślna wartość: 0x00010001 (przełącz układ klawiatury i przekoduj cały
+wiersz poleceń, jeżeli nic nie zostało zaznaczone).
 
- See also Addons\XLat\Russian\Qwerty.farconfig.
+ Zobacz także Addons\XLat\Russian\Qwerty.farconfig.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @XLat.Tables
 $ #far:config XLat.Tables#
- These string parameters define two-way transcoding table which is used
-by Far API function XLat (string transcoding based on keyboard layout).
+ Te parametry tekstowe definiują dwukierunkową tabelę przekodowań używaną
+przez funkcje XLat interfejsu Far API (przekodowanie ciągów znaków
+na podstawie układu klawiatury).
 
- #XLat.Table1# ^<wrap>is the list of characters from the national
-alphabet which will be replaced with their Latin counterparts defined
-in #XLat.Table2#.
- #XLat.Table2# is the list of Latin characters which will be replaced
-with their national counterparts defined in #XLat.Table1#.
+ #XLat.Table1# ^<wrap>jest listą znaków z alfabetu narodowego, które
+zostaną zastąpione ich łacińskimi odpowiednikami zdefiniowanymi w #XLat.Table2#.
+ #XLat.Table2# jest listą znaków alfabetu łacińskiego, które zostaną
+zastąpione ich odpowiednimi znakami narodowymi zdefiniowanymi w #XLat.Table1#.
 
- Default value: empty string (transcoding table is not defined).
+ Domyślna wartość: pusty łańcuch (tabela przekodowania nie jest zdefiniowana).
 
- If a character cannot be transcoded using the table, Far will attempt
-to apply special ~XLat.Rules~@XLat.Rules@.
+ Jeśli znak nie może być przekodowany przy użyciu tabeli, Far spróbuje
+zastosować specjalne reguły ~XLat.Rules~@XLat.Rules@.
 
- See also Addons\XLat\Russian\Qwerty.farconfig.
+ Zobacz także Addons\XLat\Russian\Qwerty.farconfig.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @XLat.Rules
 $ #far:config XLat.Rules#
- These string parameters define special transcoding rules used by Far
-API function XLat (string transcoding based on keyboard layout).
+ Te parametry tekstowe definiują specjalne zasady przekodowania używane
+przez funkcję XLat interfejsu Far API (przekodowanie ciągów znaków
+na podstawie układu klawiatury).
 
- Far will attempt to apply special rules if a character could not be
-transcoded using the ~XLat.Tables~@XLat.Tables@.
+ Far będzie próbował zastosować specjalne zasady, jeżeli znaku nie można
+przekodować używając ~XLat.Tables~@XLat.Tables@.
 
- Each rule contains the sequence of character pairs. If a character
-in the transcoded string matches the first character in the pair,
-it will be replaced with the second character in the pair.
+ Każda reguła zawiera sekwencję par znaków. Jeżeli znak w przekodowanym
+łańcuchu pasuje do pierwszego znaku w parze, zostanie on zastąpiony
+drugim znakiem w parze.
 
- One of the three numbered rules is used if the bit 2 (0x04)
-in ~XLat.Flags~@XLat.Flags@ is zero or there is no named rule
-corresponding to the current keyboard layout.
+ Jeżeli bit 2 (0x04) w ~XLat.Flags~@XLat.Flags@ będzie ustawiony na zero,
+lub nie istnieje żadna reguła o nazwie odpowiadającej bieżącemu układowi
+klawiatury - to zostanie użyta jedna z trzech ponumerowanych reguł.
 
- #XLat.Rules1# ^<wrap>is applied if the previous character in the
-transcoded string is from the national alphabet.
- #XLat.Rules2# is applied if the previous character in the transcoded
-string is a Latin character.
- #XLat.Rules3# is applied if the previous character in the transcoded
-string is neither from the national alphabet, nor a Latin character.
+ #XLat.Rules1# ^<wrap> jest stosowana, jeśli poprzedni znak w przekodowanym
+łańcuchu pochodzi z alfabetu narodowego.
+ #XLat.Rules2# jest stosowana, jeśli poprzedni znak w przekodowanym
+łańcuchu jest znakiem łacińskim.
+ #XLat.Rules3# jest stosowana, jeśli poprzedni znak w przekodowanym łańcuchu
+nie pochodzi z alfabetu narodowego, ani nie jest znakiem alfabetu łacińskiego.
 
- A named special rule is applied if the bit 2 (0x04)
-in ~XLat.Flags~@XLat.Flags@ is set to one. Far uses hexadecimal value
-of the current input locale identifier (keyboard layout) to find the
-corresponding rule. For example, if current keyboard layout is “en-US”,
-Far will look up the rule named #XLat.00000409# and use it if it
-exists. Otherwise, Far will fall back to the numbered rules.
+ Nazwana reguła specjalna jest stosowana jeżeli bit 2 (0x04) w ~XLat.Flags~@XLat.Flags@
+jest ustawiona na jeden. Far używa szesnastkowych wartości identyfikatorów
+stron kodowych (układów klawiatury), do odnalezienia odpowiadającej reguły.
+Np. jeżeli bieżącym układem jest “pl-PL”, to Far wyszuka regułę o nazwie
+#XLat.00000415# i użyje jej, jeżeli istnieje. W przeciwnym razie Far powróci
+do reguł numerowanych.
 
- Default value: empty string for all rules (special rules are not
-defined).
+ Domyślna wartość: puste łańcuchy dla wszystkich reguł (reguły specjalne
+nie są zdefiniowane).
 
- See also Addons\XLat\Russian\Qwerty.farconfig.
+ Zobacz także Addons\XLat\Russian\Qwerty.farconfig.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.DelHighlightSelected
 $ #far:config Interface.DelHighlightSelected#
- This Boolean parameter controls how the items which will be deleted are
-displayed in the file / folder #Delete# confirmation dialog.
+ Ten parametr logiczny określa w jaki sposób elementy, które mają być usunięte,
+mają być wyświetlane w oknie dialogowym potwierdzenia #Usuwania# pliku/folderu.
 
- False - ^<wrap>The items to be deleted are always displayed in plain
-text, without highlighting.
- True  - If more than one item is to be deleted or the deleted item
-is not the item under cursor, the deleted item(s) will be highlighted
-in the dialog.
+ False - ^<wrap>Elementy do usunięcia będą zawsze wyświetlane jako zwykły
+tekst, bez podświetlania.
+ True  - Jeżeli usuniętych ma być więcej niż jeden element, lub usuwane
+elementy nie znajdują się pod kursorem, to usuwane elementy będą podświetlane
+w oknie dialogowym.
 
- Default value: True (highlight the list if it does not match the item
-under cursor).
+ Domyślna wartość: True (podświetl listę, jeżeli elementy nie znajdują się
+pod kursorem).
 
- Note: This parameter does not affect which items will be deleted;
-it only controls how the deleted items are shown in the dialog.
+ Uwaga: Parametr nie ma wpływu na to, które elementy zostaną usunięte;
+kontroluje jedynie sposób wyświetlania usuwanych elementów w oknie dialogowym.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Interface.DelShowSelected
 $ #far:config Interface.DelShowSelected#
- This numeric parameter controls the number of items which are displayed
-in the file / folder #Delete# confirmation dialog.
+ Ten parametr liczbowy określa liczbę elementów, które są wyświetlane w oknie
+dialogowym potwierdzenia operacji #Usuwania# pliku/folderu.
 
- The maximum number of displayed items is either this parameter’s value
-or half of Far window height, whichever is less. The minimum number
-of items is one.
+ Maksymalna liczba wyświetlanych elementów to albo wartość tego elementu
+lub połowa wysokości okna Far - w zależności od tego, która wartość jest mniejsza.
+Minimalna liczba elementów wynosi jeden.
 
- Default value: 10.
+ Domyślna wartość: 10.
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @History.Config
 $ #far:config History.*#
- These parameters limit the number and the lifetime of the items of the
-following histories:
+ Poniższe parametry ograniczają liczbę i czas życia elementów następujących
+list historii:
 
- - History of command line ~commands~@History@:
+ - Historia ~wiersza poleceń~@History@:
    #History.CommandHistory.Count#
    #History.CommandHistory.Lifetime#
 
- - History of entries in dialog edit controls:
+ - Historia wpisów w kontrolkach edycji okien dialogowych:
    #History.DialogHistory.Count#
    #History.DialogHistory.Lifetime#
 
- - History of recently ~visited folders~@HistoryFolders@:
+ - Historia ostatnio ~odwiedzonych folderów~@HistoryFolders@:
    #History.FolderHistory.Count#
    #History.FolderHistory.Lifetime#
 
- - History of recently ~viewed and edited files~@HistoryViews@:
+ - History ostatnio ~podglądanych i edytowanych plików~@HistoryViews@:
    #History.ViewEditHistory.Count#
    #History.ViewEditHistory.Lifetime#
 
- Default values:
- - Maximum history size (*.Count): 1000 items
- - Lifetime of an item (*.Lifetime): 90 days
+ Domyślne wartości:
+ - Maksymalna wielkość historii (*.Count): 1000 pozycji
+ - Czas życia danego elementu (*.Lifetime): 90 dni
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Editor.F8CPs
 $ #far:config Editor.F8CPs#
 $ #far:config Viewer.F8CPs#
- These string parameters define code pages which are cycled through when
-#F8# key is pressed in ~Editor~@Editor@ or ~Viewer~@Viewer@.
+ Te parametry tekstowe definiują strony kodową, które są przełączane
+cyklicznie po wciśnięciu klawisza #F8# w ~Edytorze~@Editor@ lub ~Podglądzie~@Viewer@.
 
- The value of each parameter is a list of code page numbers or symbolic
-names listed below. Symbolic names are case insensitive. Duplicated
-code pages, as well as unsupported code pages, are ignored.
+ Wartością każdego parametru jest lista numerów stron kodowych lub nazw symbolicznych
+wymienionych poniżej. W nazwach symbolicznych nie jest rozróżniana wielkość liter.
+Duplikaty stron kodowych, jak też nie obsługiwane strony kodowe, są ignorowane.
 
- - #ANSI#    ^<wrap>variants #ACP#, #WIN#
- - #OEM#     variants #OEMCP#, #DOS#
- - #UTF8#    variant #UTF-8#
- - #DEFAULT# stands for the default code page defined in
-~Editor~@EditorSettings@ or ~Viewer~@ViewerSettings@ settings dialog.
+ - #ANSI#    ^<wrap>warianty #ACP#, #WIN#
+ - #OEM#     warianty #OEMCP#, #DOS#
+ - #UTF8#    wariant #UTF-8#
+ - #DEFAULT# oznacza domyślną stronę kodową zdefiniowaną w oknie ustawień
+~Edytora~@EditorSettings@ lub ~Podglądu~@ViewerSettings@.
 
- If the string is empty or does not contain any supported code pages,
-ANSI and OEM code pages are used.
+ Jeżeli łańcuch jest pusty, lub nie zawiera żadnych obsługiwanych stron kodowych,
+to używane są strony kodowe ANSI i OEM.
 
- Special parameter value of #-1# stands for #ANSI;OEM;Default#.
+ Specjalna wartość parametru równa #-1# oznacza wartości #ANSI;OEM;Default#.
 
- Example: #ANSI,OEM,65001#.
+ Przykład: #ANSI,OEM,65001#.
 
- Default value: empty string (ANSI and OEM code pages).
+ Domyślna wartość: pusty łańcuch (strony kodowe ANSI i OEM).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Panel.Tree.TurnOffCompletely
 $ #far:config Panel.Tree.TurnOffCompletely#
- This Boolean parameter enables or disables all folder tree operations:
+ Ten parametr logiczny włącza lub wyłącza wszystkie operacje na drzewie folderów:
 
- - ^<wrap>~Tree panel~@TreePanel@ mode in
-~left and right menus~@LeftRightMenu@;
- - The toggle tree panel shortcut key (#Ctrl+T#);
- - ~Find folder~@FindFolder@ panel command (#Alt+F10#);
- - Folder tree operations in ~copy, move and rename~@CopyFiles@
-dialog (#F10#, #Alt+F10#, and #Shift+F10#).
+ - ^<wrap>Tryb ~panelu drzewa~@TreePanel@ w ~lewym i prawym menu~@LeftRightMenu@;
+ - Klawisz skrótu do przełączenia panelu drzewa (#Ctrl+T#);
+ - Polecenie panelu ~Znajdź folder~@FindFolder@ (#Alt+F10#);
+ - Operacje na drzewie folderów w oknie dialogowym
+~kopiowania, przenoszenia i zmiany nazwy~@CopyFiles@ (#F10#, #Alt+F10#, i #Shift+F10#).
 
- False - ^<wrap>Folder tree operations are #enabled#.
- True  - All folder tree operations are #disabled#.
+ False - ^<wrap>Operacje na drzewie folderów są #włączone#.
+ True  - Wszystkie operacje na drzewie folderów są #wyłączone#.
 
- Note: If folder tree operations are disabled, folder tree cache files,
-even if already exist, are not updated when folders are created,
-deleted, or renamed.
+ Uwaga: Jeżeli operacje na drzewie folderów są wyłączone, to pliki cache
+drzewa plików (nawet jeżeli istnieją) nie są aktualizowane podczas
+tworzenia, usuwania lub zmiany nazw folderów.
 
- Default value: True (all folder tree operations are disabled).
+ Domyślna wartość: True (wszystkie operacje na drzewie folderów są wyłączone).
 
- This parameter can be changed via ~far:config~@FarConfig@ only.
+ Ten parametr można zmienić tylko w ~far:config~@FarConfig@.
 
 
 @Index

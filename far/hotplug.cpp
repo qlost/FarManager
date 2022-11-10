@@ -52,13 +52,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "drivemix.hpp"
 #include "global.hpp"
 #include "keyboard.hpp"
+#include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.fs.hpp"
 
 // Common:
 #include "common/enum_substrings.hpp"
 #include "common/keep_alive.hpp"
+#include "common/view/select.hpp"
 
 // External:
 #include "format.hpp"
@@ -105,7 +108,14 @@ namespace
 
 namespace detail
 {
-	struct devinfo_handle_closer { void operator()(HDEVINFO Handle) const noexcept { SetupDiDestroyDeviceInfoList(Handle); } };
+	struct devinfo_handle_closer
+	{
+		void operator()(HDEVINFO Handle) const noexcept
+		{
+			if (!SetupDiDestroyDeviceInfoList(Handle))
+				LOGWARNING(L"SetupDiDestroyDeviceInfoList(): {}"sv, os::last_error());
+		}
+	};
 }
 
 class [[nodiscard]] dev_info: noncopyable
@@ -172,7 +182,7 @@ public:
 		SetupDiGetDeviceInterfaceDetail(m_info.native_handle(), &DeviceInterfaceData, nullptr, 0, &RequiredSize, nullptr);
 		if(RequiredSize)
 		{
-			block_ptr<SP_DEVICE_INTERFACE_DETAIL_DATA> DData(RequiredSize);
+			const block_ptr<SP_DEVICE_INTERFACE_DETAIL_DATA> DData(RequiredSize);
 			DData->cbSize = sizeof(*DData);
 			if(SetupDiGetDeviceInterfaceDetail(m_info.native_handle(), &DeviceInterfaceData, DData.data(), RequiredSize, nullptr, nullptr))
 			{
@@ -205,21 +215,21 @@ static bool GetDevicePropertyImpl(DEVINST hDevInst, const receiver& Receiver)
 [[nodiscard]]
 static bool GetDeviceProperty(DEVINST hDevInst, DWORD Property, DWORD& Value)
 {
-	return GetDevicePropertyImpl(hDevInst, [&](dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
+	return GetDevicePropertyImpl(hDevInst, [&](const dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
 	{
-		return Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, reinterpret_cast<PBYTE>(&Value), sizeof(Value), nullptr);
+		return Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, edit_as<BYTE*>(&Value), sizeof(Value), nullptr);
 	});
 }
 
 [[nodiscard]]
 static bool GetDeviceProperty(DEVINST hDevInst, DWORD Property, string& Value)
 {
-	return GetDevicePropertyImpl(hDevInst, [&](dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
+	return GetDevicePropertyImpl(hDevInst, [&](const dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
 	{
 		return os::detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> Buffer)
 		{
 			DWORD RequiredSize = 0;
-			if (Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, reinterpret_cast<BYTE*>(Buffer.data()), static_cast<DWORD>(Buffer.size()), &RequiredSize))
+			if (Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, edit_as<BYTE*>(Buffer.data()), static_cast<DWORD>(Buffer.size()), &RequiredSize))
 				return RequiredSize / sizeof(wchar_t) - 1;
 			return RequiredSize / sizeof(wchar_t);
 		});
@@ -311,10 +321,10 @@ static device_paths get_device_paths_impl(DEVINST hDevInst)
 
 		AddEndSlash(strMountPoint);
 		string strVolumeName;
-		if (os::fs::GetVolumeNameForVolumeMountPoint(strMountPoint,strVolumeName))
-		{
-			DevicePaths.Disks |= DriveMaskFromVolumeName(strVolumeName);
-		}
+		if (!os::fs::GetVolumeNameForVolumeMountPoint(strMountPoint, strVolumeName))
+			continue;
+
+		DevicePaths.Disks |= DriveMaskFromVolumeName(strVolumeName);
 		DevicePaths.Volumes.emplace_back(strVolumeName);
 	}
 
@@ -337,8 +347,7 @@ static device_paths get_relation_device_paths(DEVINST hDevInst)
 		return {};
 
 	device_paths DevicePaths;
-	const auto DeviceIdListPtr = DeviceIdList.data();
-	for (const auto& i: enum_substrings(DeviceIdListPtr))
+	for (const auto& i: enum_substrings(DeviceIdList))
 	{
 		DEVINST hRelationDevInst;
 		if (CM_Locate_DevNode(&hRelationDevInst, const_cast<DEVINSTID_W>(i.data()), 0) == CR_SUCCESS)
@@ -394,7 +403,7 @@ static auto GetHotplugDevicesInfo(bool const IncludeSafeToRemove)
 	std::vector<DeviceInfo> Result;
 
 	DEVNODE Root;
-	if (CM_Locate_DevNodeW(&Root, nullptr, CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS)
+	if (CM_Locate_DevNode(&Root, nullptr, CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS)
 	{
 		GetHotplugDevicesInfo(Root, Result, IncludeSafeToRemove);
 	}
@@ -417,22 +426,12 @@ static bool RemoveHotplugDriveDevice(const DeviceInfo& Info, bool const Confirm,
 
 	if (Confirm)
 	{
-		string DisksStr;
 		const auto Separator = L", "sv;
-		for (const auto& i: irange(Info.DevicePaths.Disks.size()))
-		{
-			if (Info.DevicePaths.Disks[i])
-				append(DisksStr, os::fs::drive::get_device_path(i), Separator);
-		}
-		// remove trailing ", "
-		if (!DisksStr.empty())
-		{
-			DisksStr.resize(DisksStr.size() - Separator.size());
-		}
-		else
-		{
-			DisksStr = join(Info.DevicePaths.Volumes, L", "sv);
-		}
+
+		auto DisksStr = join(Separator, select(os::fs::enum_drives(Info.DevicePaths.Disks), [](wchar_t const Drive){ return os::fs::drive::get_device_path(Drive); }));
+
+		if (DisksStr.empty())
+			DisksStr = join(Separator, Info.DevicePaths.Volumes);
 
 		std::vector<string> MessageItems;
 		MessageItems.reserve(6);
@@ -623,7 +622,7 @@ void ShowHotplugDevices()
 					else if (!Cancelled)
 					{
 						SetLastError(ERROR_DRIVE_LOCKED); // ... "The disk is in use or locked by another process."
-						const auto ErrorState = last_error();
+						const auto ErrorState = os::last_error();
 
 						Message(MSG_WARNING, ErrorState,
 							msg(lng::MError),

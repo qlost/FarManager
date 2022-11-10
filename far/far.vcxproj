@@ -66,6 +66,9 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="clipboard.cpp" />
     <ClCompile Include="cmdline.cpp" />
     <ClCompile Include="codepage_selection.cpp" />
+    <ClCompile Include="color_picker.cpp" />
+    <ClCompile Include="color_picker_256.cpp" />
+    <ClCompile Include="color_picker_rgb.cpp" />
     <ClCompile Include="colormix.cpp" />
     <ClCompile Include="common.tests.cpp" />
     <ClCompile Include="components.cpp" />
@@ -135,6 +138,10 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="hotplug.cpp" />
     <ClCompile Include="imports.cpp" />
     <ClCompile Include="infolist.cpp" />
+    <ClCompile Include="initguid.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles>disabled_warnings.hpp</ForcedIncludeFiles>
+    </ClCompile>
     <ClCompile Include="interf.cpp" />
     <ClCompile Include="keybar.cpp" />
     <ClCompile Include="keyboard.cpp" />
@@ -166,6 +173,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="platform.com.cpp" />
     <ClCompile Include="platform.concurrency.cpp" />
     <ClCompile Include="platform.cpp" />
+    <ClCompile Include="platform.debug.cpp" />
     <ClCompile Include="platform.env.cpp" />
     <ClCompile Include="platform.fs.cpp" />
     <ClCompile Include="platform.memory.cpp" />
@@ -231,6 +239,9 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="clipboard.hpp" />
     <ClInclude Include="cmdline.hpp" />
     <ClInclude Include="codepage_selection.hpp" />
+    <ClInclude Include="color_picker.hpp" />
+    <ClInclude Include="color_picker_256.hpp" />
+    <ClInclude Include="color_picker_rgb.hpp" />
     <ClInclude Include="colormix.hpp" />
     <ClInclude Include="common.hpp" />
     <ClInclude Include="common\2d\algorithm.hpp" />
@@ -247,6 +258,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\bytes_view.hpp" />
     <ClInclude Include="common\chrono.hpp" />
     <ClInclude Include="common\compiler.hpp" />
+    <ClInclude Include="common\cpp.hpp" />
     <ClInclude Include="common\enum_substrings.hpp" />
     <ClInclude Include="common\enum_tokens.hpp" />
     <ClInclude Include="common\enumerator.hpp" />
@@ -281,7 +293,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="constitle.hpp" />
     <ClInclude Include="copy.hpp" />
     <ClInclude Include="copy_progress.hpp" />
-    <ClInclude Include="cpp.hpp" />
     <ClInclude Include="ctrlobj.hpp" />
     <ClInclude Include="cvtname.hpp" />
     <ClInclude Include="datetime.hpp" />
@@ -375,6 +386,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="platform.chrono.hpp" />
     <ClInclude Include="platform.com.hpp" />
     <ClInclude Include="platform.concurrency.hpp" />
+    <ClInclude Include="platform.debug.hpp" />
     <ClInclude Include="platform.env.hpp" />
     <ClInclude Include="platform.fs.hpp" />
     <ClInclude Include="platform.fwd.hpp" />
@@ -571,6 +583,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <None Include="Far.msg.ico" />
     <None Include="far.natjmc" />
     <None Include="Far.red.ico" />
+    <None Include="Far.log.ico" />
     <None Include="farversion.m4" />
     <None Include="headers.m4" />
     <None Include="vbuild.m4" />
@@ -582,6 +595,12 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="far.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="common_test.vcxproj">
+      <Project>{459C0A10-7D18-4623-9FA9-1D5B6A587D40}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ProjectDir)..\_build\vc\config\common.targets" />
 </Project>

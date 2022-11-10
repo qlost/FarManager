@@ -478,7 +478,46 @@ $ #Режимы сортировки#
  Использовать сортировку по группам                       #Shift+F11#
  Показывать помеченные файлы первыми                      #Shift+F12#
 
+ You can ~fine-tune~@PanelSortCriteria@ sort modes by pressing #F4#.
+
  См. также: клавиатурные команды, общие ~для всех меню~@MenuCmd@.
+
+
+@PanelSortCriteria
+$ #Sort criteria#
+ When files are considered equivalent using the selected sort mode, additional sort criteria are taken into account.
+ For example, if files are sorted by size and both "a.txt" and "b.txt" have the same size, "a.txt" will come first, as if they were sorted by name.
+ In this menu you can adjust the set of criteria associated with the selected sort mode.
+
+ #Ins#
+ Add a criterion to the set.
+
+ #Del#
+ Remove the selected criterion.
+
+ #F4#
+ Replace the selected criterion.
+
+ #+#
+ Use ascending order.
+
+ #-#
+ Use descending order.
+
+ #*#
+ Change the order.
+
+ #=#
+ Inherit the order from the corresponding sort mode.
+
+ #Ctrl+Up#
+ Move the criterion up.
+
+ #Ctrl+Down#
+ Move the criterion down.
+
+ #Ctrl+R#
+ Reset the set of criteria to default.
 
 
 @FastFind
@@ -1570,10 +1609,7 @@ $ #Меню параметров#
 
  #Кодовые страницы#     Управление ~кодовыми страницами~@CodePagesMenu@.
 
- #Цвета#                Изменение цвета различных элементов
-                      интерфейса или изменение всей палитры цветов
-                      либо на чёрно-белую, либо на предлагаемую
-                      по умолчанию.
+ #Цвета#                Shows the ~Color groups~@ColorGroups@ menu.
 
  #Раскраска файлов#     Редактирование
  #и группы сортировки#  ~раскраски файлов и групп сортировки~@Highlight@.
@@ -2324,6 +2360,22 @@ grep !?В (!.!) найти:?! |Far.exe -v -.
 пассивной панели с таким же именем, как имя текущего
 файла на активной панели.
 
+ #![#
+ "![" prefix forces all subsequent special symbols
+to refer to the left panel (see note 4).
+For example, ![!.! denotes a current file name on
+the left panel, ![!\\!^!.! - a file on the left
+panel with the same name as the name of the current
+file on the active panel.
+
+ #!]#
+ "!]" prefix forces all subsequent special symbols
+to refer to the right panel (see note 4).
+For example, !]!.! denotes a current file name on
+the right panel, !]!\\!^!.! - a file on the right
+panel with the same name as the name of the current
+file on the active panel.
+
  Примечания:
 
  1. ^<wrap>Far при обработке метасимволов подставляется только то, что они означают
@@ -2353,7 +2405,7 @@ grep !?В (!.!) найти:?! |Far.exe -v -.
  3. ^<wrap>Метасимволы !@@! и !$! в меню выбора (когда задано несколько ассоциаций) и меню пользователя
 показываются как есть, преобразование происходит в момент исполнения команды.
 
- 4. ^<wrap>Префиксы "!##" и "!^" работают как переключатели.
+ 4. ^<wrap>Префиксы "!##", "!^", "![" и "!]" работают как переключатели.
 Действие этих префиксов распространяется до следующего подобного префикса. Например:
 
     if exist !##!\\!^!.! diff -c -p !##!\\!^!.! !\\!.!
@@ -2390,12 +2442,6 @@ $ #Системные параметры#
  #Сканировать символические ссылки#
  Обрабатывать ~символические ссылки~@HardSymLink@ наравне с обычными подкаталогами при построении дерева
 каталогов и определении суммарного размера файлов в подкаталогах.
-
- #Обновление панелей только если Far активен#
- Если эта опция выставлена, то мониторинг файловых панелей Far будет выполняться только тогда когда Far активен,
-т.е. обновления панелей не будет до тех пор, пока Far не получит фокус ввода. Это позволяет не блокировать каталоги текущих панелей.
-Однако, синхронизация состояния панелей при получении фокуса #иногда не срабатывает#,
-поэтому эта опция по умолчанию отключена и мониторинг файловых панелей выполняется даже тогда, когда Far работает в фоне.
 
  #Сохранять историю команд#
  Вызывает сохранение ~истории команд~@History@ перед завершением и её восстановление после запуска Far.
@@ -2574,8 +2620,8 @@ $ #Настройка интерфейса#
 третьем состоянии переключателя) будет показан список общих ресурсов сервера.
 
  #Use Virtual Terminal for rendering#
- Render the output using ANSI escape sequences.
- This allows using 24-bit colors and may (or may not) work better (or worse) with some Unicode characters.
+ Render the output using ANSI escape sequences. You can find more about it ~here~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@.
+ This allows using 8 and 24-bit colors, text styles, and may (or may not) work better (or worse) with some Unicode characters.
  Requires Windows 10 and above.
 
  #Fullwidth-aware rendering#
@@ -3624,6 +3670,8 @@ $ #Меню выбора диска#
  #Shift+Enter# вызывает Проводник с показом корня указанного диска (работает
 только для дисков).
 
+ #Ctrl+H# shows unmapped volumes.
+
  #Ctrl+R# позволяет обновить меню выбора диска.
 
  Если включён показ параметров компакт-дисков (#Ctrl+8#), то Far будет
@@ -3779,13 +3827,12 @@ $ #Раскраска файлов и группы сортировки: ред�
    #[ ]# - ^<wrap>атрибут исключения - файл не должен иметь указанный атрибут.
    #[?]# - ^<wrap>указанный атрибут не влияет на фильтр;
 
- - цвета обычного имени, помеченного имени, имени под курсором
+ - ^<wrap>цвета обычного имени, помеченного имени, имени под курсором
 и помеченного имени под курсором. Если вы хотите использовать
 цвет по умолчанию, установите цвет в "Чёрный на чёрном";
 
- - опционально может быть указан любой символ для обозначения
-принадлежащих к группе файлов. Он может быть использован
-как вместе с цветовым выделением, так и вместо него.
+ - ^<wrap>пометкy для обозначения принадлежащих к группе файлов.
+Она может быть использована как вместе с цветовым выделением, так и вместо него.
 
  Файл принадлежит к группе раскраски, если:
  - ^<wrap>включён анализ масок и его имя соответствует хотя бы
@@ -4324,6 +4371,96 @@ Far всегда использует настоящий регистр.
  См. также: клавиатурные команды, общие ~для всех меню~@MenuCmd@.
 
 
+@ColorGroups
+$ #Color groups#
+ Это меню позволяет измененить цвета различных элементов интерфейса или всей палитры цветов на предлагаемую по умолчанию.
+
+ #Set default colors#
+ Set the colors to default values, expressed as indices in the console palette.
+
+ #Set default colors (RGB)#
+ Set the colors to default values, expressed as colors in RGB space, normally used for the corresponding console palette indices.
+ Unlike the indices in the console palette, the RGB values are device-independent and will look the same in any terminal.
+ For example, the default #index# value of panels background is #1#, which is usually, but not necessarily, mapped to some unspecified shade of blue.
+ The default #RGB# value of panels background, on the contrary, is always exactly #000080#.
+
+ #Note#: RGB colors require Virtual Terminal-based rendering, which can be enabled in ~Interface settings~@InterfSettings@.
+If it is not enabled or if your terminal does not support RGB colors, they will be approximated to the closest console palette indices.
+
+ This is the current palette:
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ This is the default RGB representation:
+
+ \(T0:T000000)  \(T0:T000080)  \(T0:T008000)  \(T0:T008080)  \(T0:T800000)  \(T0:T800080)  \(T0:T808000)  \(T0:TC0C0C0)  \-
+ \(T0:T808080)  \(T0:T0000FF)  \(T0:T00FF00)  \(T0:T00FFFF)  \(T0:TFF0000)  \(T0:TFF00FF)  \(T0:TFFFF00)  \(T0:TFFFFFF)  \-
+
+
+@ColorPicker
+$ #Color Picker#
+ This dialog allows to define a foreground color, a background color and a text style.
+
+ The foreground and the background colors can be either:
+ - one of the 16 colors from the standard Windows Console pallete,
+ - one of the 256 colors from the Xterm pallette, or
+ - one of the 16 million colors from the RGB color space.
+
+ The standard 16-color palette is available in the dialog.
+ To access the ~256-color palette~@ColorPicker256@ and the RGB color space use the corresponding buttons.
+
+ The color value is also represented in the hexadecimal form for convenience, where:
+ - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
+ - #______##### - the palette index from 00 to FF.
+ - #__RRGGBB# - the red, green and blue channels in the RGB color space, from 00 to FF each.
+
+ When the color is not fully opaque, the previous color in the logical Z-order is taken into account.
+
+ The foreground text style can include ANSI/VT100-like attributes listed in the right section.
+ When #Inherit# is checked, the previous foreground text style in the logical Z-order is taken into account.
+
+ The preview section below displays the final result.
+
+ #Attention#
+ Only the standard 16-color palette is guaranteed to work everywhere.
+ Support for everything else is conditional and defined by your terminal.
+
+ Extended colors and styles require Virtual Terminal-based rendering, which can be enabled in ~Interface settings~@InterfSettings@.
+You can find more about it ~here~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@.
+
+
+@ColorPicker256
+$ #256 Color Picker#
+ This dialog allows to pick a color from the 256-color Xterm pallette.
+
+ The first 16 colors are the same as the standard palette and are available in the ~main dialog~@ColorPicker@.
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ The next 216 colors are represented as a 6x6x6 cube. The palette usually has 6 levels for every primary color and forms a homogeneous RGB cube.
+ Use the buttons on the right to rotate the cube, access its inner levels or mix the primary colors directly.
+
+ \(:10)  \(:11)  \(:12)  \(:13)  \(:14)  \(:15)  \-  \(:34)  \(:35)  \(:36)  \(:37)  \(:38)  \(:39)  \-  \(:58)  \(:59)  \(:5A)  \(:5B)  \(:5C)  \(:5D)  \-
+ \(:16)  \(:17)  \(:18)  \(:19)  \(:1A)  \(:1B)  \-  \(:3A)  \(:3B)  \(:3C)  \(:3D)  \(:3E)  \(:3F)  \-  \(:5E)  \(:5F)  \(:60)  \(:61)  \(:62)  \(:63)  \-
+ \(:1C)  \(:1D)  \(:1E)  \(:1F)  \(:20)  \(:21)  \-  \(:40)  \(:41)  \(:42)  \(:43)  \(:44)  \(:45)  \-  \(:64)  \(:65)  \(:66)  \(:67)  \(:68)  \(:69)  \-
+ \(:22)  \(:23)  \(:24)  \(:25)  \(:26)  \(:27)  \-  \(:46)  \(:47)  \(:48)  \(:49)  \(:4A)  \(:4B)  \-  \(:6A)  \(:6B)  \(:6C)  \(:6D)  \(:6E)  \(:6F)  \-
+ \(:28)  \(:29)  \(:2A)  \(:2B)  \(:2C)  \(:2D)  \-  \(:4C)  \(:4D)  \(:4E)  \(:4F)  \(:50)  \(:51)  \-  \(:70)  \(:71)  \(:72)  \(:73)  \(:74)  \(:75)  \-
+ \(:2E)  \(:2F)  \(:30)  \(:31)  \(:32)  \(:33)  \-  \(:52)  \(:53)  \(:54)  \(:55)  \(:56)  \(:57)  \-  \(:76)  \(:77)  \(:78)  \(:79)  \(:7A)  \(:7B)  \-
+
+ \(:7C)  \(:7D)  \(:7E)  \(:7F)  \(:80)  \(:81)  \-  \(:A0)  \(:A1)  \(:A2)  \(:A3)  \(:A4)  \(:A5)  \-  \(:C4)  \(:C5)  \(:C6)  \(:C7)  \(:C8)  \(:C9)  \-
+ \(:82)  \(:83)  \(:84)  \(:85)  \(:86)  \(:87)  \-  \(:A6)  \(:A7)  \(:A8)  \(:A9)  \(:AA)  \(:AB)  \-  \(:CA)  \(:CB)  \(:CC)  \(:CD)  \(:CE)  \(:CF)  \-
+ \(:88)  \(:89)  \(:8A)  \(:8B)  \(:8C)  \(:8D)  \-  \(:AC)  \(:AD)  \(:AE)  \(:AF)  \(:B0)  \(:B1)  \-  \(:D0)  \(:D1)  \(:D2)  \(:D3)  \(:D4)  \(:D5)  \-
+ \(:8E)  \(:8F)  \(:90)  \(:91)  \(:92)  \(:93)  \-  \(:B2)  \(:B3)  \(:B4)  \(:B5)  \(:B6)  \(:B7)  \-  \(:D6)  \(:D7)  \(:D8)  \(:D9)  \(:DA)  \(:DB)  \-
+ \(:94)  \(:95)  \(:96)  \(:97)  \(:98)  \(:99)  \-  \(:B8)  \(:B9)  \(:BA)  \(:BB)  \(:BC)  \(:BD)  \-  \(:DC)  \(:DD)  \(:DE)  \(:DF)  \(:E0)  \(:E1)  \-
+ \(:9A)  \(:9B)  \(:9C)  \(:9D)  \(:9E)  \(:9F)  \-  \(:BE)  \(:BF)  \(:C0)  \(:C1)  \(:C2)  \(:C3)  \-  \(:E2)  \(:E3)  \(:E4)  \(:E5)  \(:E6)  \(:E7)  \-
+
+ The last 24 colors are usually defined as a grayscale ramp.
+
+ \(:E8)  \(:E9)  \(:EA)  \(:EB)  \(:EC)  \(:ED)  \(:EE)  \(:EF)  \(:F0)  \(:F1)  \(:F2)  \(:F3)  \(:F4)  \(:F5)  \(:F6)  \(:F7)  \(:F8)  \(:F9)  \(:FA)  \(:FB)  \(:FC)  \(:FD)  \(:FE)  \(:FF)  \-
+
+
 @SortGroups
 $ #Группы сортировки#
  Группы сортировки могут применяться в ~панели файлов~@FilePanel@ совместно
@@ -4805,9 +4942,9 @@ $ #Команды операционной системы#
 не существует, и переменная среды «variable» определена.
  #if exist file1 if not exist file2 if defined variable command#
 
- #PUSHD path#
- Сохраняет текущий путь для использования командой «POPD» и меняет
-текущий путь на активной панели на указанный «path».
+ #PUSHD [path]#
+ Сохраняет текущий путь для использования командой «POPD».
+If “path” is specified, changes the current path on the active panel to it.
 
  #POPD#
  Меняет текущий путь на активной панели на сохранённый командой «PUSHD».
@@ -4913,9 +5050,7 @@ $ #Регулярные выражения для поиска#
  #(?<!pattern)# - ^<wrap>отрицание просмотра назад. Те же ограничения, что и для просмотра назад.
 
  #(?{name}pattern)# - именованная группа.
- В качестве имени "name" может быть пустая строка (получается
-#безымянная группа#, на которую нельзя сослаться) или последовательность из
-знаков слова (#\w#) и пробелов (#\s#).
+ В качестве имени "name" может использоваться последовательность из знаков слова (#\w#) и пробелов (#\s#).
 
  #Квантификаторы#
 
@@ -4991,7 +5126,7 @@ $ #Регулярные выражения для поиска#
         ^<wrap>Строки,  в которых есть "name=", но нет "value=", будут обрабатываться (фактически - пропускаться) быстрее.
 
  #\NN#  - ^<wrap>ссылка на ранее совпавшую группу. NN - целое положительное число
-Каждая группа, кроме (?:pattern), (?=pattern), (?!pattern), (?<=pattern), (?<!pattern) и (?{name}pattern),
+Каждая группа, кроме (?:pattern), (?=pattern), (?!pattern), (?<=pattern) и (?<!pattern)
 имеет номер (по порядку появления открывающей скобки).
         Пример:
         "(['"])hello\1" совпадёт с "hello" или 'hello'.
@@ -5543,30 +5678,17 @@ $ #Редактор конфигурации#
 
 @Codepages.NoAutoDetectCP
 $ #far:config Codepages.NoAutoDetectCP#
- Этот строковый параметр задаёт кодовые страницы, которые будут
-исключены из автоматического определения Universal Codepage Detector'ом
-(UCD). Иногда (особенно на небольших файлах) UCD назойливо выбирает
-неподходящие кодовые страницы.
+ This parameter allows to exclude specific code pages from the heuristic code page detection results.
+Such detection is unreliable by definition: it depends on statistical data and could guess wrong, especially when the amount of input data is small.
 
- Значение по умолчанию -- это пустая строка #""#. В этом случае все
-кодовые страницы, которые может определить UCD (около двух десятков,
-гораздо меньше, чем обычно доступно в системе) разрешены.
+ By default the parameter is empty and there are no restrictions which code pages could be detected heuristically.
 
- Если параметр равен строке #"-1"#, и раздел #Прочие# в меню
-~кодовых страниц~@CodePagesMenu@ скрыт (комбинация клавиш #Ctrl+H#),
-то для UCD будут разрешены только #Системные# (ANSI, OEM), #Юникодные#
-и #Избранные# кодовые страницы. Если раздел #Прочие# виден, все кодовые
-страницы разрешены.
+ If this parameter is set to #-1#, only the code pages, currenltly visible in the ~Code pages~@CodePagesMenu@ menu, will be accepted.
+You can control which code pages are visible there with the #Ctrl+H# key combination and the #Favorites# section.
 
- В противном случае параметр должен содержать список номеров кодовых
-страниц, запрещённых для UCD. Например,
-#"1250,1252,1253,1255,855,10005,28592,28595,28597,28598,38598"#.
+ If this parameter contains a comma-separated list of code page numbers, all the specified code pages will be excluded from the heuristic detection.
 
- Поскольку юникодные кодовые страницы (1200, 1201, 65001) проверяются
-отдельно от UCD, они не могут быть запрещены, даже если они есть
-в списке исключений.
-
- Изменить этот параметр можно только через ~far:config~@FarConfig@.
+ This parameter can be changed via ~far:config~@FarConfig@ only.
 
 
 @Help.ActivateURL

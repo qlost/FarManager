@@ -120,6 +120,13 @@ filemasks::~filemasks() = default;
 filemasks::filemasks(filemasks&&) noexcept = default;
 filemasks& filemasks::operator=(filemasks&&) noexcept = default;
 
+static string get_mask_group(string_view const Group)
+{
+	return ConfigProvider().GeneralCfg()->GetValue<string>(L"Masks"sv, Group);
+}
+
+static auto mask_group_accessor = &get_mask_group;
+
 bool filemasks::assign(string_view Str, DWORD const Flags)
 {
 	if (Str.empty())
@@ -130,23 +137,23 @@ bool filemasks::assign(string_view Str, DWORD const Flags)
 	clear();
 
 	string ExpandedGroups(Str);
-	std::unordered_set<string> UsedGroups;
+	unordered_string_set UsedGroups;
 	size_t LBPos, RBPos;
 	string MaskGroupValue;
 
 	while ((LBPos = ExpandedGroups.find(L'<')) != string::npos && (RBPos = ExpandedGroups.find(L'>', LBPos)) != string::npos)
 	{
 		const auto MaskGroupNameWithBrackets = string_view(ExpandedGroups).substr(LBPos, RBPos - LBPos + 1);
-		string MaskGroupName(MaskGroupNameWithBrackets.substr(1, MaskGroupNameWithBrackets.size() - 2));
+		const auto MaskGroupName = MaskGroupNameWithBrackets.substr(1, MaskGroupNameWithBrackets.size() - 2);
 
-		if (contains(UsedGroups, MaskGroupName))
+		if (contains(UsedGroups, string_comparer::generic_key{ MaskGroupName }))
 		{
 			MaskGroupValue.clear();
 		}
 		else
 		{
-			MaskGroupValue = ConfigProvider().GeneralCfg()->GetValue<string>(L"Masks"sv, MaskGroupName);
-			UsedGroups.emplace(std::move(MaskGroupName));
+			MaskGroupValue = mask_group_accessor(MaskGroupName);
+			UsedGroups.emplace(MaskGroupName);
 		}
 		replace(ExpandedGroups, MaskGroupNameWithBrackets, MaskGroupValue);
 	}
@@ -356,16 +363,21 @@ bool filemasks::masks::assign(string&& Masks, DWORD Flags)
 
 	auto& RegexData = m_Masks.emplace<1>();
 
-	if (!RegexData.Regex.Compile(Masks, OP_PERLSTYLE | OP_OPTIMIZE))
+	try
 	{
+		RegexData.Regex.Compile(Masks, OP_PERLSTYLE | OP_OPTIMIZE);
+	}
+	catch (regex_exception const& e)
+	{
+		m_Masks.emplace<0>(); // Make it empty
+
 		if (!(Flags & FMF_SILENT))
 		{
-			ReCompileErrorMessage(RegexData.Regex, Masks);
+			ReCompileErrorMessage(e, Masks);
 		}
 		return false;
 	}
 
-	RegexData.Match.resize(RegexData.Regex.GetBracketsCount());
 	return true;
 }
 
@@ -381,8 +393,7 @@ bool filemasks::masks::operator==(const string_view FileName) const
 		},
 		[&](const regex_data& Data)
 		{
-			intptr_t i = Data.Match.size();
-			return Data.Regex.Search(FileName, Data.Match.data(), i) != 0; // BUGBUG
+			return Data.Regex.Search(FileName, Data.Match); // BUGBUG
 		}
 	}, m_Masks);
 }
@@ -395,9 +406,10 @@ bool filemasks::masks::empty() const
 		{
 			return Data.empty();
 		},
-		[](const regex_data& Data)
+		[](const regex_data&)
 		{
-			return Data.Match.empty();
+			// It holds regex_data only when compilation is successful
+			return false;
 		}
 	}, m_Masks);
 }
@@ -427,14 +439,30 @@ TEST_CASE("masks")
 		{ L"file.*"sv,      L"file.bin"sv,       true  },
 		{ L"file.*"sv,      L"file..bin"sv,      true  },
 		{ L"file.*|*b*"sv,  L"file.bin"sv,       false },
+		{ L"*.ext,<duh>"sv, L"meow.txt"sv,       true  },
+		{ L"<duh>,*.ext"sv, L"boo.boo"sv,        true  },
+		{ L"*.ext,<doh>"sv, L"meow.ext"sv,       true  },
+		{ L"<doh>,*.ext"sv, L"boo.ext"sv,        true  },
 	};
 
 	filemasks Masks;
+
+	const auto test_mask_group_accessor = [](string_view const Mask)
+	{
+		if (Mask == L"duh"sv)
+			return L"*.txt;*.boo"s;
+
+		return L""s;
+	};
+
+	mask_group_accessor = test_mask_group_accessor;
 
 	for (const auto& i: Tests)
 	{
 		REQUIRE(Masks.assign(i.Mask, FMF_SILENT));
 		REQUIRE(i.Match == Masks.check(i.Test));
 	}
+
+	mask_group_accessor = &get_mask_group;
 }
 #endif

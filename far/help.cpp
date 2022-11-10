@@ -127,7 +127,7 @@ static const auto HelpFormatLinkModule = FSTR(L"<{}>{}"sv);
 
 class Help final: public window
 {
-	struct private_tag {};
+	struct private_tag { explicit private_tag() = default; };
 
 public:
 	static help_ptr create(string_view Topic, string_view Mask, unsigned long long Flags);
@@ -160,10 +160,10 @@ private:
 	void FastShow();
 	void DrawWindowFrame() const;
 	void OutString(string_view Str);
-	int  StringLen(string_view Str);
+	int  StringLen(string_view Str) const;
 	void CorrectPosition() const;
-	bool IsReferencePresent();
-	bool GetTopic(int realX, int realY, string& strTopic);
+	bool IsReferencePresent() const;
+	bool GetTopic(int realX, int realY, string& strTopic) const;
 	void MoveToReference(int Forward, int CurScreen);
 	void ReadDocumentsHelp(int TypeIndex);
 	void Search(const os::fs::file& HelpFile, uintptr_t nCodePage);
@@ -178,7 +178,6 @@ private:
 	std::stack<StackHelpData, std::vector<StackHelpData>> Stack; // стек возврата
 	std::vector<HelpRecord> HelpList; // "хелп" в памяти.
 	string  strFullHelpPathName;
-	string strCtrlColorChar;    // CtrlColorChar - опция! для спецсимвола-
 	string strCurPluginContents; // помним PluginContents (для отображения в заголовке)
 	string strCtrlStartPosChar;
 	string strLastSearchStr;
@@ -195,11 +194,14 @@ private:
 	DWORD LastStartPos{};
 	DWORD StartPos{};
 
+	wchar_t m_CtrlColorChar{};
+
 	bool MouseDown{};
 	bool IsNewTopic{true};
 	bool m_TopicFound{};
 	bool ErrorHelp{true};
-	bool LastSearchCase, LastSearchWholeWords, LastSearchRegexp;
+	search_case_fold LastSearchCaseFold;
+	bool LastSearchWholeWords, LastSearchRegexp;
 };
 
 struct Help::StackHelpData
@@ -216,14 +218,14 @@ struct Help::StackHelpData
 
 static bool GetOptionsParam(const os::fs::file& LangFile, string_view const KeyName, string& Value, unsigned CodePage)
 {
-	return GetLangParam(LangFile, L"Options "sv + KeyName, Value, nullptr, CodePage);
+	return GetLangParam(LangFile, L"Options "sv + KeyName, Value, CodePage);
 }
 
 Help::Help(private_tag):
 	StackData(std::make_unique<StackHelpData>()),
 	CurColor(colors::PaletteColorToFarColor(COL_HELPTEXT)),
 	CtrlTabSize(Global->Opt->HelpTabSize),
-	LastSearchCase(Global->GlobalSearchCase),
+	LastSearchCaseFold(Global->GlobalSearchCaseFold),
 	LastSearchWholeWords(Global->GlobalSearchWholeWords),
 	LastSearchRegexp(Global->Opt->HelpSearchRegexp)
 {
@@ -270,35 +272,14 @@ void Help::init(string_view const Topic, string_view const Mask, unsigned long l
 		ReadHelp(StackData->strHelpMask);
 	}
 
-	if (!HelpList.empty())
-	{
-		m_Flags.Clear(FHELPOBJ_ERRCANNOTOPENHELP);
-		InitKeyBar();
-		SetMacroMode(MACROAREA_HELP);
-		MoveToReference(1,1);
-		Global->WindowManager->ExecuteWindow(shared_from_this()); //OT
-		Global->WindowManager->ExecuteModal(shared_from_this()); //OT
-	}
-	else
-	{
-		ErrorHelp = true;
+	if (HelpList.empty())
+		throw MAKE_FAR_KNOWN_EXCEPTION(concat(msg(lng::MHelpTopicNotFound), L'\n', StackData->strHelpTopic));
 
-		if (!(Flags&FHELP_NOSHOWERROR))
-		{
-			if (!m_Flags.Check(FHELPOBJ_ERRCANNOTOPENHELP))
-			{
-				Message(MSG_WARNING,
-					msg(lng::MHelpTitle),
-					{
-						msg(lng::MHelpTopicNotFound),
-						StackData->strHelpTopic
-					},
-					{ lng::MOk });
-			}
-
-			m_Flags.Clear(FHELPOBJ_ERRCANNOTOPENHELP);
-		}
-	}
+	InitKeyBar();
+	SetMacroMode(MACROAREA_HELP);
+	MoveToReference(1,1);
+	Global->WindowManager->ExecuteWindow(shared_from_this()); //OT
+	Global->WindowManager->ExecuteModal(shared_from_this()); //OT
 }
 
 bool Help::ReadHelp(string_view const Mask)
@@ -380,9 +361,9 @@ bool Help::ReadHelp(string_view const Mask)
 	}
 
 	if (GetOptionsParam(HelpFile, L"CtrlColorChar"sv, strReadStr, HelpFileCodePage))
-		strCtrlColorChar = strReadStr;
+		m_CtrlColorChar = strReadStr.front();
 	else
-		strCtrlColorChar.clear();
+		m_CtrlColorChar = 0;
 
 	if (GetOptionsParam(HelpFile, L"CtrlStartPosChar"sv, strReadStr, HelpFileCodePage))
 		strCtrlStartPosChar = strReadStr;
@@ -392,7 +373,7 @@ bool Help::ReadHelp(string_view const Mask)
 	/* $ 29.11.2001 DJ
 	   запомним, чего там написано в PluginContents
 	*/
-	if (!GetLangParam(HelpFile, L"PluginContents"sv, strCurPluginContents, nullptr, HelpFileCodePage))
+	if (!GetLangParam(HelpFile, L"PluginContents"sv, strCurPluginContents,  HelpFileCodePage))
 		strCurPluginContents.clear();
 
 	string strTabSpace(CtrlTabSize, L' ');
@@ -496,13 +477,13 @@ bool Help::ReadHelp(string_view const Mask)
 
 			size_t LastKeySize = 0;
 
-			strReadStr = join(select(enum_tokens(strKeyName, L" "sv),
+			strReadStr = join(L"\n"sv, select(enum_tokens(strKeyName, L" "sv),
 				[&](const auto& i)
 				{
 					LastKeySize = i.size();
 					return concat(L" #"sv, escape(i), L'#');
-				}),
-				L"\n"sv);
+				})
+			);
 
 			if (!strDescription.empty())
 			{
@@ -672,17 +653,9 @@ m1:
 							else
 								RepeatLastLine = true;
 						}
-						else if (!strReadStr.empty())
+						else if (StringLen(strReadStr)<RealMaxLength)
 						{
-							if (StringLen(strReadStr)<RealMaxLength)
-							{
-								AddLine(strReadStr);
-								continue;
-							}
-						}
-						else
-						{
-							AddLine({});
+							AddLine(strReadStr);
 							continue;
 						}
 					}
@@ -804,7 +777,6 @@ m1:
 		PrevSymbol = strReadStr.empty() ? L'\0' : strReadStr[0];
 	}
 
-	AddLine({});
 	ErrorHelp = false;
 
 	if (IsNewTopic)
@@ -989,10 +961,13 @@ static bool GetHelpColor(string_view& Str, wchar_t cColor, FarColor& color)
 	}
 
 	// '\hh' custom color index
-	if (Str.size() > 2 && std::iswxdigit(Str[1]) && std::iswxdigit(Str[2]))
+	// Note: even though we support 256 and true colors now,
+	// this notation SHALL NOT not be extended due to backward compatibility.
+	// Use ([[T]FFFFFFFF][:[T]BBBBBBBB]) to utilise extended colors.
+		if (Str.size() > 2 && std::iswxdigit(Str[1]) && std::iswxdigit(Str[2]))
 	{
 		const auto Value = std::to_integer<unsigned>(HexStringToBlob(Str.substr(1, 2))[0]);
-		color = colors::ConsoleColorToFarColor(Value);
+		color = colors::NtColorToFarColor(Value);
 		Str.remove_prefix(3);
 		return true;
 	}
@@ -1078,7 +1053,7 @@ static bool FastParseLine(string_view Str, int* const pLen, const int x0, const 
 	return found;
 }
 
-bool Help::GetTopic(int realX, int realY, string& strTopic)
+bool Help::GetTopic(int realX, int realY, string& strTopic) const
 {
 	strTopic.clear();
 	if (realY <= m_Where.top || realY >= m_Where.bottom || realX <= m_Where.left || realX >= m_Where.right)
@@ -1109,13 +1084,13 @@ bool Help::GetTopic(int realX, int realY, string& strTopic)
 		x = m_Where.left + 1 + std::max(0, (CanvasWidth() - w) / 2);
 	}
 
-	return FastParseLine(Str, nullptr, x, realX, &strTopic, strCtrlColorChar.empty()? 0 : strCtrlColorChar[0]);
+	return FastParseLine(Str, {}, x, realX, &strTopic, m_CtrlColorChar);
 }
 
-int Help::StringLen(const string_view Str)
+int Help::StringLen(const string_view Str) const
 {
 	int len = 0;
-	FastParseLine(Str, &len, 0, -1, nullptr, strCtrlColorChar.empty()? 0 : strCtrlColorChar[0]);
+	FastParseLine(Str, &len, 0, -1, {}, m_CtrlColorChar);
 	return len;
 }
 
@@ -1128,7 +1103,6 @@ void Help::OutString(string_view Str)
 
 	auto StartTopic = Str.data();
 	int Highlight = 0, Topic = 0;
-	const auto cColor = strCtrlColorChar.empty()? L'\0' : strCtrlColorChar[0];
 
 	for (;;)
 	{
@@ -1136,7 +1110,7 @@ void Help::OutString(string_view Str)
 		    (Str[0]==L'~' && Str[1]==L'~') ||
 		    (Str[0]==L'#' && Str[1]==L'#') ||
 		    (Str[0]==L'@' && Str[1]==L'@') ||
-		    (cColor && Str[0]==cColor && Str[1]==cColor)
+		    (m_CtrlColorChar && Str[0] == m_CtrlColorChar && Str[1] == m_CtrlColorChar)
 		))
 		{
 			OutStr.push_back(Str[0]);
@@ -1144,7 +1118,7 @@ void Help::OutString(string_view Str)
 			continue;
 		}
 
-		if (Str.empty() /*|| *Str==HelpBeginLink*/ || Str[0] == L'~' || ((Str[0] == L'#' || Str[0] == cColor) && !Topic))
+		if (Str.empty() /*|| *Str==HelpBeginLink*/ || Str[0] == L'~' || ((Str[0] == L'#' || Str[0] == m_CtrlColorChar) && !Topic))
 		{
 			if (Topic)
 			{
@@ -1190,7 +1164,7 @@ void Help::OutString(string_view Str)
 			Highlight = !Highlight;
 			Str.remove_prefix(1);
 		}
-		else if (!GetHelpColor(Str, cColor, CurColor))
+		else if (!GetHelpColor(Str, m_CtrlColorChar, CurColor))
 		{
 			OutStr.push_back(Str[0]);
 			Str.remove_prefix(1);
@@ -1220,7 +1194,7 @@ void Help::CorrectPosition() const
 		StackData->CurY=0;
 	}
 
-	StackData->TopStr = std::max(0, std::min(StackData->TopStr, static_cast<int>(HelpList.size()) - FixCount - BodyHeight()));
+	StackData->TopStr = std::max(0, std::min(StackData->TopStr, static_cast<int>(HelpList.size()) - BodyHeight()));
 }
 
 long long Help::VMProcess(int OpCode,void* vParam, long long iParam)
@@ -1446,7 +1420,7 @@ bool Help::ProcessKey(const Manager::Key& Key)
 			if (!equal_icase(StackData->strHelpTopic, FoundContents))
 			{
 				string strLastSearchStr0=strLastSearchStr;
-				bool Case=LastSearchCase;
+				auto SearchCaseFold = LastSearchCaseFold;
 				bool WholeWords=LastSearchWholeWords;
 				bool Regexp=LastSearchRegexp;
 
@@ -1460,7 +1434,7 @@ bool Help::ProcessKey(const Manager::Key& Key)
 					strTempStr,
 					L"HelpSearch"sv,
 					{},
-					&Case,
+					&SearchCaseFold,
 					&WholeWords,
 					{},
 					&Regexp,
@@ -1473,7 +1447,7 @@ bool Help::ProcessKey(const Manager::Key& Key)
 					return true;
 
 				strLastSearchStr=strLastSearchStr0;
-				LastSearchCase=Case;
+				LastSearchCaseFold = SearchCaseFold;
 				LastSearchWholeWords=WholeWords;
 				LastSearchRegexp=Regexp;
 
@@ -1876,7 +1850,7 @@ bool Help::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 	return true;
 }
 
-bool Help::IsReferencePresent()
+bool Help::IsReferencePresent() const
 {
 	CorrectPosition();
 	const auto StrPos = FixCount + StackData->TopStr + StackData->CurY;
@@ -1965,7 +1939,7 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 	StackData->TopStr=0;
 	m_TopicFound = true;
 	StackData->CurX=StackData->CurY=0;
-	strCtrlColorChar.clear();
+	m_CtrlColorChar = 0;
 
 	string strTitleLine=strLastSearchStr;
 	AddTitle(strTitleLine);
@@ -1973,26 +1947,26 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 	bool TopicFound=false;
 	string strCurTopic, strEntryName;
 
-	std::vector<RegExpMatch> m;
-	MatchHash hm;
+	std::vector<RegExpMatch> Match;
+	named_regex_match NamedMatch;
 	RegExp re;
 
 	if (LastSearchRegexp)
 	{
-		const auto strSlash = InsertRegexpQuote(strLastSearchStr);
-
 		// Q: что важнее: опция диалога или опция RegExp`а?
-		if (!re.Compile(strSlash, OP_PERLSTYLE | OP_OPTIMIZE | (LastSearchCase? 0 : OP_IGNORECASE)))
+		try
 		{
-			ReCompileErrorMessage(re, strSlash);
+			re.Compile(strLastSearchStr, (starts_with(strLastSearchStr, L'/')? OP_PERLSTYLE : 0) | OP_OPTIMIZE | (LastSearchCaseFold == search_case_fold::exact? 0 : OP_IGNORECASE));
+		}
+		catch (regex_exception const& e)
+		{
+			ReCompileErrorMessage(e, strLastSearchStr);
 			return; //BUGBUG
 		}
-
-		m.resize(re.GetBracketsCount() * 2);
 	}
 
 	searchers Searchers;
-	const auto& Searcher = init_searcher(Searchers, LastSearchCase, strLastSearchStr);
+	const auto& Searcher = init_searcher(Searchers, LastSearchCaseFold, strLastSearchStr);
 
 	os::fs::filebuf StreamBuffer(HelpFile, std::ios::in);
 	std::istream Stream(&StreamBuffer);
@@ -2031,14 +2005,14 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 				strLastSearchStr,
 				Searcher,
 				re,
-				m.data(),
-				&hm,
+				Match,
+				&NamedMatch,
 				CurPos,
-				LastSearchCase,
+				LastSearchCaseFold,
 				LastSearchWholeWords,
-				LastSearchRegexp,
 				false,
-				&SearchLength,
+				LastSearchRegexp,
+				SearchLength,
 				Global->Opt->EdOpt.strWordDiv
 			))
 			{
@@ -2050,7 +2024,6 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 		}
 	}
 
-	AddLine({});
 	MoveToReference(1,1);
 }
 
@@ -2063,7 +2036,7 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 	StackData->TopStr=0;
 	m_TopicFound = true;
 	StackData->CurX=StackData->CurY=0;
-	strCtrlColorChar.clear();
+	m_CtrlColorChar = 0;
 	string_view Title;
 	string_view ContentsName;
 
@@ -2091,22 +2064,14 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 				string_view Path = i->ModuleName();
 				CutToSlash(Path);
 				const auto [HelpFile, HelpLangName, HelpFileCodePage] = OpenLangFile(Path, Global->HelpFileMask, Global->Opt->strHelpLanguage);
-				if (HelpFile)
-				{
-					string strEntryName, strSecondParam;
+				if (!HelpFile)
+					continue;
 
-					if (GetLangParam(HelpFile, ContentsName, strEntryName, &strSecondParam, HelpFileCodePage))
-					{
-						string strHelpLine = concat(L"   ~"sv, strEntryName);
-						if (!strSecondParam.empty())
-						{
-							append(strHelpLine, L',', strSecondParam);
-						}
-						append(strHelpLine, L"~@"sv, help::make_link(Path, HelpContents), L'@');
+				string strEntryName;
+				if (!GetLangParam(HelpFile, ContentsName, strEntryName, HelpFileCodePage))
+					continue;
 
-						AddLine(strHelpLine);
-					}
-				}
+				AddLine(format(FSTR(L"   ~{}~@{}@"sv), strEntryName, help::make_link(Path, HelpContents)));
 			}
 
 			break;
@@ -2117,8 +2082,6 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 
 	// сортируем по алфавиту
 	std::sort(HelpList.begin()+1, HelpList.end());
-	// $ 26.06.2000 IS - Устранение глюка с хелпом по f1, shift+f2, end (решение предложил IG)
-	AddLine({});
 }
 
 void Help::SetScreenPosition()
@@ -2174,7 +2137,7 @@ static bool OpenURL(string_view const URLPath)
 	execute_info Info;
 	Info.DisplayCommand = FilteredURLPath;
 	Info.Command = FilteredURLPath;
-	Info.SourceMode = execute_info::source_mode::known; // skip plugin prefixes processing
+	Info.SourceMode = execute_info::source_mode::known_external; // skip plugin prefixes processing
 	Global->CtrlObject->CmdLine()->ExecString(Info);
 	return true;
 }
@@ -2220,7 +2183,23 @@ namespace help
 {
 	bool show(string_view const Topic, string_view const Mask, unsigned long long const Flags)
 	{
-		return !Help::create(Topic, Mask, Flags)->GetError();
+		try
+		{
+			return !Help::create(Topic, Mask, Flags)->GetError();
+		}
+		catch (far_exception const& e)
+		{
+			if (!(Flags & FHELP_NOSHOWERROR))
+			{
+				Message(MSG_WARNING, e,
+					msg(lng::MHelpTitle),
+					{
+					},
+					{ lng::MOk });
+			}
+
+			return false;
+		}
 	}
 
 	string make_link(string_view const Path, string_view const Topic)

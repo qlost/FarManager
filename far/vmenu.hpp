@@ -180,7 +180,8 @@ class window;
 
 class VMenu final: public Modal
 {
-	struct private_tag {};
+	struct private_tag { explicit private_tag() = default; };
+
 public:
 	static vmenu_ptr create(string Title, span<menu_item const> Data, int MaxHeight = 0, DWORD Flags = 0, dialog_ptr ParentDialog = nullptr);
 
@@ -226,8 +227,8 @@ public:
 	int AddItem(const wchar_t *NewStrItem);
 	int InsertItem(const FarListInsert *NewItem);
 	bool UpdateItem(const FarListUpdate *NewItem);
-	int FindItem(const FarListFind *FItem);
-	int FindItem(int StartIndex, string_view Pattern, unsigned long long Flags = 0);
+	int FindItem(const FarListFind *FItem) const;
+	int FindItem(int StartIndex, string_view Pattern, unsigned long long Flags = 0) const;
 	void RestoreFilteredItems();
 	void FilterStringUpdated();
 	void FilterUpdateHeight(bool bShrink = false);
@@ -239,8 +240,8 @@ public:
 	// SelectPos == -1 & non-empty Items - everything is filtered
 	bool HasVisible() const { return SelectPos > -1 && !Items.empty(); }
 	int GetShowItemCount() const { return static_cast<int>(Items.size() - ItemHiddenCount); }
-	int GetVisualPos(int Pos);
-	int VisualPosToReal(int VPos);
+	int GetVisualPos(int Pos) const;
+	int VisualPosToReal(int VPos) const;
 
 	intptr_t GetSimpleUserData(int Position = -1) const;
 
@@ -293,6 +294,7 @@ public:
 	static std::vector<string> AddHotkeys(span<menu_item> MenuItems);
 
 	size_t MaxItemLength() const;
+	size_t GetServiceAreaSize();
 
 private:
 	void init(span<menu_item const> Data, DWORD Flags);
@@ -303,7 +305,7 @@ private:
 	void DrawTitles() const;
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
-	int CheckHighlights(wchar_t CheckSymbol,int StartPos=0);
+	int CheckHighlights(wchar_t CheckSymbol,int StartPos=0) const;
 	wchar_t GetHighlights(const MenuItemEx *Item) const;
 	bool ShiftItemShowPos(int Pos,int Direct);
 	void UpdateMaxLengthFromTitles();
@@ -312,7 +314,6 @@ private:
 	//корректировка текущей позиции и флагов SELECTED
 	void UpdateSelectPos();
 	void EnableFilter(bool Enable);
-	size_t GetServiceAreaSize();
 
 	size_t Text(string_view Str) const;
 	size_t Text(wchar_t Char) const;

@@ -1,4 +1,52 @@
---------------------------------------------------------------------------------
+w17 05.09.2022 20:06:54 +0300 - build 332
+
+1. Avoid some arclite crash
+
+w17 03.09.2022 00:14:10 +0300 - build 331
+
+1. Correct 330
+
+w17 02.09.2022 16:32:43 +0300 - build 330
+
+1. Updating Archives does not preserve File Creation Timestamp
+   https://github.com/FarGroup/FarManager/issues/496
+
+w17 26.08.2022 14:30:39 +0300 - build 329
+
+1. 7z.dll 22.01
+
+drkns 02.08.2022 21:52:59 +0100 - build 328
+
+1. UAF crash after 325.
+
+drkns 22.07.2022 23:00:00 +0100 - build 327
+
+1. Adapt to 7z v22 shenanigans with file times.
+
+2. Create archive - Advanced parameters didn't work with integer values.
+
+w17 20.06.2022 17:09:51 +0300 - build 326
+
+1. 7z.dll 22.00
+
+w17 24.05.2022 19:01:10 +0300 - build 325
+
+1. 003947: ArcLite:PE fails to open files with data after executable body
+   https://bugs.farmanager.com/view.php?id=3947
+
+w17 28.12.2021 16:36:54 +0300 - build 324
+
+1. 7z.dll 21.07
+
+w17 08.12.2021 15:59:17 +0300 - build 323
+
+1. workaround for 7z 21.xx zip backslash purism
+   https://forum.farmanager.com/viewtopic.php?p=169196#p169196
+
+w17 30.11.2021 18:00:17 +0300 - build 322
+
+1. 7z.dll 21.06
+
 w17 11.11.2021 15:00:32 +0300 - build 321
 
 1. 7z.dll 21.04

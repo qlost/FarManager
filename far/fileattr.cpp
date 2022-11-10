@@ -41,11 +41,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "flink.hpp"
 #include "lang.hpp"
 #include "fileowner.hpp"
-#include "exception.hpp"
 #include "stddlg.hpp"
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.fs.hpp"
 
 // Common:
@@ -72,7 +72,7 @@ static auto without_ro(string_view const Name, os::fs::attributes const Attribut
 
 			if (Attributes & Mask && !os::fs::set_file_attributes(Name, Attributes)) //BUGBUG
 			{
-				LOGWARNING(L"set_file_attributes({}): {}"sv, Name, last_error());
+				LOGWARNING(L"set_file_attributes({}): {}"sv, Name, os::last_error());
 			}
 		};
 
@@ -90,7 +90,7 @@ void ESetFileAttributes(string_view const Name, os::fs::attributes Attributes, b
 
 static bool set_file_compression(string_view const Name, bool const State)
 {
-	const os::fs::file File(Name, FILE_READ_DATA | FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
+	const os::fs::file File(Name, FILE_READ_DATA | FILE_WRITE_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
 	if (!File)
 		return false;
 
@@ -146,7 +146,7 @@ void ESetFileTime(
 
 	const auto Implementation = [&]
 	{
-		const os::fs::file File(Name, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT);
+		const os::fs::file File(Name, GENERIC_WRITE, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT);
 		if (!File)
 			return false;
 
@@ -160,7 +160,7 @@ void ESetFileTime(
 
 static bool set_file_sparse(string_view const Name, bool const State)
 {
-	const os::fs::file File(Name, FILE_WRITE_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING);
+	const os::fs::file File(Name, FILE_WRITE_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING);
 	if (!File)
 		return false;
 
@@ -222,6 +222,7 @@ void enum_attributes(function_ref<bool(os::fs::attributes, wchar_t)> const Pred)
 		{ L'‼', FILE_ATTRIBUTE_RECALL_ON_OPEN },        // Unknown symbol
 		{ L'!', FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS }, // Unknown symbol
 		{ L'B', FILE_ATTRIBUTE_STRICTLY_SEQUENTIAL },   // "SMR Blob" in attrib.exe
+		{ L'*', FILE_ATTRIBUTE_DEVICE },                // Unknown symbol
 	};
 
 	for (const auto& [Letter, Attr]: AttrMap)

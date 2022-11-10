@@ -46,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.concurrency.hpp"
+#include "platform.debug.hpp"
 
 // Common:
 
@@ -73,28 +74,29 @@ struct MEMINFO
 
 	size_t Size;
 
-	void* Stack[10];
+	// Initializers aren't really needed here, just to stop GCC from complaining about them.
+	void* Stack[10]{};
 
-	MEMINFO* prev;
-	MEMINFO* next;
+	MEMINFO* prev{};
+	MEMINFO* next{};
 
 	int& end_marker()
 	{
-		return *reinterpret_cast<int*>(reinterpret_cast<char*>(this) + Size - sizeof(EndMarker));
+		return *edit_as<int*>(this, Size - sizeof(EndMarker));
 	}
 };
 
 static MEMINFO FirstMemBlock{ {}, sizeof(FirstMemBlock) };
-static MEMINFO* LastMemBlock = &FirstMemBlock;
+static auto LastMemBlock = &FirstMemBlock;
 
 static auto to_real(void* address, std::align_val_t Alignment)
 {
-	return static_cast<MEMINFO*>(static_cast<void*>(static_cast<char*>(address) - aligned_size(sizeof(MEMINFO), static_cast<size_t>(Alignment))));
+	return edit_as<MEMINFO*>(address, 0 - aligned_size(sizeof(MEMINFO), static_cast<size_t>(Alignment)));
 }
 
 static void* to_user(MEMINFO* address)
 {
-	return static_cast<char*>(static_cast<void*>(address)) + address->HeaderSize;
+	return edit_as<char*>(address, address->HeaderSize);
 }
 
 static void check_chain()
@@ -133,15 +135,14 @@ static string format_type(allocation_type Type, size_t Size)
 	return format(FSTR(L"{} ({} bytes)"sv), sType, Size);
 }
 
-static string printable_string(string Str)
+static string printable_string(string_view const Str)
 {
-	for (auto& i: Str)
-	{
-		if (!std::iswprint(i))
-			i = L'.';
-	}
+	string Result;
+	Result.reserve(Str.size());
 
-	return Str;
+	std::replace_copy_if(ALL_RANGE(Str), std::back_inserter(Result), [](wchar_t const Char){ return !std::iswprint(Char); }, L'.');
+
+	return Result;
 }
 
 static string printable_wide_string(void const* const Data, size_t const Size)
@@ -324,12 +325,12 @@ private:
 				L"\nWide: "sv, printable_wide_string(UserAddress, std::min(BlockSize, Width * sizeof(wchar_t))),
 				L"\nStack:\n"sv);
 
-			uintptr_t Stack[ARRAYSIZE(MEMINFO::Stack)];
+			os::debug::stack_frame Stack[ARRAYSIZE(MEMINFO::Stack)];
 			size_t StackSize;
 
 			for (StackSize = 0; StackSize != std::size(Stack) && i->Stack[StackSize]; ++StackSize)
 			{
-				Stack[StackSize] = reinterpret_cast<uintptr_t>(i->Stack[StackSize]);
+				Stack[StackSize] = { reinterpret_cast<uintptr_t>(i->Stack[StackSize]), INLINE_FRAME_CONTEXT_INIT };
 			}
 
 			tracer.get_symbols({}, span(Stack, StackSize), [&](string_view const Line)
@@ -376,6 +377,8 @@ static void* debug_allocator(size_t const size, std::align_val_t Alignment, allo
 			Info->end_marker() = EndMarker;
 
 			const auto Address = to_user(Info);
+
+			assert(is_aligned(Address, static_cast<size_t>(Alignment)));
 
 			{
 				SCOPED_ACTION(std::lock_guard)(Checker);

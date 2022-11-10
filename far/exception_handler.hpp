@@ -36,6 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 
 // Platform:
+#include "platform.concurrency.hpp"
 
 // Common:
 #include "common/function_ref.hpp"
@@ -58,18 +59,6 @@ bool handle_std_exception(const std::exception& e, std::string_view Function, co
 bool handle_unknown_exception(std::string_view Function, const Plugin* Module = nullptr);
 bool use_terminate_handler();
 
-class seh_terminate_handler
-{
-public:
-	NONCOPYABLE(seh_terminate_handler);
-
-	seh_terminate_handler();
-	~seh_terminate_handler();
-
-private:
-	std::terminate_handler m_PreviousHandler;
-};
-
 class unhandled_exception_filter
 {
 public:
@@ -81,16 +70,17 @@ private:
 	PTOP_LEVEL_EXCEPTION_FILTER m_PreviousFilter;
 };
 
-class purecall_handler
+class signal_handler
 {
 public:
-	NONCOPYABLE(purecall_handler);
+	NONCOPYABLE(signal_handler);
 
-	purecall_handler();
-	~purecall_handler();
+	signal_handler();
+	~signal_handler();
 
 private:
-	_purecall_handler m_PreviousHandler;
+	using signal_handler_t = void(*)(int);
+	signal_handler_t m_PreviousHandler;
 };
 
 class invalid_parameter_handler
@@ -105,7 +95,35 @@ private:
 	_invalid_parameter_handler m_PreviousHandler;
 };
 
+class vectored_exception_handler
+{
+public:
+	NONCOPYABLE(vectored_exception_handler);
+
+	vectored_exception_handler();
+	~vectored_exception_handler();
+
+private:
+	void* m_Handler;
+};
+
 void restore_system_exception_handler();
+
+class seh_exception: public os::event
+{
+public:
+	seh_exception();
+	~seh_exception();
+
+	void set(EXCEPTION_POINTERS const& Pointers);
+	void raise();
+	void dismiss();
+	class seh_exception_impl;
+	seh_exception_impl const& get() const;
+
+private:
+	std::unique_ptr<seh_exception_impl> m_Impl;
+};
 
 namespace detail
 {
@@ -118,7 +136,7 @@ namespace detail
 	void cpp_try(function_ref<void()> Callable, function_ref<void()> UnknownHandler, function_ref<void(std::exception const&)> StdHandler);
 	void seh_try(function_ref<void()> Callable, function_ref<DWORD(EXCEPTION_POINTERS*)> Filter, function_ref<void(DWORD)> Handler);
 	int seh_filter(EXCEPTION_POINTERS const* Info, std::string_view Function, Plugin const* Module);
-	int seh_thread_filter(std::exception_ptr& Ptr, EXCEPTION_POINTERS* Info);
+	int seh_thread_filter(seh_exception& Exception, EXCEPTION_POINTERS const* Info);
 	void seh_thread_handler(DWORD ExceptionCode);
 	void set_fp_exceptions(bool Enable);
 
@@ -218,7 +236,7 @@ auto seh_try_with_ui(function const& Callable, handler const& Handler, const std
 {
 	return seh_try(
 		Callable,
-		[&](EXCEPTION_POINTERS* const Info){ return detail::seh_filter(Info, Function, Module); },
+		[&](EXCEPTION_POINTERS const* const Info){ return detail::seh_filter(Info, Function, Module); },
 		Handler
 	);
 }
@@ -228,17 +246,17 @@ auto seh_try_no_ui(function const& Callable, handler const& Handler)
 {
 	return seh_try(
 		Callable,
-		[](EXCEPTION_POINTERS*) { return EXCEPTION_EXECUTE_HANDLER; },
+		[](EXCEPTION_POINTERS const*) { return EXCEPTION_EXECUTE_HANDLER; },
 		Handler
 	);
 }
 
 template<class function>
-auto seh_try_thread(std::exception_ptr& ExceptionPtr, function const& Callable)
+auto seh_try_thread(seh_exception& Exception, function const& Callable)
 {
 	return seh_try(
 		Callable,
-		[&](EXCEPTION_POINTERS* const Info){ return detail::seh_thread_filter(ExceptionPtr, Info); },
+		[&](EXCEPTION_POINTERS const* const Info){ return detail::seh_thread_filter(Exception, Info); },
 		detail::seh_thread_handler
 	);
 }

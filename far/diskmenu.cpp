@@ -71,6 +71,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.com.hpp"
 #include "platform.fs.hpp"
 #include "platform.reg.hpp"
@@ -424,7 +425,7 @@ static bool ProcessDelDisk(panel_ptr Owner, string_view const Path, int DriveTyp
 				return true;
 			}
 
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			const auto LastError = ErrorState.Win32Error;
 			const auto strMsgText = format(msg(lng::MChangeDriveCannotDelSubst), DosDriveName);
@@ -484,7 +485,7 @@ static bool ProcessDelDisk(panel_ptr Owner, string_view const Path, int DriveTyp
 			if (WNetCancelConnection2(C_DosDriveName.c_str(), UpdateProfile, FALSE) == NO_ERROR)
 				return true;
 
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			const auto strMsgText = format(msg(lng::MChangeDriveCannotDisconnect), DosDriveName);
 			const auto LastError = ErrorState.Win32Error;
@@ -545,7 +546,7 @@ static bool ProcessDelDisk(panel_ptr Owner, string_view const Path, int DriveTyp
 			if (auto Dummy = false; detach_vhd(Path, Dummy))
 				return true;
 
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			Message(MSG_WARNING, ErrorState,
 				msg(lng::MError),
@@ -579,7 +580,7 @@ static bool DisconnectDrive(panel_ptr Owner, const disk_item& item, VMenu2 &ChDi
 		EjectVolume(item.Path);
 		return true;
 	}
-	catch (const far_exception&)
+	catch (far_exception const&)
 	{
 		// запоминаем состояние панелей
 		const auto CMode = Owner->GetMode();
@@ -599,7 +600,7 @@ static bool DisconnectDrive(panel_ptr Owner, const disk_item& item, VMenu2 &ChDi
 				EjectVolume(item.Path);
 				return true;
 			}
-			catch (const far_exception& e)
+			catch (far_exception const& e)
 			{
 				// восстановим пути - это избавит нас от левых данных в панели.
 				if (AMode != panel_mode::PLUGIN_PANEL)
@@ -638,7 +639,7 @@ static void RemoveHotplugDevice(panel_ptr Owner, const disk_item& item, VMenu2 &
 		if (RemoveHotplugDrive(item.Path, false, Cancelled) || Cancelled)
 			return;
 
-		const auto ErrorState = last_error();
+		const auto ErrorState = os::last_error();
 
 		// восстановим пути - это избавит нас от левых данных в панели.
 		if (AMode != panel_mode::PLUGIN_PANEL)
@@ -750,20 +751,23 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 					}
 					else
 					{
-						static const std::pair<int, lng> DriveTypes[]
+						if (const auto TypeId = [](int const Type) -> std::optional<lng>
+							{
+								switch (Type)
+								{
+								case DRIVE_REMOVABLE:                 return lng::MChangeDriveRemovable;
+								case DRIVE_FIXED:                     return lng::MChangeDriveFixed;
+								case DRIVE_REMOTE:                    return lng::MChangeDriveNetwork;
+								case DRIVE_REMOTE_NOT_CONNECTED:      return lng::MChangeDriveDisconnectedNetwork;
+								case DRIVE_RAMDISK:                   return lng::MChangeDriveRAM;
+								case DRIVE_SUBSTITUTE:                return lng::MChangeDriveSUBST;
+								case DRIVE_VIRTUAL:                   return lng::MChangeDriveVirtual;
+								default:                              return {};
+								}
+							}(NewItem.DriveType))
 						{
-							{ DRIVE_REMOVABLE,            lng::MChangeDriveRemovable },
-							{ DRIVE_FIXED,                lng::MChangeDriveFixed },
-							{ DRIVE_REMOTE,               lng::MChangeDriveNetwork },
-							{ DRIVE_REMOTE_NOT_CONNECTED, lng::MChangeDriveDisconnectedNetwork },
-							{ DRIVE_RAMDISK,              lng::MChangeDriveRAM },
-							{ DRIVE_SUBSTITUTE,           lng::MChangeDriveSUBST },
-							{ DRIVE_VIRTUAL,              lng::MChangeDriveVirtual },
-						};
-
-						const auto ItemIterator = std::find_if(CONST_RANGE(DriveTypes, DriveTypeItem) { return DriveTypeItem.first == NewItem.DriveType; });
-						if (ItemIterator != std::cend(DriveTypes))
-							NewItem.Type = msg(ItemIterator->second);
+							NewItem.Type = msg(*TypeId);
+						}
 					}
 				}
 			}
@@ -782,7 +786,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 					if (TryReadLabel && DriveMode & DRIVE_SHOW_LABEL_USE_SHELL)
 					{
 						NewItem.Label = GetShellName(RootDirectory);
-						TryReadLabel = !NewItem.Label.empty();
+						TryReadLabel = NewItem.Label.empty();
 					}
 
 					const auto LabelPtr = TryReadLabel? &NewItem.Label : nullptr;
@@ -963,13 +967,12 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 
 		ChDisk->Run([&](const Manager::Key& RawKey)
 		{
-			auto Key = RawKey();
 			const auto SelPos = ChDisk->GetSelectPos();
 			const auto MenuItem = ChDisk->GetComplexUserDataPtr<disk_menu_item>();
 
 			int KeyProcessed = 1;
 
-			switch (Key)
+			switch (const auto& Key = RawKey())
 			{
 			// Shift-Enter в меню выбора дисков вызывает проводник для данного диска
 			case KEY_SHIFTNUMENTER:
@@ -1270,7 +1273,11 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 		if (ChDisk->GetExitCode() < 0)
 		{
 			if (os::fs::drive::get_type(CurDir) == DRIVE_NO_ROOT_DIR)
-				return ChDisk->GetSelectPos();
+			{
+				// get_type can return DRIVE_NO_ROOT_DIR when we can't access the path
+				if (!ElevationRequired(ELEVATION_READ_REQUEST))
+					return ChDisk->GetSelectPos();
+			}
 
 			return -1;
 		}
@@ -1329,19 +1336,16 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 
 		const auto IsDisk = is_disk(item.Path);
 
-		for (;;)
+		while (!(FarChDir(dos_drive_name(item.Path)) || (IsDisk && FarChDir(dos_drive_root_directory(item.Path)))))
 		{
-			if (FarChDir(dos_drive_name(item.Path)) || (IsDisk && FarChDir(dos_drive_root_directory(item.Path))))
-				break;
-
-			error_state_ex const ErrorState = last_error();
+			error_state_ex const ErrorState = os::last_error();
 
 			DialogBuilder Builder(lng::MError);
 
 			string DriveLetter;
 			if (IsDisk)
 			{
-				DriveLetter = item.Path;
+				DriveLetter = dos_drive_name(item.Path).front();
 				auto& DriveLetterEdit = Builder.AddFixEditField(DriveLetter, 1);
 				Builder.AddTextBefore(DriveLetterEdit, lng::MChangeDriveCannotReadDisk);
 				Builder.AddTextAfter(DriveLetterEdit, L":", 0);
@@ -1352,7 +1356,13 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 			}
 
 			Builder.AddSeparator();
-			Builder.AddTextWrap(ErrorState.format_error(), true);
+
+			if (!ErrorState.What.empty())
+				Builder.AddTextWrap(ErrorState.What, true);
+
+			if (ErrorState.any())
+				Builder.AddTextWrap(ErrorState.system_error(), true);
+
 			Builder.AddOKCancel(lng::MRetry, lng::MCancel);
 			Builder.SetDialogMode(DMODE_WARNINGSTYLE);
 			Builder.SetId(ChangeDriveCannotReadDiskErrorId);
@@ -1368,7 +1378,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 			}
 		}
 
-		const auto strNewCurDir = os::fs::GetCurrentDirectory();
+		const auto strNewCurDir = os::fs::get_current_directory();
 
 		if ((Owner->GetMode() == panel_mode::NORMAL_PANEL) &&
 			(Owner->GetType() == panel_type::FILE_PANEL) &&
@@ -1402,17 +1412,17 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 			item.Uuid,
 			0);
 
-		if (hPlugin)
-		{
-			const auto IsActive = Owner->IsFocused();
-			const auto NewPanel = Owner->Parent()->ChangePanel(Owner, panel_type::FILE_PANEL, TRUE, TRUE);
-			NewPanel->SetPluginMode(std::move(hPlugin), {}, IsActive || !NewPanel->Parent()->GetAnotherPanel(NewPanel)->IsVisible());
-			NewPanel->Update(0);
-			NewPanel->Show();
+		if (!hPlugin)
+			return -1;
 
-			if (!IsActive && NewPanel->Parent()->GetAnotherPanel(NewPanel)->GetType() == panel_type::INFO_PANEL)
-				NewPanel->Parent()->GetAnotherPanel(NewPanel)->UpdateKeyBar();
-		}
+		const auto IsActive = Owner->IsFocused();
+		const auto NewPanel = Owner->Parent()->ChangePanel(Owner, panel_type::FILE_PANEL, TRUE, TRUE);
+		NewPanel->SetPluginMode(std::move(hPlugin), {}, IsActive || !NewPanel->Parent()->GetAnotherPanel(NewPanel)->IsVisible());
+		NewPanel->Update(0);
+		NewPanel->Show();
+
+		if (!IsActive && NewPanel->Parent()->GetAnotherPanel(NewPanel)->GetType() == panel_type::INFO_PANEL)
+			NewPanel->Parent()->GetAnotherPanel(NewPanel)->UpdateKeyBar();
 	}
 
 	return -1;

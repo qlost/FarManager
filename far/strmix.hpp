@@ -51,7 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class RegExp;
 struct RegExpMatch;
-struct MatchHash;
+struct named_regex_match;
 
 namespace legacy
 {
@@ -129,6 +129,9 @@ bool CheckFileSizeStringFormat(string_view FileSizeStr);
 unsigned long long ConvertFileSizeString(string_view FileSizeStr);
 
 [[nodiscard]]
+string ReplaceBrackets(string_view SearchStr, string_view ReplaceStr, span<RegExpMatch const> Match, const named_regex_match* NamedMatch, int& CurPos, int& SearchLength);
+
+[[nodiscard]]
 string GroupDigits(unsigned long long Value);
 
 [[nodiscard]]
@@ -189,14 +192,14 @@ bool SearchString(
 	string_view Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	RegExpMatch* pm,
-	MatchHash* hm,
+	std::vector<RegExpMatch>& Match,
+	named_regex_match* NamedMatch,
 	int& CurPos,
-	bool Case,
+	search_case_fold CaseFold,
 	bool WholeWords,
 	bool Reverse,
 	bool Regexp,
-	int* SearchLength,
+	int& SearchLength,
 	string_view WordDiv
 );
 
@@ -206,16 +209,16 @@ bool SearchAndReplaceString(
 	string_view Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	RegExpMatch* pm,
-	MatchHash* hm,
+	std::vector<RegExpMatch>& Match,
+	named_regex_match* NamedMatch,
 	string& ReplaceStr,
 	int& CurPos,
-	bool Case,
+	search_case_fold CaseFold,
 	bool WholeWords,
 	bool Reverse,
 	bool Regexp,
 	bool PreserveStyle,
-	int* SearchLength,
+	int& SearchLength,
 	string_view WordDiv
 );
 

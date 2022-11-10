@@ -1,3 +1,29 @@
+drkns 09.11.2022 19:37:38 +0000 - build 116
+
+1. Populate reparse point types.
+
+drkns 04.08.2022 23:33:39 +0100 - build 115
+
+1. gh-538: Frequent Crashes in Temp Panel after Find Results
+
+drkns 02.08.2022 22:48:02 +0100 - build 114
+
+1. Fix crashes.
+
+drkns 02.08.2022 21:06:08 +0100 - build 113
+
+1. gh-537: Saved content to a list file contains null termination character.
+
+drkns 13.07.2022 22:24:34 +0100 - build 112
+
+1. Typo in 111.
+
+drkns 26.12.2021 23:48:07 +0000 - build 111
+
+1. Refactoring.
+   After seeing "realloc(N + 1)" and other wonders of this plugin there was no other way but to rewrite it.
+   Maybe it will even work better. Or maybe not. Beware of bugs.
+
 shmuel 14.07.2020 07:11:56 +0300 - build 110
 
 1. Исправление 107.1 для общего случая (когда текущий элемент не "..").

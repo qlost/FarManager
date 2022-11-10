@@ -200,6 +200,7 @@ private:
 
 	using numbered_iterator = numbered_iterator_t<iterator, const_iterator>;
 	using numbered_const_iterator = numbered_iterator_t<const_iterator>;
+	enum class undo_type: char;
 
 	void DisplayObject() override;
 
@@ -219,13 +220,13 @@ private:
 	void PasteFromClipboard();
 	void Paste(string_view Data);
 	void ProcessChar(wchar_t Char);
-	void Copy(int Append);
+	void Copy(bool Append);
 	void DeleteBlock();
 	void UnmarkBlock();
 	void UnmarkEmptyBlock();
 	void UnmarkMacroBlock();
-	void AddUndoData(int Type) { return AddUndoData(Type, {}, eol::none, 0, 0); }
-	void AddUndoData(int Type, string_view Str, eol Eol, int StrNum, int StrPos);
+	void AddUndoData(undo_type Type) { return AddUndoData(Type, {}, eol::none, 0, 0); }
+	void AddUndoData(undo_type Type, string_view Str, eol Eol, int StrNum, int StrPos);
 	void Undo(int redo);
 	void SelectAll();
 	void BlockLeft();
@@ -383,7 +384,8 @@ private:
 	int Pasting{};
 	int XX2{}; //scrollbar
 	string strLastSearchStr;
-	bool LastSearchCase{}, LastSearchWholeWords{}, LastSearchReverse{}, LastSearchRegexp{}, LastSearchPreserveStyle{};
+	search_case_fold LastSearchCaseFold;
+	bool LastSearchWholeWords{}, LastSearchReverse{}, LastSearchRegexp{}, LastSearchPreserveStyle{};
 
 	int EditorID{};
 	int EditorControlLock{};

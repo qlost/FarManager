@@ -53,6 +53,15 @@
     <ClCompile Include="codepage_selection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="color_picker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="color_picker_256.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="color_picker_rgb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="colormix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -248,6 +257,9 @@
     <ClCompile Include="infolist.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="initguid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="interf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -339,6 +351,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="platform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="platform.debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="platform.env.cpp">
@@ -511,6 +526,15 @@
     <ClInclude Include="codepage_selection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="color_picker.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="color_picker_256.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="color_picker_rgb.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="colormix.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -558,6 +582,9 @@
     </ClInclude>
     <ClInclude Include="common\compiler.hpp">
       <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\cpp.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\enum_substrings.hpp">
       <Filter>Header Files\common</Filter>
@@ -659,9 +686,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="copy_progress.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cpp.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ctrlobj.hpp">
@@ -952,6 +976,9 @@
     <ClInclude Include="platform.concurrency.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="platform.debug.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="platform.env.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1153,6 +1180,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="Far.red.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Far.log.ico">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="farversion.m4">

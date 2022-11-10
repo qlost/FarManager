@@ -159,10 +159,11 @@ void Grabber::CopyGrabbedArea(bool Append, bool VerticalBlock)
 		}
 
 		Line.clear();
-		std::optional<wchar_t> LeadingChar;
 
 		if (CharWidthEnabled)
 		{
+			std::optional<wchar_t> LeadingChar;
+
 			for (const auto& Char: span(Begin, End))
 			{
 				if (LeadingChar && Char.Char == *LeadingChar && Char.Attributes.Flags & COMMON_LVB_TRAILING_BYTE)
@@ -209,7 +210,7 @@ void Grabber::CopyGrabbedArea(bool Append, bool VerticalBlock)
 		}
 	}
 
-	clipboard_accessor Clip;
+	const clipboard_accessor Clip;
 
 	if (Clip->Open())
 	{
@@ -295,8 +296,8 @@ void Grabber::DisplayObject()
 					}
 				}
 
-				colors::make_invert(Destination.BackgroundColor, CurColor.IsBg4Bit());
-				colors::make_invert(Destination.ForegroundColor, CurColor.IsFg4Bit());
+				colors::make_invert(Destination.BackgroundColor, CurColor.IsBgIndex());
+				colors::make_invert(Destination.ForegroundColor, CurColor.IsFgIndex());
 			}
 		}
 

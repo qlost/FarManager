@@ -49,6 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(disable: 4582) // 'class': constructor is not implicitly called
 #pragma warning(disable: 4583) // 'class': destructor is not implicitly called
 #pragma warning(disable: 5219) // implicit conversion from 'type1' to 'type2', possible loss of data
+#pragma warning(disable: 5262) // implicit fall-through occurs here; are you missing a break statement? Use [[fallthrough]] when a break statement is intentionally omitted between cases
 #else
 // these in the rest of the code as well:
 // TODO: some of these might be useful
@@ -94,6 +95,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(disable: 5039) // 'function': pointer or reference to potentially throwing function passed to extern C function under -EHc. Undefined behavior may occur if this function throws an exception.
 #pragma warning(disable: 5045) // Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
 #pragma warning(disable: 5052) // Keyword 'char8_t' was introduced in C++20 and requires use of the '/std:c++latest' command-line option
+#pragma warning(disable: 5246) // 'member': the initialization of a subobject should be wrapped in braces
+#pragma warning(disable: 5264) // 'name': 'const' variable is not used
 #endif
 
 #ifdef _DEBUG
@@ -141,6 +144,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma clang diagnostic ignored "-Wnonportable-system-include-path"
 #pragma clang diagnostic ignored "-Wpadded"
 #pragma clang diagnostic ignored "-Wreturn-std-move-in-c++11"
+#pragma clang diagnostic ignored "-Wreserved-identifier"
 #pragma clang diagnostic ignored "-Wreserved-id-macro"
 #pragma clang diagnostic ignored "-Wshadow-field-in-constructor"
 #pragma clang diagnostic ignored "-Wshadow-field"

@@ -117,9 +117,9 @@ public:
 		LOGWARNING(L"Invalid integer value {}"sv, Item.strData);
 	}
 
-	const wchar_t* GetMask() const
+	string_view GetMask() const
 	{
-		return m_Mask;
+		return { m_Mask, std::size(m_Mask) - 1 };
 	}
 
 private:
@@ -145,9 +145,9 @@ public:
 		*m_IntValue = from_string<unsigned long long>(Item.strData, nullptr, 16);
 	}
 
-	const wchar_t* GetMask() const
+	string_view GetMask() const
 	{
-		return m_Mask;
+		return { m_Mask, std::size(m_Mask) - 1 };
 	}
 
 private:
@@ -171,9 +171,9 @@ public:
 		*m_IntValue = from_string<unsigned long long>(Item.strData, nullptr, 2);
 	}
 
-	const wchar_t* GetMask() const
+	string_view GetMask() const
 	{
-		return m_Mask;
+		return { m_Mask, std::size(m_Mask) - 1 };
 	}
 
 private:
@@ -614,7 +614,7 @@ void DialogBuilder::LinkFlags(DialogItemEx& Parent, DialogItemEx& Target, FARDIA
 
 	if (LinkLabels)
 	{
-		auto& Binding = FindBinding(Target);
+		const auto& Binding = FindBinding(Target);
 		if (Binding.BeforeLabelID != -1)
 			LinkFlagsByID(Parent, m_DialogItems[Binding.BeforeLabelID], Flags);
 		if (Binding.AfterLabelID != -1)
@@ -647,7 +647,7 @@ void DialogBuilder::AddButtons(span<lng const> Buttons)
 void DialogBuilder::AddButtons(span<lng const> const Buttons, size_t const OkIndex, size_t const CancelIndex)
 {
 	const auto LineY = m_NextY++;
-	DialogItemEx* PrevButton = nullptr;
+	DialogItemEx const* PrevButton = nullptr;
 
 	for (const auto& i: irange(Buttons.size()))
 	{
@@ -859,7 +859,7 @@ void DialogBuilder::UpdateBorderSize()
 	m_Indent = 0;
 }
 
-intptr_t DialogBuilder::MaxTextWidth()
+intptr_t DialogBuilder::MaxTextWidth() const
 {
 	intptr_t MaxWidth = 0;
 	for (const auto& i : irange(size_t{ 1 }, m_DialogItems.size()))
@@ -980,7 +980,7 @@ DialogItemEx& DialogBuilder::AddListControlImpl(FARDIALOGITEMTYPES Type, value_t
 
 	std::transform(ALL_CONST_RANGE(Items), std::back_inserter(ListItems), [&Value](const DialogBuilderListItem& i)
 	{
-		FarListItem NewItem = {};
+		FarListItem NewItem{};
 		NewItem.Text = i.str().c_str();
 		NewItem.Flags = (Value == i.value()? LIF_SELECTED : 0) | i.flags();
 		NewItem.UserData = i.value();

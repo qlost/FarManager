@@ -38,12 +38,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Internal:
 #include "console.hpp"
-#include "exception.hpp"
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.com.hpp"
 #include "platform.concurrency.hpp"
+#include "platform.debug.hpp"
 
 // Common:
 #include "common/singleton.hpp"
@@ -115,14 +116,12 @@ private:
 
 		for (;;)
 		{
-			const auto WaitResult = os::handle::wait_any(
+			switch (os::handle::wait_any(
 			{
 				m_ExitEvent.native_handle(),
 				m_StateEvent.native_handle(),
 				m_ValueEvent.native_handle(),
-			});
-
-			switch (WaitResult)
+			}))
 			{
 			case 0:
 				return;
@@ -173,7 +172,7 @@ void taskbar::flash()
 
 	if (!GetWindowInfo(ConsoleWindow, &WindowInfo))
 	{
-		LOGWARNING(L"GetWindowInfo(ConsoleWindow): {}"sv, last_error());
+		LOGWARNING(L"GetWindowInfo(ConsoleWindow): {}"sv, os::last_error());
 		return;
 	}
 
@@ -181,10 +180,10 @@ void taskbar::flash()
 		return;
 
 	FLASHWINFO FlashInfo{sizeof(FlashInfo), ConsoleWindow, FLASHW_ALL | FLASHW_TIMERNOFG, 5, 0};
-	if (!FlashWindowEx(&FlashInfo))
-	{
-		LOGWARNING(L"FlashWindowEx(): {}"sv, last_error());
-	}
+	// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-flashwindowex#return-value
+	// The return value specifies the window's state before the call to the FlashWindowEx function.
+	// We don't care.
+	FlashWindowEx(&FlashInfo);
 }
 
 

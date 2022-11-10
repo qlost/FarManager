@@ -233,8 +233,7 @@ HANDLE WINAPI OpenW(const OpenInfo *Info)
 
 				GetFullPathName(ptrName,MAX_PATH,FileName,&ptrName);
 
-				if (ptrCurDir)
-					delete[] ptrCurDir;
+				delete[] ptrCurDir;
 
 				if (!ShowHelp(FileName,ptrTopic,true,(!ptrTopic || !*ptrTopic?false:true)))
 				{
@@ -294,8 +293,7 @@ intptr_t WINAPI ProcessEditorInputW(const ProcessEditorInputInfo *InputInfo)
 					Result=TRUE;
 			}
 
-			if (FileName)
-				delete[] FileName;
+			delete[] FileName;
 		}
 	}
 
@@ -310,11 +308,7 @@ wchar_t *GetEditorFileName()
 	if (FileNameSize)
 	{
 		FileName=new wchar_t[FileNameSize];
-
-		if (FileName)
-		{
-			PsInfo.EditorControl(-1,ECTL_GETFILENAME,FileNameSize,FileName);
-		}
+		PsInfo.EditorControl(-1,ECTL_GETFILENAME,FileNameSize,FileName);
 	}
 
 	return FileName;
@@ -355,8 +349,7 @@ bool ShowCurrentHelpTopic()
 			break;
 	}
 
-	if (FileName)
-		delete[] FileName;
+	delete[] FileName;
 
 	return Result;
 }
@@ -544,26 +537,27 @@ bool FindPluginHelp(const wchar_t* Name,wchar_t* DestPath)
 
 	if (CountPlugin > 0)
 	{
-		HANDLE *hPlugins=new HANDLE[CountPlugin];
-		if (hPlugins)
-		{
+			HANDLE *hPlugins=new HANDLE[CountPlugin];
+
 			// 2. Получить хэндлы плагинов
-			PsInfo.PluginsControl(INVALID_HANDLE_VALUE,PCTL_GETPLUGINS,CountPlugin,hPlugins);
+			CountPlugin = PsInfo.PluginsControl(INVALID_HANDLE_VALUE, PCTL_GETPLUGINS, CountPlugin, hPlugins);
 
 			// 3. Посмотреть на эти плагины
 			for (int I=0; I < CountPlugin; ++I)
 			{
 				// 4. Для очередного плагина получить размер необходимой памяти по информационные структуры
 				int SizeMemory=(int)PsInfo.PluginsControl(hPlugins[I],PCTL_GETPLUGININFORMATION,0,{});
-				if (SizeMemory > 0)
-				{
-					const auto fgpi=reinterpret_cast<FarGetPluginInformation*>(new BYTE[SizeMemory]);
-					if (fgpi)
-					{
-						wchar_t FoundPath[MAX_PATH];
-						// 5. Для очередного плагина получить информационные структуры
-						PsInfo.PluginsControl(hPlugins[I],PCTL_GETPLUGININFORMATION,SizeMemory,fgpi);
+				if (!SizeMemory)
+					continue;
 
+				const auto data = new BYTE[SizeMemory];
+				const auto fgpi=reinterpret_cast<FarGetPluginInformation*>(data);
+				fgpi->StructSize = sizeof(*fgpi);
+
+				wchar_t FoundPath[MAX_PATH];
+				// 5. Для очередного плагина получить информационные структуры
+				if (PsInfo.PluginsControl(hPlugins[I],PCTL_GETPLUGININFORMATION,SizeMemory,fgpi) == SizeMemory)
+				{
 						// 6. Путь к плагину
 						wchar_t *ModuleName=new wchar_t[lstrlen(fgpi->ModuleName)+1];
 						lstrcpy(ModuleName,fgpi->ModuleName);
@@ -573,7 +567,7 @@ bool FindPluginHelp(const wchar_t* Name,wchar_t* DestPath)
 
 						// 7. Поиск hlf-файла в "этом каталоге"
 						FoundPath[0]=0;
-						FSF.FarRecursiveSearch(ModuleName,Name,(FRSUSERFUNC)frsuserfunc,FRS_RETUPDIR|FRS_RECUR|FRS_SCANSYMLINK,FoundPath);
+						FSF.FarRecursiveSearch(ModuleName,Name,(FRSUSERFUNC)frsuserfunc,FRS_RECUR|FRS_SCANSYMLINK,FoundPath);
 
 						if (*FoundPath)
 						{
@@ -583,17 +577,15 @@ bool FindPluginHelp(const wchar_t* Name,wchar_t* DestPath)
 						}
 
 						delete[] ModuleName;
-						delete[] fgpi;
-
-						if (Result)
-							break;
-					}
 				}
+
+				delete[] data;
+
+				if (Result)
+					break;
 			}
 
 			delete[] hPlugins;
-		}
-
 	}
 
 	return Result;

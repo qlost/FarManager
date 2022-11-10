@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cvtname.hpp"
 #include "filelist.hpp"
 #include "plugin.hpp"
+#include "datetime.hpp"
 
 // Platform:
 #include "platform.fs.hpp"
@@ -124,12 +125,12 @@ root_type ParsePath(const string_view Path, size_t* const RootSize, bool* const 
 		{
 			// \\server\share(\...)
 			root_type::remote,
-			re(RE_C_GROUP(RE_BEGIN RE_ANY_SLASH RE_REPEAT(2) RE_NONE_OF(RE_DOT) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ONE_OR_MORE_LAZY RE_ANY_SLASH RE_ONE_OR_MORE_LAZY RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
+			re(RE_C_GROUP(RE_BEGIN RE_ANY_SLASH RE_REPEAT(2) RE_NONE_OF(RE_DOT RE_SPACE RE_SLASHES RE_Q_MARK) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ZERO_OR_MORE_LAZY RE_ANY_SLASH RE_ONE_OR_MORE_LAZY RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
 		},
 		{
 			// \\?\unc\server\share(\...)
 			root_type::unc_remote,
-			re(RE_PATH_PREFIX(L"unc" RE_BACKSLASH RE_NONE_OF(RE_DOT) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ONE_OR_MORE_LAZY RE_BACKSLASH RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
+			re(RE_PATH_PREFIX(L"unc" RE_BACKSLASH RE_NONE_OF(RE_DOT RE_SPACE RE_SLASHES RE_Q_MARK) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ZERO_OR_MORE_LAZY RE_BACKSLASH RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
 		},
 		{
 			// \\?\Volume{UUID}(\...)
@@ -201,28 +202,27 @@ bool PathCanHoldRegularFile(string_view const Path)
 	return ParsePath(Path) != root_type::unknown;
 }
 
-bool IsPluginPrefixPath(string_view const Path) //Max:
+std::optional<string_view> GetPluginPrefixPath(string_view const Path) //Max:
 {
 	if (Path.empty() || path::is_separator(Path[0]))
-		return false;
+		return {};
 
 	const auto pos = Path.find(L':');
 
 	if (pos == string::npos || !pos)
-		return false;
+		return {};
 
 	if (pos == 1) // односимвольный префикс
 	{
-		if ((Path[0] >= L'a' && Path[0] <= L'z') || (Path[0] >= L'A' && Path[0] <= L'Z'))
-			return false;
+		if (os::fs::drive::is_standard_letter(Path[0]))
+			return {};
 
 		string dev;
 		if (os::fs::QueryDosDevice(Path.substr(0,2), dev))
-			return false;
+			return {};
 	}
 
-	const auto SlashPos = FindSlash(Path);
-	return SlashPos == string::npos || SlashPos > pos;
+	return Path.substr(0, pos);
 }
 
 bool IsParentDirectory(string_view const Str)
@@ -502,6 +502,18 @@ string ExtractFilePath(string_view const Path)
 	return string(Path.substr(0, p));
 }
 
+string unique_name()
+{
+	auto [Date, Time] = format_datetime(os::chrono::now_utc());
+
+	const auto not_digit = [](wchar_t const Char){ return !std::iswdigit(Char); };
+
+	std::erase_if(Date, not_digit);
+	std::erase_if(Time, not_digit);
+
+	return format(FSTR(L"Far_{}_{}_{}"sv), Date, Time, GetCurrentProcessId());
+}
+
 bool IsRootPath(const string_view Path)
 {
 	bool IsRoot = false;
@@ -758,22 +770,33 @@ TEST_CASE("path.ParsePath")
 		{ L"\\??\\A:"sv,                                                   root_type::win32nt_drive_letter,    6,   true,  },
 		{ L"\\??\\B:\\"sv,                                                 root_type::win32nt_drive_letter,    7,   true,  },
 		{ L"\\??\\C:\\path"sv,                                             root_type::win32nt_drive_letter,    7,   false, },
+		{ L"\\??\\C:\\p"sv,                                                root_type::win32nt_drive_letter,    7,   false, },
 		{ L"\\??\\CC:\\path"sv,                                            root_type::unknown_rootlike,        8,   false, },
 		{ L"\\\\server\\share"sv,                                          root_type::remote,                 14,   true,  },
 		{ L"\\\\server\\share\\"sv,                                        root_type::remote,                 15,   true,  },
 		{ L"\\\\server\\share\\path"sv,                                    root_type::remote,                 15,   false, },
+		{ L"\\\\s\\s"sv,                                                   root_type::remote,                  5,   true,  },
+		{ L"\\\\s\\s\\"sv,                                                 root_type::remote,                  6,   true,  },
+		{ L"\\\\s\\s\\p"sv,                                                root_type::remote,                  6,   false, },
 		{ L"\\\\server"sv,                                                 root_type::unknown,                 0,   false, },
+		{ L"\\\\s"sv,                                                      root_type::unknown,                 0,   false, },
 		{ L"\\\\?\\UNC\\server\\share"sv,                                  root_type::unc_remote,             20,   true,  },
 		{ L"\\\\?\\UNC\\server\\share\\"sv,                                root_type::unc_remote,             21,   true,  },
 		{ L"\\\\?\\UNC\\server\\share\\path"sv,                            root_type::unc_remote,             21,   false, },
+		{ L"\\\\?\\UNC\\s\\s"sv,                                           root_type::unc_remote,             11,   true,  },
+		{ L"\\\\?\\UNC\\s\\s\\"sv,                                         root_type::unc_remote,             12,   true,  },
+		{ L"\\\\?\\UNC\\s\\s\\p"sv,                                        root_type::unc_remote,             12,   false, },
+		{ L"\\\\?\\UNC\\s"sv,                                              root_type::unknown_rootlike,        8,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}"sv,        root_type::volume,                 48,   true,  },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\"sv,      root_type::volume,                 49,   true,  },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\path"sv,  root_type::volume,                 49,   false, },
+		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\p"sv,     root_type::volume,                 49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEZ}\\path"sv,  root_type::unknown_rootlike,       49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}_\\"sv,     root_type::unknown_rootlike,       50,   true,  },
 		{ L"\\\\?\\pipe"sv,                                                root_type::pipe,                    8,   true,  },
 		{ L"\\\\?\\pipe\\"sv,                                              root_type::pipe,                    9,   true,  },
 		{ L"\\\\?\\pipe\\path"sv,                                          root_type::pipe,                    9,   false, },
+		{ L"\\\\?\\pipe\\p"sv,                                             root_type::pipe,                    9,   false, },
 		{ L"\\\\?\\pepe\\path"sv,                                          root_type::unknown_rootlike,        9,   false, },
 		{ L"\\\\?\\pipe_\\"sv,                                             root_type::unknown_rootlike,       10,   true,  },
 		{ L"\\\\?\\storage#volume#_??_usbstor#disk&ven_usb&prod_flash_disk&rev_1100#6&295c6d19&0#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}\\"sv, root_type::unknown_rootlike, 160, true, },

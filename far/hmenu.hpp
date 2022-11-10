@@ -62,7 +62,7 @@ class VMenu2;
 
 class HMenu final: public Modal
 {
-	struct private_tag {};
+	struct private_tag { explicit private_tag() = default; };
 
 public:
 	static hmenu_ptr create(HMenuData* Item, size_t ItemCount);
@@ -84,7 +84,7 @@ private:
 	void DisplayObject() override;
 	string GetTitle() const override { return {}; }
 
-	void ShowMenu();
+	void ShowMenu() const;
 	bool ProcessCurrentSubMenu();
 	bool ProcessPositioningKey(unsigned LocalKey);
 	static wchar_t GetHighlights(const HMenuData& Item);

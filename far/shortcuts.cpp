@@ -58,6 +58,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "keyboard.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
 
@@ -321,7 +322,7 @@ static bool EditItemImpl(Shortcuts::shortcut& Item, bool raw)
 		{
 			if (!os::fs::exists(os::env::expand(NewItem.Folder)))
 			{
-				const auto ErrorState = last_error();
+				const auto ErrorState = os::last_error();
 
 				if (Message(MSG_WARNING, ErrorState,
 					msg(lng::MError),
@@ -468,7 +469,7 @@ void Shortcuts::Add(string_view const Folder, const UUID& PluginUuid, string_vie
 static void MakeListName(const std::list<Shortcuts::shortcut>& List, string_view const Key, MenuItemEx& MenuItem)
 {
 	const auto ItemName = List.empty()? msg(lng::MShortcutNone) : MakeName(List.front());
-	MenuItem.Name = concat(KeyToLocalizedText(KEY_RCTRL), L"+&"sv, Key, L" \x2502 "sv, ItemName);
+	MenuItem.Name = format(FSTR(L"{}+&{} {} {}"sv), KeyToLocalizedText(KEY_RCTRL), Key, BoxSymbols[BS_V1], ItemName);
 	if (List.size() > 1)
 	{
 		MenuItem.Flags |= MIF_SUBMENU;

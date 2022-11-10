@@ -50,6 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "encoding.hpp"
 
 // Platform:
+#include "platform.debug.hpp"
 
 // Common:
 #include "common/2d/algorithm.hpp"
@@ -181,7 +182,7 @@ void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
 
 	if (char_width::is_enabled())
 	{
-		rectangle const Where = { X, Y, static_cast<int>(X + Text.size() - 1), Y };
+		rectangle const Where{ X, Y, static_cast<int>(X + Text.size() - 1), Y };
 		invalidate_broken_pairs_in_cache(Buf, Shadow, Where, { 0, 0 });
 		invalidate_broken_pairs_in_cache(Buf, Shadow, Where, { Where.right - X, 0 });
 	}
@@ -207,7 +208,7 @@ void ScreenBuf::Read(rectangle Where, matrix<FAR_CHAR_INFO>& Dest)
 	}
 }
 
-static COLORREF apply_index_shadow(COLORREF const Color)
+static unsigned char apply_nt_index_shadow(unsigned char const Color)
 {
 	// If it's intense then remove the intensity.
 	if (Color & FOREGROUND_INTENSITY)
@@ -215,28 +216,59 @@ static COLORREF apply_index_shadow(COLORREF const Color)
 
 	// 0x07 (silver) is technically "non-intense white", so it should become black as all the other non-intense colours.
 	// However, making it 0x08 (grey or "intense black") instead gives better results.
-	if (colors::color_value(Color) == F_LIGHTGRAY)
+	if (Color == F_LIGHTGRAY)
 		return F_DARKGRAY;
 
 	// Non-intense can't get any darker, so just return black.
 	return F_BLACK;
 }
 
-static void apply_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, const FARCOLORFLAGS Flag, FarColor const& TrueShadow)
+static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, bool const Is256ColorAvailable)
 {
-	if (Color.Flags & Flag)
+	using namespace colors::index;
+
+	// Reduce the intensity or make black.
+	// Technically the other branch can merge index colours too,
+	// but this should give more predictable results than the approximation.
+	auto& ColorPart = std::invoke(ColorAccessor, Color);
+	const auto Index = colors::index_value(ColorPart);
+	const auto Alpha = colors::alpha_bits(ColorPart);
+
+	if (Index <= nt_last)
 	{
-		// Reduce the intensity or make black.
-		// Technically the other branch can merge index colours too,
-		// but this should give more predictable results than the approximation.
-		auto& ColorPart = std::invoke(ColorAccessor, Color);
-		ColorPart = apply_index_shadow(ColorPart);
+		ColorPart = Alpha | apply_nt_index_shadow(Index);
+		return true;
+	}
+
+	if (!Is256ColorAvailable)
+		return false;
+
+	if (Index <= cube_last)
+	{
+		const auto CubeIndex = Index - cube_first;
+		const auto z = CubeIndex / (cube_size * cube_size);
+		const auto y = (CubeIndex - z * (cube_size * cube_size)) / cube_size;
+		const auto x = CubeIndex % cube_size;
+
+		const auto NewIndex = cube_first + x / 2 + (y / 2) * cube_size + z / 2 * cube_size * cube_size;
+		ColorPart = Alpha | NewIndex;
 	}
 	else
 	{
-		// Apply half-transparent black and hope that the approximation will yield something sensible.
-		Color = colors::merge(Color, TrueShadow);
+		const auto GreyIndex = Index - grey_first;
+		ColorPart = Alpha | (grey_first + GreyIndex / 2);
 	}
+
+	return true;
+}
+
+static void apply_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, const FARCOLORFLAGS Flag, FarColor const& TrueShadow, bool const Is256ColorAvailable)
+{
+	if (Color.Flags & Flag && apply_index_shadow(Color, ColorAccessor, Is256ColorAvailable))
+		return;
+
+	// Apply half-transparent black and hope that the approximation will yield something sensible.
+	Color = colors::merge(Color, TrueShadow);
 }
 
 void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
@@ -249,7 +281,8 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 	fix_coordinates(Where);
 
 	const auto CharWidthEnabled = char_width::is_enabled();
-	const auto TrueColorAvailable = console.IsVtEnabled() || console.ExternalRendererLoaded();
+	const auto IsTrueColorAvailable = console.IsVtEnabled() || console.ExternalRendererLoaded();
+	const auto Is256ColorAvailable = IsTrueColorAvailable;
 
 	static constexpr FarColor
 		TrueShadowFull{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x80'000000 } },
@@ -263,17 +296,36 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 			// This piece is for usage with repeated Message() calls.
 			// It generates a stable shadow that does not fade to black when reapplied over and over.
 			// We really, really should ditch the Message pattern.
-			Element.Attributes.IsBg4Bit()?
+			Element.Attributes.IsBgIndex()?
 				colors::set_index_value(Element.Attributes.BackgroundColor, F_BLACK) :
 				colors::set_color_value(Element.Attributes.BackgroundColor, 0);
 
-			if (Element.Attributes.IsFg4Bit())
+			if (Element.Attributes.IsFgIndex())
 			{
 				const auto Mask = FOREGROUND_INTENSITY;
 				auto ForegroundColor = colors::index_value(Element.Attributes.ForegroundColor);
 
-				if (ForegroundColor != Mask)
-					ForegroundColor &= ~Mask;
+				if (ForegroundColor <= colors::index::nt_last)
+				{
+					if (ForegroundColor != Mask)
+						ForegroundColor &= ~Mask;
+				}
+				else if (ForegroundColor <= colors::index::cube_last)
+				{
+					// Just to stop GCC from complaining about identical branches
+					[[maybe_unused]] constexpr auto Cube = true;
+
+					// Subpar
+					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
+				}
+				else
+				{
+					// Just to stop GCC from complaining about identical branches
+					[[maybe_unused]] constexpr auto Ramp = true;
+
+					// Subpar
+					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
+				}
 
 				colors::set_index_value(Element.Attributes.ForegroundColor, ForegroundColor);
 			}
@@ -288,15 +340,15 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 				colors::set_color_value(Element.Attributes.ForegroundColor, ForegroundColor);
 			}
 		}
-		else if (TrueColorAvailable)
+		else if (IsTrueColorAvailable)
 		{
 			// We have TrueColor, so just fill whatever is there with half-transparent black.
 			Element.Attributes = colors::merge(Element.Attributes, TrueShadowFull);
 		}
 		else
 		{
-			apply_shadow(Element.Attributes, &FarColor::ForegroundColor, FCF_FG_4BIT, TrueShadowFore);
-			apply_shadow(Element.Attributes, &FarColor::BackgroundColor, FCF_BG_4BIT, TrueShadowBack);
+			apply_shadow(Element.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
+			apply_shadow(Element.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
 		}
 
 		if (CharWidthEnabled)
@@ -455,7 +507,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 			const auto SetMacroChar = [this](FAR_CHAR_INFO& Where, wchar_t Char, WORD Color)
 			{
 				Where.Char = Char;
-				Where.Attributes = colors::ConsoleColorToFarColor(Color);
+				Where.Attributes = colors::NtColorToFarColor(Color);
 				SBFlags.Clear(SBFLAGS_FLUSHED);
 			};
 
@@ -519,7 +571,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 			else
 			{
 				bool Started=false;
-				rectangle WriteRegion = { static_cast<int>(Buf.width() - 1), static_cast<int>(Buf.height() - 1), 0, 0 };
+				rectangle WriteRegion{ static_cast<int>(Buf.width() - 1), static_cast<int>(Buf.height() - 1), 0, 0 };
 
 				const auto CharWidthEnabled = char_width::is_enabled();
 
@@ -770,7 +822,7 @@ void ScreenBuf::Scroll(size_t Count)
 	{
 		if (console.IsScrollbackPresent())
 		{
-			rectangle Region = { 0, 0, ScrX, static_cast<int>(Count - 1) };
+			rectangle Region{ 0, 0, ScrX, static_cast<int>(Count - 1) };
 
 			// TODO: matrix_view to avoid copying
 			matrix<FAR_CHAR_INFO> BufferBlock(Count, ScrX + 1);

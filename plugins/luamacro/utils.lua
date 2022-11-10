@@ -583,6 +583,8 @@ local function AddContentColumns (srctable, FileName)
     and type(srctable.GetContentData) == "function"
   then
      if type(srctable.filemask)~="string" then srctable.filemask=nil; end
+     if type(srctable.description)~="string" then srctable.description=nil; end
+     if FileName then srctable.FileName=FileName; end
      table.insert(ContentColumns, srctable)
   end
 end
@@ -631,26 +633,32 @@ local function ErrMsgLoad (msg, filename, isMoonScript, mode)
   end
 
   if mode=="run" then
-    local found = false
-    local fname,line = msg:match("^(.-):(%d+):")
+    local fname, line, found
+    fname = msg:match("^error loading module .- from file '([^\n]+)':")
     if fname then
-      line = tonumber(line)
-      if string_sub(fname,1,3) ~= "..." then
-        found = true
-      else
-        fname = string_sub(fname,4)
-        -- for k=1,5 do
-        --   if fname:utf8valid() then break end
-        --   fname = string_sub(fname,2)
-        -- end
-        fname = fname:gsub("/", "\\")
-        local middle = fname:match([=[^[^\\]*\[^\\]+\]=])
-        if middle then
-          local from = string_find(filename:lower(), middle:lower(), 1, true)
-          if from then
-            fname = string_sub(filename,1,from-1) .. fname
-            local attr = win.GetFileAttr(fname)
-            found = attr and not attr:find("d")
+      found = true
+      line = tonumber(msg:match("^.-\n.-:(%d+):"))
+    else
+      fname,line = msg:match("^(.-):(%d+):")
+      if fname then
+        line = tonumber(line)
+        if string_sub(fname,1,3) ~= "..." then
+          found = true
+        else
+          fname = string_sub(fname,4)
+          -- for k=1,5 do
+          --   if fname:utf8valid() then break end
+          --   fname = string_sub(fname,2)
+          -- end
+          fname = fname:gsub("/", "\\")
+          local middle = fname:match([=[^[^\\]*\[^\\]+\]=])
+          if middle then
+            local from = string_find(filename:lower(), middle:lower(), 1, true)
+            if from then
+              fname = string_sub(filename,1,from-1) .. fname
+              local attr = win.GetFileAttr(fname)
+              found = attr and not attr:find("d")
+            end
           end
         end
       end
@@ -667,7 +675,7 @@ local function ErrMsgLoad (msg, filename, isMoonScript, mode)
     if 2 == far.Message(msg, title, "OK;Edit", "wl") then
       local pattern = isMoonScript and "%[(%d+)%] >>" or "^[^\n]-:(%d+):"
       local line = tonumber(msg:match(pattern))
-      if line and isMoonScript and mode=="run" then line = GetMoonscriptLineNumber(filename,line) end
+      if line and isMoonScript then line = GetMoonscriptLineNumber(filename,line) end
       editor.Editor(filename,nil,nil,nil,nil,nil,nil,line or 1,nil,65001)
     end
   end
@@ -1216,6 +1224,54 @@ local function GetMacroCopy (index)
   return nil
 end
 
+
+local function EnumScripts (ScriptType)
+  local ScriptOrigin = {
+    CustomSortModes = Shared.panelsort.GetCustomSortModes(),
+    Event = LoadedMacros,
+    Macro = LoadedMacros,
+    MenuItem = AddedMenuItems,
+    CommandLine = AddedPrefixes,
+    PanelModule = LoadedPanelModules,
+    ContentColumns = ContentColumns,
+  }
+
+  local ScriptFilter = {
+    Event = function (index) return LoadedMacros[index].group end,
+    Macro = function (index) return LoadedMacros[index].area end,
+    MenuItem = function (index) return type(index) == "number" end,
+    CommandLine =  function (index) return index ~= 1 end,
+    PanelModule =  function (index) return type(index) == "number" end,
+  }
+
+  local function copy(source)
+    local t={}
+    for k,v in pairs(source) do
+      if type(v) == "table" and k ~= "data" then
+        v = copy(v)
+      end
+      t[k]=v
+    end
+    return t
+  end
+
+  local origin = ScriptOrigin[ScriptType]
+  if not origin then
+    error("Wrong argument: " .. tostring(ScriptType))
+  end
+  local index
+  return function()
+    while true do
+      index = next(origin, index)
+      if not index then return nil end
+      local filter = ScriptFilter[ScriptType]
+      if not filter or filter(index) then
+        return copy(origin[index]), index
+      end
+    end
+  end
+end
+
 local function EditUnsavedMacro (index)
   local m = LoadedMacros[index]
   if m and m.code then
@@ -1232,6 +1288,7 @@ return {
   DelMacro = DelMacro,
   EditUnsavedMacro = EditUnsavedMacro,
   EnumMacros = EnumMacros,
+  EnumScripts = EnumScripts,
   FixInitialModules = FixInitialModules,
   FlagsToString = FlagsToString,
   GetAreaCode = GetAreaCode,

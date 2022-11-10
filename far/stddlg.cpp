@@ -47,7 +47,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interf.hpp"
 #include "dlgedit.hpp"
 #include "cvtname.hpp"
-#include "exception.hpp"
 #include "RegExp.hpp"
 #include "FarDlgBuilder.hpp"
 #include "config.hpp"
@@ -58,14 +57,18 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 #include "copy_progress.hpp"
 #include "keyboard.hpp"
+#include "pathmix.hpp"
+#include "colormix.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.com.hpp"
 #include "platform.process.hpp"
 
 // Common:
 #include "common/from_string.hpp"
 #include "common/function_ref.hpp"
+#include "common/view/enumerate.hpp"
 
 // External:
 #include "format.hpp"
@@ -80,7 +83,7 @@ int GetSearchReplaceString(
 	string& ReplaceStr,
 	string_view TextHistoryName,
 	string_view ReplaceHistoryName,
-	bool* pCase,
+	search_case_fold* pCaseFold,
 	bool* pWholeWords,
 	bool* pReverse,
 	bool* pRegexp,
@@ -105,7 +108,7 @@ int GetSearchReplaceString(
 		SubTitle = msg(lng::MEditSearchFor);
 
 
-	bool Case=pCase?*pCase:false;
+	auto CaseFold = pCaseFold? *pCaseFold : search_case_fold::icase;
 	bool WholeWords=pWholeWords?*pWholeWords:false;
 	bool Reverse=pReverse?*pReverse:false;
 	bool Regexp=pRegexp?*pRegexp:false;
@@ -156,7 +159,7 @@ int GetSearchReplaceString(
 		{ DI_TEXT,      {{5,                 4      }, {0,                 4      }}, DIF_NONE, msg(lng::MEditReplaceWith), },
 		{ DI_EDIT,      {{5,                 5      }, {70,                5      }}, DIF_USELASTHISTORY | DIF_HISTORY, ReplaceStr, },
 		{ DI_TEXT,      {{-1,                6-YFix }, {0,                 6-YFix }}, DIF_SEPARATOR, },
-		{ DI_CHECKBOX,  {{5,                 7-YFix }, {0,                 7-YFix }}, DIF_NONE, msg(lng::MEditSearchCase), },
+		{ DI_CHECKBOX,  {{5,                 7-YFix }, {0,                 7-YFix }}, DIF_3STATE, msg(lng::MEditSearchCase), },
 		{ DI_CHECKBOX,  {{5,                 8-YFix }, {0,                 8-YFix }}, DIF_NONE, msg(lng::MEditSearchWholeWords), },
 		{ DI_CHECKBOX,  {{5,                 9-YFix }, {0,                 9-YFix }}, DIF_NONE, msg(lng::MEditSearchReverse), },
 		{ DI_CHECKBOX,  {{40,                7-YFix }, {0,                 7-YFix }}, DIF_NONE, msg(lng::MEditSearchRegexp), },
@@ -169,7 +172,10 @@ int GetSearchReplaceString(
 
 	ReplaceDlg[dlg_edit_search].strHistory = TextHistoryName;
 	ReplaceDlg[dlg_edit_replace].strHistory = ReplaceHistoryName;
-	ReplaceDlg[dlg_checkbox_case].Selected = Case;
+	ReplaceDlg[dlg_checkbox_case].Selected =
+		CaseFold == search_case_fold::exact? BSTATE_CHECKED :
+		CaseFold == search_case_fold::icase? BSTATE_UNCHECKED :
+		BSTATE_3STATE;
 	ReplaceDlg[dlg_checkbox_words].Selected = WholeWords;
 	ReplaceDlg[dlg_checkbox_reverse].Selected = Reverse;
 	ReplaceDlg[dlg_checkbox_regex].Selected = Regexp;
@@ -194,7 +200,7 @@ int GetSearchReplaceString(
 		ReplaceDlg[dlg_button_selection].Flags |= DIF_HIDDEN;
 	}
 
-	if (!pCase)
+	if (!pCaseFold)
 		ReplaceDlg[dlg_checkbox_case].Flags |= DIF_DISABLE; // DIF_HIDDEN ??
 	if (!pWholeWords)
 		ReplaceDlg[dlg_checkbox_words].Flags |= DIF_DISABLE; // DIF_HIDDEN ??
@@ -234,15 +240,18 @@ int GetSearchReplaceString(
 		Result = ExitCode == dlg_button_action ? 1 : 2;
 		SearchStr = ReplaceDlg[dlg_edit_search].strData;
 		ReplaceStr = ReplaceDlg[dlg_edit_replace].strData;
-		Case=ReplaceDlg[dlg_checkbox_case].Selected == BSTATE_CHECKED;
+		CaseFold =
+			ReplaceDlg[dlg_checkbox_case].Selected == BSTATE_CHECKED? search_case_fold::exact :
+			ReplaceDlg[dlg_checkbox_case].Selected == BSTATE_UNCHECKED? search_case_fold::icase :
+			search_case_fold::fuzzy;
 		WholeWords=ReplaceDlg[dlg_checkbox_words].Selected == BSTATE_CHECKED;
 		Reverse=ReplaceDlg[dlg_checkbox_reverse].Selected == BSTATE_CHECKED;
 		Regexp=ReplaceDlg[dlg_checkbox_regex].Selected == BSTATE_CHECKED;
 		PreserveStyle=ReplaceDlg[dlg_checkbox_style].Selected == BSTATE_CHECKED;
 	}
 
-	if (pCase)
-		*pCase=Case;
+	if (pCaseFold)
+		*pCaseFold = CaseFold;
 	if (pWholeWords)
 		*pWholeWords=WholeWords;
 	if (pReverse)
@@ -467,6 +476,80 @@ bool GetNameAndPassword(
 	return true;
 }
 
+static string format_process_name(DWORD const Pid, string_view const ImageName, const wchar_t* const AppName, const wchar_t* const ServiceShortName)
+{
+	const auto
+		HaveAppHame = AppName && *AppName,
+		HaveServiceName = ServiceShortName && *ServiceShortName;
+
+	return format(
+		FSTR(L"{} (PID {}{}{}{}{}{})"sv),
+		!ImageName.empty()? ImageName : L"Unknown"sv,
+		Pid,
+		HaveAppHame? L", "sv : L""sv,
+		HaveAppHame? AppName : L""sv,
+		HaveServiceName? L", ["sv : L""sv,
+		HaveServiceName? ServiceShortName : L""sv,
+		HaveServiceName? L"]"sv : L""sv
+	);
+}
+
+static std::vector<string> get_locking_processes(const string& FullName, size_t const MaxProcesses, DWORD& Reasons, size_t& ProcessCount)
+{
+	// This method allows to get names of all processes, even those we can't open.
+	std::optional<os::process::enum_processes> Enum;
+	std::unordered_map<DWORD, string_view> ActiveProcesses;
+	string NameBuffer;
+
+	auto process_name = [&](DWORD const Pid)
+	{
+		if (!Enum)
+		{
+			Enum.emplace();
+			std::transform(ALL_CONST_RANGE(*Enum), std::inserter(ActiveProcesses, ActiveProcesses.end()), [](os::process::enum_process_entry const& Entry)
+			{
+				return std::pair(Entry.Pid, Entry.Name);
+			});
+		}
+
+		if (const auto Iterator = ActiveProcesses.find(Pid); Iterator != ActiveProcesses.end())
+			return Iterator->second;
+
+		// Should never happen, but just in case
+		NameBuffer = os::process::get_process_name(Pid);
+		return PointToName(NameBuffer);
+	};
+
+	std::vector<string> Result;
+
+	{
+		// RM implementation returns separate entries for services; we don't care and want them collapsed
+		std::map<DWORD, string> UniqueProcesses;
+		ProcessCount = os::process::enumerate_locking_processes_rm(FullName, Reasons, [&](DWORD const Pid, const wchar_t* AppName, const wchar_t* ServiceShortName)
+		{
+			UniqueProcesses.try_emplace(Pid, format_process_name(Pid, process_name(Pid), AppName, ServiceShortName));
+			return UniqueProcesses.size() != MaxProcesses;
+		});
+
+		for (auto& [Pid, Name]: UniqueProcesses)
+		{
+			Result.emplace_back(std::move(Name));
+		}
+	}
+
+	if (Result.empty())
+	{
+		ProcessCount = os::process::enumerate_locking_processes_nt(FullName, [&](DWORD const Pid, const wchar_t* const AppName, const wchar_t* const ServiceShortName)
+		{
+			Result.emplace_back(format_process_name(Pid, process_name(Pid), AppName, ServiceShortName));
+			return Result.size() != MaxProcesses;
+		});
+	}
+
+	return Result;
+}
+
+
 operation OperationFailed(const error_state_ex& ErrorState, string_view const Object, lng Title, string Description, bool AllowSkip, bool AllowSkipAll)
 {
 	std::vector<string> Msg;
@@ -533,20 +616,17 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 		}
 		else
 		{
-			const size_t MaxRmProcesses = 5;
+			const size_t MaxProcesses = 5;
 			DWORD Reasons = RmRebootReasonNone;
-			const auto ProcessCount = os::process::enumerate_rm_processes(FullName, Reasons, [&](string&& Str)
-			{
-				Msg.emplace_back(std::move(Str));
-				return Msg.size() != MaxRmProcesses;
-			});
+			size_t ProcessCount{};
+			Msg = get_locking_processes(FullName, MaxProcesses, Reasons, ProcessCount);
 
-			if (ProcessCount > MaxRmProcesses)
+			if (ProcessCount > MaxProcesses)
 			{
-				Msg.emplace_back(format(msg(lng::MObjectLockedAndMore), ProcessCount - MaxRmProcesses));
+				Msg.emplace_back(format(msg(lng::MObjectLockedAndMore), ProcessCount - MaxProcesses));
 			}
 
-			static const std::pair<DWORD, lng> Mappings[] =
+			static const std::pair<DWORD, lng> Mappings[]
 			{
 				// We don't handle RmRebootReasonPermissionDenied here as we don't try to close anything.
 				{RmRebootReasonSessionMismatch, lng::MObjectLockedReasonSessionMismatch },
@@ -663,7 +743,7 @@ bool retryable_ui_operation(function_ref<bool()> const Action, string_view const
 {
 	while (!Action())
 	{
-		switch (const auto ErrorState = last_error(); SkipErrors? operation::skip_all : OperationFailed(ErrorState, Name, lng::MError, msg(ErrorDescription)))
+		switch (const auto ErrorState = os::last_error(); SkipErrors? operation::skip_all : OperationFailed(ErrorState, Name, lng::MError, msg(ErrorDescription)))
 		{
 		case operation::retry:
 			continue;
@@ -682,75 +762,22 @@ bool retryable_ui_operation(function_ref<bool()> const Action, string_view const
 	return true;
 }
 
-static string GetReErrorString(int code)
-{
-	// TODO: localization
-	switch (code)
-	{
-	case errNone:
-		return L"No errors"s;
-	case errNotCompiled:
-		return L"RegExp wasn't even tried to compile"s;
-	case errSyntax:
-		return L"Expression contains a syntax error"s;
-	case errBrackets:
-		return L"Unbalanced brackets"s;
-	case errMaxDepth:
-		return L"Max recursive brackets level reached"s;
-	case errOptions:
-		return L"Invalid options combination"s;
-	case errInvalidBackRef:
-		return L"Reference to nonexistent bracket"s;
-	case errInvalidEscape:
-		return L"Invalid escape char"s;
-	case errInvalidRange:
-		return L"Invalid range value"s;
-	case errInvalidQuantifiersCombination:
-		return L"Quantifier applied to invalid object. f.e. lookahead assertion"s;
-	case errNotEnoughMatches:
-		return L"Size of match array isn't large enough"s;
-	case errNoStorageForNB:
-		return L"Attempt to match RegExp with Named Brackets but no storage class provided"s;
-	case errReferenceToUndefinedNamedBracket:
-		return L"Reference to undefined named bracket"s;
-	case errVariableLengthLookBehind:
-		return L"Only fixed length look behind assertions are supported"s;
-	default:
-		return L"Unknown error"s;
-	}
-}
-
-void ReCompileErrorMessage(const RegExp& re, string_view const str)
+void ReCompileErrorMessage(regex_exception const& e, string_view const str)
 {
 	Message(MSG_WARNING | MSG_LEFTALIGN,
 		msg(lng::MError),
 		{
-			GetReErrorString(re.LastError()),
+			e.message(),
 			string(str),
-			string(re.ErrorPosition(), L' ') + L'↑'
+			string(e.position(), L' ') + L'↑'
 		},
 		{ lng::MOk });
 }
 
-void ReMatchErrorMessage(const RegExp& re)
+static void GetRowCol(const string_view Str, bool Hex, goto_coord& Row, goto_coord& Col)
 {
-	if (re.LastError() != errNone)
+	const auto Parse = [Hex](string_view Part, goto_coord& Dest)
 	{
-		Message(MSG_WARNING | MSG_LEFTALIGN,
-			msg(lng::MError),
-			{
-				GetReErrorString(re.LastError())
-			},
-			{ lng::MOk });
-	}
-}
-
-static void GetRowCol(const string& Str, bool Hex, goto_coord& Row, goto_coord& Col)
-{
-	const auto Parse = [Hex](string Part, goto_coord& Dest)
-	{
-		std::erase(Part, L' ');
-
 		if (Part.empty())
 			return;
 
@@ -758,12 +785,12 @@ static void GetRowCol(const string& Str, bool Hex, goto_coord& Row, goto_coord& 
 		switch (Part.front())
 		{
 		case L'-':
-			Part.erase(0, 1);
+			Part.remove_prefix(1);
 			Dest.relative = -1;
 			break;
 
 		case L'+':
-			Part.erase(0, 1);
+			Part.remove_prefix(1);
 			Dest.relative = +1;
 			break;
 
@@ -777,7 +804,7 @@ static void GetRowCol(const string& Str, bool Hex, goto_coord& Row, goto_coord& 
 		// он хочет процентов
 		if (Part.back() == L'%')
 		{
-			Part.pop_back();
+			Part.remove_suffix(1);
 			Dest.percent = true;
 		}
 
@@ -789,22 +816,22 @@ static void GetRowCol(const string& Str, bool Hex, goto_coord& Row, goto_coord& 
 		// он умный - hex код ввел!
 		if (starts_with(Part, L"0x"sv))
 		{
-			Part.erase(0, 2);
+			Part.remove_prefix(2);
 			Radix = 16;
 		}
 		else if (starts_with(Part, L"$"sv))
 		{
-			Part.erase(0, 1);
+			Part.remove_prefix(1);
 			Radix = 16;
 		}
 		else if (ends_with(Part, L"h"sv))
 		{
-			Part.pop_back();
+			Part.remove_suffix(1);
 			Radix = 16;
 		}
 		else if (ends_with(Part, L"m"sv))
 		{
-			Part.pop_back();
+			Part.remove_suffix(1);
 			Radix = 10;
 		}
 
@@ -818,7 +845,7 @@ static void GetRowCol(const string& Str, bool Hex, goto_coord& Row, goto_coord& 
 		Dest.exist = true;
 	};
 
-	const auto SeparatorPos = Str.find_first_of(L".,;:"sv);
+	const auto SeparatorPos = Str.find_first_of(L" .,;:"sv);
 
 	if (SeparatorPos == Str.npos)
 	{
@@ -853,7 +880,7 @@ bool GoToRowCol(goto_coord& Row, goto_coord& Col, bool& Hex, string_view const H
 		GetRowCol(strData, Hex, Row, Col);
 		return true;
 	}
-	catch (const std::exception& e)
+	catch (std::exception const& e)
 	{
 		LOGWARNING(L"{}"sv, e);
 		// maybe we need to display a message in case of an incorrect input
@@ -903,6 +930,239 @@ bool RetryAbort(std::vector<string>&& Messages)
 		for (const auto& i: Messages)
 			std::wcerr << i << L'\n';
 	});
+}
+
+void regex_playground()
+{
+	enum
+	{
+		rp_doublebox,
+		rp_text_regex,
+		rp_edit_regex,
+		rp_text_cursor,
+		rp_text_test,
+		rp_edit_test,
+		rp_text_substitution,
+		rp_edit_substitution,
+		rp_text_result,
+		rp_edit_result,
+		rp_list_matches,
+		rp_text_status,
+		rp_edit_status,
+		rp_separator,
+		rp_button_ok,
+
+		rp_count
+	};
+
+	auto RegexDlgItems = MakeDialogItems<rp_count>(
+	{
+		{ DI_DOUBLEBOX, {{3,  1}, {72,15}}, DIF_NONE, L"Regular expressions", },
+		{ DI_TEXT,      {{5,  2}, {0,  2}}, DIF_NONE, L"Regex:" },
+		{ DI_EDIT,      {{5,  3}, {45, 3}}, DIF_HISTORY, },
+		{ DI_TEXT,      {{5,  4}, {45, 4}}, DIF_NONE, L"" },
+		{ DI_TEXT,      {{5,  5}, {0,  5}}, DIF_NONE, L"Test string:" },
+		{ DI_EDIT,      {{5,  6}, {45, 6}}, DIF_HISTORY, },
+		{ DI_TEXT,      {{5,  7}, {0,  7}}, DIF_NONE, L"Substitution:" },
+		{ DI_EDIT,      {{5,  8}, {45, 8}}, DIF_HISTORY, },
+		{ DI_TEXT,      {{5,  9}, {0,  9}}, DIF_NONE, L"Result:" },
+		{ DI_EDIT,      {{5, 10}, {45,10}}, DIF_READONLY, },
+		{ DI_LISTBOX,   {{47, 2}, {70,11}}, DIF_NONE, L"Matches" },
+		{ DI_TEXT,      {{5, 11}, {0, 11}}, DIF_NONE, L"Status:" },
+		{ DI_EDIT,      {{5, 12}, {70,12}}, DIF_READONLY, },
+		{ DI_TEXT,      {{-1,13}, {0, 13}}, DIF_SEPARATOR, },
+		{ DI_BUTTON,    {{0, 14}, {0, 14}}, DIF_CENTERGROUP | DIF_DEFAULTBUTTON, msg(lng::MOk), },
+	});
+
+	RegexDlgItems[rp_edit_regex].strHistory = L"RegexTestRegex"sv;
+	RegexDlgItems[rp_edit_test].strHistory = L"RegexTestTest"sv;
+	RegexDlgItems[rp_edit_substitution].strHistory = L"RegexTestSubstitution"sv;
+
+	RegExp Regex;
+	std::vector<RegExpMatch> Match;
+	named_regex_match NamedMatch;
+
+	std::vector<string> ListStrings;
+	std::vector<FarListItem> ListItems;
+
+	enum class status
+	{
+		normal,
+		warning,
+		error
+	}
+	Status{};
+
+	const auto status_to_color = [&]
+	{
+		switch (Status)
+		{
+		case status::normal:  return F_LIGHTGREEN;
+		case status::warning: return F_YELLOW;
+		case status::error:   return F_LIGHTRED;
+		default: UNREACHABLE;
+		}
+	};
+
+	const auto RegexDlg = Dialog::create(RegexDlgItems, [&](Dialog* const Dlg, intptr_t const Msg, intptr_t const Param1, void* const Param2)
+	{
+		const auto update_substitution = [&]
+		{
+			const auto TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+			const auto ReplaceStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
+
+			int CurPos = 0;
+			int SearchLength;
+			const auto Str = ReplaceBrackets(TestStr, ReplaceStr, Match, &NamedMatch, CurPos, SearchLength);
+			Status = status::normal;
+			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_result, UNSAFE_CSTR(Str));
+		};
+
+		const auto update_matches = [&]
+		{
+			FarList List{ sizeof(List), ListItems.size(), ListItems.data() };
+			Dlg->SendMessage(DM_LISTSET, rp_list_matches, &List);
+		};
+
+		const auto clear_matches = [&]
+		{
+			Match.clear();
+			NamedMatch.Matches.clear();
+			ListItems.clear();
+
+			update_matches();
+		};
+
+		const auto update_cursor = [&](std::optional<size_t> const& Position = {})
+		{
+			Dlg->SendMessage(DM_SETTEXTPTR, rp_text_cursor, Position? UNSAFE_CSTR(string(*Position, L' ') + L'↑') : nullptr);
+		};
+
+		const auto update_status = [&](status const NewStatus, string const& Message)
+		{
+			Status = NewStatus;
+			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_status, UNSAFE_CSTR(Message));
+		};
+
+		const auto update_test = [&]
+		{
+			string_view const TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+
+			bool IsMatch;
+
+			try
+			{
+				IsMatch = Regex.Search(TestStr, Match, &NamedMatch);
+			}
+			catch (regex_exception const& e)
+			{
+				clear_matches();
+				update_cursor(e.position());
+				update_status(status::error, e.message());
+				return false;
+			}
+
+			if (!IsMatch)
+			{
+				clear_matches();
+				update_status(status::warning, L"Not found"s);
+				return false;
+			}
+
+			update_status(status::normal, L"Found"s);
+
+			ListItems.clear();
+			ListStrings.clear();
+
+			reserve_exp_noshrink(ListItems, Match.size());
+			reserve_exp_noshrink(ListStrings, Match.size());
+
+			const auto match_str = [&](RegExpMatch const& m)
+			{
+				return m.start < 0? L""s : format(FSTR(L"{}-{} {}"sv), m.start, m.end, TestStr.substr(m.start, m.end - m.start));
+			};
+
+			for (const auto& [i, Index] : enumerate(Match))
+			{
+				ListStrings.emplace_back(format(FSTR(L"${}: {}"sv), Index, match_str(i)));
+				ListItems.push_back({ i.start < 0? LIF_GRAYED : LIF_NONE, ListStrings.back().c_str(), 0, 0 });
+			}
+
+			for (const auto& [k, v] : NamedMatch.Matches)
+			{
+				const auto& m = Match[v];
+				ListStrings[v] = format(FSTR(L"${{{}}}: {}"sv), k, match_str(m));
+				ListItems[v].Text = ListStrings[v].c_str();
+			}
+
+			update_matches();
+			update_substitution();
+			return true;
+		};
+
+		const auto update_regex = [&]
+		{
+			const auto RegexStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_regex, {}));
+
+			try
+			{
+				Regex.Compile(RegexStr, starts_with(RegexStr, L'/')? OP_PERLSTYLE : 0);
+			}
+			catch (regex_exception const& e)
+			{
+				clear_matches();
+				update_cursor(e.position());
+				update_status(status::error, e.message());
+				return false;
+			}
+
+			update_cursor();
+			update_status(status::normal, msg(lng::MOk));
+			return update_test();
+		};
+
+		switch (Msg)
+		{
+		case DN_CTLCOLORDLGITEM:
+			if (Param1 == rp_edit_status)
+			{
+				const auto& Colors = *static_cast<FarDialogItemColors const*>(Param2);
+				Colors.Colors[0] = Colors.Colors[2] = colors::NtColorToFarColor(B_BLACK | status_to_color());
+			}
+			break;
+
+		case DN_EDITCHANGE:
+			{
+				SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
+
+				switch (Param1)
+				{
+				case rp_edit_regex:
+					update_regex();
+					break;
+
+				case rp_edit_test:
+					update_test();
+					break;
+
+				case rp_edit_substitution:
+					update_substitution();
+					break;
+				}
+			}
+			break;
+		}
+
+		return Dlg->DefProc(Msg, Param1, Param2);
+	});
+
+	const auto
+		DlgWidth = static_cast<int>(RegexDlgItems[rp_doublebox].X2) + 4,
+		DlgHeight = static_cast<int>(RegexDlgItems[rp_doublebox].Y2) + 2;
+
+	RegexDlg->SetPosition({ -1, -1, DlgWidth, DlgHeight });
+	RegexDlg->SetHelp(L"RegExp"sv);
+	RegexDlg->Process();
 }
 
 progress_impl::~progress_impl()
@@ -982,7 +1242,7 @@ void single_progress::update(size_t const Percent) const
 {
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_progress, UNSAFE_CSTR(make_progressbar(single_progress_detail::DlgW - 10, Percent, true, true)));
 
-	const auto Title = reinterpret_cast<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
+	const auto Title = view_as<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_console_title, UNSAFE_CSTR(concat(L'{', str(Percent), L"%} "sv, Title)));
 }
 

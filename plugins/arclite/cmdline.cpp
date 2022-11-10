@@ -117,7 +117,7 @@ static bool parse_bool_value(const std::wstring& value) {
   else if (lcvalue == L"n")
     return false;
   else
-    CHECK_FMT(false);
+    FAIL(E_BAD_FORMAT);
 }
 
 static TriState parse_tri_state_value(const std::wstring& value) {
@@ -131,7 +131,7 @@ static TriState parse_tri_state_value(const std::wstring& value) {
   else if (lcvalue == L"a")
     return triUndef;
   else
-    CHECK_FMT(false);
+    FAIL(E_BAD_FORMAT);
 }
 
 std::list<std::wstring> parse_listfile(const std::wstring& str) {
@@ -140,12 +140,12 @@ std::list<std::wstring> parse_listfile(const std::wstring& str) {
   for (unsigned i = 0; i < str.size(); i++) {
     if (str[i] == L'\r' || str[i] == L'\n') {
       if (pos != i)
-        files.push_back(str.substr(pos, i - pos));
+        files.emplace_back(str.substr(pos, i - pos));
       pos = i + 1;
     }
   }
   if (pos != str.size())
-    files.push_back(str.substr(pos, str.size() - pos));
+    files.emplace_back(str.substr(pos, str.size() - pos));
   return files;
 }
 
@@ -172,7 +172,7 @@ OpenCommand parse_open_command(const CommandArgs& ca) {
       command.options.password = param.value;
     }
     else
-      CHECK_FMT(false);
+      FAIL(E_BAD_FORMAT);
   }
   if (!arc_type_spec) {
     command.options.arc_types = ArcAPI::formats().get_arc_types();
@@ -291,14 +291,14 @@ UpdateCommand parse_update_command(const CommandArgs& ca) {
       else if (lcvalue == L"s")
         command.options.overwrite = oaSkip;
       else
-        CHECK_FMT(false);
+        FAIL(E_BAD_FORMAT);
     }
     else if (param.name == L"adv") {
       CHECK_FMT(!param.value.empty());
       command.options.advanced = param.value;
     }
     else
-      CHECK_FMT(false);
+      FAIL(E_BAD_FORMAT);
   }
   CHECK_FMT(i + 1 < args.size());
   CHECK_FMT(!is_param(args[i]));
@@ -312,9 +312,9 @@ UpdateCommand parse_update_command(const CommandArgs& ca) {
   for (; i < args.size(); i++) {
     CHECK_FMT(!is_param(args[i]));
     if (args[i][0] == L'@')
-      command.listfiles.push_back(unquote(args[i].substr(1)));
+      command.listfiles.emplace_back(unquote(args[i].substr(1)));
     else
-      command.files.push_back(unquote(args[i]));
+      command.files.emplace_back(unquote(args[i]));
   }
 
   if (command.options.level == 0)
@@ -350,7 +350,7 @@ static void parse_extract_params(const CommandArgs& ca, ExtractOptions& o, std::
         else if (lcvalue == L"a")
           o.overwrite = oaAppend;
         else
-          CHECK_FMT(false);
+          FAIL(E_BAD_FORMAT);
       }
       else if (ca.cmd != cmdDeleteItems && param.name == L"mf")
         o.move_files = parse_tri_state_value(param.value);
@@ -365,10 +365,10 @@ static void parse_extract_params(const CommandArgs& ca, ExtractOptions& o, std::
       else if (ca.cmd == cmdExtractItems && param.name == L"out" && !param.value.empty())
         o.dst_dir = unquote(param.value);
       else
-        CHECK_FMT(false);
+        FAIL(E_BAD_FORMAT);
     }
     else {
-      items.push_back(unquote(a));
+      items.emplace_back(unquote(a));
     }
   }
 }
@@ -398,7 +398,7 @@ TestCommand parse_test_command(const CommandArgs& ca) {
   const std::vector<std::wstring>& args = ca.args;
   for (unsigned i = 0; i < args.size(); i++) {
     CHECK_FMT(!is_param(args.back()));
-    command.arc_list.push_back(unquote(args[i]));
+    command.arc_list.emplace_back(unquote(args[i]));
   }
   return command;
 }

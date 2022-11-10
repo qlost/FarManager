@@ -73,7 +73,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback* aCallback, History* iHistory, FarList* iList, DWORD iFlags):
+EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback const* aCallback, History* iHistory, FarList* iList, DWORD iFlags):
 	Edit(std::move(Owner)),
 	pHistory(iHistory),
 	pList(iList),
@@ -304,6 +304,9 @@ static bool EnumModules(VMenu2& Menu, const string_view strStart, const string_v
 
 			for (const auto& FindData: os::fs::enum_files(path::join(Path, Pattern)))
 			{
+				if (!os::fs::is_file(FindData))
+					continue;
+
 				const auto FindExt = name_ext(FindData.FileName).second;
 
 				for (const auto& Ext: PathExtList)
@@ -410,7 +413,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			return (Manual && State) || (!Manual && State == 1);
 		};
 
-		const auto Complete = [&](VMenu2& Menu, const string& Str)
+		const auto Complete = [&](VMenu2& Menu, const string_view Str)
 		{
 			if (Str.empty())
 				return;
@@ -423,7 +426,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 				{
 					MenuItemEx Item;
 					// Preserve the case of the already entered part
-					Item.ComplexUserData = cmp_user_data{ Global->Opt->AutoComplete.AppendCompletion? Str + string_view(Name).substr(Str.size()) : L""s, Id };
+					Item.ComplexUserData = cmp_user_data{ Global->Opt->AutoComplete.AppendCompletion? Str + Name.substr(Str.size()) : L""s, Id };
 					Item.Name = Name;
 					Item.Flags |= IsLocked? LIF_CHECKED : LIF_NONE;
 					ComplMenu->AddItem(std::move(Item));
@@ -438,16 +441,16 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			{
 				for (const auto& i: span(pList->Items, pList->ItemsNumber))
 				{
-					if (i.Text == Str.data() || !starts_with_icase(i.Text, Str))
+					if (!starts_with_icase(i.Text, Str))
 						continue;
 
-					MenuItemEx Item;
+					MenuItemEx Item(i.Text);
 					// Preserve the case of the already entered part
 					if (Global->Opt->AutoComplete.AppendCompletion)
 					{
-						Item.ComplexUserData = cmp_user_data{ Str + (i.Text + Str.size()) };
+						Item.ComplexUserData = cmp_user_data{ Str + string_view(i.Text + Str.size()) };
 					}
-					ComplMenu->AddItem(i.Text);
+					ComplMenu->AddItem(Item);
 				}
 			}
 
@@ -752,7 +755,7 @@ void EditControl::AutoComplete(bool Manual,bool DelBlock)
 	Manager::Key Key;
 	if(AutoCompleteProc(Manual,DelBlock,Key,MacroAreaAC))
 	{
-		struct FAR_INPUT_RECORD irec = { static_cast<DWORD>(Key()), Key.Event() };
+		const FAR_INPUT_RECORD irec{ static_cast<DWORD>(Key()), Key.Event() };
 		if(!Global->CtrlObject->Macro.ProcessEvent(&irec))
 			m_ParentProcessKey(Key);
 		const auto CurWindowType = Global->WindowManager->GetCurrentWindow()->GetType();

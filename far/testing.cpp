@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Internal:
 #include "components.hpp"
+#include "log.hpp"
 
 // Platform:
 
@@ -53,6 +54,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 constexpr auto DebugTests = false;
 
+
+generic_exception_matcher::generic_exception_matcher(std::function<bool(std::any const&)> Matcher):
+	m_Matcher(std::move(Matcher))
+{}
+
+bool generic_exception_matcher::match(std::any const& e) const
+{
+	return m_Matcher(e);
+}
+
+std::string generic_exception_matcher::describe() const
+{
+	return "Generic matcher"s;
+}
+
+
 std::optional<int> testing_main(int const Argc, wchar_t const* const Argv[])
 {
 	const auto IsBuildStep = Argc > 1 && Argv[1] == L"/service:test"sv;
@@ -64,6 +81,9 @@ std::optional<int> testing_main(int const Argc, wchar_t const* const Argv[])
 			std::wcout << L"Unit tests skipped"sv << std::endl;
 			return EXIT_SUCCESS;
 		}
+
+		if (Argc == 3 && logging::is_log_argument(Argv[1]))
+			return {};
 	}
 	else
 	{
@@ -84,6 +104,9 @@ std::optional<int> testing_main(int const Argc, wchar_t const* const Argv[])
 		Args.reserve(Argc + 1);
 		Args.assign(Argv, Argv + Argc);
 		Args.emplace_back(L"--break");
+
+		if (DebugTests)
+			Args.emplace_back(L"--wait-for-keypress exit");
 	}
 
 	return Catch::Session().run(static_cast<int>(Args.size()), Args.data());

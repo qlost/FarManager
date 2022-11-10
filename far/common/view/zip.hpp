@@ -35,6 +35,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../keep_alive.hpp"
 #include "../rel_ops.hpp"
 
+#include <iterator>
+#include <optional>
+
 //----------------------------------------------------------------------------
 
 namespace detail
@@ -142,7 +145,7 @@ template<size_t, typename... args>
 class [[nodiscard]] zip
 {
 public:
-	using iterator = detail::zip_iterator<decltype(std::begin(std::declval<args>()))...>;
+	using iterator = detail::zip_iterator<decltype(std::begin(std::declval<args&>()))...>;
 
 	template<typename... args_ref>
 	explicit zip(args_ref&&... ArgsRef):

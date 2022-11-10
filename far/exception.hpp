@@ -43,42 +43,31 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-struct error_state
-{
-	int Errno = 0;
-	DWORD Win32Error = ERROR_SUCCESS;
-	NTSTATUS NtError = STATUS_SUCCESS;
-
-	bool any() const
-	{
-		return Errno || Win32Error != ERROR_SUCCESS || NtError != STATUS_SUCCESS;
-	}
-
-	string ErrnoStr() const;
-	string Win32ErrorStr() const;
-	string NtErrorStr() const;
-
-	std::array<string, 3> format_errors() const;
-
-	string to_string() const;
-};
-
-struct error_state_ex: public error_state
+struct error_state_ex: public os::error_state
 {
 	error_state_ex() = default;
 
-	error_state_ex(const error_state& State, string_view const Message = {}):
+	error_state_ex(const error_state& State, string_view const Message = {}, int Errno = 0):
 		error_state(State),
-		What(Message)
+		What(Message),
+		Errno(Errno)
 	{
 	}
 
-	string format_error() const;
+	[[nodiscard]]
+	bool any() const
+	{
+		return Errno != 0 || error_state::any();
+	}
+
+	[[nodiscard]] string ErrnoStr() const;
+
+	[[nodiscard]] string system_error() const;
+	[[nodiscard]] string to_string() const;
 
 	string What;
+	int Errno{};
 };
-
-error_state last_error();
 
 namespace detail
 {
@@ -89,6 +78,7 @@ namespace detail
 		[[nodiscard]] const auto& full_message() const noexcept { return m_FullMessage; }
 		[[nodiscard]] const auto& function() const noexcept { return m_Function; }
 		[[nodiscard]] const auto& location() const noexcept { return m_Location; }
+		[[nodiscard]] string to_string() const;
 
 	protected:
 		far_base_exception(bool CaptureErrors, string_view Message, std::string_view Function, std::string_view File, int Line);
@@ -154,8 +144,13 @@ class far_known_exception final: public far_exception
 #define MAKE_FAR_EXCEPTION(...) MAKE_EXCEPTION(far_exception, true, __VA_ARGS__)
 #define MAKE_FAR_KNOWN_EXCEPTION(...) MAKE_EXCEPTION(far_known_exception, false, __VA_ARGS__)
 
-std::wostream& operator<<(std::wostream& Stream, error_state const& e);
-std::wostream& operator<<(std::wostream& Stream, error_state_ex const& e);
-std::wostream& operator<<(std::wostream& Stream, detail::far_base_exception const& e);
+template<typename T>
+struct formattable;
+
+template<>
+struct formattable<std::exception>
+{
+	static string to_string(std::exception const& e);
+};
 
 #endif // EXCEPTION_HPP_2CD5B7D1_D39C_4CAF_858A_62496C9221DF

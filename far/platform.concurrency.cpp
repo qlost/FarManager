@@ -40,8 +40,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "exception.hpp"
 #include "imports.hpp"
 #include "pathmix.hpp"
+#include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 
 // Common:
 #include "common.hpp"
@@ -315,11 +317,8 @@ namespace os::concurrency
 
 	void timer::timer_closer::operator()(HANDLE const Handle) const
 	{
-		for (;;)
-		{
-			if (DeleteTimerQueueTimer({}, Handle, INVALID_HANDLE_VALUE) || GetLastError() == ERROR_IO_PENDING)
-				break;
-		}
+		while (!(DeleteTimerQueueTimer({}, Handle, INVALID_HANDLE_VALUE) || GetLastError() == ERROR_IO_PENDING))
+			LOGWARNING(L"DeleteTimerQueueTimer(): {}"sv, last_error());
 	}
 }
 
@@ -340,7 +339,7 @@ TEST_CASE("platform.thread.forwarding")
 			std::make_unique<int>(Magic * 2)
 		);
 	}
-	REQUIRE(true);
+	SUCCEED();
 }
 
 TEST_CASE("platform.timer")

@@ -52,6 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "message.hpp"
 #include "fnparce.hpp"
 #include "pathmix.hpp"
+#include "exitcode.hpp"
 #include "panelmix.hpp"
 #include "filestr.hpp"
 #include "interf.hpp"
@@ -65,6 +66,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
 
@@ -312,7 +314,7 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 
 		if (!os::fs::set_file_attributes(MenuFileName, FileAttr & ~FILE_ATTRIBUTE_READONLY)) //BUGBUG
 		{
-			LOGWARNING(L"set_file_attributes({}): {}"sv, MenuFileName, last_error());
+			LOGWARNING(L"set_file_attributes({}): {}"sv, MenuFileName, os::last_error());
 		}
 	}
 
@@ -327,15 +329,16 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 		}
 
 		// Encoding could fail, so we need to prepare the data before touching the file
-		encoding::memory_writer Writer(m_MenuCP);
+		std::stringstream StrStream;
+		encoding::writer Writer(StrStream, m_MenuCP);
 		Writer.write(SerialisedMenu);
 
 		save_file_with_replace(MenuFileName, FileAttr, 0, false, [&](std::ostream& Stream)
 		{
-			Writer.flush_to(Stream);
+			Stream << StrStream.rdbuf();
 		});
 	}
-	catch (const far_exception& e)
+	catch (far_exception const& e)
 	{
 		Message(MSG_WARNING, e,
 			msg(lng::MError),
@@ -398,13 +401,13 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileNa
 		{
 			try
 			{
-				if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING))
+				if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING))
 					DeserializeMenu(m_Menu, MenuFile, m_MenuCP);
 			}
 			catch (std::exception const& e)
 			{
 				m_Menu.clear();
-				LOGWARNING(L"{}"sv, e);
+				LOGERROR(L"{}"sv, e);
 			}
 		}
 		else if (m_MenuMode != menu_mode::user)
@@ -575,8 +578,6 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 		const auto& strShortName = Names[1];
 		const subst_context Context(strName, strShortName);
 
-		/* $ 24.07.2000 VVM + При показе главного меню в заголовок добавляет тип - FAR/Registry */
-
 		const auto UserMenu = VMenu2::create(Title, {}, ScrY - 4);
 		UserMenu->SetMenuFlags(VMENU_WRAPMODE | VMENU_NOMERGEBORDER);
 		UserMenu->SetHelp(L"UserMenu"sv);
@@ -701,11 +702,11 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 					SaveMenu(MenuFileName);
 					{
 						const auto ShellEditor = FileEditor::create(MenuFileName, m_MenuCP, FFILEEDIT_DISABLEHISTORY, -1, -1, nullptr);
-						if (-1 == ShellEditor->GetExitCode()) Global->WindowManager->ExecuteModal(ShellEditor);
+						if (any_of(ShellEditor->GetExitCode(), -1, XC_OPEN_NEWINSTANCE)) Global->WindowManager->ExecuteModal(ShellEditor);
 						if (!ShellEditor->IsFileChanged())
 							break;
 					}
-					if (const auto MenuFile = os::fs::file(MenuFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING))
+					if (const auto MenuFile = os::fs::file(MenuFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING))
 					{
 						MenuRoot.clear();
 						try
@@ -715,7 +716,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 						catch (std::exception const& e)
 						{
 							MenuRoot.clear();
-							LOGWARNING(L"{}"sv, e);
+							LOGERROR(L"{}"sv, e);
 						}
 
 						ReturnCode = 0;
@@ -770,7 +771,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 		if ((*CurrentMenuItem)->Submenu)
 		{
 			/* $ 14.07.2000 VVM ! Если закрыли подменю, то остаться. Иначе передать управление выше */
-			MenuPos = ProcessSingleMenu((*CurrentMenuItem)->Menu, 0, MenuRoot, MenuFileName, concat(Title, L" \xbb "sv, CurrentLabel));
+			MenuPos = ProcessSingleMenu((*CurrentMenuItem)->Menu, 0, MenuRoot, MenuFileName, concat(Title, L" » "sv, CurrentLabel));
 
 			if (MenuPos!=EC_CLOSE_LEVEL)
 				return MenuPos;
@@ -901,8 +902,8 @@ intptr_t UserMenu::EditMenuDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 			if (Param1==EM_BUTTON_OK)
 			{
 				bool Result = true;
-				const string_view HotKey = reinterpret_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_HOTKEY_EDIT, nullptr));
-				const string_view Label = reinterpret_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_LABEL_EDIT, nullptr));
+				const string_view HotKey = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_HOTKEY_EDIT, nullptr));
+				const string_view Label = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_LABEL_EDIT, nullptr));
 				int FocusPos=-1;
 
 				if (HotKey != L"--"sv)
@@ -917,7 +918,7 @@ intptr_t UserMenu::EditMenuDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 
 						if (upper(HotKey.front()) == L'F')
 						{
-							if (in_closed_range(1, from_string<int>(HotKey.substr(1)), 24))
+							if (int Number; from_string(HotKey.substr(1), Number) && in_closed_range(1, Number, 24))
 								FocusPos=-1;
 						}
 					}

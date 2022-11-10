@@ -40,65 +40,33 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.debug.hpp"
 
 // Common:
 #include "common/string_utils.hpp"
+#include "common/view/where.hpp"
 
 // External:
 #include "format.hpp"
 
 //----------------------------------------------------------------------------
 
-error_state last_error()
-{
-	return
-	{
-		errno,
-		GetLastError(),
-		os::get_last_nt_status(),
-	};
-}
-
-string error_state::ErrnoStr() const
-{
-	return os::format_errno(Errno);
-}
-
-string error_state::Win32ErrorStr() const
-{
-	return os::format_error(Win32Error);
-}
-
-string error_state::NtErrorStr() const
-{
-	return os::format_ntstatus(NtError);
-}
-
-std::array<string, 3> error_state::format_errors() const
-{
-	return
-	{
-		ErrnoStr(),
-		Win32ErrorStr(),
-		NtErrorStr()
-	};
-}
-
-string error_state::to_string() const
-{
-	const auto Errors = format_errors();
-	return format(FSTR(L"Errno: {}, Win32 error: {}, NT error: {}"sv), Errors[0], Errors[1], Errors[2]);
-}
-
 namespace detail
 {
+	string far_base_exception::to_string() const
+	{
+		return any()?
+			format(FSTR(L"far_base_exception: {}, Error: {}"sv), full_message(), error_state::to_string()) :
+			format(FSTR(L"far_base_exception: {}"sv), full_message());
+	}
+
 	far_base_exception::far_base_exception(bool const CaptureErrors, string_view const Message, std::string_view const Function, std::string_view const File, int const Line):
-		error_state_ex(CaptureErrors? last_error(): error_state{}, Message),
+		error_state_ex(CaptureErrors? os::last_error(): os::error_state{}, Message, CaptureErrors? errno : 0),
 		m_Function(Function),
 		m_Location(format(FSTR(L"{}({})"sv), encoding::utf8::get_chars(File), Line)),
 		m_FullMessage(format(FSTR(L"{} ({}, {})"sv), Message, encoding::utf8::get_chars(m_Function), m_Location))
 	{
-		LOGTRACE(L"far_base_exception: {}"sv, *this);
+		LOGTRACE(L"{}"sv, *this);
 	}
 
 	std::string far_std_exception::convert_message() const
@@ -112,35 +80,32 @@ namespace detail
 	}
 }
 
-string error_state_ex::format_error() const
+string error_state_ex::ErrnoStr() const
 {
-	if (!any())
-		return What;
+	return os::format_errno(Errno);
+}
 
-	auto Str = What;
-
-	if (!Str.empty())
-		append(Str, L": "sv);
-
+string error_state_ex::system_error() const
+{
 	constexpr auto UseNtMessages = false;
-
-	return Str + (UseNtMessages? NtErrorStr() : Win32ErrorStr());
+	return UseNtMessages? NtErrorStr() : Win32ErrorStr();
 }
 
-std::wostream& operator<<(std::wostream& Stream, error_state const& e)
+string error_state_ex::to_string() const
 {
-	Stream << e.to_string();
-	return Stream;
+	if (any())
+	{
+		auto Str = error_state::to_string();
+		if (Errno)
+			Str = concat(ErrnoStr(), L", "sv, Str);
+
+		return format(FSTR(L"Message: {}, Error: {}"sv), What, Str);
+	}
+
+	return format(FSTR(L"Message: {}"sv), What);
 }
 
-std::wostream& operator<<(std::wostream& Stream, error_state_ex const& e)
+string formattable<std::exception>::to_string(std::exception const& e)
 {
-	Stream << format(FSTR(L"Message: {}, Error: {}"sv), e.What, e.to_string());
-	return Stream;
-}
-
-std::wostream& operator<<(std::wostream& Stream, detail::far_base_exception const& e)
-{
-	Stream << format(FSTR(L"far_base_exception: {}, Error: {}"sv), e.full_message(), e.to_string());
-	return Stream;
+	return ::format(FSTR(L"std::exception: {}"sv), encoding::utf8::get_chars(e.what()));
 }

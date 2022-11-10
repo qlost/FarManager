@@ -51,14 +51,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.concurrency.hpp"
+#include "platform.debug.hpp"
 #include "platform.fs.hpp"
 
 // Common:
 #include "common.hpp"
 #include "common/base64.hpp"
 #include "common/bytes_view.hpp"
-#include "common/chrono.hpp"
 #include "common/function_ref.hpp"
 #include "common/scope_exit.hpp"
 #include "common/uuid.hpp"
@@ -216,26 +217,26 @@ private:
 	const tinyxml::XMLNode* m_base;
 };
 
-static void serialise_integer(tinyxml::XMLElement& e, long long const Value)
+void serialise_integer(tinyxml::XMLElement& e, long long const Value)
 {
 	SetAttribute(e, "type", "qword"sv);
 	SetAttribute(e, "value", encoding::utf8::get_bytes(to_hex_wstring(Value)));
 }
 
-static void serialise_string(tinyxml::XMLElement& e, std::string const& Value)
+void serialise_string(tinyxml::XMLElement& e, std::string const& Value)
 {
 	SetAttribute(e, "type", "text"sv);
 	SetAttribute(e, "value", Value);
 }
 
-static void serialise_blob(tinyxml::XMLElement& e, bytes_view const Value)
+void serialise_blob(tinyxml::XMLElement& e, bytes_view const Value)
 {
 	SetAttribute(e, "type", "base64"sv);
 	SetAttribute(e, "value", base64::encode(Value));
 }
 
 template<typename callable>
-static bool deserialise_value(char const* Type, char const* Value, callable const& Setter)
+bool deserialise_value(char const* Type, char const* Value, callable const& Setter)
 {
 	if (!strcmp(Type, "qword"))
 	{
@@ -838,10 +839,11 @@ private:
 	};
 };
 
-static const std::pair<FARCOLORFLAGS, string_view> ColorFlagNames[]
+const std::pair<FARCOLORFLAGS, string_view> ColorFlagNames[]
 {
-	{ FCF_FG_4BIT,         L"fg4bit"sv       },
-	{ FCF_BG_4BIT,         L"bg4bit"sv       },
+	{ FCF_FG_INDEX,        L"fgindex"sv      },
+	{ FCF_BG_INDEX,        L"bgindex"sv      },
+	{ FCF_INHERIT_STYLE,   L"inherit"sv      },
 	{ FCF_FG_BOLD,         L"bold"sv         },
 	{ FCF_FG_ITALIC,       L"italic"sv       },
 	{ FCF_FG_UNDERLINE,    L"underline"sv    },
@@ -850,6 +852,14 @@ static const std::pair<FARCOLORFLAGS, string_view> ColorFlagNames[]
 	{ FCF_FG_STRIKEOUT,    L"strikeout"sv    },
 	{ FCF_FG_FAINT,        L"faint"sv        },
 	{ FCF_FG_BLINK,        L"blink"sv        },
+	{ FCF_FG_INVERSE,      L"inverse"sv      },
+	{ FCF_FG_INVISIBLE,    L"invisible"sv    },
+};
+
+const std::pair<FARCOLORFLAGS, string_view> LegacyColorFlagNames[]
+{
+	{ FCF_FG_INDEX, L"fg4bit"sv },
+	{ FCF_BG_INDEX, L"bg4bit"sv },
 };
 
 class HighlightHierarchicalConfigDb final: public HierarchicalConfigDb
@@ -899,7 +909,10 @@ private:
 			if (const auto foreground = e.Attribute("foreground"))
 				Color.ForegroundColor = std::strtoul(foreground, nullptr, 16);
 			if (const auto flags = e.Attribute("flags"))
-				Color.Flags = StringToFlags(encoding::utf8::get_chars(flags), ColorFlagNames);
+			{
+				const auto FlagsStr = encoding::utf8::get_chars(flags);
+				Color.Flags = StringToFlags(FlagsStr, ColorFlagNames) | StringToFlags(FlagsStr, LegacyColorFlagNames);
+			}
 
 			return bytes(view_bytes(Color));
 		}
@@ -987,7 +1000,7 @@ private:
 
 			if(background && foreground && flags)
 			{
-				FarColor Color = {};
+				FarColor Color{};
 				Color.BackgroundColor = std::strtoul(background, nullptr, 16);
 				Color.ForegroundColor = std::strtoul(foreground, nullptr, 16);
 				Color.Flags = StringToFlags(encoding::utf8::get_chars(flags), ColorFlagNames);
@@ -1555,7 +1568,7 @@ private:
 
 	string GetTextFromID(size_t StatementIndex, primary_key const id) const
 	{
-		auto Stmt = AutoStatement(StatementIndex);
+		const auto Stmt = AutoStatement(StatementIndex);
 		return Stmt->Bind(id).Step()? Stmt->GetColText(0) : string{};
 	}
 
@@ -1771,7 +1784,7 @@ private:
 	os::event AsyncDeleteAddDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncCommitDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncWork{os::event::type::automatic, os::event::state::nonsignaled};
-	os::thread WorkThread{os::thread::mode::join, &HistoryConfigCustom::ThreadProc, this};
+	[[maybe_unused]] os::thread WorkThread{os::thread::mode::join, &HistoryConfigCustom::ThreadProc, this};
 
 	struct AsyncWorkItem
 	{
@@ -1805,35 +1818,31 @@ private:
 
 		// TODO: SEH guard, try/catch, exception_ptr
 
-		for (;;)
+		while (os::handle::wait_any({ AsyncWork.native_handle(), StopEvent.native_handle() }) != 1)
 		{
-			if (os::handle::wait_any({ AsyncWork.native_handle(), StopEvent.native_handle() }) == 1)
-				break;
-
 			bool bAddDelete=false, bCommit=false;
 
+			for (auto Messages = WorkQueue.pop_all(); !Messages.empty(); Messages.pop())
 			{
-				for (auto Messages = WorkQueue.pop_all(); !Messages.empty(); Messages.pop())
-				{
-					SCOPE_EXIT{ SQLiteDb::EndTransaction(); };
+				SCOPE_EXIT{ SQLiteDb::EndTransaction(); };
 
-					auto& item = Messages.front();
-					if (item) //DeleteAndAddAsync
-					{
-						SQLiteDb::BeginTransaction();
-						if (item->DeleteId)
-							DeleteInternal(item->DeleteId);
-						AddInternal(item->TypeHistory, item->HistoryName, item->Type, item->Lock, item->strName, item->Time, item->strUuid, item->strFile, item->strData);
-						bAddDelete = true;
-					}
-					else // EndTransaction
-					{
-						bCommit = true;
-					}
+				if (const auto& item = Messages.front()) //DeleteAndAddAsync
+				{
+					SQLiteDb::BeginTransaction();
+					if (item->DeleteId)
+						DeleteInternal(item->DeleteId);
+					AddInternal(item->TypeHistory, item->HistoryName, item->Type, item->Lock, item->strName, item->Time, item->strUuid, item->strFile, item->strData);
+					bAddDelete = true;
+				}
+				else // EndTransaction
+				{
+					bCommit = true;
 				}
 			}
+
 			if (bAddDelete)
 				AsyncDeleteAddDone.set();
+
 			if (bCommit)
 				AsyncCommitDone.set();
 		}
@@ -2334,7 +2343,7 @@ private:
 	void Export(representation_destination&) const override {}
 };
 
-static bool is_uuid(string_view const Str)
+bool is_uuid(string_view const Str)
 {
 	static const std::wregex re(RE_BEGIN RE_ANY_UUID RE_END, std::regex::icase | std::regex::optimize);
 	return std::regex_search(ALL_CONST_RANGE(Str), re);
@@ -2392,8 +2401,26 @@ static string GetDatabasePath(string_view const FileName, bool const Local)
 {
 	return FileName == SQLiteDb::memory_db_name?
 		string(FileName) :
-		path::join(Local? Global->Opt->LocalProfilePath : Global->Opt->ProfilePath, FileName);
+		path::join(Local? Global->Opt->LocalProfilePath : Global->Opt->ProfilePath, FileName) + L".db"sv;
 }
+
+static string rename_bad_database(string_view const Name)
+{
+	for (size_t i = 0; ; ++i)
+	{
+		const auto Dest = format(FSTR(L"{}.bad{}"sv), Name, i? format(FSTR(L".{}"sv), Name) : L""sv);
+		if (os::fs::move_file(Name, Dest))
+			return Dest;
+
+		const auto ErrorState = os::last_error();
+		if (ErrorState.Win32Error == ERROR_ALREADY_EXISTS)
+			continue;
+
+		LOGWARNING(L"move_file({}): {}"sv, Name, ErrorState);
+		return {};
+	}
+}
+
 
 template<class T>
 std::unique_ptr<T> config_provider::CreateWithFallback(string_view const Name)
@@ -2410,11 +2437,21 @@ std::unique_ptr<T> config_provider::CreateWithFallback(string_view const Name)
 	{
 		return std::make_unique<T>(Name);
 	}
-	catch (const far_sqlite_exception& e1)
+	catch (far_sqlite_exception const& e1)
 	{
 		Report(concat(Name, L':'));
 		Report(concat(L"  "sv, e1.message()));
-		if (Global->Opt->ReadOnlyConfig || !os::fs::move_file(Name, Name + L".bad"sv, MOVEFILE_REPLACE_EXISTING))
+
+		string NewName;
+
+		auto OpenInMemory = Global->Opt->ReadOnlyConfig;
+		if (!OpenInMemory)
+		{
+			NewName = rename_bad_database(Name);
+			OpenInMemory = NewName.empty();
+		}
+
+		if (OpenInMemory)
 		{
 			Report(L"  - database is opened in memory"sv);
 			return std::make_unique<T>(SQLiteDb::memory_db_name);
@@ -2423,10 +2460,10 @@ std::unique_ptr<T> config_provider::CreateWithFallback(string_view const Name)
 		try
 		{
 			auto Result = std::make_unique<T>(Name);
-			Report(L"  - database file is renamed to *.bad and new one is created"sv);
+			Report(format(FSTR(L"  - database file is renamed to {} and new one is created"sv), PointToName(NewName)));
 			return Result;
 		}
-		catch (const far_sqlite_exception& e2)
+		catch (far_sqlite_exception const& e2)
 		{
 			Report(concat(L"  "sv, e2.message()));
 			Report(L"  - database is opened in memory"sv);
@@ -2475,27 +2512,27 @@ enum dbcheck: int
 
 HierarchicalConfigUniquePtr config_provider::CreatePluginsConfig(const string_view Uuid, const bool Local, bool UseFallback)
 {
-	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_NONE, path::join(L"PluginsData"sv, Uuid) + L".db"sv, encoding::utf8::get_bytes(Uuid).c_str(), Local, true, UseFallback);
+	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_NONE, path::join(L"PluginsData"sv, Uuid), encoding::utf8::get_bytes(Uuid).c_str(), Local, true, UseFallback);
 }
 
 HierarchicalConfigUniquePtr config_provider::CreateFiltersConfig()
 {
-	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_FILTERS, L"filters.db"sv, "filters");
+	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_FILTERS, L"filters"sv, "filters");
 }
 
 HierarchicalConfigUniquePtr config_provider::CreateHighlightConfig()
 {
-	return CreateHierarchicalConfig<HighlightHierarchicalConfigDb>(CHECK_HIGHLIGHT, L"highlight.db"sv, "highlight");
+	return CreateHierarchicalConfig<HighlightHierarchicalConfigDb>(CHECK_HIGHLIGHT, L"highlight"sv, "highlight");
 }
 
 HierarchicalConfigUniquePtr config_provider::CreateShortcutsConfig()
 {
-	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_SHORTCUTS, L"shortcuts.db"sv, "shortcuts", true);
+	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_SHORTCUTS, L"shortcuts"sv, "shortcuts", true);
 }
 
 HierarchicalConfigUniquePtr config_provider::CreatePanelModesConfig()
 {
-	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_PANELMODES, L"panelmodes.db"sv, "panelmodes");
+	return CreateHierarchicalConfig<HierarchicalConfigDb>(CHECK_PANELMODES, L"panelmodes"sv, "panelmodes");
 }
 
 config_provider::implementation::implementation()
@@ -2511,20 +2548,20 @@ config_provider::implementation::~implementation()
 
 static auto pluginscache_db_name()
 {
-	return format(FSTR(L"plugincache.{}.db"sv), build::platform());
+	return format(FSTR(L"plugincache.{}"sv), build::platform());
 }
 
 
 config_provider::config_provider(mode Mode):
 	m_Mode(Mode),
-	m_GeneralCfg(CreateDatabase<GeneralConfigDb>(L"generalconfig.db"sv, false)),
-	m_LocalGeneralCfg(CreateDatabase<LocalGeneralConfigDb>(L"localconfig.db"sv, true)),
-	m_ColorsCfg(CreateDatabase<ColorsConfigDb>(L"colors.db"sv, false)),
-	m_AssocConfig(CreateDatabase<AssociationsConfigDb>(L"associations.db"sv, false)),
-	m_PlCacheCfg(CreateDatabase<PluginsCacheConfigDb>(pluginscache_db_name(), true)),
-	m_PlHotkeyCfg(CreateDatabase<PluginsHotkeysConfigDb>(L"pluginhotkeys.db"sv, false)),
-	m_HistoryCfg(CreateDatabase<HistoryConfigDb>(L"history.db"sv, true)),
-	m_HistoryCfgMem(CreateDatabase<HistoryConfigMemory>(SQLiteDb::memory_db_name, true))
+	m_GeneralCfg([this]{ return CreateDatabase<GeneralConfigDb>(L"generalconfig"sv, false); }),
+	m_LocalGeneralCfg([this]{ return CreateDatabase<LocalGeneralConfigDb>(L"localconfig"sv, true); }),
+	m_ColorsCfg([this]{ return CreateDatabase<ColorsConfigDb>(L"colors"sv, false); }),
+	m_AssocConfig([this]{ return CreateDatabase<AssociationsConfigDb>(L"associations"sv, false); }),
+	m_PlCacheCfg([this]{ return CreateDatabase<PluginsCacheConfigDb>(pluginscache_db_name(), true); }),
+	m_PlHotkeyCfg([this]{ return CreateDatabase<PluginsHotkeysConfigDb>(L"pluginhotkeys"sv, false); }),
+	m_HistoryCfg([this]{ return CreateDatabase<HistoryConfigDb>(L"history"sv, true); }),
+	m_HistoryCfgMem([this]{ return CreateDatabase<HistoryConfigMemory>(SQLiteDb::memory_db_name, true); })
 {
 }
 
@@ -2567,14 +2604,17 @@ void config_provider::Export(string_view const File)
 		auto& e = CreateChild(root, "pluginsconfig");
 		for(const auto& i: os::fs::enum_files(path::join(Global->Opt->ProfilePath, L"PluginsData"sv, Ext)))
 		{
+			if (!os::fs::is_file(i))
+				continue;
+
 			const auto FileName = name_ext(i.FileName).first;
-			if (is_uuid(FileName))
-			{
-				auto& PluginRoot = CreateChild(e, "plugin");
-				SetAttribute(PluginRoot, "guid", encoding::utf8::get_bytes(FileName));
-				Representation.SetRoot(PluginRoot);
-				CreatePluginsConfig(FileName)->Export(Representation);
-			}
+			if (!is_uuid(FileName))
+				continue;
+
+			auto& PluginRoot = CreateChild(e, "plugin");
+			SetAttribute(PluginRoot, "guid", encoding::utf8::get_bytes(FileName));
+			Representation.SetRoot(PluginRoot);
+			CreatePluginsConfig(FileName)->Export(Representation);
 		}
 	}
 

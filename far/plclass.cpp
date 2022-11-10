@@ -56,6 +56,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
+#include "platform.process.hpp"
 
 // Common:
 #include "common/enum_tokens.hpp"
@@ -170,7 +171,7 @@ plugin_factory::plugin_module_ptr native_plugin_factory::Create(const string& fi
 	auto Module = std::make_unique<native_plugin_module>(filename);
 	if (!*Module)
 	{
-		const auto ErrorState = last_error();
+		const auto ErrorState = os::last_error();
 
 		Module.reset();
 
@@ -212,7 +213,7 @@ bool native_plugin_factory::IsPlugin(const string& FileName) const
 	const os::fs::file ModuleFile(FileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
 	if (!ModuleFile)
 	{
-		LOGDEBUG(L"create_file({}) {}"sv, FileName, last_error());
+		LOGDEBUG(L"create_file({}) {}"sv, FileName, os::last_error());
 		return false;
 	}
 
@@ -447,7 +448,7 @@ static auto MakeSignature(const os::fs::find_data& Data)
 
 bool Plugin::SaveToCache()
 {
-	PluginInfo Info = {sizeof(Info)};
+	PluginInfo Info{ sizeof(Info) };
 	GetPluginInfo(&Info);
 
 	auto& PlCache = ConfigProvider().PlCacheCfg();
@@ -509,7 +510,7 @@ void Plugin::InitExports()
 	}
 }
 
-Plugin::Plugin(plugin_factory* Factory, const string& ModuleName):
+Plugin::Plugin(plugin_factory* Factory, const string_view ModuleName):
 	m_Factory(Factory),
 	m_strModuleName(ModuleName),
 	m_strCacheName(ModuleName)
@@ -548,7 +549,7 @@ bool Plugin::LoadData()
 
 	string strCurPlugDiskPath;
 	wchar_t Drive[]{ L'=', 0, L':', 0 };
-	const auto strCurPath = os::fs::GetCurrentDirectory();
+	const auto strCurPath = os::fs::get_current_directory();
 
 	if (ParsePath(m_strModuleName) == root_type::drive_letter)  // если указан локальный путь, то...
 	{
@@ -579,7 +580,7 @@ bool Plugin::LoadData()
 	}
 	InitExports();
 
-	GlobalInfo Info={sizeof(Info)};
+	GlobalInfo Info{ sizeof(Info) };
 
 	if(GetGlobalInfo(&Info) &&
 		Info.StructSize &&
@@ -720,7 +721,7 @@ bool Plugin::Unload(bool bExitFAR)
 
 	if (bExitFAR)
 	{
-		ExitInfo Info={sizeof(Info)};
+		ExitInfo Info{ sizeof(Info) };
 		ExitFAR(&Info);
 	}
 
@@ -774,9 +775,7 @@ void Plugin::SubscribeToSynchroEvents()
 	{
 		const auto Param = std::any_cast<void*>(Payload);
 
-		ProcessSynchroEventInfo Info = { sizeof(Info) };
-		Info.Event = SE_COMMONSYNCHRO;
-		Info.Param = Param;
+		ProcessSynchroEventInfo Info{ sizeof(Info), SE_COMMONSYNCHRO, Param };
 		ProcessSynchroEvent(&Info);
 	});
 }
@@ -856,7 +855,7 @@ bool Plugin::InitLang(string_view const Path, string_view const Language)
 		PluginLang = std::make_unique<plugin_language>(Path, Language);
 		return true;
 	}
-	catch (const std::exception& e)
+	catch (std::exception const& e)
 	{
 		LOGERROR(L"{}"sv, e);
 		return false;
@@ -1218,10 +1217,10 @@ void Plugin::ExitFAR(ExitInfo *Info)
 
 void Plugin::ExecuteFunctionImpl(export_index const ExportId, function_ref<void()> const Callback)
 {
-	const auto HandleFailure = [&]
+	const auto HandleFailure = [&](DWORD const ExceptionCode = EXIT_FAILURE)
 	{
 		if (use_terminate_handler())
-			std::_Exit(EXIT_FAILURE);
+			os::process::terminate_by_user(ExceptionCode);
 
 		m_Factory->Owner()->UnloadPlugin(this, ExportId);
 	};
@@ -1259,10 +1258,7 @@ void Plugin::ExecuteFunctionImpl(export_index const ExportId, function_ref<void(
 			HandleException(handle_std_exception, e);
 		});
 	},
-	[&](DWORD)
-	{
-		HandleFailure();
-	},
+	HandleFailure,
 	m_Factory->ExportsNames()[ExportId].AName, this);
 }
 
@@ -1281,11 +1277,11 @@ class custom_plugin_factory final: public plugin_factory
 {
 public:
 	NONCOPYABLE(custom_plugin_factory);
-	custom_plugin_factory(PluginManager* Owner, const string& Filename):
+	custom_plugin_factory(PluginManager* Owner, const string_view Filename):
 		plugin_factory(Owner),
 		m_Imports(Filename)
 	{
-		GlobalInfo Info = { sizeof(Info) };
+		GlobalInfo Info{ sizeof(Info) };
 
 		if (m_Imports.IsValid() &&
 			m_Imports.pInitialize(&Info) &&
@@ -1311,7 +1307,7 @@ public:
 		if (!m_Success)
 			return;
 
-		ExitInfo Info = { sizeof(Info) };
+		ExitInfo Info{ sizeof(Info) };
 		m_Imports.pFree(&Info);
 		custom_plugin_factory::ProcessError(m_Imports.pFree.name());
 	}
@@ -1358,7 +1354,7 @@ public:
 		if (!m_Imports.pGetError)
 			return;
 
-		ErrorInfo Info = { sizeof(Info) };
+		ErrorInfo Info{ sizeof(Info) };
 		if (!m_Imports.pGetError(&Info))
 			return;
 
@@ -1406,7 +1402,7 @@ private:
 
 #undef DECLARE_IMPORT_FUNCTION
 
-		explicit ModuleImports(const string& Filename):
+		explicit ModuleImports(const string_view Filename):
 			m_Module(Filename),
 			m_IsValid(pInitialize && pIsPlugin && pCreateInstance && pGetFunctionAddress && pGetError && pDestroyInstance && pFree)
 		{
@@ -1423,7 +1419,7 @@ private:
 	bool m_Success{};
 };
 
-plugin_factory_ptr CreateCustomPluginFactory(PluginManager* Owner, const string& Filename)
+plugin_factory_ptr CreateCustomPluginFactory(PluginManager* const Owner, const string_view Filename)
 {
 	auto Model = std::make_unique<custom_plugin_factory>(Owner, Filename);
 	if (!Model->Success())

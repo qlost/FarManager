@@ -50,9 +50,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pipe.hpp"
 #include "strmix.hpp"
 #include "tracer.hpp"
+#include "res.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.concurrency.hpp"
+#include "platform.debug.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
 #include "platform.version.hpp"
@@ -68,27 +71,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace
 {
-	static const auto log_argument = L"/service:log_viewer"sv;
+	const auto log_argument = L"/service:log_viewer"sv;
 
-	static string get_parameter(string_view const Name)
+	string get_parameter(string_view const Name)
 	{
 		return os::env::get(concat(L"far.log."sv, Name));
 	}
 
 	template<typename sink_type>
-	static string get_sink_parameter(string_view const Name)
+	string get_sink_parameter(string_view const Name)
 	{
 		return get_parameter(concat(L"sink."sv, sink_type::name, L'.', Name));
 	}
 
-	static auto parse_level(string_view const Str, logging::level const Default)
+	auto parse_level(string_view const Str, logging::level const Default)
 	{
 		if (Str.empty())
 			return Default;
 
 		using level = logging::level;
 
-		static std::unordered_map<string_view, level, hash_icase_t, equal_icase_t> LevelMap
+		static std::unordered_map<string_view, level, string_comparer_icase, string_comparer_icase> LevelMap
 		{
 #define STRLEVEL(x) { WSTRVIEW(x), level::x }
 			STRLEVEL(off),
@@ -107,7 +110,7 @@ namespace
 		return ItemIterator == LevelMap.cend()? Default : ItemIterator->second;
 	}
 
-	static string_view level_to_string(logging::level const Level)
+	string_view level_to_string(logging::level const Level)
 	{
 		using level = logging::level;
 
@@ -129,7 +132,7 @@ namespace
 		}
 	}
 
-	static WORD level_to_color(logging::level const Level)
+	WORD level_to_color(logging::level const Level)
 	{
 		using level = logging::level;
 
@@ -144,12 +147,12 @@ namespace
 		return F_DARKGRAY;
 	}
 
-	static string get_location(std::string_view const Function, std::string_view const File, int const Line)
+	string get_location(std::string_view const Function, std::string_view const File, int const Line)
 	{
 		return format(FSTR(L"{}, {}({})"sv), encoding::utf8::get_chars(Function), encoding::utf8::get_chars(File), Line);
 	}
 
-	static string get_thread_id()
+	string get_thread_id()
 	{
 		return str(GetCurrentThreadId());
 	}
@@ -163,14 +166,14 @@ namespace
 			m_Location(get_location(Function, File, Line)),
 			m_Level(Level)
 		{
-			std::tie(m_Date, m_Time) = get_time();
+			std::tie(m_Date, m_Time) = format_datetime(os::chrono::now_utc());
 
 			if (TraceDepth)
 			{
 				m_Data += L"\nLog stack:\n"sv;
 
 				const auto FramesToSkip = 4; // log -> engine.log -> submit -> this ctor
-				tracer.get_symbols({}, os::debug::current_stack(FramesToSkip, TraceDepth), [&](string_view const TraceLine)
+				tracer.get_symbols({}, os::debug::current_stacktrace(FramesToSkip, TraceDepth), [&](string_view const TraceLine)
 				{
 					append(m_Data, TraceLine, L'\n');
 				});
@@ -265,11 +268,13 @@ namespace
 					m_Buffer(Buffer)
 				{
 					CONSOLE_SCREEN_BUFFER_INFO csbi;
-					if (!GetConsoleScreenBufferInfo(Buffer, &csbi))
-						return;
+					if (!get_console_screen_buffer_info(Buffer, &csbi))
+						throw MAKE_FAR_EXCEPTION(L"get_console_screen_buffer_info"sv);
+
+					if (!SetConsoleTextAttribute(Buffer, Color))
+						throw MAKE_FAR_EXCEPTION(L"SetConsoleTextAttributes"sv);
 
 					m_SavedAttributes = csbi.wAttributes;
-					SetConsoleTextAttribute(Buffer, Color);
 				}
 
 				~console_color()
@@ -286,7 +291,8 @@ namespace
 			const auto write_console = [Buffer](string_view Str)
 			{
 				DWORD Written;
-				WriteConsole(Buffer, Str.data(), static_cast<DWORD>(Str.size()), &Written, {});
+				if (!WriteConsole(Buffer, Str.data(), static_cast<DWORD>(Str.size()), &Written, {}))
+					throw MAKE_FAR_EXCEPTION(L"WriteConsole"sv);
 			};
 
 			const auto write = [&](string_view const Borders, WORD const Color, string_view const Str)
@@ -312,7 +318,19 @@ namespace
 
 		void handle(message Message) override
 		{
-			process(m_Buffer.native_handle(), Message);
+			if (!m_Buffer)
+				return;
+
+			try
+			{
+				process(m_Buffer.native_handle(), Message);
+			}
+			catch (far_exception const& e)
+			{
+				m_Buffer.close();
+
+				LOGERROR(L"{}"sv, e);
+			}
 		}
 
 		void configure(string_view const Parameters) override
@@ -359,21 +377,23 @@ namespace
 
 			try
 			{
-				m_Writer.write(L"["sv);
-				m_Writer.write(Message.m_Date);
-				m_Writer.write(L" "sv);
-				m_Writer.write(Message.m_Time);
-				m_Writer.write(L"]["sv);
-				m_Writer.write(Message.m_ThreadId);
-				m_Writer.write(L"]["sv);
-				m_Writer.write(Message.m_LevelString);
-				m_Writer.write(L"] "sv);
-				m_Writer.write(Message.m_Data);
-				m_Writer.write(L" "sv);
-				m_Writer.write(L"["sv);
-				m_Writer.write(Message.m_Location);
-				m_Writer.write(L"]"sv);
-				m_Writer.write(m_Eol);
+				m_Writer.write(
+					L"["sv,
+					Message.m_Date,
+					L" "sv,
+					Message.m_Time,
+					L"]["sv,
+					Message.m_ThreadId,
+					L"]["sv,
+					Message.m_LevelString,
+					L"] "sv,
+					Message.m_Data,
+					L" "sv,
+					L"["sv,
+					Message.m_Location,
+					L"]"sv,
+					m_Eol
+				);
 
 				m_Stream.flush();
 			}
@@ -390,14 +410,10 @@ namespace
 	private:
 		static string make_filename()
 		{
-			auto [Date, Time] = get_time();
-			std::replace(ALL_RANGE(Date), L'/', L'.');
-			std::replace(ALL_RANGE(Time), L':', L'.');
-
 			return path::join
 			(
 				get_sink_parameter<sink_file>(L"path"sv),
-				format(L"Far.{}_{}_{}.txt"sv, Date, Time, GetCurrentProcessId())
+				unique_name() + L".txt"sv
 			);
 		}
 
@@ -436,7 +452,7 @@ namespace
 
 			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(format(FSTR(L"\"{}\" {} {}"sv), m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
 			{
-				LOGERROR(L"{}"sv, last_error());
+				LOGERROR(L"{}"sv, os::last_error());
 				return;
 			}
 
@@ -445,7 +461,7 @@ namespace
 
 			while (!ConnectNamedPipe(m_Pipe.native_handle(), {}) && GetLastError() != ERROR_PIPE_CONNECTED)
 			{
-				LOGWARNING(L"ConnectNamedPipe({}): {}"sv, m_PipeName, last_error());
+				LOGWARNING(L"ConnectNamedPipe({}): {}"sv, m_PipeName, os::last_error());
 			}
 
 			m_Connected = true;
@@ -500,10 +516,10 @@ namespace
 	{
 	protected:
 		template<typename... args>
-		explicit async_impl(bool const IsDiscardable):
-			m_IsDiscardable(IsDiscardable)
+		explicit async_impl(bool const IsDiscardable, string_view const Name):
+			m_IsDiscardable(IsDiscardable),
+			m_Thread(os::thread::mode::join, &async_impl::poll, this, Name)
 		{
-			m_Thread = os::thread(os::thread::mode::join, &async_impl::poll, this);
 		}
 
 		virtual ~async_impl()
@@ -518,7 +534,7 @@ namespace
 			if (m_Messages.size() > QueueBufferSize * 2)
 			{
 				m_Messages.clear();
-				LOGWARNING(L"Queue overflow"sv);
+				LOGERROR(L"Queue overflow"sv);
 			}
 
 			m_Messages.push(std::move(Message));
@@ -530,9 +546,9 @@ namespace
 
 		virtual void out(message&& Message) = 0;
 
-		void poll()
+		void poll(string_view const Name)
 		{
-			os::debug::set_thread_name(L"Log sink");
+			os::debug::set_thread_name(format(FSTR(L"Log sink ({})"sv), Name));
 
 			return seh_try_no_ui(
 				[&]
@@ -596,7 +612,7 @@ namespace
 		static constexpr auto mode = sink_mode::mode::async;
 
 		explicit async(bool const IsDiscardable):
-			async_impl(IsDiscardable)
+			async_impl(IsDiscardable, sink_type::get_name())
 		{
 		}
 
@@ -647,12 +663,14 @@ namespace logging
 
 		engine() = default;
 
+		~engine()
+		{
+			s_Destroyed = true;
+		}
+
 		void configure(string_view const Parameters)
 		{
-			{
-				SCOPED_ACTION(std::lock_guard)(m_CS);
-				initialise();
-			}
+			initialise();
 
 			if (equal_icase(Parameters, L"reconfigure"))
 			{
@@ -662,7 +680,7 @@ namespace logging
 				configure_env();
 			}
 
-			for (auto& i: m_Sinks)
+			for (const auto& i: m_Sinks)
 			{
 				i->configure(Parameters);
 			}
@@ -671,13 +689,13 @@ namespace logging
 		[[nodiscard]]
 		bool filter(level const Level)
 		{
+			if (s_Destroyed)
+				return false;
+
 			switch (m_Status)
 			{
 			case engine_status::incomplete:
-				{
-					SCOPED_ACTION(std::lock_guard)(m_CS);
-					initialise();
-				}
+				initialise();
 				[[fallthrough]];
 			case engine_status::complete:
 				return m_Level >= Level;
@@ -755,11 +773,15 @@ namespace logging
 
 		void initialise()
 		{
+			SCOPED_ACTION(std::lock_guard)(m_CS);
+
 			if (m_Status != engine_status::incomplete)
 				return;
 
 			m_Status = engine_status::in_progress;
 			SCOPE_EXIT{ m_Status = engine_status::complete; flush_queue(); };
+
+			SCOPED_ACTION(os::last_error_guard);
 
 			// No recursion if it's the helper process
 			if (contains(string_view{ GetCommandLine() }, log_argument))
@@ -813,7 +835,7 @@ namespace logging
 					m_Sinks.emplace_back(std::make_unique<sync<T>>()) :
 					m_Sinks.emplace_back(std::make_unique<async<T>>(T::is_discardable));
 			}
-			catch (const far_exception& e)
+			catch (far_exception const& e)
 			{
 				LOGERROR(L"{}"sv, e);
 			}
@@ -825,7 +847,7 @@ namespace logging
 			(..., configure_sink<args>(SinkNames, AllowAdd));
 		}
 
-		void submit(message const& Message)
+		void submit(message const& Message) const
 		{
 			for (const auto& i: m_Sinks)
 				i->handle(Message);
@@ -836,9 +858,10 @@ namespace logging
 		os::concurrency::synced_queue<message> m_QueuedMessages;
 		std::atomic_size_t m_QueuedMessagesCount;
 		std::atomic<level> m_Level{ level::off };
-		level m_TraceLevel{ level::error };
+		level m_TraceLevel{ level::fatal };
 		size_t m_TraceDepth{ std::numeric_limits<size_t>::max() };
 		std::atomic<engine_status> m_Status{ engine_status::incomplete };
+		static inline bool s_Destroyed;
 	};
 
 	bool filter(level const Level)
@@ -876,10 +899,12 @@ namespace logging
 		return Argument == log_argument;
 	}
 
-	int main(const wchar_t* const PipeName)
+	int main(string_view const PipeName)
 	{
+		consoleicons::instance().set_icon(FAR_ICON_LOG);
+
 		console.SetTitle(concat(L"Far Log Viewer: "sv, PipeName));
-		console.SetTextAttributes(colors::ConsoleColorToFarColor(F_LIGHTGRAY | B_BLACK));
+		console.SetTextAttributes(colors::NtColorToFarColor(F_LIGHTGRAY | B_BLACK));
 
 		DWORD ConsoleMode = 0;
 		console.GetMode(console.GetInputHandle(), ConsoleMode);
@@ -889,7 +914,7 @@ namespace logging
 
 		while (!PipeFile.Open(PipeName, GENERIC_READ, 0, {}, OPEN_EXISTING))
 		{
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			if (!ConsoleYesNo(L"Retry"sv, false, [&]{ std::wcerr << format(FSTR(L"Can't open pipe {}: {}"sv), PipeName, ErrorState.Win32ErrorStr()) << std::endl; }))
 				return EXIT_FAILURE;
@@ -914,13 +939,27 @@ namespace logging
 			catch (far_exception const& e)
 			{
 				if (e.Win32Error == ERROR_BROKEN_PIPE)
-					return EXIT_SUCCESS;
+				{
+					// If the last logged message was a warning or worse, the user probably wants to see it
+					if (Message.m_Level < level::info)
+						os::chrono::sleep_for(5s);
 
-				std::wcerr << format(FSTR(L"Error reading pipe {}: {}"sv), PipeName, e.format_error()) << std::endl;
+					return EXIT_SUCCESS;
+				}
+
+				std::wcerr << format(FSTR(L"Error reading pipe {}: {}"sv), PipeName, e) << std::endl;
+				os::chrono::sleep_for(5s);
 				return EXIT_FAILURE;
 			}
 
-			sink_console::process(GetStdHandle(STD_OUTPUT_HANDLE), Message);
+			try
+			{
+				sink_console::process(GetStdHandle(STD_OUTPUT_HANDLE), Message);
+			}
+			catch (far_exception const& e)
+			{
+				std::wcerr << format(FSTR(L"sink_console::process(): {}"sv), e) << std::endl;
+			}
 		}
 	}
 }

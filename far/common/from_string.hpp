@@ -34,6 +34,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "string_utils.hpp"
 
+#include <stdexcept>
+
 //----------------------------------------------------------------------------
 
 namespace detail
@@ -152,12 +154,15 @@ template<typename T>
 [[nodiscard]]
 bool from_string(std::wstring_view const Str, T& Value, size_t* Pos = nullptr, int Base = 10)
 {
+	if (Str.empty())
+		return false;
+
 	try
 	{
 		detail::from_string(Str, Value, Pos, Base);
 		return true;
 	}
-	catch (const std::exception&)
+	catch (std::exception const&)
 	{
 		return false;
 	}

@@ -51,7 +51,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //----------------------------------------------------------------------------
 
 enum class lng : int;
-class RegExp;
+enum class search_case_fold;
+class regex_exception;
 struct error_state_ex;
 
 /*
@@ -120,7 +121,7 @@ int GetSearchReplaceString(
 	string& ReplaceStr,
 	string_view TextHistoryName,
 	string_view ReplaceHistoryName,
-	bool* pCase,
+	search_case_fold* pCaseFold,
 	bool* pWholeWords,
 	bool* pReverse,
 	bool* pRegexp,
@@ -178,8 +179,7 @@ inline void cancel_operation()
 // operation_cancelled exception: cancelled
 bool retryable_ui_operation(function_ref<bool()> Action, string_view Name, lng ErrorDescription, bool& SkipErrors);
 
-void ReCompileErrorMessage(const RegExp& re, string_view str);
-void ReMatchErrorMessage(const RegExp& re);
+void ReCompileErrorMessage(regex_exception const& e, string_view str);
 
 struct goto_coord
 {
@@ -194,6 +194,8 @@ bool GoToRowCol(goto_coord& Row, goto_coord& Col, bool& Hex, string_view HelpTop
 bool ConfirmAbort();
 bool CheckForEscAndConfirmAbort();
 bool RetryAbort(std::vector<string>&& Messages);
+
+void regex_playground();
 
 class progress_impl
 {

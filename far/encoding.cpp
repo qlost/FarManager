@@ -168,7 +168,7 @@ static bool is_retarded_error()
 
 static size_t widechar_to_multibyte_with_validation(uintptr_t const Codepage, string_view const Str, span<char> Buffer, encoding::diagnostics* const Diagnostics)
 {
-	const auto ErrorPositionEnabled = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::enabled_diagnostics::error_position;
+	const auto ErrorPositionEnabled = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::diagnostics::error_position;
 	if (ErrorPositionEnabled)
 		Diagnostics->ErrorPosition.reset();
 
@@ -235,7 +235,7 @@ static size_t widechar_to_multibyte_with_validation(uintptr_t const Codepage, st
 
 static size_t multibyte_to_widechar_with_validation(uintptr_t const Codepage, std::string_view Str, span<wchar_t> Buffer, encoding::diagnostics* const Diagnostics)
 {
-	const auto ErrorPositionEnabled = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::enabled_diagnostics::error_position;
+	const auto ErrorPositionEnabled = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::diagnostics::error_position;
 	if (ErrorPositionEnabled)
 		Diagnostics->ErrorPosition.reset();
 
@@ -515,6 +515,15 @@ static size_t get_chars_impl(uintptr_t const Codepage, std::string_view Str, spa
 	if (Str.empty())
 		return 0;
 
+	const auto validate_unicode = [&]
+	{
+		if (Str.size() & 1 && Diagnostics && Diagnostics->EnabledDiagnostics & encoding::diagnostics::incomplete_bytes)
+		{
+			Diagnostics->ErrorPosition = Str.size() - 1;
+			Diagnostics->IncompleteBytes = 1;
+		}
+	};
+
 	switch (Codepage)
 	{
 	case CP_UTF8:
@@ -525,10 +534,12 @@ static size_t get_chars_impl(uintptr_t const Codepage, std::string_view Str, spa
 
 	case CP_UNICODE:
 		copy_memory(Str.data(), Buffer.data(), std::min(Str.size(), Buffer.size() * sizeof(wchar_t)));
+		validate_unicode();
 		return Str.size() / sizeof(wchar_t);
 
 	case CP_REVERSEBOM:
 		swap_bytes(Str.data(), Buffer.data(), std::min(Str.size(), Buffer.size() * sizeof(wchar_t)));
+		validate_unicode();
 		return Str.size() / sizeof(wchar_t);
 
 	default:
@@ -657,7 +668,7 @@ encoding::writer::writer(std::ostream& Stream, uintptr_t Codepage, bool AddSigna
 {
 }
 
-void encoding::writer::write(const string_view Str)
+void encoding::writer::write_impl(const string_view Str)
 {
 	if (m_AddSignature)
 	{
@@ -673,47 +684,13 @@ void encoding::writer::write(const string_view Str)
 	if (m_Codepage == CP_UNICODE)
 		return io::write(*m_Stream, Str);
 
-
-	diagnostics Diagnostics{ error_position };
+	diagnostics Diagnostics{ diagnostics::error_position };
 	get_bytes(m_Codepage, Str, m_Buffer, m_IgnoreEncodingErrors? nullptr : &Diagnostics);
 
 	if (Diagnostics.ErrorPosition)
 		raise_exception(m_Codepage, Str, *Diagnostics.ErrorPosition);
 
 	io::write(*m_Stream, m_Buffer);
-}
-
-encoding::memory_writer::memory_writer(uintptr_t const Codepage, bool const AddSignature):
-	m_Codepage(Codepage),
-	m_AddSignature(AddSignature)
-{
-}
-
-void encoding::memory_writer::write(string_view Str, const bool validate)
-{
-	if (m_AddSignature)
-	{
-		m_Data.emplace_back(get_signature_bytes(m_Codepage));
-		m_AddSignature = false;
-	}
-
-	// Nothing to do here
-	if (Str.empty())
-		return;
-
-	diagnostics Diagnostics;
-	m_Data.emplace_back(get_bytes(m_Codepage, Str, validate ? &Diagnostics : nullptr));
-
-	if (Diagnostics.ErrorPosition)
-		raise_exception(m_Codepage, Str, *Diagnostics.ErrorPosition);
-}
-
-void encoding::memory_writer::flush_to(std::ostream& Stream)
-{
-	for (const auto& i: m_Data)
-	{
-		io::write(Stream, i);
-	}
 }
 
 //################################################################################################
@@ -945,7 +922,7 @@ static size_t BytesToUnicode(
 	{
 		wchar_t TmpBuffer[2]{};
 		auto ConversionError = false;
-		const auto IncompleteBytes = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::enabled_diagnostics::incomplete_bytes? &Diagnostics->IncompleteBytes : nullptr;
+		const auto IncompleteBytes = Diagnostics && Diagnostics->EnabledDiagnostics & encoding::diagnostics::incomplete_bytes? &Diagnostics->IncompleteBytes : nullptr;
 		const auto BytesConsumed = GetChar(StrIterator, StrEnd, TmpBuffer, ConversionError, State, IncompleteBytes);
 
 		if (!BytesConsumed)
@@ -955,7 +932,7 @@ static size_t BytesToUnicode(
 		{
 			TmpBuffer[0] = encoding::replace_char;
 
-			if (Diagnostics && Diagnostics->EnabledDiagnostics & encoding::enabled_diagnostics::error_position && !Diagnostics->ErrorPosition)
+			if (Diagnostics && Diagnostics->EnabledDiagnostics & encoding::diagnostics::error_position && !Diagnostics->ErrorPosition)
 				Diagnostics->ErrorPosition = StrIterator - Str.begin();
 		}
 
@@ -1366,13 +1343,14 @@ bool encoding::utf16::is_valid_surrogate_pair(wchar_t const First, wchar_t const
 	return is_high_surrogate(First) && is_low_surrogate(Second);
 }
 
-unsigned int encoding::utf16::extract_codepoint(wchar_t const First, wchar_t const Second)
+char32_t encoding::utf16::extract_codepoint(wchar_t const First, wchar_t const Second)
 {
 	static_assert(sizeof(wchar_t) == 2);
+
 	return 0b1'00000000'00000000u + ((First - ::utf16::surrogate_high_first) << 10) + (Second - ::utf16::surrogate_low_first);
 }
 
-unsigned int encoding::utf16::extract_codepoint(string_view const Str)
+char32_t encoding::utf16::extract_codepoint(string_view const Str)
 {
 	static_assert(sizeof(wchar_t) == 2);
 
@@ -1381,9 +1359,22 @@ unsigned int encoding::utf16::extract_codepoint(string_view const Str)
 		Str.front();
 }
 
-std::pair<wchar_t, wchar_t> encoding::utf16::to_surrogate(unsigned int const Codepoint)
+void encoding::utf16::remove_first_codepoint(string_view& Str)
 {
-	if (Codepoint <= std::numeric_limits<wchar_t>::max())
+	const auto IsSurrogate = Str.size() > 1 && is_valid_surrogate_pair(Str[0], Str[1]);
+	Str.remove_prefix(IsSurrogate? 2 : 1);
+}
+
+void encoding::utf16::remove_last_codepoint(string_view& Str)
+{
+	const auto Size = Str.size();
+	const auto IsSurrogate = Size > 1 && is_valid_surrogate_pair(Str[Size - 2], Str[Size - 1]);
+	Str.remove_suffix(IsSurrogate? 2 : 1);
+}
+
+std::pair<wchar_t, wchar_t> encoding::utf16::to_surrogate(char32_t const Codepoint)
+{
+	if (Codepoint <= std::numeric_limits<char16_t>::max())
 		return { static_cast<wchar_t>(Codepoint), 0 };
 
 	const auto TwentyBits = Codepoint - 0b1'00000000'00000000u;
@@ -1890,15 +1881,15 @@ TEST_CASE("encoding.utf16.surrogate")
 {
 	static const struct
 	{
-		unsigned Codepoint;
+		char32_t Codepoint;
 		std::array<wchar_t, 2> Pair;
 	}
 	Tests[]
 	{
-		{ U'\x000000', {L'\x0000', L'\x0000'} },
-		{ U'\x010000', {L'\xD800', L'\xDC00'} },
-		{ U'\x02070E', {L'\xD841', L'\xDF0E'} },
-		{ U'\x10FFFF', {L'\xDBFF', L'\xDFFF'} },
+		{ U'\U00000000', {L'\x0000', L'\x0000'} },
+		{ U'\U00010000', {L'\xD800', L'\xDC00'} },
+		{ U'\U0002070E', {L'\xD841', L'\xDF0E'} },
+		{ U'\U0010FFFF', {L'\xDBFF', L'\xDFFF'} },
 	};
 
 	for (const auto& i: Tests)

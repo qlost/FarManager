@@ -32,12 +32,17 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "placement.hpp"
+
 //----------------------------------------------------------------------------
 
 namespace nifty_counter
 {
 	template<typename type>
-	using buffer = std::aligned_storage_t<sizeof(type), alignof(type)>;
+	struct buffer
+	{
+		alignas(type) std::byte data[sizeof(type)];
+	};
 }
 
 #define NIFTY_DECLARE(Type, Instance)\
@@ -73,6 +78,6 @@ namespace Instance##_nifty_objects\
 	}\
 }\
 \
-Type& Instance = reinterpret_cast<Type&>(Instance##_nifty_objects::InitBuffer)
+Type& Instance = *static_cast<Type*>(static_cast<void*>(&Instance##_nifty_objects::InitBuffer.data))
 
 #endif // NIFTY_COUNTER_HPP_81EED24A_897B_4E3E_A23D_4117272E29D9

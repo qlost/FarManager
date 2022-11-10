@@ -83,9 +83,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    - Убрал непонятный мне запрет на использование маски файлов типа "*.*"
      (был когда-то, вроде, такой баг-репорт)
 */
-bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, FILETYPE_MODE Mode, bool AlwaysWaitFinish, bool AddToHistory, bool RunAs, function_ref<void(execute_info&)> const Launcher)
+bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, FILETYPE_MODE Mode, bool AlwaysWaitFinish, string_view CurrentDirectory, bool AddToHistory, bool RunAs, function_ref<void(execute_info&)> const Launcher)
 {
-	string strCommand, strDescription;
+	std::optional<os::fs::current_directory_guard> Guard;
+	// We have to set it - users can have associations like !.! which will work funny without this
+	if (!CurrentDirectory.empty())
+		Guard.emplace(CurrentDirectory);
+
+	string strCommand;
 
 	const subst_context Context(Name, ShortName);
 
@@ -96,10 +101,12 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 		int CommandCount=0;
 
 		std::vector<MenuItemEx> MenuItems;
+		string strDescription;
 
 		for(const auto& [Id, Mask]: ConfigProvider().AssocConfig()->TypedMasksEnumerator(Mode))
 		{
 			strCommand.clear();
+			strDescription.clear();
 
 			if (FMask.assign(Mask, FMF_SILENT))
 			{
@@ -174,6 +181,7 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 		execute_info Info;
 		Info.DisplayCommand = strCommand;
 		Info.Command = strCommand;
+		Info.Directory = CurrentDirectory;
 		Info.WaitMode = AlwaysWaitFinish? execute_info::wait_mode::wait_finish : execute_info::wait_mode::if_needed;
 		Info.RunAs = RunAs;
 		// We've already processed them!
@@ -264,6 +272,11 @@ bool GetFiletypeOpenMode(int keyPressed, FILETYPE_MODE& mode, bool& shouldForceI
 */
 void ProcessExternal(string_view const Command, string_view const Name, string_view const ShortName, bool const AlwaysWaitFinish, string_view const CurrentDirectory)
 {
+	std::optional<os::fs::current_directory_guard> Guard;
+	// We have to set it - users can have associations like !.! which will work funny without this
+	if (!CurrentDirectory.empty())
+		Guard.emplace(CurrentDirectory);
+
 	string strExecStr(Command);
 	bool PreserveLFN = false;
 	if (!SubstFileName(strExecStr, { Name, ShortName }, &PreserveLFN) || strExecStr.empty())
@@ -370,7 +383,7 @@ static intptr_t EditTypeRecordDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,v
 
 			if (Param1==ETR_BUTTON_OK)
 			{
-				return filemasks().assign(reinterpret_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, ETR_EDIT_MASKS, nullptr)));
+				return filemasks().assign(view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, ETR_EDIT_MASKS, nullptr)));
 			}
 			break;
 

@@ -46,9 +46,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //----------------------------------------------------------------------------
 
 struct FarColor;
+struct rgba;
 
 namespace colors
 {
+	namespace index
+	{
+		constexpr auto
+			nt_mask = 0xf,
+			nt_last = 15,
+			cube_first = nt_last + 1,
+			cube_size = 6,
+			cube_last = cube_first + cube_size * cube_size * cube_size - 1,
+			grey_first = cube_last + 1,
+			grey_last = 255;
+	}
+
 	COLORREF index_bits(COLORREF Colour);
 	COLORREF color_bits(COLORREF Colour);
 	COLORREF alpha_bits(COLORREF Colour);
@@ -77,11 +90,17 @@ namespace colors
 	COLORREF invert(COLORREF Colour, bool IsIndex);
 	void make_invert(COLORREF& Colour, bool IsIndex);
 
+	rgba to_rgba(COLORREF Color);
+	COLORREF to_color(rgba Rgba);
+
 	size_t color_hash(const FarColor& Value);
 
 	FarColor merge(const FarColor& Bottom, const FarColor& Top);
+
+	std::array<COLORREF, 16> nt_palette();
+
 	WORD FarColorToConsoleColor(const FarColor& Color);
-	FarColor ConsoleColorToFarColor(WORD Color);
+	FarColor NtColorToFarColor(WORD Color);
 	COLORREF ConsoleIndexToTrueColor(COLORREF Color);
 	const FarColor& PaletteColorToFarColor(PaletteColors ColorIndex);
 	const FarColor* StoreColor(const FarColor& Value);

@@ -10,6 +10,8 @@ USERCPP=$(USERCPP) /DDEBUG /Od
 !endif
 ENV_LIB_OPT=/merge:.pdata=.rdata /safeseh:no /debug:none
 
+PRECOMPILED_HEADER=headers
+
 LINK_OBJS = \
 	$(INTDIR)\TmpPanel.obj \
 	$(INTDIR)\TmpCfg.obj \
@@ -20,6 +22,8 @@ DOCS = \
 	*.temp
 
 !include ..\makefile_vc_def_inc
+CPPFLAGS = -I"$(FARDIR)/common" $(CPPFLAGS)
+
 !include ..\makefile_vc_target_inc
 
 $(INTDIR)\TmpPanel.obj: TmpPanel.cpp guid.hpp TmpCfg.hpp TmpClass.hpp TmpLng.hpp TmpPanel.hpp version.hpp $(COMINC)\plugin.hpp

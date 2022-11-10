@@ -243,7 +243,7 @@ the "dir" command in the provided example), Far will wait for the end of data
 in the input stream until you press Ctrl+Break.
 
  #-w[-]#
- Stretch to console window instead of console buffer or vice versa.
+ Show the interface within the console window instead of the console buffer or vice versa.
 
  #-t templateprofile#
  Location of Far template configuration file (overrides the ini file).
@@ -338,7 +338,7 @@ $ #Panel control commands#
  Restore default panels height                     #Ctrl+Alt+Numpad5#
  Show/Hide functional key bar at the bottom line.            #Ctrl+B#
  Toggle total and free size show mode                  #Ctrl+Shift+S#
- in bytes (if possible) or with size suffices K/M/G/T
+ in bytes (if possible) or with size suffixes K/M/G/T
 
  #File panel commands#
 
@@ -463,7 +463,46 @@ active panel. The following sort modes are available:
  Use group sorting                                        #Shift+F11#
  Show selected files first                                #Shift+F12#
 
+ You can ~fine-tune~@PanelSortCriteria@ sort modes by pressing #F4#.
+
  See also: common ~menu~@MenuCmd@ keyboard commands.
+
+
+@PanelSortCriteria
+$ #Sort criteria#
+ When files are considered equivalent using the selected sort mode, additional sort criteria are taken into account.
+ For example, if files are sorted by size and both "a.txt" and "b.txt" have the same size, "a.txt" will come first, as if they were sorted by name.
+ In this menu you can adjust the set of criteria associated with the selected sort mode.
+
+ #Ins#
+ Add a criterion to the set.
+
+ #Del#
+ Remove the selected criterion.
+
+ #F4#
+ Replace the selected criterion.
+
+ #+#
+ Use ascending order.
+
+ #-#
+ Use descending order.
+
+ #*#
+ Change the order.
+
+ #=#
+ Inherit the order from the corresponding sort mode.
+
+ #Ctrl+Up#
+ Move the criterion up.
+
+ #Ctrl+Down#
+ Move the criterion down.
+
+ #Ctrl+R#
+ Reset the set of criteria to default.
 
 
 @FastFind
@@ -1526,10 +1565,7 @@ $ #Menus: options menu#
 
  #Code pages#            Shows the ~Code pages~@CodePagesMenu@ menu.
 
- #Colors#                Allows to select colors for different
-                       interface items, to change the entire Far
-                       colors palette to black and white or to set
-                       the colors to default.
+ #Colors#                Shows the ~Color groups~@ColorGroups@ menu.
 
  #Files highlighting#    Shows ~Files highlighting~@Highlight@ and sort groups
  #and sort groups#       dialog.
@@ -2275,6 +2311,22 @@ the active panel, !##!\\!^!.! - a file on the passive
 panel with the same name as the name of the current
 file on the active panel.
 
+ #![#
+ "![" prefix forces all subsequent special symbols
+to refer to the left panel (see note 4).
+For example, ![!.! denotes a current file name on
+the left panel, ![!\\!^!.! - a file on the left
+panel with the same name as the name of the current
+file on the active panel.
+
+ #!]#
+ "!]" prefix forces all subsequent special symbols
+to refer to the right panel (see note 4).
+For example, !]!.! denotes a current file name on
+the right panel, !]!\\!^!.! - a file on the right
+panel with the same name as the name of the current
+file on the active panel.
+
  Notes:
 
  1. ^<wrap>When handling special characters, Far substitutes only the string
@@ -2304,7 +2356,7 @@ selected file names, in ANSI encoding, with full pathnames, each enclosed in quo
  3. ^<wrap>When there are multiple associations specified, the meta-characters !@@!
 and !$! are shown in the menu as is. Those characters are translated when the command is executed.
 
- 4. ^<wrap>The prefixes "!##" and "!^" work as toggles. The effect
+ 4. ^<wrap>The prefixes "!##", "!^", "![" and "!]" work as toggles. The effect
 of these prefixes continues up to the next similar prefix. For example:
 
     if exist !##!\\!^!.! diff -c -p !##!\\!^!.! !\\!.!
@@ -2341,12 +2393,6 @@ is being modified at the same time as copying.
  #Scan symbolic links#
  Scan ~symbolic links~@HardSymLink@ along with normal sub-folders when building the folder tree,
 determining the total file size in the sub-folders.
-
- #Update panels only when Far is active#
- If enabled, file panels will be monitored only when Far is active, i.e. panels will not be updated until Far window is focused.
-This allows to avoid blocking the directories opened on panels.
-However, sometimes the update is not triggered after receiving focus,
-so this option is disabled by default and directories are always monitored.
 
  #Save commands history#
  Forces saving ~commands history~@History@ before exit and restoring after starting Far.
@@ -2524,8 +2570,8 @@ to calculate the total files count.
 is in the third state) a list of server shared resources  will be shown.
 
  #Use Virtual Terminal for rendering#
- Render the output using ANSI escape sequences.
- This allows using 24-bit colors and may (or may not) work better (or worse) with some Unicode characters.
+ Render the output using ANSI escape sequences. You can find more about it ~here~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@.
+ This allows using 8 and 24-bit colors, text styles, and may (or may not) work better (or worse) with some Unicode characters.
  Requires Windows 10 and above.
 
  #Fullwidth-aware rendering#
@@ -3572,6 +3618,8 @@ and closes the menu.
 directory of the selected drives (works only for disk drives and not for
 plugins).
 
+ #Ctrl+H# shows unmapped volumes.
+
  #Ctrl+R# allows to refresh the disk selection menu.
 
  If "#CD drive type#" mode is enabled (#Ctrl+8#), Far will attempt to
@@ -3729,12 +3777,12 @@ specify file highlighting groups. Each group definition ~includes~@Filter@:
    #[ ]# - ^<wrap>exclusion attribute - file must not have this attribute.
    #[?]# - ^<wrap>ignore this attribute;
 
- - normal name, selected name, name under cursor and
+ - ^<wrap>normal name, selected name, name under cursor and
 selected name under cursor colors to display file names.
 If you wish to use the default color, set color to "Black on black";
 
- - an optional character to mark files from the group.
-   It can be used both with or instead of color highlighting.
+ - ^<wrap>a marking for files from the group.
+It can be used both with or instead of color highlighting.
 
  A file belongs to a highlighting group if:
  - ^<wrap>file mask analysis is enabled and the name of the file matches
@@ -4261,6 +4309,96 @@ real case.
  See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
+@ColorGroups
+$ #Color groups#
+ This menu allows to select colors for different interface items or to set the colors to default.
+
+ #Set default colors#
+ Set the colors to default values, expressed as indices in the console palette.
+
+ #Set default colors (RGB)#
+ Set the colors to default values, expressed as colors in RGB space, normally used for the corresponding console palette indices.
+ Unlike the indices in the console palette, the RGB values are device-independent and will look the same in any terminal.
+ For example, the default #index# value of panels background is #1#, which is usually, but not necessarily, mapped to some unspecified shade of blue.
+ The default #RGB# value of panels background, on the contrary, is always exactly #000080#.
+
+ #Note#: RGB colors require Virtual Terminal-based rendering, which can be enabled in ~Interface settings~@InterfSettings@.
+If it is not enabled or if your terminal does not support RGB colors, they will be approximated to the closest console palette indices.
+
+ This is the current palette:
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ This is the default RGB representation:
+
+ \(T0:T000000)  \(T0:T000080)  \(T0:T008000)  \(T0:T008080)  \(T0:T800000)  \(T0:T800080)  \(T0:T808000)  \(T0:TC0C0C0)  \-
+ \(T0:T808080)  \(T0:T0000FF)  \(T0:T00FF00)  \(T0:T00FFFF)  \(T0:TFF0000)  \(T0:TFF00FF)  \(T0:TFFFF00)  \(T0:TFFFFFF)  \-
+
+
+@ColorPicker
+$ #Color Picker#
+ This dialog allows to define a foreground color, a background color and a text style.
+
+ The foreground and the background colors can be either:
+ - one of the 16 colors from the standard Windows Console pallete,
+ - one of the 256 colors from the Xterm pallette, or
+ - one of the 16 million colors from the RGB color space.
+
+ The standard 16-color palette is available in the dialog.
+ To access the ~256-color palette~@ColorPicker256@ and the RGB color space use the corresponding buttons.
+
+ The color value is also represented in the hexadecimal form for convenience, where:
+ - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
+ - #______##### - the palette index from 00 to FF.
+ - #__RRGGBB# - the red, green and blue channels in the RGB color space, from 00 to FF each.
+
+ When the color is not fully opaque, the previous color in the logical Z-order is taken into account.
+
+ The foreground text style can include ANSI/VT100-like attributes listed in the right section.
+ When #Inherit# is checked, the previous foreground text style in the logical Z-order is taken into account.
+
+ The preview section below displays the final result.
+
+ #Attention#
+ Only the standard 16-color palette is guaranteed to work everywhere.
+ Support for everything else is conditional and defined by your terminal.
+
+ Extended colors and styles require Virtual Terminal-based rendering, which can be enabled in ~Interface settings~@InterfSettings@.
+You can find more about it ~here~@https://docs.microsoft.com/en-us/windows/console/classic-vs-vt@.
+
+
+@ColorPicker256
+$ #256 Color Picker#
+ This dialog allows to pick a color from the 256-color Xterm pallette.
+
+ The first 16 colors are the same as the standard palette and are available in the ~main dialog~@ColorPicker@.
+
+ \00  \10  \20  \30  \40  \50  \60  \70  \-
+ \80  \90  \A0  \B0  \C0  \D0  \E0  \F0  \-
+
+ The next 216 colors are represented as a 6x6x6 cube. The palette usually has 6 levels for every primary color and forms a homogeneous RGB cube.
+ Use the buttons on the right to rotate the cube, access its inner levels or mix the primary colors directly.
+
+ \(:10)  \(:11)  \(:12)  \(:13)  \(:14)  \(:15)  \-  \(:34)  \(:35)  \(:36)  \(:37)  \(:38)  \(:39)  \-  \(:58)  \(:59)  \(:5A)  \(:5B)  \(:5C)  \(:5D)  \-
+ \(:16)  \(:17)  \(:18)  \(:19)  \(:1A)  \(:1B)  \-  \(:3A)  \(:3B)  \(:3C)  \(:3D)  \(:3E)  \(:3F)  \-  \(:5E)  \(:5F)  \(:60)  \(:61)  \(:62)  \(:63)  \-
+ \(:1C)  \(:1D)  \(:1E)  \(:1F)  \(:20)  \(:21)  \-  \(:40)  \(:41)  \(:42)  \(:43)  \(:44)  \(:45)  \-  \(:64)  \(:65)  \(:66)  \(:67)  \(:68)  \(:69)  \-
+ \(:22)  \(:23)  \(:24)  \(:25)  \(:26)  \(:27)  \-  \(:46)  \(:47)  \(:48)  \(:49)  \(:4A)  \(:4B)  \-  \(:6A)  \(:6B)  \(:6C)  \(:6D)  \(:6E)  \(:6F)  \-
+ \(:28)  \(:29)  \(:2A)  \(:2B)  \(:2C)  \(:2D)  \-  \(:4C)  \(:4D)  \(:4E)  \(:4F)  \(:50)  \(:51)  \-  \(:70)  \(:71)  \(:72)  \(:73)  \(:74)  \(:75)  \-
+ \(:2E)  \(:2F)  \(:30)  \(:31)  \(:32)  \(:33)  \-  \(:52)  \(:53)  \(:54)  \(:55)  \(:56)  \(:57)  \-  \(:76)  \(:77)  \(:78)  \(:79)  \(:7A)  \(:7B)  \-
+
+ \(:7C)  \(:7D)  \(:7E)  \(:7F)  \(:80)  \(:81)  \-  \(:A0)  \(:A1)  \(:A2)  \(:A3)  \(:A4)  \(:A5)  \-  \(:C4)  \(:C5)  \(:C6)  \(:C7)  \(:C8)  \(:C9)  \-
+ \(:82)  \(:83)  \(:84)  \(:85)  \(:86)  \(:87)  \-  \(:A6)  \(:A7)  \(:A8)  \(:A9)  \(:AA)  \(:AB)  \-  \(:CA)  \(:CB)  \(:CC)  \(:CD)  \(:CE)  \(:CF)  \-
+ \(:88)  \(:89)  \(:8A)  \(:8B)  \(:8C)  \(:8D)  \-  \(:AC)  \(:AD)  \(:AE)  \(:AF)  \(:B0)  \(:B1)  \-  \(:D0)  \(:D1)  \(:D2)  \(:D3)  \(:D4)  \(:D5)  \-
+ \(:8E)  \(:8F)  \(:90)  \(:91)  \(:92)  \(:93)  \-  \(:B2)  \(:B3)  \(:B4)  \(:B5)  \(:B6)  \(:B7)  \-  \(:D6)  \(:D7)  \(:D8)  \(:D9)  \(:DA)  \(:DB)  \-
+ \(:94)  \(:95)  \(:96)  \(:97)  \(:98)  \(:99)  \-  \(:B8)  \(:B9)  \(:BA)  \(:BB)  \(:BC)  \(:BD)  \-  \(:DC)  \(:DD)  \(:DE)  \(:DF)  \(:E0)  \(:E1)  \-
+ \(:9A)  \(:9B)  \(:9C)  \(:9D)  \(:9E)  \(:9F)  \-  \(:BE)  \(:BF)  \(:C0)  \(:C1)  \(:C2)  \(:C3)  \-  \(:E2)  \(:E3)  \(:E4)  \(:E5)  \(:E6)  \(:E7)  \-
+
+ The last 24 colors are usually defined as a grayscale ramp.
+
+ \(:E8)  \(:E9)  \(:EA)  \(:EB)  \(:EC)  \(:ED)  \(:EE)  \(:EF)  \(:F0)  \(:F1)  \(:F2)  \(:F3)  \(:F4)  \(:F5)  \(:F6)  \(:F7)  \(:F8)  \(:F9)  \(:FA)  \(:FB)  \(:FC)  \(:FD)  \(:FE)  \(:FF)  \-
+
+
 @SortGroups
 $ #Sort groups#
  File sort groups can be used in #by name# and #by extension#
@@ -4734,9 +4872,9 @@ will be executed if “file1” exists, “file2” does not exist, and the
 environment “variable” is defined:
  #if exist file1 if not exist file2 if defined variable command#
 
- #PUSHD path#
- Stores the current path for use by the “POPD” command, then changes
-the current path on the active panel to the specified “path”.
+ #PUSHD [path]#
+ Stores the current path for use by the “POPD” command.
+If “path” is specified, changes the current path on the active panel to it.
 
  #POPD#
  Changes the current path on the active panel to that stored by the “PUSHD” command.
@@ -4794,7 +4932,7 @@ $ #Regular expressions#
 
  #Options#:
  #i# - ignore character case;
- #s# - ^<wrap>consider the whole text as one line, ‘.’ matches any character;
+ #s# - ^<wrap>consider the whole text as one line, ‘#.#’ matches any character;
  #m# - ^<wrap>consider the whole text as multiple lines. ‘#^#’ and ‘#$#’ match the
 beginning and the end of any "inner" string;
  #x# - ^<wrap>ignore space characters (unescaped ones, i.e. without backslash before).
@@ -4839,8 +4977,7 @@ zero-size expression.
  #(?<=pattern)# - ^<wrap>the backward lookup. Unfortunately, the pattern must have fixed length.
  #(?<!pattern)# - ^<wrap>the negation of backward lookup. The same restriction.
 
- #(?{name}pattern)# - group with a name. The name can be empty (in such case you
-cannot refer to this group) or must contain only word characters (#\w#) and spaces (#\s#).
+ #(?{name}pattern)# - group with a name. The name must contain only word characters (#\w#) and spaces (#\s#).
 
  #Quantifiers#
 
@@ -4916,7 +5053,7 @@ big amounts of data are processed.
         ^<wrap>Strings containing "name=", but not containing "value=", are processed (in fact, skipped) faster.
 
  #\NN#  - ^<wrap>reference to earlier matched parentheses. NN is a positive integer.
-Each parentheses except (?:pattern), (?=pattern), (?!pattern), (?<=pattern), (?<!pattern) and (?{name}pattern)
+Each parentheses except (?:pattern), (?=pattern), (?!pattern), (?<=pattern) and (?<!pattern)
 have a number (in the order of appearance).
         Example:
         "(['"])hello\1" matches to "hello" or 'hello'.
@@ -5095,7 +5232,7 @@ previously recorded macros.
 combinations. Because a macro command can be additionally
 configured there are two such combinations: #Ctrl+<.># (#Ctrl#
 and a period pressed together) and #Ctrl+Shift+<.># (#Ctrl#,
-Shift and a period pressed together). Pressing the first
+#Shift# and a period pressed together). Pressing the first
 combination will end the recording of the macro command
 and will use the default settings for its playback. Pressing
 the second combination will end the recording of the macro
@@ -5466,27 +5603,15 @@ If current value of an option is other than the default, the option is marked wi
 
 @Codepages.NoAutoDetectCP
 $ #far:config Codepages.NoAutoDetectCP#
- This string parameter defines the code pages which will be excluded
-from Universal Codepage Detector (UCD) autodetect. Sometimes, especially
-on small files, UCD annoyingly chooses wrong code pages.
+ This parameter allows to exclude specific code pages from the heuristic code page detection results.
+Such detection is unreliable by definition: it depends on statistical data and could guess wrong, especially when the amount of input data is small.
 
- The default value is empty string #""#. In this case all code pages
-detectable by UCD (about 20, much less than there is usually available
-in the system) are enabled.
+ By default the parameter is empty and there are no restrictions which code pages could be detected heuristically.
 
- If this parameter is set to string #"-1"# and the #Other# section
-of the ~Code pages~@CodePagesMenu@ menu is hidden (#Ctrl+H# key
-combination), only #System# (ANSI, OEM), #Unicode#, and #Favorites# code
-pages will be enabled for UCD. If the #Other# section is visible, all
-code pages are enabled.
+ If this parameter is set to #-1#, only the code pages, currenltly visible in the ~Code pages~@CodePagesMenu@ menu, will be accepted.
+You can control which code pages are visible there with the #Ctrl+H# key combination and the #Favorites# section.
 
- Otherwise, this parameter should contain comma separated list
-of code page numbers disabled for UCD. For example,
-#"1250,1252,1253,1255,855,10005,28592,28595,28597,28598,38598"#.
-
- Since Unicode code pages (1200, 1201, 65001) are detected outside
-of UCD, they cannot be disabled even if they appear on the exclusions
-list.
+ If this parameter contains a comma-separated list of code page numbers, all the specified code pages will be excluded from the heuristic detection.
 
  This parameter can be changed via ~far:config~@FarConfig@ only.
 

@@ -60,6 +60,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
 
@@ -109,7 +110,7 @@ struct subst_data
 				{
 					FList->ReadDiz();
 					// BUGBUG size
-					m_Description = FList->GetDescription(string(Normal.Name), string(Short.Name), 0);
+					m_Description = FList->GetDescription(Normal.Name, Short.Name, 0);
 				}
 				else
 				{
@@ -134,7 +135,7 @@ struct subst_data
 	bool PassivePanel{};
 	bool EscapeAmpersands{};
 
-	std::unordered_map<string, string>* Variables;
+	unordered_string_map<string>* Variables;
 };
 
 
@@ -145,6 +146,8 @@ namespace tokens
 	const auto
 		passive_panel                = L"!#"sv,
 		active_panel                 = L"!^"sv,
+		left_panel                   = L"!["sv,
+		right_panel                  = L"!]"sv,
 		exclamation                  = L"!!"sv,
 		name_extension               = L"!.!"sv,
 		short_name                   = L"!~"sv,
@@ -183,7 +186,7 @@ namespace tokens
 
 struct subst_strings
 {
-	struct
+	struct item
 	{
 		string_view
 			All,
@@ -207,52 +210,52 @@ struct subst_strings
 
 struct brackets
 {
-	int BracketsCount;
-	bool Bracket;
-	const wchar_t* BeginBracket;
-	const wchar_t* EndBracket;
+	const wchar_t* BeginBracket{};
+	const wchar_t* EndBracket{};
 
 	string_view str() const
 	{
-		if (!Bracket)
+		if (!BeginBracket || !EndBracket)
 			return {};
 
 		return { BeginBracket + 1, static_cast<size_t>(EndBracket - BeginBracket - 1) };
 	}
 };
 
-static int ProcessBrackets(string_view const Str, wchar_t const EndMark, brackets& Brackets)
+static size_t ProcessBrackets(string_view const Str, wchar_t const EndMark, brackets& Brackets)
 {
+	int BracketsCount = 0;
+
 	for (auto Iterator = Str.begin(); Iterator != Str.end(); ++Iterator)
 	{
-		if (*Iterator == L'(')
+		if (!Brackets.EndBracket)
 		{
-			if (!Brackets.Bracket)
+			if (*Iterator == L'(')
 			{
-				Brackets.Bracket = true;
-				Brackets.BeginBracket = &*Iterator;
+				if (!Brackets.BeginBracket)
+					Brackets.BeginBracket = &*Iterator;
+
+				++BracketsCount;
+				continue;
 			}
 
-			++Brackets.BracketsCount;
-		}
-		else if (*Iterator == L')')
-		{
-			if (!Brackets.BracketsCount)
-				return 0;
-
-			--Brackets.BracketsCount;
-
-			if (!Brackets.BracketsCount)
+			if (*Iterator == L')')
 			{
-				if (!Brackets.EndBracket)
-					Brackets.EndBracket = &*Iterator;
+				if (!BracketsCount)
+					continue;
+
+				--BracketsCount;
+
+				if (BracketsCount)
+					continue;
+
+				Brackets.EndBracket = &*Iterator;
+				continue;
 			}
 		}
-		else if (*Iterator == EndMark && !!Brackets.BeginBracket == !!Brackets.EndBracket)
-		{
-			if (Brackets.BracketsCount)
-				return 0;
 
+		if (!BracketsCount && *Iterator == EndMark)
+		{
 			return Iterator - Str.begin() + 1;
 		}
 	}
@@ -348,7 +351,7 @@ static void MakeListFile(panel_ptr const& Panel, string& ListFileName, bool cons
 
 	ListFileName = MakeTemp();
 
-	const os::fs::file ListFile(ListFileName, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS);
+	const os::fs::file ListFile(ListFileName, GENERIC_WRITE, os::fs::file_share_all, nullptr, CREATE_ALWAYS);
 	if (!ListFile)
 		throw MAKE_FAR_EXCEPTION(msg(lng::MCannotCreateListTemp));
 
@@ -356,7 +359,7 @@ static void MakeListFile(panel_ptr const& Panel, string& ListFileName, bool cons
 	{
 		if (!os::fs::delete_file(ListFileName)) // BUGBUG
 		{
-			LOGWARNING(L"delete_file({}): {}"sv, ListFileName, last_error());
+			LOGWARNING(L"delete_file({}): {}"sv, ListFileName, os::last_error());
 		}
 	};
 
@@ -372,8 +375,7 @@ static void MakeListFile(panel_ptr const& Panel, string& ListFileName, bool cons
 
 		transform(Name);
 
-		Writer.write(Name);
-		Writer.write(Eol);
+		Writer.write(Name, Eol);
 	}
 
 	Stream.flush();
@@ -395,6 +397,18 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 	if (const auto Tail = tokens::skip(CurStr, tokens::active_panel))
 	{
 		SubstData.PassivePanel = false;
+		return Tail;
+	}
+
+	if (const auto Tail = tokens::skip(CurStr, tokens::left_panel))
+	{
+		SubstData.PassivePanel = SubstData.This.Panel->Parent()->IsRightActive();
+		return Tail;
+	}
+
+	if (const auto Tail = tokens::skip(CurStr, tokens::right_panel))
+	{
+		SubstData.PassivePanel = SubstData.This.Panel->Parent()->IsLeftActive();
 		return Tail;
 	}
 
@@ -450,14 +464,14 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 		append_with_escape(
 			Str,
 			join(
+				L" "sv,
 				select(
 					SubstData.Default().Panel->enum_selected(),
 					[&](os::fs::find_data const& i)
 					{
 						const auto Data = std::invoke(Selector, i);
 						return Quote? quote(Data) : quote_space(Data);
-					}),
-					L" "sv
+					})
 			)
 		);
 
@@ -620,7 +634,7 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 	return CurStr;
 }
 
-static string_view ProcessVariable(string_view const CurStr, subst_data& SubstData, string& Out)
+static string_view ProcessVariable(string_view const CurStr, const subst_data& SubstData, string& Out)
 {
 	const auto Str = CurStr.substr(1);
 
@@ -662,6 +676,18 @@ static string ProcessMetasymbols(string_view Str, subst_data& Data)
 	}
 
 	return Result;
+}
+
+static string process_subexpression(const subst_strings::item& Item, subst_data& SubstData)
+{
+	if (Item.Sub.empty())
+		return string(Item.All);
+
+	// Something between '(' and ')'
+	const auto Processed = ProcessMetasymbols(Item.Sub, SubstData);
+	return Processed == Item.Sub?
+		string(Item.All) :
+		concat(Item.prefix(), Processed, Item.suffix());
 }
 
 static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_view const DlgTitle)
@@ -759,15 +785,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 
 			auto& LatelItem = DlgData[DlgData.size() - 2];
 
-			if (!Strings.Title.Sub.empty())
-			{
-				// Something between '(' and ')'
-				LatelItem.strData = os::env::expand(concat(Strings.Title.prefix(), ProcessMetasymbols(Strings.Title.Sub, SubstData), Strings.Title.suffix()));
-			}
-			else
-			{
-				LatelItem.strData = os::env::expand(Strings.Title.All);
-			}
+			LatelItem.strData = os::env::expand(process_subexpression(Strings.Title, SubstData));
 
 			inplace::truncate_right(LatelItem.strData, LatelItem.X2 - LatelItem.X1 + 1);
 		}
@@ -775,15 +793,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 		if (!Strings.Text.All.empty())
 		{
 			// Something between '?' and '!'
-			if (!Strings.Text.Sub.empty())
-			{
-				// Something between '(' and ')'
-				DlgData.back().strData = concat(Strings.Text.prefix(), ProcessMetasymbols(Strings.Text.Sub, SubstData), Strings.Text.suffix());
-			}
-			else
-			{
-				DlgData.back().strData = Strings.Text.All;
-			}
+			DlgData.back().strData = process_subexpression(Strings.Text, SubstData);
 		}
 
 		Range.remove_prefix(SkipSize);
@@ -968,3 +978,45 @@ bool SubstFileName(
 
 	return Result;
 }
+
+#ifdef ENABLE_TESTS
+
+#include "testing.hpp"
+
+TEST_CASE("ProcessBrackets")
+{
+	static const struct
+	{
+		string_view Src;
+		size_t ExpectedSize;
+		std::pair<intptr_t, intptr_t> ExpectedBracketPositions;
+	}
+	Tests[]
+	{
+		{ {},                       0, { -1, -1 } },
+		{ L"!"sv,                   1, { -1, -1 } },
+		{ L"Meow!"sv,               5, { -1, -1 } },
+		{ L"()!"sv,                 3, {  0,  1 } },
+		{ L"()()!"sv,               5, {  0,  1 } },
+		{ L"(())!"sv,               5, {  0,  3 } },
+		{ L"((boo))!"sv,            8, {  0,  6 } },
+		{ L"((!.!))!"sv,            8, {  0,  6 } },
+		{ L"(!.!)(text)!"sv,       12, {  0,  4 } },
+		{ L"(text)(!.!)!"sv,        8, {  0,  5 } },
+	};
+
+	for (const auto& i: Tests)
+	{
+		brackets Brackets;
+		const auto Size = ProcessBrackets(i.Src, L'!', Brackets);
+		const std::pair BracketPositions
+		{
+			Brackets.BeginBracket? Brackets.BeginBracket - i.Src.data() : -1,
+			Brackets.EndBracket? Brackets.EndBracket - i.Src.data() : -1,
+		};
+
+		REQUIRE(i.ExpectedSize == Size);
+		REQUIRE(i.ExpectedBracketPositions == BracketPositions);
+	}
+}
+#endif

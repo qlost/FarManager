@@ -87,7 +87,7 @@ intptr_t message_context::DlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void*
 			{
 				if (di.Type==DI_EDIT)
 				{
-					COORD pos={};
+					COORD pos{};
 					Dlg->SendMessage(DM_SETCURSORPOS,i,&pos);
 				}
 			}
@@ -101,9 +101,9 @@ intptr_t message_context::DlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void*
 			if (di.Type==DI_EDIT)
 			{
 				const auto& Color = colors::PaletteColorToFarColor(IsWarningStyle? COL_WARNDIALOGTEXT : COL_DIALOGTEXT);
-				const auto Colors = static_cast<FarDialogItemColors*>(Param2);
-				Colors->Colors[0] = Color;
-				Colors->Colors[2] = Color;
+				const auto& Colors = *static_cast<FarDialogItemColors const*>(Param2);
+				Colors.Colors[0] = Color;
+				Colors.Colors[2] = Color;
 			}
 		}
 		break;
@@ -112,13 +112,18 @@ intptr_t message_context::DlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void*
 			const auto record = static_cast<const INPUT_RECORD *>(Param2);
 			if (record->EventType==KEY_EVENT)
 			{
-				const auto key = InputRecordToKey(record);
-				switch(key)
+				switch(InputRecordToKey(record))
 				{
 				case KEY_F3:
 					if(ErrorState)
 					{
-						const auto Errors = ErrorState->format_errors();
+						const string Errors[]
+						{
+							ErrorState->ErrnoStr(),
+							ErrorState->Win32ErrorStr(),
+							ErrorState->NtErrorStr(),
+						};
+
 						const auto MaxStr = std::max(Errors[0].size(), Errors[1].size());
 						const auto SysArea = 5 * 2;
 						const auto FieldsWidth = std::max(80 - SysArea, std::min(static_cast<int>(MaxStr), ScrX - SysArea));
@@ -162,7 +167,7 @@ intptr_t message_context::DlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void*
 				case KEY_CTRLNUMPAD0:
 				case KEY_RCTRLNUMPAD0:
 					{
-						SetClipboardText(*reinterpret_cast<string*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr)));
+						SetClipboardText(view_as<string>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr)));
 					}
 					break;
 				}
@@ -192,18 +197,22 @@ static message_result MessageImpl(
 
 	Context.IsWarningStyle = (Flags&MSG_WARNING) != 0;
 
-	string strErrStr;
+	string ErrorMessage, SystemErrorMessage;
 
 	if (ErrorState)
 	{
 		Context.ErrorState = *ErrorState;
-		strErrStr = Context.ErrorState->format_error();
-		if (!strErrStr.empty())
+		ErrorMessage = Context.ErrorState->What;
+
+		if (Context.ErrorState->any())
+			SystemErrorMessage = Context.ErrorState->system_error();
+
+		if (!SystemErrorMessage.empty())
 		{
 			size_t index = 1;
 			for (const auto& i: Inserts)
 			{
-				replace(strErrStr, L'%' + str(index), i);
+				replace(SystemErrorMessage, L'%' + str(index), i);
 				++index;
 			}
 		}
@@ -237,42 +246,34 @@ static message_result MessageImpl(
 
 	MaxLength = std::min(MaxLength, MAX_MESSAGE_WIDTH);
 
-	join(strClipText, Strings, Eol);
+	join(strClipText, Eol, Strings);
 	append(strClipText, Eol, Eol);
 
-	if (!strErrStr.empty())
+	if (!ErrorMessage.empty() || !SystemErrorMessage.empty())
 	{
-		append(strClipText, strErrStr, Eol, Eol);
+		if (!ErrorMessage.empty())
+			append(strClipText, ErrorMessage, Eol);
 
-		// вычисление "красивого" размера
-		auto LenErrStr = strErrStr.size();
-
-		if (LenErrStr > MAX_MESSAGE_WIDTH)
-		{
-			// половина меньше?
-			if (LenErrStr / 2 < MAX_MESSAGE_WIDTH)
-			{
-				// а половина + 1/3?
-				if ((LenErrStr + LenErrStr / 3) / 2 < MAX_MESSAGE_WIDTH)
-					LenErrStr=(LenErrStr+LenErrStr/3)/2;
-				else
-					LenErrStr/=2;
-			}
-			else
-				LenErrStr = MAX_MESSAGE_WIDTH;
-		}
+		if (!SystemErrorMessage.empty())
+			append(strClipText, SystemErrorMessage, Eol, Eol);
 
 		if (!Strings.empty())
 			Strings.emplace_back(L"\x1"sv);
 
-		for (const auto& i: wrapped_text(strErrStr, LenErrStr))
+		const auto add_wrapped = [&](string_view const Str)
 		{
-			Strings.emplace_back(i);
-			MaxLength = std::max(MaxLength, i.size());
-		}
+			for (const auto& i : wrapped_text(Str, MAX_MESSAGE_WIDTH))
+			{
+				Strings.emplace_back(i);
+				MaxLength = std::max(MaxLength, i.size());
+			}
+		};
+
+		add_wrapped(ErrorMessage);
+		add_wrapped(SystemErrorMessage);
 	}
 
-	join(strClipText, Buttons, L" "sv);
+	join(strClipText, L" "sv, Buttons);
 
 	rectangle Position;
 

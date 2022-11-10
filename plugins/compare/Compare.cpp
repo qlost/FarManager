@@ -141,19 +141,18 @@ static int SplitCopy(
 
 static int nAdds = -1;
 static bool bOpenFail;
+static bool bMessageSuppressed;
+static DWORD dwShowMessageTicks;
+#define MessageOutputDelayMsecs 500
 
 /****************************************************************************
  * Показывает сообщение о сравнении двух файлов
  ****************************************************************************/
-static void ShowMessage(const wchar_t *Name1, const wchar_t *Name2, bool Force = false)
+static void ShowMessageRaw(const wchar_t *Name1, const wchar_t *Name2, DWORD dwNewTicks)
 {
-	static DWORD dwTicks;
-	DWORD dwNewTicks = GetTickCount();
+	dwShowMessageTicks = dwNewTicks;
+	bMessageSuppressed = false;
 
-	if (dwNewTicks - dwTicks < 500 && !Force)
-		return;
-
-	dwTicks = dwNewTicks;
 	wchar_t name1[MAX_PATH], name2[MAX_PATH], sep[MAX_PATH];
 
 	wchar_t *MsgItems[1+5+1+5] = {const_cast<wchar_t*>(GetMsg(MCmpTitle)), name1};
@@ -183,6 +182,41 @@ static void ShowMessage(const wchar_t *Name1, const wchar_t *Name2, bool Force =
 		delete[] MsgItems[1+n1];
 }
 
+/****************************************************************************
+ * Показывает сообщение о сравнении двух файлов с ограничением частоты вывода
+ ****************************************************************************/
+static void ShowMessage(const wchar_t *Name1, const wchar_t *Name2)
+{
+	DWORD dwNewTicks = GetTickCount();
+
+	if (dwNewTicks - dwShowMessageTicks < MessageOutputDelayMsecs) {
+		bMessageSuppressed = true;
+		return;
+	}
+
+	ShowMessageRaw(Name1, Name2, dwNewTicks);
+}
+
+
+/******************************************************************************
+ * Обёртка над ShowMessageRaw() для отображения "подавленных" ранее имён файлов
+ ******************************************************************************/
+static void ShowMessageWhenComparingContents(const wchar_t *Name1, const wchar_t *Name2, bool CancelMessageShown)
+{
+	DWORD dwNewTicks;
+	if (CancelMessageShown)
+		dwNewTicks = GetTickCount();
+	else if (bMessageSuppressed) {
+		dwNewTicks = GetTickCount();
+
+		if (dwNewTicks - dwShowMessageTicks < MessageOutputDelayMsecs)
+			return;
+	}
+	else
+		return;
+
+	ShowMessageRaw(Name1, Name2, dwNewTicks);
+}
 
 /****************************************************************************
  * Обработчик диалога для ShowDialog
@@ -621,7 +655,6 @@ static bool BuildPanelIndex(const OwnPanelInfo *pInfo, FileIndex *pIndex, HANDLE
 	{
 		free(pIndex->ppi);
 		pIndex->ppi = {};
-		pIndex->iCount = 0;
 	}
 
 	return true;
@@ -632,8 +665,7 @@ static bool BuildPanelIndex(const OwnPanelInfo *pInfo, FileIndex *pIndex, HANDLE
  ****************************************************************************/
 static void FreePanelIndex(FileIndex *pIndex)
 {
-	if (pIndex->ppi)
-		free(pIndex->ppi);
+	free(pIndex->ppi);
 
 	pIndex->ppi = {};
 	pIndex->iCount = 0;
@@ -878,8 +910,7 @@ static bool CompareFiles(const PluginPanelItem *AData, const PluginPanelItem *PD
 						break;
 					}
 
-					if (CancelMessageShown)
-						ShowMessage(cpFileA, cpFileP, true);
+					ShowMessageWhenComparingContents(cpFileA, cpFileP, CancelMessageShown);
 				}
 				while (ReadSizeA == bufSize);
 			}
@@ -902,8 +933,7 @@ static bool CompareFiles(const PluginPanelItem *AData, const PluginPanelItem *PD
 							break;
 						}
 
-						if (CancelMessageShown)
-							ShowMessage(cpFileA, cpFileP, true);
+						ShowMessageWhenComparingContents(cpFileA, cpFileP, CancelMessageShown);
 
 						PtrA=ABuf;
 					}
@@ -920,8 +950,7 @@ static bool CompareFiles(const PluginPanelItem *AData, const PluginPanelItem *PD
 							break;
 						}
 
-						if (CancelMessageShown)
-							ShowMessage(cpFileA, cpFileP, true);
+						ShowMessageWhenComparingContents(cpFileA, cpFileP, CancelMessageShown);
 
 						PtrP=PBuf;
 					}

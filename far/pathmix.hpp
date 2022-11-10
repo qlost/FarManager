@@ -124,7 +124,7 @@ namespace path
 	[[nodiscard]]
 	string join(arg&& Arg, const args&... Args)
 	{
-		static_assert(sizeof...(Args));
+		static_assert(sizeof...(Args) > 0);
 
 		string Str(FWD(Arg));
 		detail::append_impl(Str, { detail::append_arg(Args)... });
@@ -168,7 +168,7 @@ bool HasPathPrefix(string_view Path);
 string_view ExtractPathPrefix(string_view Path);
 bool PathStartsWith(string_view Path, string_view Start);
 bool PathCanHoldRegularFile(string_view Path);
-bool IsPluginPrefixPath(string_view Path);
+std::optional<string_view> GetPluginPrefixPath(string_view Path);
 bool CutToSlash(string& Str, bool RemoveSlash = false); // BUGBUG, deprecated. Use CutToParent.
 bool CutToSlash(string_view& Str, bool RemoveSlash = false); // BUGBUG, deprecated. Use CutToParent.
 bool CutToParent(string_view& Str);
@@ -210,5 +210,7 @@ string_view extract_root_device(string_view Path);
 string extract_root_directory(string_view Path);
 string_view ExtractFileName(string_view Path);
 string ExtractFilePath(string_view Path);
+
+string unique_name();
 
 #endif // PATHMIX_HPP_4A60B3C3_4328_407E_A0E8_F55A9A9BE343

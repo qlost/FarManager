@@ -36,7 +36,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.security.hpp"
 
 // Internal:
-#include "exception.hpp"
 #include "log.hpp"
 
 // Platform:
@@ -44,6 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.concurrency.hpp"
 
 // Common:
+#include "common/string_utils.hpp"
 
 // External:
 
@@ -51,9 +51,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace
 {
-	static const auto& lookup_privilege_value(const wchar_t* Name)
+	const auto& lookup_privilege_value(const wchar_t* Name)
 	{
-		static std::unordered_map<string, std::optional<LUID>> s_Cache;
+		static unordered_string_map<std::optional<LUID>> s_Cache;
 		static os::critical_section s_CS;
 
 		SCOPED_ACTION(std::lock_guard)(s_CS);
@@ -68,13 +68,13 @@ namespace
 			if (LookupPrivilegeValue(nullptr, MapKey.c_str(), &Luid))
 				MapValue = Luid;
 			else
-				LOGWARNING(L"LookupPrivilegeValue({}): {}"sv, MapKey, last_error());
+				LOGWARNING(L"LookupPrivilegeValue({}): {}"sv, MapKey, os::last_error());
 		}
 
 		return MapValue;
 	}
 
-	static bool operator==(const LUID& a, const LUID& b)
+	bool operator==(const LUID& a, const LUID& b)
 	{
 		return a.LowPart == b.LowPart && a.HighPart == b.HighPart;
 	}
@@ -123,7 +123,7 @@ namespace os::security
 		if (Names.empty())
 			return;
 
-		block_ptr<TOKEN_PRIVILEGES> NewState(sizeof(TOKEN_PRIVILEGES) + sizeof(LUID_AND_ATTRIBUTES) * (Names.size() - 1));
+		const block_ptr<TOKEN_PRIVILEGES> NewState(sizeof(TOKEN_PRIVILEGES) + sizeof(LUID_AND_ATTRIBUTES) * (Names.size() - 1));
 		NewState->PrivilegeCount = 0;
 
 		for (const auto& i: Names)

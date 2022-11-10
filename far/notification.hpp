@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/singleton.hpp"
+#include "common/string_utils.hpp"
 #include "common/type_traits.hpp"
 
 // External:
@@ -67,22 +68,19 @@ class wm_listener;
 
 namespace detail
 {
+	IS_DETECTED(with_payload, std::declval<T&>()(std::declval<std::any>()));
+	IS_DETECTED(without_payload, std::declval<T&>()());
+
 	class event_handler: public std::function<void(const std::any&)>
 	{
-		template<typename T>
-		using with_payload = decltype(std::declval<T&>()(std::declval<std::any>()));
-
-		template<typename T>
-		using without_payload = decltype(std::declval<T&>()());
-
 	public:
-		template<typename callable_type, REQUIRES(is_detected_v<with_payload, callable_type>)>
+		template<typename callable_type, REQUIRES(with_payload<callable_type>)>
 		explicit event_handler(callable_type&& Handler):
 			function(FWD(Handler))
 		{
 		}
 
-		template<typename callable_type, REQUIRES(is_detected_v<without_payload, callable_type>)>
+		template<typename callable_type, REQUIRES(without_payload<callable_type>)>
 		explicit event_handler(callable_type&& Handler):
 			function([Handler = FWD(Handler)](const std::any&) { Handler(); })
 		{
@@ -95,7 +93,7 @@ class message_manager: public singleton<message_manager>
 	IMPLEMENTS_SINGLETON;
 
 public:
-	using handlers_map = std::unordered_multimap<string, const detail::event_handler*>;
+	using handlers_map = unordered_string_multimap<const detail::event_handler*>;
 
 	handlers_map::iterator subscribe(UUID const& EventId, const detail::event_handler& EventHandler);
 	handlers_map::iterator subscribe(event_id EventId, const detail::event_handler& EventHandler);

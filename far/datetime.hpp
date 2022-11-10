@@ -76,7 +76,8 @@ FullYear:
 
    Windows supports years 1601 through 30827.
 */
-void ConvertDate(os::chrono::time_point Point, string& strDateText, string& strTimeText, int TimeLength, int FullYear, bool Brief = false, bool TextMonth = false);
+// (date, time)
+std::tuple<string, string> ConvertDate(os::chrono::time_point Point, int TimeLength, int FullYear, bool Brief = false, bool TextMonth = false);
 
 // (days, time)
 std::tuple<string, string> ConvertDuration(os::chrono::duration Duration);
@@ -103,7 +104,8 @@ private:
 	const clock_type::duration m_Interval;
 };
 
-std::pair<string, string> get_time();
+// { "YYYY-MM-DD", "hh:mm:ss.sss" }, ISO 8601-like
+std::pair<string, string> format_datetime(SYSTEMTIME const& SystemTime);
 
 std::chrono::milliseconds till_next_second();
 std::chrono::milliseconds till_next_minute();

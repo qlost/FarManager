@@ -357,18 +357,24 @@ HRESULT Archive::copy_prologue(IOutStream *out_stream)
   return res;
 }
 
-bool Archive::open(IInStream* stream, const ArcType& type) {
+bool Archive::open(IInStream* stream, const ArcType& type, const bool allow_tail) {
   ArcAPI::create_in_archive(type, in_arc.ref());
   ComObject<IArchiveOpenCallback> opener(new ArchiveOpener(shared_from_this()));
   const UInt64 max_check_start_position = 0;
   HRESULT res;
+  if (allow_tail && ArcAPI::formats().at(type).Flags_PreArc())  {
+    ComObject<IArchiveAllowTail> allowTail;
+    in_arc->QueryInterface(IID_IArchiveAllowTail, (void**)&allowTail);
+    if (allowTail)
+      allowTail->AllowTail(TRUE);
+  }
   COM_ERROR_CHECK(res = in_arc->Open(stream, &max_check_start_position, opener));
   return res == S_OK;
 }
 
 static void prioritize(std::list<ArcEntry>& arc_entries, const ArcType& first, const ArcType& second) {
   std::list<ArcEntry>::iterator iter = arc_entries.end();
-  for (std::list<ArcEntry>::iterator arc_entry = arc_entries.begin(); arc_entry != arc_entries.end(); arc_entry++) {
+  for (std::list<ArcEntry>::iterator arc_entry = arc_entries.begin(); arc_entry != arc_entries.end(); ++arc_entry) {
     if (arc_entry->type == second) {
       iter = arc_entry;
     }
@@ -461,7 +467,7 @@ ArcEntries Archive::detect(
     const auto& format = signature.format;
     if (accepted_signature(sig_pos.pos, signature, buffer, size, stream, eof_i)) {
       found_types.insert(format.ClassID);
-      arc_entries.push_back(ArcEntry(format.ClassID, sig_pos.pos - format.SignatureOffset));
+      arc_entries.emplace_back(format.ClassID, sig_pos.pos - format.SignatureOffset);
     }
     else {
       eof_i = -1;
@@ -474,7 +480,7 @@ ArcEntries Archive::detect(
   std::for_each(types_by_ext.begin(), types_by_ext.end(), [&] (const ArcType& arc_type) {
     if (found_types.count(arc_type) == 0 && std::find(arc_types.begin(), arc_types.end(), arc_type) != arc_types.end()) {
       found_types.insert(arc_type);
-      arc_entries.push_front(ArcEntry(arc_type, 0));
+      arc_entries.emplace_front(arc_type, 0);
     }
   });
 
@@ -484,7 +490,7 @@ ArcEntries Archive::detect(
     if (found_types.count(arc_type) == 0) {
       const auto& format = ArcAPI::formats().at(arc_type);
       if (!format.Flags_ByExtOnlyOpen())
-        arc_entries.push_back(ArcEntry(arc_type, 0));
+        arc_entries.emplace_back(arc_type, 0);
     }
   });
 
@@ -577,7 +583,7 @@ void Archive::open(const OpenOptions& options, Archives& archives) {
   ArcEntries arc_entries = detect(buffer.data(), size, size < max_check_size, extract_file_ext(arc_info.cFileName), options.arc_types, stream);
 
   for (ArcEntries::const_iterator arc_entry = arc_entries.cbegin(); arc_entry != arc_entries.cend(); ++arc_entry) {
-    std::shared_ptr<Archive> archive(new Archive());
+    const auto archive = std::make_shared<Archive>();
     if (options.open_password_len && *options.open_password_len == -'A')
       archive->m_open_password = *options.open_password_len;
     archive->arc_path = options.arc_path;
@@ -586,22 +592,25 @@ void Archive::open(const OpenOptions& options, Archives& archives) {
     if (parent_idx != (size_t)-1)
       archive->volume_names = archives[parent_idx]->volume_names;
 
-#ifdef _DEBUG
     const auto& format = ArcAPI::formats().at(arc_entry->type);
-    (void)format;
-#endif
-    bool opened = false;
+    bool opened = false, have_tail = false;
     CHECK_COM(stream->Seek(arc_entry->sig_pos, STREAM_SEEK_SET, nullptr));
     if (!arc_entry->sig_pos) {
       opened = archive->open(stream, arc_entry->type);
       if (archive->m_open_password && options.open_password_len)
         *options.open_password_len = archive->m_open_password;
       if (!opened && first_open) {
-        auto next_entry = arc_entry;
-        ++next_entry;
-        if (next_entry != arc_entries.cend() && next_entry->sig_pos > 0) {
-          skip_header = archive->get_skip_header(stream, arc_entry->type);
+        if (format.Flags_PreArc()) {
+           stream->Seek(0, STREAM_SEEK_SET, nullptr);
+           opened = have_tail = archive->open(stream, arc_entry->type, true);
         }
+        if (!opened) {
+          auto next_entry = arc_entry;
+          ++next_entry;
+          if (next_entry != arc_entries.cend() && next_entry->sig_pos > 0) {
+            skip_header = archive->get_skip_header(stream, arc_entry->type);
+          }
+		  }
       }
     }
     else if (arc_entry->sig_pos >= skip_header) {
@@ -623,7 +632,7 @@ void Archive::open(const OpenOptions& options, Archives& archives) {
       archives.push_back(archive);
       open(options, archives);
 
-      if (!options.detect)
+      if (!options.detect && !have_tail)
         break;
       skip_header = arc_entry->sig_pos + std::min(archive->arc_info.size(), archive->get_physize());
     }
@@ -635,7 +644,7 @@ void Archive::open(const OpenOptions& options, Archives& archives) {
 }
 
 std::unique_ptr<Archives> Archive::open(const OpenOptions& options) {
-  std::unique_ptr<Archives> archives(new Archives());
+  auto archives = std::make_unique<Archives>();
   open(options, *archives);
   if (!options.detect && !archives->empty())
     archives->erase(archives->begin(), archives->end() - 1);
@@ -660,7 +669,7 @@ void Archive::reopen() {
     if (!open(stream, arc_entry->type))
       FAIL(E_FAIL);
   }
-  arc_entry++;
+  ++arc_entry;
   while (arc_entry != arc_chain.end()) {
     UInt32 main_file;
     CHECK(get_main_file(main_file));
@@ -669,7 +678,7 @@ void Archive::reopen() {
     arc_info = get_file_info(main_file);
     sub_stream->Seek(arc_entry->sig_pos, STREAM_SEEK_SET, nullptr);
     CHECK(open(sub_stream, arc_entry->type));
-    arc_entry++;
+    ++arc_entry;
   }
 }
 

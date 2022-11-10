@@ -45,6 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "palette.hpp"
 #include "encoding.hpp"
 #include "char_width.hpp"
+#include "log.hpp"
 
 // Platform:
 #include "platform.version.hpp"
@@ -65,6 +66,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
+#define ESC L"\u001b"
+#define CSI ESC L"["
+#define OSC ESC L"]"
+#define ST ESC L"\\"
+
 static bool sWindowMode;
 static bool sEnableVirtualTerminal;
 
@@ -75,75 +81,75 @@ wchar_t ReplaceControlCharacter(wchar_t const Char)
 	switch (Char)
 	{
 	// C0
-	case 0x00: return L' '; // space
-	case 0x01: return L'☺'; // white smiling face
-	case 0x02: return L'☻'; // black smiling face
-	case 0x03: return L'♥'; // black heart suit
-	case 0x04: return L'♦'; // black diamond suit
-	case 0x05: return L'♣'; // black club suit
-	case 0x06: return L'♠'; // black spade suit
-	case 0x07: return L'•'; // bullet
-	case 0x08: return L'◘'; // inverse bullet
-	case 0x09: return L'○'; // white circle
-	case 0x0A: return L'◙'; // inverse white circle
-	case 0x0B: return L'♂'; // male sign
-	case 0x0C: return L'♀'; // female sign
-	case 0x0D: return L'♪'; // eighth note
-	case 0x0E: return L'♫'; // beamed eighth notes
-	case 0x0F: return L'☼'; // white sun with rays
-	case 0x10: return L'►'; // black right - pointing pointer
-	case 0x11: return L'◄'; // black left - pointing pointer
-	case 0x12: return L'↕'; // up down arrow
-	case 0x13: return L'‼'; // double exclamation mark
-	case 0x14: return L'¶'; // pilcrow sign
-	case 0x15: return L'§'; // section sign
-	case 0x16: return L'▬'; // black rectangle
-	case 0x17: return L'↨'; // up down arrow with base
-	case 0x18: return L'↑'; // upwards arrow
-	case 0x19: return L'↓'; // downwards arrow
-	case 0x1A: return L'→'; // rightwards arrow
-	case 0x1B: return L'←'; // leftwards arrow
-	case 0x1C: return L'∟'; // right angle
-	case 0x1D: return L'↔'; // left right arrow
-	case 0x1E: return L'▲'; // black up - pointing triangle
-	case 0x1F: return L'▼'; // black down - pointing triangle
-	case 0x7F: return L'⌂'; // house
+	case L'\u0000': return L' '; // space
+	case L'\u0001': return L'☺'; // white smiling face
+	case L'\u0002': return L'☻'; // black smiling face
+	case L'\u0003': return L'♥'; // black heart suit
+	case L'\u0004': return L'♦'; // black diamond suit
+	case L'\u0005': return L'♣'; // black club suit
+	case L'\u0006': return L'♠'; // black spade suit
+	case L'\u0007': return L'•'; // bullet
+	case L'\u0008': return L'◘'; // inverse bullet
+	case L'\u0009': return L'○'; // white circle
+	case L'\u000A': return L'◙'; // inverse white circle
+	case L'\u000B': return L'♂'; // male sign
+	case L'\u000C': return L'♀'; // female sign
+	case L'\u000D': return L'♪'; // eighth note
+	case L'\u000E': return L'♫'; // beamed eighth notes
+	case L'\u000F': return L'☼'; // white sun with rays
+	case L'\u0010': return L'►'; // black right - pointing pointer
+	case L'\u0011': return L'◄'; // black left - pointing pointer
+	case L'\u0012': return L'↕'; // up down arrow
+	case L'\u0013': return L'‼'; // double exclamation mark
+	case L'\u0014': return L'¶'; // pilcrow sign
+	case L'\u0015': return L'§'; // section sign
+	case L'\u0016': return L'▬'; // black rectangle
+	case L'\u0017': return L'↨'; // up down arrow with base
+	case L'\u0018': return L'↑'; // upwards arrow
+	case L'\u0019': return L'↓'; // downwards arrow
+	case L'\u001A': return L'→'; // rightwards arrow
+	case L'\u001B': return L'←'; // leftwards arrow
+	case L'\u001C': return L'∟'; // right angle
+	case L'\u001D': return L'↔'; // left right arrow
+	case L'\u001E': return L'▲'; // black up - pointing triangle
+	case L'\u001F': return L'▼'; // black down - pointing triangle
+	case L'\u007F': return L'⌂'; // house
 
 	// C1
 	// These are considered control characters too now.
 	// Unlike C0, it is unclear what glyphs to use, so just replace with FFFD for now.
-	case 0x80:
-	case 0x81:
-	case 0x82:
-	case 0x83:
-	case 0x84:
-	case 0x85:
-	case 0x86:
-	case 0x87:
-	case 0x88:
-	case 0x89:
-	case 0x8A:
-	case 0x8B:
-	case 0x8C:
-	case 0x8D:
-	case 0x8E:
-	case 0x8F:
-	case 0x90:
-	case 0x91:
-	case 0x92:
-	case 0x93:
-	case 0x94:
-	case 0x95:
-	case 0x96:
-	case 0x97:
-	case 0x98:
-	case 0x99:
-	case 0x9A:
-	case 0x9B:
-	case 0x9C:
-	case 0x9D:
-	case 0x9E:
-	case 0x9F: return L'�'; // replacement character
+	case L'\u0080':
+	case L'\u0081':
+	case L'\u0082':
+	case L'\u0083':
+	case L'\u0084':
+	case L'\u0085':
+	case L'\u0086':
+	case L'\u0087':
+	case L'\u0088':
+	case L'\u0089':
+	case L'\u008A':
+	case L'\u008B':
+	case L'\u008C':
+	case L'\u008D':
+	case L'\u008E':
+	case L'\u008F':
+	case L'\u0090':
+	case L'\u0091':
+	case L'\u0092':
+	case L'\u0093':
+	case L'\u0094':
+	case L'\u0095':
+	case L'\u0096':
+	case L'\u0097':
+	case L'\u0098':
+	case L'\u0099':
+	case L'\u009A':
+	case L'\u009B':
+	case L'\u009C':
+	case L'\u009D':
+	case L'\u009E':
+	case L'\u009F': return encoding::replace_char;
 
 	default:   return Char;
 	}
@@ -212,6 +218,52 @@ static bool sanitise_surrogate_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 void sanitise_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 {
 	sanitise_dbsc_pair(First, Second) || sanitise_surrogate_pair(First, Second);
+}
+
+bool get_console_screen_buffer_info(HANDLE ConsoleOutput, CONSOLE_SCREEN_BUFFER_INFO* ConsoleScreenBufferInfo)
+{
+	if (!GetConsoleScreenBufferInfo(ConsoleOutput, ConsoleScreenBufferInfo))
+	{
+		LOGERROR(L"GetConsoleScreenBufferInfo(): {}"sv, os::last_error());
+		return false;
+	}
+
+	const auto& Window = ConsoleScreenBufferInfo->srWindow;
+
+	// Mantis#3919: Windows 10 is a PITA
+	if (Window.Left > Window.Right || Window.Top > Window.Bottom)
+	{
+		LOGERROR(L"Console window state is broken, trying to repair"sv);
+
+		auto NewWindow = Window;
+
+		if (Window.Left > Window.Right)
+		{
+			NewWindow.Left = 0;
+			NewWindow.Right = std::min(ConsoleScreenBufferInfo->dwMaximumWindowSize.X - 1, ConsoleScreenBufferInfo->dwSize.X - 1);
+		}
+
+		// https://forum.farmanager.com/viewtopic.php?p=170779#p170779
+		if (Window.Top > Window.Bottom)
+		{
+			NewWindow.Bottom = ConsoleScreenBufferInfo->dwSize.Y - 1;
+			NewWindow.Top = std::clamp(NewWindow.Top, short{}, NewWindow.Bottom);
+		}
+
+		if (!SetConsoleWindowInfo(ConsoleOutput, true, &NewWindow))
+		{
+			LOGERROR(L"SetConsoleWindowInfo(): {}"sv, os::last_error());
+			return false;
+		}
+
+		if (!GetConsoleScreenBufferInfo(ConsoleOutput, ConsoleScreenBufferInfo))
+		{
+			LOGERROR(L"GetConsoleScreenBufferInfo(): {}"sv, os::last_error());
+			return false;
+		}
+	}
+
+	return true;
 }
 
 static COORD make_coord(point const& Point)
@@ -290,12 +342,24 @@ namespace console_detail
 
 	bool console::Allocate() const
 	{
-		return AllocConsole() != FALSE;
+		if (!AllocConsole())
+		{
+			LOGERROR(L"AllocConsole(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::Free() const
 	{
-		return FreeConsole() != FALSE;
+		if (!FreeConsole())
+		{
+			LOGERROR(L"FreeConsole(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	HANDLE console::GetInputHandle() const
@@ -320,21 +384,35 @@ namespace console_detail
 
 	HWND console::GetWindow() const
 	{
-		return GetConsoleWindow();
+		const auto Window = GetConsoleWindow();
+
+		wchar_t ClassName[MAX_PATH];
+		if (const auto Size = GetClassName(Window, ClassName, static_cast<int>(std::size(ClassName))); Size)
+		{
+			if (string_view(ClassName, Size) == L"PseudoConsoleWindow"sv)
+			{
+				if (const auto Owner = ::GetWindow(Window, GW_OWNER))
+					return Owner;
+			}
+		}
+
+		return Window;
 	}
 
 	bool console::GetSize(point& Size) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &ConsoleScreenBufferInfo))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &ConsoleScreenBufferInfo))
 			return false;
 
 		if (sWindowMode)
 		{
+			const auto& Window = ConsoleScreenBufferInfo.srWindow;
+
 			Size =
 			{
-				ConsoleScreenBufferInfo.srWindow.Right - ConsoleScreenBufferInfo.srWindow.Left + 1,
-				ConsoleScreenBufferInfo.srWindow.Bottom - ConsoleScreenBufferInfo.srWindow.Top + 1
+				Window.Right - Window.Left + 1,
+				Window.Bottom - Window.Top + 1
 			};
 		}
 		else
@@ -351,17 +429,20 @@ namespace console_detail
 			return SetScreenBufferSize(Size);
 
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return false;
+
 		csbi.srWindow.Left = 0;
 		csbi.srWindow.Right = Size.x - 1;
 		csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
 		csbi.srWindow.Top = csbi.srWindow.Bottom - (Size.y - 1);
-		point WindowCoord = { csbi.srWindow.Right - csbi.srWindow.Left + 1, csbi.srWindow.Bottom - csbi.srWindow.Top + 1 };
+		point WindowCoord{ csbi.srWindow.Right - csbi.srWindow.Left + 1, csbi.srWindow.Bottom - csbi.srWindow.Top + 1 };
 		if (WindowCoord.x > csbi.dwSize.X || WindowCoord.y > csbi.dwSize.Y)
 		{
 			WindowCoord.x = std::max(WindowCoord.x, static_cast<int>(csbi.dwSize.X));
 			WindowCoord.y = std::max(WindowCoord.y, static_cast<int>(csbi.dwSize.Y));
-			SetScreenBufferSize(WindowCoord);
+			if (!SetScreenBufferSize(WindowCoord))
+				return false;
 
 			if (WindowCoord.x > csbi.dwSize.X)
 			{
@@ -384,18 +465,22 @@ namespace console_detail
 		if (IsVtSupported())
 		{
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			if (GetConsoleScreenBufferInfo(Out, &Info))
+			if (get_console_screen_buffer_info(Out, &Info))
 			{
 				// Make sure the cursor is within the new buffer
 				if (!(Info.dwCursorPosition.X < Size.x && Info.dwCursorPosition.Y < Size.y))
 				{
-					SetConsoleCursorPosition(
+					if (!SetConsoleCursorPosition(
 						Out,
 						{
 							std::min(Info.dwCursorPosition.X, static_cast<SHORT>(Size.x - 1)),
 							std::min(Info.dwCursorPosition.Y, static_cast<SHORT>(Size.y - 1))
 						}
-					);
+					))
+					{
+						LOGERROR(L"SetConsoleCursorPosition(): {}"sv, os::last_error());
+						return false;
+					}
 				}
 
 				// Make sure the window is within the new buffer:
@@ -408,30 +493,35 @@ namespace console_detail
 					Rect.top = std::max(0, Rect.bottom - Height);
 					Rect.left = std::max(0, Rect.right - Width);
 
-					SetWindowRect(Rect);
+					if (!SetWindowRect(Rect))
+						return false;
 				}
 			}
 		}
 
-		const auto Result = SetConsoleScreenBufferSize(Out, make_coord(Size)) != FALSE;
+		if (!SetConsoleScreenBufferSize(Out, make_coord(Size)))
+		{
+			LOGERROR(L"SetConsoleScreenBufferSize(): {}"sv, os::last_error());
+			return false;
+		}
 
 		// After changing the buffer size the window size is not always correct
 		if (IsVtSupported())
 		{
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			if (GetConsoleScreenBufferInfo(Out, &Info))
+			if (get_console_screen_buffer_info(Out, &Info))
 			{
 				SetWindowRect(Info.srWindow);
 			}
 		}
 
-		return Result;
+		return true;
 	}
 
 	bool console::GetWindowRect(rectangle& ConsoleWindow) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &ConsoleScreenBufferInfo))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &ConsoleScreenBufferInfo))
 			return false;
 
 		ConsoleWindow = ConsoleScreenBufferInfo.srWindow;
@@ -441,13 +531,19 @@ namespace console_detail
 	bool console::SetWindowRect(rectangle const& ConsoleWindow) const
 	{
 		const auto Rect = make_rect(ConsoleWindow);
-		return SetConsoleWindowInfo(GetOutputHandle(), true, &Rect) != FALSE;
+		if (!SetConsoleWindowInfo(GetOutputHandle(), true, &Rect))
+		{
+			LOGERROR(L"SetConsoleWindowInfo(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::GetWorkingRect(rectangle& WorkingRect) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 			return false;
 
 		WorkingRect.bottom = csbi.dwSize.Y - 1;
@@ -461,7 +557,11 @@ namespace console_detail
 	{
 		// Don't use GetConsoleTitle here, it's buggy.
 		string Title;
-		os::GetWindowText(GetWindow(), Title);
+		if (!os::GetWindowText(GetWindow(), Title))
+		{
+			LOGERROR(L"GetWindowText(): {}"sv, os::last_error());
+		}
+
 		return Title;
 	}
 
@@ -473,14 +573,23 @@ namespace console_detail
 	bool console::SetTitle(string_view const Title) const
 	{
 		m_Title = Title;
-		return SetConsoleTitle(m_Title.c_str()) != FALSE;
+		if (!SetConsoleTitle(m_Title.c_str()))
+		{
+			LOGERROR(L"SetConsoleTitle(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::GetKeyboardLayoutName(string &strName) const
 	{
 		wchar_t Buffer[KL_NAMELENGTH];
 		if (!imports.GetConsoleKeyboardLayoutNameW(Buffer))
+		{
+			LOGERROR(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
 			return false;
+		}
 
 		strName = Buffer;
 		return true;
@@ -493,7 +602,13 @@ namespace console_detail
 
 	bool console::SetInputCodepage(uintptr_t Codepage) const
 	{
-		return SetConsoleCP(Codepage) != FALSE;
+		if (!SetConsoleCP(Codepage))
+		{
+			LOGERROR(L"SetConsoleCP(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	uintptr_t console::GetOutputCodepage() const
@@ -503,22 +618,46 @@ namespace console_detail
 
 	bool console::SetOutputCodepage(uintptr_t Codepage) const
 	{
-		return SetConsoleOutputCP(Codepage) != FALSE;
+		if (!SetConsoleOutputCP(Codepage))
+		{
+			LOGERROR(L"SetConsoleOutputCP(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::SetControlHandler(PHANDLER_ROUTINE HandlerRoutine, bool Add) const
 	{
-		return SetConsoleCtrlHandler(HandlerRoutine, Add) != FALSE;
+		if (!SetConsoleCtrlHandler(HandlerRoutine, Add))
+		{
+			LOGERROR(L"SetConsoleCtrlHandler(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::GetMode(HANDLE ConsoleHandle, DWORD& Mode) const
 	{
-		return GetConsoleMode(ConsoleHandle, &Mode) != FALSE;
+		if (!GetConsoleMode(ConsoleHandle, &Mode))
+		{
+			LOGERROR(L"GetConsoleMode(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::SetMode(HANDLE ConsoleHandle, DWORD Mode) const
 	{
-		return SetConsoleMode(ConsoleHandle, Mode) != FALSE;
+		if (!SetConsoleMode(ConsoleHandle, Mode))
+		{
+			LOGERROR(L"SetConsoleMode(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::IsVtSupported() const
@@ -551,7 +690,10 @@ namespace console_detail
 	static bool get_current_console_font(HANDLE OutputHandle, CONSOLE_FONT_INFO& FontInfo)
 	{
 		if (!GetCurrentConsoleFont(OutputHandle, FALSE, &FontInfo))
+		{
+			LOGERROR(L"GetCurrentConsoleFont(): {}"sv, os::last_error());
 			return false;
+		}
 
 		// in XP FontInfo.dwFontSize contains something else than the size in pixels.
 		FontInfo.dwFontSize = GetConsoleFontSize(OutputHandle, FontInfo.nFont);
@@ -572,13 +714,19 @@ namespace console_detail
 		// Note: using the current mouse position rather than what's in the wheel event
 		POINT CursorPos;
 		if (!GetCursorPos(&CursorPos))
+		{
+			LOGWARNING(L"GetCursorPos(): {}"sv, os::last_error());
 			return;
+		}
 
 		const auto WindowHandle = ::console.GetWindow();
 
 		auto RelativePos = CursorPos;
 		if (!ScreenToClient(WindowHandle, &RelativePos))
+		{
+			LOGWARNING(L"ScreenToClient(): {}"sv, os::last_error());
 			return;
+		}
 
 		const auto OutputHandle = ::console.GetOutputHandle();
 
@@ -587,7 +735,7 @@ namespace console_detail
 			return;
 
 		CONSOLE_SCREEN_BUFFER_INFO Csbi;
-		if (!GetConsoleScreenBufferInfo(OutputHandle, &Csbi))
+		if (!get_console_screen_buffer_info(OutputHandle, &Csbi))
 			return;
 
 		const auto Set = [&](auto Coord, auto Point, auto SmallRect)
@@ -601,18 +749,24 @@ namespace console_detail
 
 	static void AdjustMouseEvents(span<INPUT_RECORD> const Buffer, short Delta)
 	{
-		point Size;
-		::console.GetSize(Size);
+		std::optional<point> Size;
 
 		for (auto& i: Buffer)
 		{
 			if (i.EventType != MOUSE_EVENT)
 				continue;
 
+			if (!Size)
+			{
+				Size.emplace();
+				if (!::console.GetSize(*Size))
+					return;
+			}
+
 			fix_wheel_coordinates(i.Event.MouseEvent);
 
 			i.Event.MouseEvent.dwMousePosition.Y = std::max(0, i.Event.MouseEvent.dwMousePosition.Y - Delta);
-			i.Event.MouseEvent.dwMousePosition.X = std::min(i.Event.MouseEvent.dwMousePosition.X, static_cast<short>(Size.x - 1));
+			i.Event.MouseEvent.dwMousePosition.X = std::min(i.Event.MouseEvent.dwMousePosition.X, static_cast<short>(Size->x - 1));
 		}
 	}
 
@@ -620,7 +774,10 @@ namespace console_detail
 	{
 		DWORD dwNumberOfEventsRead = 0;
 		if (!PeekConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsRead))
+		{
+			LOGERROR(L"PeekConsoleInput(): {}"sv, os::last_error());
 			return false;
+		}
 
 		NumberOfEventsRead = dwNumberOfEventsRead;
 
@@ -641,7 +798,10 @@ namespace console_detail
 	{
 		DWORD dwNumberOfEventsRead = 0;
 		if (!ReadConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsRead))
+		{
+			LOGERROR(L"ReadConsoleInput(): {}"sv, os::last_error());
 			return false;
+		}
 
 		NumberOfEventsRead = dwNumberOfEventsRead;
 
@@ -674,24 +834,36 @@ namespace console_detail
 			}
 		}
 		DWORD dwNumberOfEventsWritten = 0;
-		const auto Result = WriteConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsWritten) != FALSE;
-		NumberOfEventsWritten = dwNumberOfEventsWritten;
-		return Result;
+		SCOPE_EXIT{ NumberOfEventsWritten = dwNumberOfEventsWritten; };
+
+		if (!WriteConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsWritten))
+		{
+			LOGERROR(L"WriteConsoleInput(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	static bool ReadOutputImpl(CHAR_INFO* const Buffer, point const BufferSize, rectangle& ReadRegion)
 	{
 		auto Rect = make_rect(ReadRegion);
-		const auto Result = ReadConsoleOutput(::console.GetOutputHandle(), Buffer, make_coord(BufferSize), {}, &Rect) != FALSE;
-		ReadRegion = Rect;
-		return Result;
+		SCOPE_EXIT{ ReadRegion = Rect; };
+
+		if (!ReadConsoleOutput(::console.GetOutputHandle(), Buffer, make_coord(BufferSize), {}, &Rect))
+		{
+			LOGERROR(L"ReadConsoleOutput(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::ReadOutput(matrix<FAR_CHAR_INFO>& Buffer, point const BufferCoord, rectangle const& ReadRegionRelative) const
 	{
 		if (ExternalConsole.Imports.pReadOutput)
 		{
-			const COORD BufferSize = { static_cast<short>(Buffer.width()), static_cast<short>(Buffer.height()) };
+			const COORD BufferSize{ static_cast<short>(Buffer.width()), static_cast<short>(Buffer.height()) };
 			auto ReadRegion = make_rect(ReadRegionRelative);
 			return ExternalConsole.Imports.pReadOutput(Buffer.data(), BufferSize, make_coord(BufferCoord), &ReadRegion) != FALSE;
 		}
@@ -737,19 +909,29 @@ namespace console_detail
 		}
 
 		auto ConsoleBufferIterator = ConsoleBuffer.cbegin();
+
+		const auto replace_replacement_if_needed = [IsDefaultReplacementWide = char_width::is_wide(encoding::replace_char)](CHAR_INFO const& Cell)
+		{
+			// In some cases the host replaces various non-BMP codepoints with FFFD,
+			// but always treats it as a narrow character, even when it's not (e.g. in MS Gothic).
+			// Reading those FFFDs and writing them back breaks the layout spectacularly.
+			// Replacing them with '?' is the easiest way to fix it.
+			return IsDefaultReplacementWide && Cell.Char.UnicodeChar == encoding::replace_char && !(Cell.Attributes & COMMON_LVB_SBCSDBCS)? L'?' : Cell.Char.UnicodeChar;
+		};
+
 		for_submatrix(Buffer, SubRect, [&](FAR_CHAR_INFO& i)
 		{
 			const auto& Cell = *ConsoleBufferIterator++;
-			i = { Cell.Char.UnicodeChar, colors::ConsoleColorToFarColor(Cell.Attributes) };
+			i = { replace_replacement_if_needed(Cell), colors::NtColorToFarColor(Cell.Attributes) };
 		});
 
 		return true;
 	}
 
-	static constexpr wchar_t vt_color_index(int const Index)
+	static constexpr uint8_t vt_base_color_index(uint8_t const Index)
 	{
 		// NT is RGB, VT is BGR
-		constexpr int Table[]
+		constexpr uint8_t Table[]
 		{
 			//BGR     RGB
 			0b000, // 000
@@ -762,68 +944,167 @@ namespace console_detail
 			0b111, // 111
 		};
 
-		return L'0' + Table[Index & 0b111];
+		return Table[Index & 0b111];
 	}
 
-	static const struct
+	static constexpr uint8_t vt_color_index(uint8_t const Index)
 	{
-		string_view Normal, Intense, TrueColour;
+		return (Index & 0b11111000) | vt_base_color_index(Index);
+	}
+
+	static constexpr struct
+	{
+		string_view Normal, Intense, ExtendedColour;
 		COLORREF FarColor::* Color;
 		FARCOLORFLAGS Flags;
 	}
 	ColorsMapping[]
 	{
-		{ L"3"sv,  L"9"sv, L"38"sv, &FarColor::ForegroundColor, FCF_FG_4BIT },
-		{ L"4"sv, L"10"sv, L"48"sv, &FarColor::BackgroundColor, FCF_BG_4BIT },
+		{ L"3"sv,  L"9"sv, L"38"sv, &FarColor::ForegroundColor, FCF_FG_INDEX },
+		{ L"4"sv, L"10"sv, L"48"sv, &FarColor::BackgroundColor, FCF_BG_INDEX },
 	};
+
+	static constexpr struct
+	{
+		FARCOLORFLAGS Style;
+		string_view On, Off;
+	}
+	StyleMapping[]
+	{
+		{ FCF_FG_BOLD,         L"1"sv,     L"22"sv },
+		{ FCF_FG_ITALIC,       L"3"sv,     L"23"sv },
+		{ FCF_FG_UNDERLINE,    L"4"sv,     L"24"sv },
+		{ FCF_FG_UNDERLINE2,   L"21"sv,    L"24"sv },
+		{ FCF_FG_OVERLINE,     L"53"sv,    L"55"sv },
+		{ FCF_FG_STRIKEOUT,    L"9"sv,     L"29"sv },
+		{ FCF_FG_FAINT,        L"2"sv,     L"22"sv },
+		{ FCF_FG_BLINK,        L"5"sv,     L"25"sv },
+		{ FCF_FG_INVERSE,      L"7"sv,     L"27"sv },
+		{ FCF_FG_INVISIBLE,    L"8"sv,     L"28"sv },
+	};
+
+	static const size_t UnderlineIndex = 2;
+	static_assert(StyleMapping[UnderlineIndex].Style == FCF_FG_UNDERLINE);
+	static_assert(StyleMapping[UnderlineIndex + 1].Style == FCF_FG_UNDERLINE2);
+
+	static void make_vt_color(const FarColor& Attributes, string& Str, size_t const MappingIndex)
+	{
+		const auto& Mapping = ColorsMapping[MappingIndex];
+		const auto ColorPart = std::invoke(Mapping.Color, Attributes);
+
+		if (Attributes.Flags & Mapping.Flags)
+		{
+			const auto Index = colors::index_value(ColorPart);
+			if (Index < 16)
+				append(Str, ColorPart & FOREGROUND_INTENSITY? Mapping.Intense : Mapping.Normal, static_cast<wchar_t>(L'0' + vt_base_color_index(Index)));
+			else
+				format_to(Str, FSTR(L"{};5;{}"sv), Mapping.ExtendedColour, Index);
+		}
+		else
+		{
+			const auto RGBA = colors::to_rgba(ColorPart);
+			format_to(Str, FSTR(L"{};2;{};{};{}"sv), Mapping.ExtendedColour, RGBA.r, RGBA.g, RGBA.b);
+		}
+	}
+
+	static void make_vt_style(const FarColor& Attributes, string& Str, std::optional<FarColor> const& LastColor)
+	{
+		auto UnderlineSet = false;
+
+		for (const auto& i: StyleMapping)
+		{
+			if (Attributes.Flags & i.Style)
+			{
+				if (!LastColor.has_value() || !(LastColor->Flags & i.Style))
+				{
+					append(Str, i.On, L';');
+
+					// See below
+					if (i.Style == FCF_FG_UNDERLINE)
+						UnderlineSet = true;
+				}
+			}
+			else
+			{
+				if (LastColor.has_value() && LastColor->Flags & i.Style)
+				{
+					if (i.Style == FCF_FG_UNDERLINE2 && Attributes.Flags & FCF_FG_UNDERLINE)
+					{
+						// Both Underline and Double Underline have the same off code. 🤦
+						// VT is a bloody joke. Whoever invented it should be punished.
+
+						// D is checked after U.
+						// We're dropping D now, so, if we have already enabled U on the previous iteration, this will kill it.
+						// To address this, we undo U if needed, emit the off code and enable U.
+						constexpr auto UnderlineOn = StyleMapping[UnderlineIndex].On;
+
+						if (UnderlineSet)
+							Str.resize(Str.size() - UnderlineOn.size() - 1);
+
+						append(Str, i.Off, L';', UnderlineOn, L';');
+						continue;
+					}
+
+					append(Str, i.Off, L';');
+				}
+			}
+		}
+
+		// We should only enter this function if the style has changed and it should add or remove at least something,
+		// so no need to check before pop:
+		Str.pop_back();
+	}
 
 	static void make_vt_attributes(const FarColor& Attributes, string& Str, std::optional<FarColor> const& LastColor)
 	{
-		append(Str, L"\033["sv);
+		const auto SameFgColor = LastColor && LastColor->IsFgIndex() == Attributes.IsFgIndex() && LastColor->ForegroundColor == Attributes.ForegroundColor;
+		const auto SameBgColor = LastColor && LastColor->IsBgIndex() == Attributes.IsBgIndex() && LastColor->BackgroundColor == Attributes.BackgroundColor;
+		const auto SameStyle = LastColor && ((LastColor->Flags & FCF_STYLEMASK) == (Attributes.Flags & FCF_STYLEMASK));
 
-		for (const auto& i: ColorsMapping)
+		if (SameFgColor && SameBgColor && SameStyle)
 		{
-			const auto ColorPart = std::invoke(i.Color, Attributes);
-
-			if (Attributes.Flags & i.Flags)
-			{
-				append(Str, ColorPart & FOREGROUND_INTENSITY? i.Intense : i.Normal, vt_color_index(ColorPart));
-			}
-			else
-			{
-				const union { COLORREF Color; rgba RGBA; } Value { ColorPart };
-				format_to(Str, FSTR(L"{};2;{};{};{}"sv), i.TrueColour, Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
-			}
-
-			Str += L';';
+			assert(false);
+			return;
 		}
 
-		Str.pop_back();
+		Str += CSI ""sv;
 
-		const auto set_style = [&](FARCOLORFLAGS const Style, string_view const On, string_view const Off)
+		if (!SameFgColor)
 		{
-			if (Attributes.Flags & Style)
-			{
-				if (!LastColor.has_value() || !(LastColor->Flags & Style))
-					Str += On;
-			}
-			else
-			{
-				if (LastColor.has_value() && LastColor->Flags & Style)
-					Str += Off;
-			}
-		};
+			make_vt_color(Attributes, Str, 0);
+		}
 
-		set_style(FCF_FG_BOLD,       L";1"sv,  L";22"sv);
-		set_style(FCF_FG_ITALIC,     L";3"sv,  L";23"sv);
-		set_style(FCF_FG_UNDERLINE,  L";4"sv,  L";24"sv);
-		set_style(FCF_FG_UNDERLINE2, L";21"sv, L";24"sv);
-		set_style(FCF_FG_OVERLINE,   L";53"sv, L";55"sv);
-		set_style(FCF_FG_STRIKEOUT,  L";9"sv,  L";29"sv);
-		set_style(FCF_FG_FAINT,      L";2"sv,  L";22"sv);
-		set_style(FCF_FG_BLINK,      L";5"sv,  L";25"sv);
+		if (!SameBgColor)
+		{
+			if (!SameFgColor)
+				Str += L';';
+
+			make_vt_color(Attributes, Str, 1);
+		}
+
+		if (!SameStyle)
+		{
+			if (!SameFgColor || !SameBgColor)
+				Str += L';';
+
+			make_vt_style(Attributes, Str, LastColor);
+		}
 
 		Str += L'm';
+	}
+
+	static bool is_same_color(FarColor const& a, FarColor const& b)
+	{
+		// FCF_RAWATTR_MASK contains non-VT stuff we don't care about.
+		// FCF_INHERIT_STYLE only affects logical composition.
+		constexpr auto IgnoredFlags = FCF_RAWATTR_MASK | FCF_INHERIT_STYLE;
+
+		return
+			(a.Flags & ~IgnoredFlags) == (b.Flags & ~IgnoredFlags) &&
+			a.ForegroundColor == b.ForegroundColor &&
+			a.BackgroundColor == b.BackgroundColor &&
+			// Reserved[0] contains non-BMP codepoints and is of no interest here.
+			a.Reserved[1] == b.Reserved[1];
 	}
 
 	static void make_vt_sequence(span<FAR_CHAR_INFO> Input, string& Str, std::optional<FarColor>& LastColor)
@@ -848,10 +1129,26 @@ namespace console_detail
 						Cell.Char = bad_char_replacement;
 						flags::clear(Cell.Attributes.Flags, COMMON_LVB_TRAILING_BYTE);
 					}
-					else if (Cell.Char == *LeadingChar)
+					else
+WARNING_PUSH()
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
+WARNING_DISABLE_GCC("-Wmaybe-uninitialized")
+
+						if (Cell.Char == *LeadingChar)
+WARNING_POP()
 					{
-						LeadingChar.reset();
-						continue;
+						if (Cell.Char == encoding::replace_char && !char_width::is_wide(encoding::replace_char))
+						{
+							// As of 13 Jul 2022 ReadConsoleOutputW doesn't work with surrogate pairs (see microsoft/terminal#10810)
+							// It returns two FFFDs instead with leading and trailing flags.
+							// We can't just drop the trailing one here because FFFD isn't always wide and the layout might get broken.
+							Cell.Char = L' ';
+						}
+						else
+						{
+							LeadingChar.reset();
+							continue;
+						}
 					}
 				}
 				else if (!n && encoding::utf16::is_low_surrogate(Cell.Char))
@@ -873,13 +1170,20 @@ namespace console_detail
 						LeadingChar = Cell.Char;
 					}
 				}
-				else if (n == Input.size() - 1 && encoding::utf16::is_high_surrogate(Cell.Char))
+				else if (
+					n == Input.size() - 1 &&
+					(
+						encoding::utf16::is_high_surrogate(Cell.Char) ||
+						// FFFD can be wide too
+						(Cell.Char == encoding::replace_char && char_width::is_wide(encoding::replace_char))
+					)
+				)
 				{
 					Cell.Char = bad_char_replacement;
 				}
 			}
 
-			if (!LastColor.has_value() || Cell.Attributes != *LastColor)
+			if (!LastColor.has_value() || !is_same_color(Cell.Attributes, *LastColor))
 			{
 				make_vt_attributes(Cell.Attributes, Str, LastColor);
 				LastColor = Cell.Attributes;
@@ -889,6 +1193,9 @@ namespace console_detail
 			{
 				const auto Pair = encoding::utf16::to_surrogate(Cell.Attributes.Reserved[0]);
 				append(Str, Pair.first, Pair.second);
+
+				if (char_width::is_half_width_surrogate_broken())
+					append(Str, CSI L"1D"sv); // Yuck
 			}
 			else
 			{
@@ -905,7 +1212,7 @@ namespace console_detail
 			const auto Out = ::console.GetOutputHandle();
 
 			CONSOLE_SCREEN_BUFFER_INFO csbi;
-			if (!GetConsoleScreenBufferInfo(Out, &csbi))
+			if (!get_console_screen_buffer_info(Out, &csbi))
 				return false;
 
 			point SavedCursorPosition;
@@ -916,13 +1223,21 @@ namespace console_detail
 			if (!::console.GetCursorInfo(SavedCursorInfo))
 				return false;
 
-			if (
-				// Hide cursor
-				!::console.SetCursorInfo({1}) ||
-				// Move the viewport down
-				!::console.SetCursorRealPosition({ 0, csbi.dwSize.Y - 1 }) ||
-				// Set cursor position within the viewport
-				!::console.SetCursorRealPosition({ WriteRegion.left, WriteRegion.top }))
+			// Ideally this should be filtered out earlier
+			if (WriteRegion.left > csbi.dwSize.X - 1 || WriteRegion.top > csbi.dwSize.Y - 1)
+				return false;
+
+
+			// Hide cursor
+			if (!::console.SetCursorInfo({1}))
+				return false;
+
+			// Move the viewport down
+			if (!::console.SetCursorRealPosition({0, csbi.dwSize.Y - 1}))
+				return false;
+
+			// Set cursor position within the viewport
+			if (!::console.SetCursorRealPosition({WriteRegion.left, WriteRegion.top}))
 				return false;
 
 			SCOPE_EXIT
@@ -960,17 +1275,40 @@ namespace console_detail
 
 			std::optional<FarColor> LastColor;
 
-			for (const auto& i: irange(SubRect.top + 0, SubRect.bottom + 1))
-			{
-				if (i != SubRect.top)
-					format_to(Str, FSTR(L"\033[{};{}H"sv), CursorPosition.y + 1 + (i - SubRect.top), CursorPosition.x + 1);
+			point ViewportSize;
+			if (!::console.GetSize(ViewportSize))
+				return false;
 
-				make_vt_sequence(Buffer[i].subspan(SubRect.left, SubRect.width()), Str, LastColor);
+			// If SubRect is too tall (e.g. when we flushing the old content of console resize), the rest will be dropped.
+			// VT is a bloody joke.
+			for (int SubrectOffset = 0; SubrectOffset < SubRect.height(); SubrectOffset += ViewportSize.y)
+			{
+				if (SubrectOffset)
+				{
+					// Move the viewport down
+					if (!::console.SetCursorRealPosition({0, csbi.dwSize.Y - 1}))
+						return false;
+					// Set cursor position within the viewport
+					if (!::console.SetCursorRealPosition({ WriteRegion.left, WriteRegion.top + SubrectOffset }))
+						return false;
+				}
+
+				for (const auto& i: irange(SubRect.top + SubrectOffset, std::min(SubRect.top + SubrectOffset + ViewportSize.y, SubRect.bottom + 1)))
+				{
+					if (i != SubRect.top + SubrectOffset)
+						format_to(Str, FSTR(CSI L"{};{}H"sv), CursorPosition.y + 1 + (i - SubrectOffset - SubRect.top), CursorPosition.x + 1);
+
+					make_vt_sequence(Buffer[i].subspan(SubRect.left, SubRect.width()), Str, LastColor);
+				}
+
+				if (!::console.Write(Str))
+					return false;
+
+				Str.clear();
+
 			}
 
-			append(Str, L"\033[0m"sv);
-
-			return ::console.Write(Str);
+			return ::console.Write(CSI L"0m"sv);
 		}
 
 		class cursor_suppressor
@@ -1024,7 +1362,13 @@ namespace console_detail
 				CursorSuppressor.emplace();
 
 			auto SysWriteRegion = make_rect(WriteRegion);
-			return WriteConsoleOutput(::console.GetOutputHandle(), Buffer, make_coord(BufferSize), {}, &SysWriteRegion) != FALSE;
+			if (!WriteConsoleOutput(::console.GetOutputHandle(), Buffer, make_coord(BufferSize), {}, &SysWriteRegion))
+			{
+				LOGERROR(L"WriteConsoleOutput(): {}"sv, os::last_error());
+				return false;
+			}
+
+			return true;
 		}
 
 		static bool WriteOutputNTImplDebug(CHAR_INFO* const Buffer, point const BufferSize, rectangle const& WriteRegion)
@@ -1037,7 +1381,7 @@ namespace console_detail
 				const auto invert_colors = [&]
 				{
 					for (auto& i: span(Buffer, BufferSize.x* BufferSize.y))
-						i.Attributes = (i.Attributes & FCF_RAWATTR_MASK) | LOBYTE(~i.Attributes);
+						i.Attributes = (i.Attributes & FCF_RAWATTR_MASK) | extract_integer<BYTE, 0>(~i.Attributes);
 				};
 
 				invert_colors();
@@ -1148,15 +1492,68 @@ namespace console_detail
 
 		static bool SetTextAttributesNT(const FarColor& Attributes)
 		{
-			return SetConsoleTextAttribute(::console.GetOutputHandle(), colors::FarColorToConsoleColor(Attributes)) != FALSE;
+			if (!SetConsoleTextAttribute(::console.GetOutputHandle(), colors::FarColorToConsoleColor(Attributes)))
+			{
+				LOGERROR(L"SetConsoleTextAttribute(): {}"sv, os::last_error());
+				return false;
+			}
+
+			return true;
 		}
+
+		static bool SetPaletteVT(std::array<COLORREF, 16> const& Palette)
+		{
+			string Str;
+			Str.reserve(OSC L"4;15;rgb:ff/ff/ff" ST ""sv.size() * 16);
+
+			for (const auto& [Color, i] : enumerate(Palette))
+			{
+				const union { COLORREF Color; rgba RGBA; } Value{ Color };
+				format_to(Str, FSTR(OSC L"4;{};rgb:{:02x}/{:02x}/{:02x}" ST ""sv), vt_color_index(i), Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
+			}
+
+			return ::console.Write(Str);
+		}
+
+		static bool SetPaletteNT(std::array<COLORREF, 16> const& Palette)
+		{
+			if (!imports.GetConsoleScreenBufferInfoEx)
+				return false;
+
+			const auto Output = ::console.GetOutputHandle();
+
+			CONSOLE_SCREEN_BUFFER_INFOEX csbi{ sizeof(csbi) };
+			if (!imports.GetConsoleScreenBufferInfoEx(Output, &csbi))
+			{
+				LOGERROR(L"GetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
+				return false;
+			}
+
+			if (std::equal(ALL_CONST_RANGE(Palette), ALL_CONST_RANGE(csbi.ColorTable)))
+				return true;
+
+			std::copy(ALL_CONST_RANGE(Palette), std::begin(csbi.ColorTable));
+
+			if (!imports.SetConsoleScreenBufferInfoEx(Output, &csbi))
+			{
+				LOGERROR(L"SetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
+				return false;
+			}
+
+			// Get + Set screws up the window size 🤦
+			if (!SetConsoleWindowInfo(Output, true, &csbi.srWindow))
+				LOGWARNING(L"SetConsoleWindowInfo(): {}"sv, os::last_error());
+
+			return true;
+		}
+
 	};
 
 	bool console::WriteOutput(matrix<FAR_CHAR_INFO>& Buffer, point BufferCoord, const rectangle& WriteRegionRelative) const
 	{
 		if (ExternalConsole.Imports.pWriteOutput)
 		{
-			const COORD BufferSize = { static_cast<short>(Buffer.width()), static_cast<short>(Buffer.height()) };
+			const COORD BufferSize{ static_cast<short>(Buffer.width()), static_cast<short>(Buffer.height()) };
 			auto WriteRegion = make_rect(WriteRegionRelative);
 			return ExternalConsole.Imports.pWriteOutput(Buffer.data(), BufferSize, make_coord(BufferCoord), &WriteRegion) != FALSE;
 		}
@@ -1187,12 +1584,18 @@ namespace console_detail
 		if (GetMode(InputHandle, Mode))
 		{
 			if (!ReadConsole(InputHandle, Buffer.data(), static_cast<DWORD>(Buffer.size()), &NumberOfCharsRead, nullptr))
+			{
+				LOGERROR(L"ReadConsole(): {}"sv, os::last_error());
 				return false;
+			}
 		}
 		else
 		{
 			if (!ReadFile(InputHandle, Buffer.data(), static_cast<DWORD>(Buffer.size() * sizeof(wchar_t)), &NumberOfCharsRead, nullptr))
+			{
+				LOGERROR(L"ReadFile(): {}"sv, os::last_error());
 				return false;
+			}
 
 			NumberOfCharsRead /= sizeof(wchar_t);
 		}
@@ -1208,7 +1611,15 @@ namespace console_detail
 
 		DWORD Mode;
 		if (GetMode(OutputHandle, Mode))
-			return WriteConsole(OutputHandle, Str.data(), static_cast<DWORD>(Str.size()), &NumberOfCharsWritten, nullptr) != FALSE;
+		{
+			if (!WriteConsole(OutputHandle, Str.data(), static_cast<DWORD>(Str.size()), &NumberOfCharsWritten, nullptr))
+			{
+				LOGERROR(L"WriteConsole(): {}"sv, os::last_error());
+				return false;
+			}
+
+			return true;
+		}
 
 		// Redirected output
 
@@ -1243,10 +1654,10 @@ namespace console_detail
 			return ExternalConsole.Imports.pGetTextAttributes(&Attributes) != FALSE;
 
 		CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &ConsoleScreenBufferInfo))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &ConsoleScreenBufferInfo))
 			return false;
 
-		Attributes = colors::ConsoleColorToFarColor(ConsoleScreenBufferInfo.wAttributes);
+		Attributes = colors::NtColorToFarColor(ConsoleScreenBufferInfo.wAttributes);
 		return true;
 	}
 
@@ -1260,12 +1671,24 @@ namespace console_detail
 
 	bool console::GetCursorInfo(CONSOLE_CURSOR_INFO& ConsoleCursorInfo) const
 	{
-		return GetConsoleCursorInfo(GetOutputHandle(), &ConsoleCursorInfo) != FALSE;
+		if (!GetConsoleCursorInfo(GetOutputHandle(), &ConsoleCursorInfo))
+		{
+			LOGERROR(L"GetConsoleCursorInfo(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::SetCursorInfo(const CONSOLE_CURSOR_INFO& ConsoleCursorInfo) const
 	{
-		return SetConsoleCursorInfo(GetOutputHandle(), &ConsoleCursorInfo) != FALSE;
+		if (!SetConsoleCursorInfo(GetOutputHandle(), &ConsoleCursorInfo))
+		{
+			LOGERROR(L"SetConsoleCursorInfo(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool console::GetCursorPosition(point& Position) const
@@ -1283,7 +1706,7 @@ namespace console_detail
 	{
 		if (sWindowMode)
 		{
-			point Size = {};
+			point Size{};
 			GetSize(Size);
 			Position.x = std::min(Position.x, Size.x - 1);
 			Position.y = std::max(0, Position.y);
@@ -1335,41 +1758,66 @@ namespace console_detail
 		});
 	}
 
-	std::unordered_map<string, std::unordered_map<string, string>> console::GetAllAliases() const
-	{
-		FN_RETURN_TYPE(console::GetAllAliases) Result;
+	console::console_aliases::console_aliases() = default;
+	console::console_aliases::~console_aliases() = default;
 
+	struct console::console_aliases::data
+	{
+		// We only use it to bulk copy the aliases from one console to another,
+		// so no need to care about case insensitivity and fancy lookup.
+		std::vector<std::pair<string, std::vector<std::pair<string, string>>>> Aliases;
+	};
+
+	console::console_aliases console::GetAllAliases() const
+	{
 		const auto ExeLength = GetConsoleAliasExesLength();
 		if (!ExeLength)
-			return Result;
+			return {};
 
 		std::vector<wchar_t> ExeBuffer(ExeLength / sizeof(wchar_t) + 1); // +1 for double \0
 		if (!GetConsoleAliasExes(ExeBuffer.data(), ExeLength))
-			return Result;
+		{
+			LOGERROR(L"GetConsoleAliasExes(): {}"sv, os::last_error());
+			return {};
+		}
+
+		auto Aliases = std::make_unique<console_aliases::data>();
 
 		std::vector<wchar_t> AliasesBuffer;
-		for (const auto& ExeToken : enum_substrings(ExeBuffer.data()))
+		for (const auto& ExeToken: enum_substrings(ExeBuffer))
 		{
 			// It's ok, ExeToken is guaranteed to be null-terminated
 			const auto ExeNamePtr = const_cast<wchar_t*>(ExeToken.data());
 			const auto AliasesLength = GetConsoleAliasesLength(ExeNamePtr);
 			AliasesBuffer.resize(AliasesLength / sizeof(wchar_t) + 1); // +1 for double \0
 			if (!GetConsoleAliases(AliasesBuffer.data(), AliasesLength, ExeNamePtr))
-				continue;
-
-			auto& ExeMap = Result[ExeNamePtr];
-			for (const auto& AliasToken : enum_substrings(AliasesBuffer.data()))
 			{
-				ExeMap.emplace(split(AliasToken));
+				LOGERROR(L"GetConsoleAliases(): {}"sv, os::last_error());
+				continue;
 			}
+
+			std::pair<string, std::vector<std::pair<string, string>>> ExeData;
+			ExeData.first = ExeNamePtr;
+			for (const auto& AliasToken: enum_substrings(AliasesBuffer))
+			{
+				ExeData.second.emplace_back(split(AliasToken));
+			}
+
+			Aliases->Aliases.emplace_back(std::move(ExeData));
 		}
+
+		console_aliases Result;
+		Result.m_Data = std::move(Aliases);
 
 		return Result;
 	}
 
-	void console::SetAllAliases(const std::unordered_map<string, std::unordered_map<string, string>>& Aliases) const
+	void console::SetAllAliases(console_aliases&& Aliases) const
 	{
-		for (const auto& [ExeName, ExeAliases]: Aliases)
+		if (!Aliases.m_Data)
+			return;
+
+		for (const auto& [ExeName, ExeAliases]: Aliases.m_Data->Aliases)
 		{
 			for (const auto& [Alias, Value]: ExeAliases)
 			{
@@ -1384,15 +1832,20 @@ namespace console_detail
 
 	bool console::GetDisplayMode(DWORD& Mode) const
 	{
-		return GetConsoleDisplayMode(&Mode) != FALSE;
+		if (!GetConsoleDisplayMode(&Mode))
+		{
+			LOGERROR(L"GetConsoleDisplayMode(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 
 	point console::GetLargestWindowSize() const
 	{
 		point Result = GetLargestConsoleWindowSize(GetOutputHandle());
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
-		if (csbi.dwSize.Y > Result.y)
+		if (get_console_screen_buffer_info(GetOutputHandle(), &csbi) && csbi.dwSize.Y > Result.y)
 		{
 			CONSOLE_FONT_INFO FontInfo;
 			if (get_current_console_font(GetOutputHandle(), FontInfo))
@@ -1406,7 +1859,10 @@ namespace console_detail
 	bool console::SetActiveScreenBuffer(HANDLE ConsoleOutput)
 	{
 		if (!SetConsoleActiveScreenBuffer(ConsoleOutput))
+		{
+			LOGERROR(L"SetConsoleActiveScreenBuffer(): {}"sv, os::last_error());
 			return false;
+		}
 
 		m_ActiveConsoleScreenBuffer = ConsoleOutput;
 		return true;
@@ -1423,14 +1879,16 @@ namespace console_detail
 			return ExternalConsole.Imports.pClearExtraRegions(&Color, Mode) != FALSE;
 
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return false;
+
 		DWORD CharsWritten;
 		const auto ConColor = colors::FarColorToConsoleColor(Color);
 
 		if (Mode&CR_TOP)
 		{
 			const DWORD TopSize = csbi.dwSize.X * csbi.srWindow.Top;
-			const COORD TopCoord = {};
+			const COORD TopCoord{};
 			FillConsoleOutputCharacter(GetOutputHandle(), L' ', TopSize, TopCoord, &CharsWritten);
 			FillConsoleOutputAttribute(GetOutputHandle(), ConColor, TopSize, TopCoord, &CharsWritten);
 		}
@@ -1438,7 +1896,7 @@ namespace console_detail
 		if (Mode&CR_RIGHT)
 		{
 			const DWORD RightSize = csbi.dwSize.X - csbi.srWindow.Right;
-			COORD RightCoord = { csbi.srWindow.Right, ::GetDelta(csbi) };
+			COORD RightCoord{ csbi.srWindow.Right, ::GetDelta(csbi) };
 			for (; RightCoord.Y < csbi.dwSize.Y; RightCoord.Y++)
 			{
 				FillConsoleOutputCharacter(GetOutputHandle(), L' ', RightSize, RightCoord, &CharsWritten);
@@ -1452,7 +1910,8 @@ namespace console_detail
 	{
 		bool process = false;
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return false;
 
 		if ((Lines < 0 && csbi.srWindow.Top) || (Lines > 0 && csbi.srWindow.Bottom != csbi.dwSize.Y - 1))
 		{
@@ -1498,31 +1957,28 @@ namespace console_detail
 	bool console::ScrollWindowToBegin() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return false;
 
-		if (csbi.srWindow.Top > 0)
-		{
-			csbi.srWindow.Bottom -= csbi.srWindow.Top;
-			csbi.srWindow.Top = 0;
-			return SetWindowRect(csbi.srWindow);
-		}
+		if (!csbi.srWindow.Top)
+			return false;
 
-		return false;
+		csbi.srWindow.Bottom -= csbi.srWindow.Top;
+		csbi.srWindow.Top = 0;
+		return SetWindowRect(csbi.srWindow);
 	}
 
 	bool console::ScrollWindowToEnd() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 
-		if (csbi.srWindow.Bottom < csbi.dwSize.Y - 1)
-		{
-			csbi.srWindow.Top += csbi.dwSize.Y - 1 - csbi.srWindow.Bottom;
-			csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
-			return SetWindowRect(csbi.srWindow);
-		}
+		if (csbi.srWindow.Bottom == csbi.dwSize.Y - 1)
+			return false;
 
-		return false;
+		csbi.srWindow.Top += csbi.dwSize.Y - 1 - csbi.srWindow.Bottom;
+		csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
+		return SetWindowRect(csbi.srWindow);
 	}
 
 	bool console::IsFullscreenSupported() const
@@ -1530,27 +1986,34 @@ namespace console_detail
 #ifdef _WIN64
 		return false;
 #else
-		CONSOLE_SCREEN_BUFFER_INFOEX csbiex{ sizeof(csbiex) };
-		if (imports.GetConsoleScreenBufferInfoEx && imports.GetConsoleScreenBufferInfoEx(GetOutputHandle(), &csbiex))
-			return csbiex.bFullscreenSupported != FALSE;
+		if (!imports.GetConsoleScreenBufferInfoEx)
+			return true;
 
-		return true;
+		CONSOLE_SCREEN_BUFFER_INFOEX csbiex{ sizeof(csbiex) };
+		if (!imports.GetConsoleScreenBufferInfoEx(GetOutputHandle(), &csbiex))
+		{
+			LOGWARNING(L"GetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
+			return true;
+		}
+
+		return csbiex.bFullscreenSupported != FALSE;
 #endif
 	}
 
-	bool console::ResetPosition() const
+	void console::ResetPosition() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
-		if (csbi.srWindow.Left || csbi.srWindow.Bottom != csbi.dwSize.Y - 1)
-		{
-			csbi.srWindow.Right -= csbi.srWindow.Left;
-			csbi.srWindow.Left = 0;
-			csbi.srWindow.Top += csbi.dwSize.Y - 1 - csbi.srWindow.Bottom;
-			csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
-			SetWindowRect(csbi.srWindow);
-		}
-		return true;
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return;
+
+		if (!csbi.srWindow.Left && csbi.srWindow.Bottom == csbi.dwSize.Y - 1)
+			return;
+
+		csbi.srWindow.Right -= csbi.srWindow.Left;
+		csbi.srWindow.Left = 0;
+		csbi.srWindow.Top += csbi.dwSize.Y - 1 - csbi.srWindow.Bottom;
+		csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
+		SetWindowRect(csbi.srWindow);
 	}
 
 	bool console::ResetViewportPosition() const
@@ -1565,7 +2028,9 @@ namespace console_detail
 	short console::GetDelta() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi);
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
+			return 0;
+
 		return ::GetDelta(csbi);
 	}
 
@@ -1579,7 +2044,7 @@ namespace console_detail
 	bool console::ScrollNonClientArea(size_t NumLines, const FAR_CHAR_INFO& Fill) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 			return false;
 
 		const auto Scroll = [&](rectangle const& Rect)
@@ -1622,7 +2087,7 @@ namespace console_detail
 	bool console::IsViewportVisible() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 			return false;
 
 		const auto Height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
@@ -1637,7 +2102,7 @@ namespace console_detail
 			return false;
 
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 			return false;
 
 		return csbi.srWindow.Left || csbi.srWindow.Bottom + 1 != csbi.dwSize.Y;
@@ -1646,7 +2111,7 @@ namespace console_detail
 	bool console::IsPositionVisible(point const Position) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &csbi))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
 			return false;
 
 		if (!in_closed_range(csbi.srWindow.Left, Position.x, csbi.srWindow.Right))
@@ -1672,36 +2137,52 @@ namespace console_detail
 		return ExternalConsole.Imports.pWriteOutput.operator bool();
 	}
 
-	bool console::IsWidePreciseExpensive(unsigned int const Codepoint, bool const ClearCacheOnly)
+	bool console::IsWidePreciseExpensive(char32_t const Codepoint)
 	{
 		// It ain't stupid if it works
-
-		if (ClearCacheOnly)
-		{
-			m_WidthTestScreen = {};
-			return false;
-		}
 
 		if (!m_WidthTestScreen)
 		{
 			m_WidthTestScreen.reset(CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, {}, {}, CONSOLE_TEXTMODE_BUFFER, {}));
-			SetConsoleScreenBufferSize(m_WidthTestScreen.native_handle(), { 10, 1 });
+
+			const auto TestScreenX = 20, TestScreenY = 1;
+			const SMALL_RECT WindowInfo{ 0, 0, TestScreenX - 1, TestScreenY - 1 };
+			if (!SetConsoleWindowInfo(m_WidthTestScreen.native_handle(), true, &WindowInfo))
+			{
+				LOGWARNING(L"SetConsoleWindowInfo(): {}"sv, os::last_error());
+			}
+
+			if (!SetConsoleScreenBufferSize(m_WidthTestScreen.native_handle(), { TestScreenX, TestScreenY }))
+			{
+				LOGWARNING(L"SetConsoleScreenBufferSize(): {}"sv, os::last_error());
+			}
 		}
 
 		if (!SetConsoleCursorPosition(m_WidthTestScreen.native_handle(), {}))
+		{
+			LOGWARNING(L"SetConsoleCursorPosition(): {}"sv, os::last_error());
 			return false;
+		}
 
 		DWORD Written;
 		const auto Pair = encoding::utf16::to_surrogate(Codepoint);
-		std::array Chars = { Pair.first, Pair.second };
+		const std::array Chars{ Pair.first, Pair.second };
 		if (!WriteConsole(m_WidthTestScreen.native_handle(), Chars.data(), Pair.second? 2 : 1, &Written, {}))
+		{
+			LOGWARNING(L"WriteConsole(): {}"sv, os::last_error());
 			return false;
+		}
 
 		CONSOLE_SCREEN_BUFFER_INFO Info;
-		if (!GetConsoleScreenBufferInfo(m_WidthTestScreen.native_handle(), &Info))
+		if (!get_console_screen_buffer_info(m_WidthTestScreen.native_handle(), &Info))
 			return false;
 
 		return Info.dwCursorPosition.X > 1;
+	}
+
+	void console::ClearWideCache()
+	{
+		m_WidthTestScreen = {};
 	}
 
 	bool console::GetPalette(std::array<COLORREF, 16>& Palette) const
@@ -1711,11 +2192,39 @@ namespace console_detail
 
 		CONSOLE_SCREEN_BUFFER_INFOEX csbi{ sizeof(csbi) };
 		if (!imports.GetConsoleScreenBufferInfoEx(GetOutputHandle(), &csbi))
+		{
+			LOGERROR(L"GetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
 			return false;
+		}
 
 		std::copy(ALL_CONST_RANGE(csbi.ColorTable), Palette.begin());
 
 		return true;
+	}
+
+	bool console::SetPalette(std::array<COLORREF, 16> const& Palette) const
+	{
+		// Happy path
+		if (IsVtEnabled())
+			return implementation::SetPaletteVT(Palette);
+
+		// Legacy console
+		if (!IsVtSupported())
+			return implementation::SetPaletteNT(Palette);
+
+		// These methods are currently not synchronized in WT 🤦
+		// As of 8 Oct 2022 NT method doesn't affect the display, only the array returned in CSBI.
+		// VT does and updates the CSBI too.
+
+		// If VT is not enabled, we enable it temporarily and use VT method if we can:
+		if (std::pair<HANDLE, DWORD> Data{ GetOutputHandle(), 0 }; GetMode(Data.first, Data.second) && SetMode(Data.first, Data.second | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+		{
+			SCOPE_EXIT { SetMode(Data.first, Data.second); };
+			return implementation::SetPaletteVT(Palette);
+		}
+
+		// Otherwise fallback to NT
+		return implementation::SetPaletteNT(Palette);
 	}
 
 	void console::EnableWindowMode(bool const Value)
@@ -1731,7 +2240,7 @@ namespace console_detail
 	bool console::GetCursorRealPosition(point& Position) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
-		if (!GetConsoleScreenBufferInfo(GetOutputHandle(), &ConsoleScreenBufferInfo))
+		if (!get_console_screen_buffer_info(GetOutputHandle(), &ConsoleScreenBufferInfo))
 			return false;
 
 		Position = ConsoleScreenBufferInfo.dwCursorPosition;
@@ -1740,7 +2249,13 @@ namespace console_detail
 
 	bool console::SetCursorRealPosition(point const Position) const
 	{
-		return SetConsoleCursorPosition(GetOutputHandle(), make_coord(Position)) != FALSE;
+		if (!SetConsoleCursorPosition(GetOutputHandle(), make_coord(Position)))
+		{
+			LOGERROR(L"SetConsoleCursorPosition(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return true;
 	}
 }
 
@@ -1842,7 +2357,7 @@ public:
 		m_Err(std::wcerr, m_BufErr),
 		m_Log(std::wclog, m_BufLog)
 	{
-		auto Color = colors::ConsoleColorToFarColor(F_LIGHTRED);
+		auto Color = colors::NtColorToFarColor(F_LIGHTRED);
 		colors::make_transparent(Color.BackgroundColor);
 		m_BufErr.color(Color);
 	}
@@ -1851,3 +2366,88 @@ private:
 	consolebuf m_BufIn, m_BufOut, m_BufErr, m_BufLog;
 	io::wstreambuf_override m_In, m_Out, m_Err, m_Log;
 };
+
+#ifdef ENABLE_TESTS
+
+#include "testing.hpp"
+
+TEST_CASE("console.vt_color")
+{
+	const auto I = FCF_INDEXMASK;
+
+	static const struct
+	{
+		FarColor Color;
+		string_view Fg, Bg;
+	}
+	Tests[]
+	{
+		{ { I, { 0x0      }, { 0x0      } }, L"30"sv,               L"40"sv,               },
+		{ { I, { 0x1      }, { 0x1      } }, L"34"sv,               L"44"sv,               },
+		{ { I, { 0x7      }, { 0x7      } }, L"37"sv,               L"47"sv,               },
+		{ { I, { 0x8      }, { 0x8      } }, L"90"sv,               L"100"sv,              },
+		{ { I, { 0x9      }, { 0x9      } }, L"94"sv,               L"104"sv,              },
+		{ { I, { 0xF      }, { 0xF      } }, L"97"sv,               L"107"sv,              },
+		{ { I, { 0x10     }, { 0x10     } }, L"38;5;16"sv,          L"48;5;16"sv,          },
+		{ { I, { 0xC0     }, { 0xC0     } }, L"38;5;192"sv,         L"48;5;192"sv,         },
+		{ { I, { 0xFF     }, { 0xFF     } }, L"38;5;255"sv,         L"48;5;255"sv,         },
+		{ { 0, { 0x000000 }, { 0x000000 } }, L"38;2;0;0;0"sv,       L"48;2;0;0;0"sv,       },
+		{ { 0, { 0x123456 }, { 0x654321 } }, L"38;2;86;52;18"sv,    L"48;2;33;67;101"sv,   },
+		{ { 0, { 0x00D5FF }, { 0xBB5B00 } }, L"38;2;255;213;0"sv,   L"48;2;0;91;187"sv,    },
+		{ { 0, { 0xABCDEF }, { 0xFEDCBA } }, L"38;2;239;205;171"sv, L"48;2;186;220;254"sv, },
+		{ { 0, { 0xFFFFFF }, { 0xFFFFFF } }, L"38;2;255;255;255"sv, L"48;2;255;255;255"sv, },
+	};
+
+	for (const auto& i: Tests)
+	{
+		string Str[2];
+		console_detail::make_vt_color(i.Color, Str[0], 0);
+		console_detail::make_vt_color(i.Color, Str[1], 1);
+		REQUIRE(Str[0] == i.Fg);
+		REQUIRE(Str[1] == i.Bg);
+	}
+}
+
+TEST_CASE("console.vt_sequence")
+{
+	{
+		FAR_CHAR_INFO Buffer[3]{};
+		Buffer[0].Char = L' ';
+		Buffer[0].Attributes.Flags = FCF_BG_INDEX | FCF_FG_INDEX | FCF_FG_BOLD;
+		Buffer[0].Attributes.BackgroundColor = 1;
+		Buffer[0].Attributes.ForegroundColor = 10;
+
+		Buffer[1] = Buffer[0];
+
+		Buffer[2] = Buffer[1];
+		flags::clear(Buffer[2].Attributes.Flags, FCF_FG_BOLD);
+
+		string Str;
+		std::optional<FarColor> LastColor;
+		console_detail::make_vt_sequence(Buffer, Str, LastColor);
+
+		REQUIRE(Str == CSI L"92;44;1m" L"  " CSI "22m" L" "sv);
+	}
+
+	{
+		FAR_CHAR_INFO Buffer[3]{};
+		Buffer[0].Char = L' ';
+		Buffer[0].Attributes.Flags = FCF_BG_INDEX | FCF_FG_INDEX | FCF_FG_UNDERLINE2;
+		Buffer[0].Attributes.BackgroundColor = 1;
+		Buffer[0].Attributes.ForegroundColor = 10;
+
+		Buffer[1] = Buffer[0];
+
+		Buffer[2] = Buffer[1];
+		flags::clear(Buffer[2].Attributes.Flags, FCF_FG_UNDERLINE2);
+		flags::set(Buffer[2].Attributes.Flags, FCF_FG_UNDERLINE);
+
+		string Str;
+		std::optional<FarColor> LastColor;
+		console_detail::make_vt_sequence(Buffer, Str, LastColor);
+
+		REQUIRE(Str == CSI L"92;44;21m" L"  " CSI "24;4m" L" "sv);
+	}
+}
+
+#endif

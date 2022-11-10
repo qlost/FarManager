@@ -52,8 +52,10 @@ namespace os::chrono
 {
 	nt_clock::time_point nt_clock::now() noexcept
 	{
+		static const auto Get = imports.GetSystemTimePreciseAsFileTime? imports.GetSystemTimePreciseAsFileTime : GetSystemTimeAsFileTime;
+
 		FILETIME Time;
-		(imports.GetSystemTimePreciseAsFileTime? imports.GetSystemTimePreciseAsFileTime : GetSystemTimeAsFileTime)(&Time);
+		Get(&Time);
 		return from_filetime(Time);
 	}
 
@@ -75,12 +77,16 @@ namespace os::chrono
 	FILETIME nt_clock::to_filetime(time_point const Time) noexcept
 	{
 		const auto Count = to_hectonanoseconds(Time);
-		return { static_cast<DWORD>(Count), static_cast<DWORD>(Count >> 32) };
+		return
+		{
+			extract_integer<DWORD, 0>(Count),
+			extract_integer<DWORD, 1>(Count)
+		};
 	}
 
 	time_point nt_clock::from_filetime(FILETIME const Time) noexcept
 	{
-		return from_hectonanoseconds(static_cast<unsigned long long>(Time.dwHighDateTime) << 32 | Time.dwLowDateTime);
+		return from_hectonanoseconds(make_integer<unsigned long long>(Time.dwLowDateTime, Time.dwHighDateTime));
 	}
 
 	time_point nt_clock::from_hectonanoseconds(int64_t const Time) noexcept
@@ -96,6 +102,13 @@ namespace os::chrono
 	int64_t nt_clock::to_hectonanoseconds(duration const Duration) noexcept
 	{
 		return Duration / 1_hns;
+	}
+
+	SYSTEMTIME now_utc()
+	{
+		SYSTEMTIME SystemTime{};
+		GetSystemTime(&SystemTime);
+		return SystemTime;
 	}
 
 	bool utc_to_local(time_point UtcTime, SYSTEMTIME& LocalTime)
@@ -182,7 +195,7 @@ namespace os::chrono
 		return true;
 	}
 
-	string format_time(time_point const Time)
+	string wall_time(time_point const Time)
 	{
 		SYSTEMTIME LocalTime;
 		if (!utc_to_local(Time, LocalTime))

@@ -55,22 +55,22 @@ struct ArcLib {
 
 struct ArcFormat {
   std::wstring name;
-  bool updatable;
+  bool updatable{};
   std::list<std::wstring> extension_list;
   std::map<std::wstring, std::wstring> nested_ext_mapping;
   std::wstring default_extension() const;
 
-  UInt32 Flags;
-  bool NewInterface;
+  UInt32 Flags{};
+  bool NewInterface{};
 
-  UInt32 SignatureOffset;
+  UInt32 SignatureOffset{};
   std::vector<ByteVector> Signatures;
 
-  int lib_index;
-  UInt32 FormatIndex;
+  int lib_index{-1};
+  UInt32 FormatIndex{};
   ByteVector ClassID;
 
-  Func_IsArc IsArc;
+  Func_IsArc IsArc{};
 
   bool Flags_KeepName() const { return (Flags & NArcInfoFlags::kKeepName) != 0; }
   bool Flags_FindSignature() const { return (Flags & NArcInfoFlags::kFindSignature) != 0; }
@@ -87,7 +87,7 @@ struct ArcFormat {
   bool Flags_PureStartOpen() const { return (Flags & NArcInfoFlags::kPureStartOpen) != 0; }
   bool Flags_ByExtOnlyOpen() const { return (Flags & NArcInfoFlags::kByExtOnlyOpen) != 0; }
 
-  ArcFormat() : updatable(false), Flags(0), NewInterface(false), lib_index(-1), FormatIndex(0), IsArc(nullptr) {}
+  ArcFormat() = default;
 };
 
 typedef std::vector<ArcLib> ArcLibs;
@@ -180,10 +180,10 @@ public:
 };
 
 struct ArcFileInfo {
-  UInt32 parent;
+  UInt32 parent{};
   std::wstring name;
-  bool is_dir;
-  bool is_altstream;
+  bool is_dir{};
+  bool is_altstream{};
   bool operator<(const ArcFileInfo& file_info) const;
 };
 typedef std::vector<ArcFileInfo> FileList;
@@ -217,7 +217,7 @@ private:
   UInt32 error_flags, warning_flags;
   std::wstring error_text, warning_text;
   IInStream *base_stream;
-  bool open(IInStream* in_stream, const ArcType& type);
+  bool open(IInStream* in_stream, const ArcType& type, const bool allow_tail = false);
   UInt64 get_physize();
   UInt64 archive_filesize();
   UInt64 get_skip_header(IInStream *stream, const ArcType& type);

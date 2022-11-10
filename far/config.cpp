@@ -87,6 +87,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "scrbuf.hpp"
 #include "log.hpp"
 #include "char_width.hpp"
+#include "clipboard.hpp"
 
 // Platform:
 #include "platform.env.hpp"
@@ -183,7 +184,6 @@ void Options::SystemSettings()
 	Builder.AddCheckbox(lng::MConfigSystemCopy, CMOpt.UseSystemCopy);
 	Builder.AddCheckbox(lng::MConfigCopySharing, CMOpt.CopyOpened);
 	Builder.AddCheckbox(lng::MConfigScanJunction, ScanJunction);
-	Builder.AddCheckbox(lng::MConfigSmartFolderMonitor, SmartFolderMonitor);
 
 	Builder.AddCheckbox(lng::MConfigSaveHistory, SaveHistory);
 	Builder.AddCheckbox(lng::MConfigSaveFoldersHistory, SaveFoldersHistory);
@@ -370,7 +370,8 @@ void Options::InterfaceSettings()
 			CMOpt.CopyTimeRule = 3;
 
 		SetFarConsoleMode();
-		consoleicons::instance().set_icon();
+		::SetPalette();
+		consoleicons::instance().update_icon();
 
 		const auto& Panels = Global->CtrlObject->Cp();
 		Panels->LeftPanel()->Update(UPDATE_KEEP_SELECTION);
@@ -454,7 +455,7 @@ void Options::InfoPanelSettings()
 
 static void ApplyDefaultMaskGroups()
 {
-	static const std::pair<string_view, string_view> Sets[] =
+	static const std::pair<string_view, string_view> Sets[]
 	{
 		{ L"arc"sv,  L"*.zip,*.rar,*.[7bgxl]z,*.[bg]zip,*.tar,*.t[agbxl]z,*.z,*.ar[cj],*.r[0-9][0-9],*.a[0-9][0-9],*.bz2,*.cab,*.jar,*.lha,*.lzh,*.ha,*.ac[bei],*.pa[ck],*.rk,*.cpio,*.rpm,*.zoo,*.hqx,*.sit,*.ice,*.uc2,*.ain,*.imp,*.777,*.ufa,*.boa,*.bs[2a],*.sea,*.[ah]pk,*.ddi,*.x2,*.rkv,*.[lw]sz,*.h[ay]p,*.lim,*.sqz,*.chz,*.aa[br],*.msi"sv },
 		{ L"temp"sv, L"*.bak,*.tmp"sv },
@@ -549,6 +550,7 @@ void Options::MaskGroupsSettings()
 							Value = ConfigProvider().GeneralCfg()->GetValue<string>(L"Masks"sv, Name);
 						}
 						DialogBuilder Builder(lng::MMaskGroupTitle, L"MaskGroupsSettings"sv);
+						Builder.SetId(EditMaskGroupId);
 						Builder.AddText(lng::MMaskGroupName);
 						Builder.AddEditField(Name, 60);
 						Builder.AddText(lng::MMaskGroupMasks);
@@ -660,7 +662,7 @@ void Options::VMenuSettings()
 		{ lng::MConfigVMenuClickIgnore, VMENUCLICK_IGNORE },  // Do nothing
 	};
 
-	static const std::pair<lng, IntOption VMenuOptions::*> DialogItems[] =
+	static const std::pair<lng, IntOption VMenuOptions::*> DialogItems[]
 	{
 		{ lng::MConfigVMenuLBtnClick, &VMenuOptions::LBtnClick },
 		{ lng::MConfigVMenuRBtnClick, &VMenuOptions::RBtnClick },
@@ -758,11 +760,11 @@ void Options::SetDizConfig()
 
 	Builder.AddCheckbox(lng::MCfgDizSetHidden, Diz.SetHidden);
 	Builder.AddCheckbox(lng::MCfgDizROUpdate, Diz.ROUpdate);
-	auto& StartPos = Builder.AddIntEditField(Diz.StartPos, 2);
+	const auto& StartPos = Builder.AddIntEditField(Diz.StartPos, 2);
 	Builder.AddTextAfter(StartPos, lng::MCfgDizStartPos);
 	Builder.AddSeparator();
 
-	static const lng DizOptions[] = { lng::MCfgDizNotUpdate, lng::MCfgDizUpdateIfDisplayed, lng::MCfgDizAlwaysUpdate };
+	static const lng DizOptions[]{ lng::MCfgDizNotUpdate, lng::MCfgDizUpdateIfDisplayed, lng::MCfgDizAlwaysUpdate };
 	Builder.AddRadioButtons(Diz.UpdateMode, DizOptions);
 	Builder.AddSeparator();
 
@@ -817,7 +819,7 @@ void Options::ViewerConfig(ViewerOptions &ViOptRef, bool Local)
 	Builder.StartColumns();
 	Builder.AddCheckbox(lng::MViewConfigPersistentSelection, ViOptRef.PersistentBlocks);
 	Builder.AddCheckbox(lng::MViewConfigEditAutofocus, ViOptRef.SearchEditFocus);
-	auto& TabSize = Builder.AddIntEditField(ViOptRef.TabSize, 3);
+	const auto& TabSize = Builder.AddIntEditField(ViOptRef.TabSize, 3);
 	Builder.AddTextAfter(TabSize, lng::MViewConfigTabSize);
 	Builder.ColumnBreak();
 	Builder.AddCheckbox(lng::MViewConfigArrows, ViOptRef.ShowArrows);
@@ -834,7 +836,7 @@ void Options::ViewerConfig(ViewerOptions &ViOptRef, bool Local)
 		Builder.AddCheckbox(lng::MViewConfigSaveCodepage, ViOpt.SaveCodepage);
 		save_cp = Builder.GetLastID();
 		Builder.AddCheckbox(lng::MViewConfigSaveShortPos, ViOpt.SaveShortPos);
-		auto& MaxLineSize = Builder.AddIntEditField(ViOpt.MaxLineSize, 6);
+		const auto& MaxLineSize = Builder.AddIntEditField(ViOpt.MaxLineSize, 6);
 		Builder.AddTextAfter(MaxLineSize, lng::MViewConfigMaxLineSize);
 		Builder.ColumnBreak();
 		Builder.AddCheckbox(lng::MViewConfigSaveViewMode, ViOpt.SaveViewMode);
@@ -879,7 +881,7 @@ void Options::EditorConfig(EditorOptions &EdOptRef, bool Local)
 	Builder.AddCheckbox(lng::MEditConfigPersistentBlocks, EdOptRef.PersistentBlocks);
 	Builder.AddCheckbox(lng::MEditConfigDelRemovesBlocks, EdOptRef.DelRemovesBlocks);
 	Builder.AddCheckbox(lng::MEditConfigAutoIndent, EdOptRef.AutoIndent);
-	auto& TabSize = Builder.AddIntEditField(EdOptRef.TabSize, 3);
+	const auto& TabSize = Builder.AddIntEditField(EdOptRef.TabSize, 3);
 	Builder.AddTextAfter(TabSize, lng::MEditConfigTabSize);
 	Builder.AddCheckbox(lng::MEditShowWhiteSpace, EdOptRef.ShowWhiteSpace);
 	Builder.ColumnBreak();
@@ -1174,8 +1176,7 @@ void Options::SetFilePanelModes()
 
 			ModeNumber=ModeList->Run([&](const Manager::Key& RawKey)
 			{
-				const auto Key=RawKey();
-				switch (Key)
+				switch (const auto Key = RawKey())
 				{
 				case KEY_CTRLENTER:
 				case KEY_CTRLNUMENTER:
@@ -1310,14 +1311,14 @@ void Options::SetFilePanelModes()
 
 		inplace::remove_highlight(ModeDlg[MD_DOUBLEBOX].strData);
 
-		static const std::pair<ModeItems, panel_view_settings_flags> ModesFlagsMapping[] =
+		static const std::pair<ModeItems, panel_view_settings_flags> ModesFlagsMapping[]
 		{
-			{ MD_CHECKBOX_FULLSCREEN, PVS_FULLSCREEN },
-			{ MD_CHECKBOX_ALIGNFILEEXT, PVS_ALIGNEXTENSIONS },
-			{ MD_CHECKBOX_ALIGNFOLDEREXT, PVS_FOLDERALIGNEXTENSIONS },
-			{ MD_CHECKBOX_FOLDERUPPERCASE, PVS_FOLDERUPPERCASE },
-			{ MD_CHECKBOX_FILESLOWERCASE, PVS_FILELOWERCASE },
-			{ MD_CHECKBOX_UPPERTOLOWERCASE, PVS_FILEUPPERTOLOWERCASE },
+			{ MD_CHECKBOX_FULLSCREEN,          PVS_FULLSCREEN },
+			{ MD_CHECKBOX_ALIGNFILEEXT,        PVS_ALIGNEXTENSIONS },
+			{ MD_CHECKBOX_ALIGNFOLDEREXT,      PVS_FOLDERALIGNEXTENSIONS },
+			{ MD_CHECKBOX_FOLDERUPPERCASE,     PVS_FOLDERUPPERCASE },
+			{ MD_CHECKBOX_FILESLOWERCASE,      PVS_FILELOWERCASE },
+			{ MD_CHECKBOX_UPPERTOLOWERCASE,    PVS_FILEUPPERTOLOWERCASE },
 		};
 
 		if (!AddNewMode)
@@ -1514,7 +1515,7 @@ void detail::OptionImpl<base_type, derived>::StoreValue(GeneralConfig* Storage, 
 }
 
 
-bool BoolOption::TryParse(const string& value)
+bool BoolOption::TryParse(const string_view value)
 {
 	long long iValue;
 	if (!ParseIntValue(value, iValue))
@@ -1537,7 +1538,7 @@ void BoolOption::Export(FarSettingsItem& To) const
 }
 
 
-bool Bool3Option::TryParse(const string& value)
+bool Bool3Option::TryParse(const string_view value)
 {
 	long long iValue;
 	if (!ParseIntValue(value, iValue))
@@ -1565,7 +1566,7 @@ string IntOption::toString() const
 	return str(Get());
 }
 
-bool IntOption::TryParse(const string& value)
+bool IntOption::TryParse(const string_view value)
 {
 	long long iValue;
 	if (!ParseIntValue(value, iValue))
@@ -1745,9 +1746,9 @@ Options::Options():
 		Global->ScrBuf->SetClearTypeFix(Value);
 	}));
 
-	Sort.Collation.SetCallback(option::notifier([](auto) { string_sort::adjust_comparer(); }));
-	Sort.DigitsAsNumbers.SetCallback(option::notifier([](auto) { string_sort::adjust_comparer(); }));
-	Sort.CaseSensitive.SetCallback(option::notifier([](auto) { string_sort::adjust_comparer(); }));
+	Sort.Collation.SetCallback(option::notifier([this](auto) { string_sort::adjust_comparer(Sort.Collation, Sort.CaseSensitive, Sort.DigitsAsNumbers); }));
+	Sort.DigitsAsNumbers.SetCallback(option::notifier([this](auto) { string_sort::adjust_comparer(Sort.Collation, Sort.CaseSensitive, Sort.DigitsAsNumbers); }));
+	Sort.CaseSensitive.SetCallback(option::notifier([this](auto) { string_sort::adjust_comparer(Sort.Collation, Sort.CaseSensitive, Sort.DigitsAsNumbers); }));
 
 	FormatNumberSeparators.SetCallback(option::notifier([](auto) { locale.invalidate(); }));
 
@@ -1774,6 +1775,16 @@ Options::Options():
 	ScreenSaver.SetCallback(option::notifier([](bool const Value)
 	{
 		wakeup_for_screensaver(Value);
+	}));
+
+	ClipboardUnicodeWorkaround.SetCallback(option::notifier([](bool const Value)
+	{
+		clipboard::enable_ansi_to_unicode_conversion_workaround(Value);
+	}));
+
+	SetPalette.SetCallback(option::notifier([](bool const Value)
+	{
+		::SetPalette();
 	}));
 
 	// По умолчанию - брать плагины из основного каталога
@@ -1902,6 +1913,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyInterface,              L"RedrawTimeout"sv,                 RedrawTimeout, 200},
 		{FSSF_PRIVATE,           NKeyInterface,              L"TitleAddons"sv,                   strTitleAddons, L"%Ver %Platform %Admin"sv},
 		{FSSF_PRIVATE,           NKeyInterface,              L"ViewerTitleFormat"sv,             strViewerTitleFormat, L"%Lng %File"sv},
+		{FSSF_PRIVATE,           NKeyInterface,              L"SetPalette"sv,                    SetPalette, true},
 		{FSSF_PRIVATE,           NKeyInterfaceCompletion,    L"Append"sv,                        AutoComplete.AppendCompletion, false},
 		{FSSF_PRIVATE,           NKeyInterfaceCompletion,    L"ModalList"sv,                     AutoComplete.ModalList, false},
 		{FSSF_PRIVATE,           NKeyInterfaceCompletion,    L"ShowList"sv,                      AutoComplete.ShowList, true},
@@ -2004,6 +2016,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeySystem,                 L"AutoUpdateRemoteDrive"sv,         AutoUpdateRemoteDrive, true},
 		{FSSF_PRIVATE,           NKeySystem,                 L"BoxSymbols"sv,                    strBoxSymbols, DefaultBoxSymbols},
 		{FSSF_PRIVATE,           NKeySystem,                 L"CASRule"sv,                       CASRule, -1},
+		{FSSF_PRIVATE,           NKeySystem,                 L"ClipboardUnicodeWorkaround"sv,    ClipboardUnicodeWorkaround, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"CmdHistoryRule"sv,                CmdHistoryRule, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"ConsoleDetachKey"sv,              ConsoleDetachKey, L"CtrlShiftTab"sv},
 		{FSSF_PRIVATE,           NKeySystem,                 L"CopyBufferSize"sv,                CMOpt.BufferSize, 0},
@@ -2048,7 +2061,6 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeySystem,                 L"SetAttrFolderRules"sv,            SetAttrFolderRules, true},
 		{FSSF_PRIVATE,           NKeySystem,                 L"ShowCheckingFile"sv,              ShowCheckingFile, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"ShowStatusInfo"sv,                InfoPanel.strShowStatusInfo, L""sv},
-		{FSSF_PRIVATE,           NKeySystem,                 L"SmartFolderMonitor"sv,            SmartFolderMonitor, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"SubstNameRule"sv,                 SubstNameRule, 2},
 		{FSSF_PRIVATE,           NKeySystem,                 L"SubstPluginPrefix"sv,             SubstPluginPrefix, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"UpdateEnvironment"sv,             UpdateEnvironment, false},
@@ -2250,7 +2262,7 @@ static auto serialise_sort_layer(std::pair<panel_sort, sort_order> const& Layer)
 
 static auto serialise_sort_layers(span<std::pair<panel_sort, sort_order> const> const Layers)
 {
-	return join(select(Layers, serialise_sort_layer), L" "sv);
+	return join(L" "sv, select(Layers, serialise_sort_layer));
 }
 
 void Options::ReadSortLayers()
@@ -2481,7 +2493,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 	{
 		return Index == -1 ?
 			nullptr : // Everything is filtered out
-			reinterpret_cast<const FARConfigItem*>(Dlg->GetListItemSimpleUserData(0, Index));
+			view_as<const FARConfigItem*>(Dlg->GetListItemSimpleUserData(0, Index));
 	};
 
 	const auto EditItem = [&](edit_mode const EditMode)
@@ -2545,14 +2557,14 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 
 	case DN_CONTROLINPUT:
 		{
-			const auto record = static_cast<const INPUT_RECORD*>(Param2);
-			if (Param1 == ac_item_listbox && record->EventType==KEY_EVENT)
+			const auto& record = *static_cast<INPUT_RECORD const*>(Param2);
+			if (Param1 == ac_item_listbox && record.EventType==KEY_EVENT)
 			{
-				switch (InputRecordToKey(record))
+				switch (InputRecordToKey(&record))
 				{
 				case KEY_SHIFTF1:
 					{
-						FarListInfo ListInfo = {sizeof(ListInfo)};
+						FarListInfo ListInfo{ sizeof(ListInfo) };
 						Dlg->SendMessage(DM_LISTINFO, Param1, &ListInfo);
 
 						if (const auto CurrentItem = GetConfigItem(ListInfo.SelectPos))
@@ -2589,11 +2601,11 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 
 						static bool HideUnchanged = true;
 
-						FarListInfo ListInfo = {sizeof(ListInfo)};
+						FarListInfo ListInfo{ sizeof(ListInfo) };
 						Dlg->SendMessage(DM_LISTINFO, Param1, &ListInfo);
 						for (const auto& i: irange(ListInfo.ItemsNumber))
 						{
-							FarListGetItem Item={sizeof(FarListGetItem), static_cast<intptr_t>(i)};
+							FarListGetItem Item{ sizeof(Item), static_cast<intptr_t>(i) };
 
 							// BUGBUG(?) DM_LISTGETITEM will return false if everything is filtered out
 							if (!Dlg->SendMessage(DM_LISTGETITEM, Param1, &Item))
@@ -2618,7 +2630,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 							}
 							if(NeedUpdate)
 							{
-								FarListUpdate UpdatedItem={sizeof(FarListGetItem), static_cast<intptr_t>(i), Item.Item};
+								FarListUpdate UpdatedItem{ sizeof(UpdatedItem), static_cast<intptr_t>(i), Item.Item };
 								Dlg->SendMessage(DM_LISTUPDATE, Param1, &UpdatedItem);
 							}
 						}
@@ -2662,7 +2674,7 @@ bool Options::AdvancedConfig(config_type Mode)
 	const auto ConfigData = zip(CurrentConfig, Strings);
 	std::transform(ALL_CONST_RANGE(ConfigData), std::back_inserter(items), [](const auto& i) { return std::get<0>(i).MakeListItem(std::get<1>(i)); });
 
-	FarList Items={sizeof(FarList), items.size(), items.data()};
+	FarList Items{ sizeof(Items), items.size(), items.data() };
 
 	AdvancedConfigDlg[ac_item_listbox].ListItems = &Items;
 
@@ -2801,28 +2813,28 @@ enum enumMenus
 	MENU_RIGHT
 };
 
-enum enumLeftMenu
+enum enumPanelMenu
 {
-	MENU_LEFT_BRIEFVIEW,
-	MENU_LEFT_MEDIUMVIEW,
-	MENU_LEFT_FULLVIEW,
-	MENU_LEFT_WIDEVIEW,
-	MENU_LEFT_DETAILEDVIEW,
-	MENU_LEFT_DIZVIEW,
-	MENU_LEFT_LONGVIEW,
-	MENU_LEFT_OWNERSVIEW,
-	MENU_LEFT_LINKSVIEW,
-	MENU_LEFT_ALTERNATIVEVIEW,
-	MENU_LEFT_SEPARATOR1,
-	MENU_LEFT_INFOPANEL,
-	MENU_LEFT_TREEPANEL,
-	MENU_LEFT_QUICKVIEW,
-	MENU_LEFT_SEPARATOR2,
-	MENU_LEFT_SORTMODES,
-	MENU_LEFT_LONGNAMES,
-	MENU_LEFT_TOGGLEPANEL,
-	MENU_LEFT_REREAD,
-	MENU_LEFT_CHANGEDRIVE
+	MENU_PANEL_BRIEFVIEW,
+	MENU_PANEL_MEDIUMVIEW,
+	MENU_PANEL_FULLVIEW,
+	MENU_PANEL_WIDEVIEW,
+	MENU_PANEL_DETAILEDVIEW,
+	MENU_PANEL_DIZVIEW,
+	MENU_PANEL_LONGVIEW,
+	MENU_PANEL_OWNERSVIEW,
+	MENU_PANEL_LINKSVIEW,
+	MENU_PANEL_ALTERNATIVEVIEW,
+	MENU_PANEL_SEPARATOR1,
+	MENU_PANEL_INFOPANEL,
+	MENU_PANEL_TREEPANEL,
+	MENU_PANEL_QUICKVIEW,
+	MENU_PANEL_SEPARATOR2,
+	MENU_PANEL_SORTMODES,
+	MENU_PANEL_LONGNAMES,
+	MENU_PANEL_TOGGLEPANEL,
+	MENU_PANEL_REREAD,
+	MENU_PANEL_CHANGEDRIVE
 };
 
 //currently left == right
@@ -2918,19 +2930,19 @@ static void SetLeftRightMenuChecks(menu_item* pMenu, bool bLeft)
 		break;
 
 	case panel_type::INFO_PANEL:
-		pMenu[MENU_LEFT_INFOPANEL].SetCheck();
+		pMenu[MENU_PANEL_INFOPANEL].SetCheck();
 		break;
 
 	case panel_type::TREE_PANEL:
-		pMenu[MENU_LEFT_TREEPANEL].SetCheck();
+		pMenu[MENU_PANEL_TREEPANEL].SetCheck();
 		break;
 
 	case panel_type::QVIEW_PANEL:
-		pMenu[MENU_LEFT_QUICKVIEW].SetCheck();
+		pMenu[MENU_PANEL_QUICKVIEW].SetCheck();
 		break;
 	}
 
-	pPanel->GetShowShortNamesMode()? pMenu[MENU_LEFT_LONGNAMES].ClearCheck() : pMenu[MENU_LEFT_LONGNAMES].SetCheck();
+	pPanel->GetShowShortNamesMode()? pMenu[MENU_PANEL_LONGNAMES].ClearCheck() : pMenu[MENU_PANEL_LONGNAMES].SetCheck();
 }
 
 void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEvent)
@@ -3144,38 +3156,38 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 		{
 			auto pPanel = (HItem == MENU_LEFT)? Global->CtrlObject->Cp()->LeftPanel() : Global->CtrlObject->Cp()->RightPanel();
 
-			if (VItem >= MENU_LEFT_BRIEFVIEW && VItem <= MENU_LEFT_ALTERNATIVEVIEW)
+			if (VItem >= MENU_PANEL_BRIEFVIEW && VItem <= MENU_PANEL_ALTERNATIVEVIEW)
 			{
 				Global->CtrlObject->Cp()->ChangePanelToFilled(pPanel, panel_type::FILE_PANEL);
 				pPanel=(HItem == MENU_LEFT)?Global->CtrlObject->Cp()->LeftPanel():Global->CtrlObject->Cp()->RightPanel();
-				pPanel->SetViewMode((VItem == MENU_LEFT_ALTERNATIVEVIEW)?VIEW_0:VIEW_1+VItem);
+				pPanel->SetViewMode((VItem == MENU_PANEL_ALTERNATIVEVIEW)? VIEW_0 : VIEW_1 + VItem);
 			}
 			else
 			{
 				switch (VItem)
 				{
-				case MENU_LEFT_INFOPANEL: // Info panel
+				case MENU_PANEL_INFOPANEL:
 					Global->CtrlObject->Cp()->ChangePanelToFilled(pPanel, panel_type::INFO_PANEL);
 					break;
-				case MENU_LEFT_TREEPANEL: // Tree panel
+				case MENU_PANEL_TREEPANEL:
 					Global->CtrlObject->Cp()->ChangePanelToFilled(pPanel, panel_type::TREE_PANEL);
 					break;
-				case MENU_LEFT_QUICKVIEW: // Quick view
+				case MENU_PANEL_QUICKVIEW:
 					Global->CtrlObject->Cp()->ChangePanelToFilled(pPanel, panel_type::QVIEW_PANEL);
 					break;
-				case MENU_LEFT_SORTMODES: // Sort modes
+				case MENU_PANEL_SORTMODES:
 					pPanel->ProcessKey(Manager::Key(KEY_CTRLF12));
 					break;
-				case MENU_LEFT_LONGNAMES: // Show long names
+				case MENU_PANEL_LONGNAMES:
 					pPanel->ProcessKey(Manager::Key(KEY_CTRLN));
 					break;
-				case MENU_LEFT_TOGGLEPANEL: // Panel On/Off
+				case MENU_PANEL_TOGGLEPANEL:
 					Global->WindowManager->ProcessKey(Manager::Key((HItem==MENU_LEFT)?KEY_CTRLF1:KEY_CTRLF2));
 					break;
-				case MENU_LEFT_REREAD: // Re-read
+				case MENU_PANEL_REREAD:
 					pPanel->ProcessKey(Manager::Key(KEY_CTRLR));
 					break;
-				case MENU_LEFT_CHANGEDRIVE: // Change drive
+				case MENU_PANEL_CHANGEDRIVE:
 					ChangeDisk(pPanel);
 					break;
 				}
@@ -3334,7 +3346,7 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 							far_language::instance().load(Global->g_strFarPath, InterfaceLanguage, static_cast<int>(lng::MNewFileName + 1));
 							strLanguage = InterfaceLanguage;
 						}
-						catch (const far_known_exception& e)
+						catch (far_known_exception const& e)
 						{
 							Message(MSG_WARNING,
 								msg(lng::MError),

@@ -32,6 +32,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <iterator>
+#include <type_traits>
+
 //----------------------------------------------------------------------------
 
 namespace detail
@@ -48,6 +51,16 @@ using is_detected = typename detail::is_detected<void, operation, args...>::type
 
 template<template<typename...> typename operation, typename... args>
 inline constexpr bool is_detected_v = is_detected<operation, args...>::value;
+
+#define IS_DETECTED(Name, ...) \
+namespace detail \
+{ \
+	template<typename T> \
+	using try_ ## Name = decltype(__VA_ARGS__); \
+} \
+ \
+template<typename T> \
+inline constexpr bool Name = is_detected_v<detail::try_ ## Name, T>;
 
 
 template<typename type, typename... args>

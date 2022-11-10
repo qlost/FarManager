@@ -55,13 +55,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 #include "stddlg.hpp"
 #include "datetime.hpp"
+#include "exception.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.fs.hpp"
 
 // Common:
 #include "common/io.hpp"
 #include "common/range.hpp"
+#include "common/scope_exit.hpp"
 
 // External:
 #include "format.hpp"
@@ -74,7 +77,7 @@ static void AddToPrintersMenu(VMenu2 *PrinterList, span<PRINTER_INFO_4W const> c
 	// BUGBUG check result
 	if (!os::GetDefaultPrinter(strDefaultPrinter))
 	{
-		LOGWARNING(L"GetDefaultPrinter(): {}"sv, last_error());
+		LOGWARNING(L"GetDefaultPrinter(): {}"sv, os::last_error());
 	}
 
 	bool bDefaultPrinterFound = false;
@@ -118,19 +121,16 @@ void PrintFiles(FileList* SrcPanel)
 
 		DWORD Needed = 0, PrintersCount = 0;
 
-		for (;;)
+		while (!EnumPrinters(
+			PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+			nullptr,
+			4,
+			edit_as<BYTE*>(pi.data()),
+			static_cast<DWORD>(pi.size()),
+			&Needed,
+			&PrintersCount
+		))
 		{
-			if (EnumPrinters(
-				PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-				nullptr,
-				4,
-				static_cast<BYTE*>(static_cast<void*>(pi.data())),
-				static_cast<DWORD>(pi.size()),
-				&Needed,
-				&PrintersCount
-			))
-				break;
-
 			if (Needed > pi.size())
 			{
 				pi.reset(Needed);
@@ -234,7 +234,7 @@ void PrintFiles(FileList* SrcPanel)
 					// BUGBUG check result
 					if (!os::fs::remove_directory(strTempDir))
 					{
-						LOGWARNING(L"remove_directory({}): {}"sv, strTempDir, last_error());
+						LOGWARNING(L"remove_directory({}): {}"sv, strTempDir, os::last_error());
 					}
 
 					throw MAKE_FAR_EXCEPTION(L"GetFile error"sv);
@@ -249,7 +249,7 @@ void PrintFiles(FileList* SrcPanel)
 
 			try
 			{
-				const os::fs::file SrcFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING);
+				const os::fs::file SrcFile(FileName, GENERIC_READ, os::fs::file_share_all, nullptr, OPEN_EXISTING);
 				if (!SrcFile)
 					throw MAKE_FAR_EXCEPTION(L"Cannot open the file"sv);
 
@@ -259,7 +259,7 @@ void PrintFiles(FileList* SrcPanel)
 
 				DOC_INFO_1 di1{ UNSAFE_CSTR(FileName) };
 
-				if (!StartDocPrinter(Printer.native_handle(), 1, reinterpret_cast<BYTE*>(&di1)))
+				if (!StartDocPrinter(Printer.native_handle(), 1, edit_as<BYTE*>(&di1)))
 					throw MAKE_FAR_EXCEPTION(L"StartDocPrinter error"sv);
 
 				SCOPE_EXIT{ EndDocPrinter(Printer.native_handle()); };
@@ -278,7 +278,7 @@ void PrintFiles(FileList* SrcPanel)
 
 				SrcPanel->ClearLastGetSelection();
 			}
-			catch (const far_exception& e)
+			catch (far_exception const& e)
 			{
 				if (Message(MSG_WARNING, e,
 					msg(lng::MPrintTitle),
@@ -291,7 +291,7 @@ void PrintFiles(FileList* SrcPanel)
 			}
 		}
 	}
-	catch (const far_exception& e)
+	catch (far_exception const& e)
 	{
 		Message(MSG_WARNING, e,
 			msg(lng::MPrintTitle),

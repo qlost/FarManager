@@ -189,6 +189,11 @@ public:
     close();
     File::delete_file_nt(m_file_path);
   }
+
+  bool set_ctime(const FILETIME& ctime) noexcept {
+    FILETIME dummy{0, 0};
+    return set_time_nt(ctime, dummy, dummy);
+  }
 };
 
 
@@ -895,11 +900,11 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
           continue;
         }
         adv_have_0 = adv_have_0 || name == L"0";
-        adv_have_1 = adv_have_0 || name == L"1";
+        adv_have_1 = adv_have_1 || name == L"1";
         if (is_digit(name, L'9') && value.size() >= 3)
           adv_have_bcj = adv_have_bcj || 0 == _wcsicmp(value.substr(0,3).c_str(), L"BCJ");
       }
-      it++;
+      ++it;
     }
     if (!adv_have_qs && g_options.qs_by_default && options.arc_type == c_7z)
       adv_params.emplace_back(L"qs=on");
@@ -968,8 +973,8 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
         ++i;
       }
       if (!found) {
-        names.push_back(name);
-        values.push_back(variant(value));
+        names.emplace_back(name);
+        values.emplace_back(value);
       }
     }
 
@@ -991,6 +996,32 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
     name_ptrs.reserve(names.size());
     for (unsigned i = 0; i < names.size(); i++) {
       name_ptrs.push_back(names[i].c_str());
+    }
+
+    const auto string_to_integer = [](const std::wstring& str, auto converter, PropVariant& v)
+    {
+      wchar_t* endptr{};
+      const auto str_end = str.data() + str.size();
+
+      const auto value = converter(str.c_str(), &endptr, 10);
+      if (endptr != str_end)
+        return false;
+
+      if (value > std::numeric_limits<UInt32>::max())
+        v = static_cast<UInt64>(value);
+      else
+        v = static_cast<UInt32>(value);
+
+      return true;
+    };
+
+    for (auto& i: values)
+    {
+      if (!i.is_str())
+        continue;
+
+      const auto str = i.get_str();
+      string_to_integer(str, &wcstoull, i) || string_to_integer(str, &wcstoll, i);
     }
 
     CHECK_COM(set_props->SetProperties(name_ptrs.data(), values.data(), static_cast<UInt32>(values.size())));
@@ -1074,11 +1105,11 @@ public:
 void Archive::create(const std::wstring& src_dir, const std::vector<std::wstring>& file_names, const UpdateOptions& options, std::shared_ptr<ErrorLog> error_log) {
   DisableSleepMode dsm;
 
-  std::shared_ptr<bool> ignore_errors(new bool(options.ignore_errors));
+  const auto ignore_errors = std::make_shared<bool>(options.ignore_errors);
   UInt32 new_index = 0;
   bool skipped_files = false;
 
-  std::shared_ptr<FileIndexMap> file_index_map(new FileIndexMap());
+  const auto file_index_map = std::make_shared<FileIndexMap>();
   PrepareUpdate(src_dir, file_names, c_root_index, *this, *file_index_map, new_index, oaOverwrite, *ignore_errors, *error_log, options.filter.get(), skipped_files);
 
   ComObject<IOutArchive> out_arc;
@@ -1086,7 +1117,7 @@ void Archive::create(const std::wstring& src_dir, const std::vector<std::wstring
 
   set_properties(out_arc, options);
 
-  std::shared_ptr<ArchiveUpdateProgress> progress(new ArchiveUpdateProgress(true, options.arc_path));
+  const auto progress = std::make_shared<ArchiveUpdateProgress>(true, options.arc_path);
   ComObject<IArchiveUpdateCallback> updater(new ArchiveUpdater(src_dir, std::wstring(), 0, file_index_map, options, ignore_errors, error_log, progress));
 
   prepare_dst_dir(extract_file_path(options.arc_path));
@@ -1114,11 +1145,11 @@ void Archive::create(const std::wstring& src_dir, const std::vector<std::wstring
 void Archive::update(const std::wstring& src_dir, const std::vector<std::wstring>& file_names, const std::wstring& dst_dir, const UpdateOptions& options, std::shared_ptr<ErrorLog> error_log) {
   DisableSleepMode dsm;
 
-  std::shared_ptr<bool> ignore_errors(new bool(options.ignore_errors));
+  const auto ignore_errors = std::make_shared<bool>(options.ignore_errors);
   UInt32 new_index = m_num_indices; // starting index for new files
   bool skipped_files = false;
 
-  std::shared_ptr<FileIndexMap> file_index_map(new FileIndexMap());
+  const auto file_index_map = std::make_shared<FileIndexMap>();
   PrepareUpdate(src_dir, file_names, find_dir(dst_dir), *this, *file_index_map, new_index, options.overwrite, *ignore_errors, *error_log, options.filter.get(), skipped_files);
 
   std::wstring temp_arc_name = get_temp_file_name();
@@ -1128,13 +1159,18 @@ void Archive::update(const std::wstring& src_dir, const std::vector<std::wstring
 
     set_properties(out_arc, options);
 
-    std::shared_ptr<ArchiveUpdateProgress> progress(new ArchiveUpdateProgress(false, arc_path));
+    const auto progress = std::make_shared<ArchiveUpdateProgress>(false, arc_path);
     ComObject<IArchiveUpdateCallback> updater(new ArchiveUpdater(src_dir, dst_dir, m_num_indices, file_index_map, options, ignore_errors, error_log, progress));
-    ComObject<IOutStream> update_stream(new SimpleUpdateStream(temp_arc_name, progress));
+    auto simple_update_stream = new SimpleUpdateStream(temp_arc_name, progress);
+    ComObject<IOutStream> update_stream(simple_update_stream);
 
     COM_ERROR_CHECK(copy_prologue(update_stream));
 
     COM_ERROR_CHECK(out_arc->UpdateItems(update_stream, new_index, updater));
+
+    WIN32_FILE_ATTRIBUTE_DATA fa;
+    if (File::attributes_ex(arc_path, &fa))
+      simple_update_stream->set_ctime(fa.ftCreationTime);
     close();
     update_stream.Release();
     File::move_file(temp_arc_name, arc_path, MOVEFILE_REPLACE_EXISTING);
@@ -1153,7 +1189,7 @@ void Archive::update(const std::wstring& src_dir, const std::vector<std::wstring
 void Archive::create_dir(const std::wstring& dir_name, const std::wstring& dst_dir) {
   DisableSleepMode dsm;
 
-  std::shared_ptr<FileIndexMap> file_index_map(new FileIndexMap());
+  const auto file_index_map = std::make_shared<FileIndexMap>();
   FileIndexInfo file_index_info{};
   file_index_info.find_data.dwFileAttributes = FILE_ATTRIBUTE_DIRECTORY;
   SYSTEMTIME sys_time;
@@ -1181,10 +1217,10 @@ void Archive::create_dir(const std::wstring& dir_name, const std::wstring& dst_d
     ComObject<IOutArchive> out_arc;
     CHECK_COM(in_arc->QueryInterface(IID_IOutArchive, reinterpret_cast<void**>(&out_arc)));
 
-    std::shared_ptr<ErrorLog> error_log(new ErrorLog());
-    std::shared_ptr<bool> ignore_errors(new bool(options.ignore_errors));
+    const auto error_log = std::make_shared<ErrorLog>();
+    const auto ignore_errors = std::make_shared<bool>(options.ignore_errors);
 
-    std::shared_ptr<ArchiveUpdateProgress> progress(new ArchiveUpdateProgress(false, arc_path));
+    const auto progress = std::make_shared<ArchiveUpdateProgress>(false, arc_path);
     ComObject<IArchiveUpdateCallback> updater(new ArchiveUpdater(std::wstring(), dst_dir, m_num_indices, file_index_map, options, ignore_errors, error_log, progress));
     ComObject<IOutStream> update_stream(new SimpleUpdateStream(temp_arc_name, progress));
 

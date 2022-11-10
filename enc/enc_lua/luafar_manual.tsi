@@ -2869,7 +2869,7 @@ mtime=3605129666
 #_
 #_```
 #_local buffer=far.CreateUserControl(10,10)
-#_local textel={Char="a",Attributes={Flags=bit64.bor(F.FCF_FG_4BIT,F.FCF_BG_4BIT),ForegroundColor=9,BackgroundColor=8}}
+#_local textel={Char="a",Attributes={Flags=bit64.bor(F.FCF_FG_INDEX,F.FCF_BG_INDEX),ForegroundColor=9,BackgroundColor=8}}
 #_for ii=1,#buffer do
 #_  buffer[ii]=textel
 #_end
@@ -10921,6 +10921,30 @@ mtime=3602448840
 #_
 #_**Windows API used:**
 #_  FileTimeToSystemTime
+#_
+#_@@@
+#_[tSystemTime]: 218.html
+#_
+</article>
+</node>
+<node>
+id=558
+lv=3
+dt=Text
+nm=win.GetSystemTime
+ctime=3873306659
+mtime=3873306772
+<article>
+#_result = win.GetSystemTime()
+#_
+#_**Parameters:**
+#_  none
+#_
+#_**Returns:**
+#_  result : table `tSystemTime`
+#_
+#_**Windows API used:**
+#_  GetSystemTime
 #_
 #_@@@
 #_[tSystemTime]: 218.html

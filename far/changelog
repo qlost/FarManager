@@ -1,4 +1,763 @@
 --------------------------------------------------------------------------------
+drkns 09.11.2022 19:37:38 +0000 - build 6050
+
+1. Recognize reparse point types on plugin panels.
+
+--------------------------------------------------------------------------------
+drkns 08.11.2022 19:47:00 +0000 - build 6049
+
+1. Correction of 6047.
+
+--------------------------------------------------------------------------------
+drkns 08.11.2022 17:08:16 +0000 - build 6048
+
+1. Correction of 6047.
+
+--------------------------------------------------------------------------------
+drkns 07.11.2022 22:07:21 +0000 - build 6047
+
+1. Microsoft keeps fixing things that ain't broken.
+   Apparently Windows Terminal is now default and we have another wave of questions about its eye-bleeding palette.
+   It is getting annoying, so the classic palette is now set automatically by default,
+   overriding any terminal preferences and rejecting any modern fashion trends in UI design.
+   If you actually know what a palette is and have your own, turn the override off in color settings.
+
+--------------------------------------------------------------------------------
+drkns 07.11.2022 20:19:16 +0000 - build 6046
+
+1. Rework InfoPanel memory section.
+
+2. Fix color processing.
+
+--------------------------------------------------------------------------------
+drkns 06.11.2022 23:58:52 +0000 - build 6045
+
+1. Fix ECTL_SETSTRING crash when source and destination strings overlap.
+
+2. Static analysis warnings.
+
+--------------------------------------------------------------------------------
+drkns 03.11.2022 20:43:44 +0000 - build 6044
+
+1. Make "path" in "pushd path" optional.
+
+--------------------------------------------------------------------------------
+drkns 02.11.2022 21:24:55 +0000 - build 6043
+
+1. Refactoring, move plarform-specific code around.
+
+2. Refactoring, reorganize error checking.
+
+--------------------------------------------------------------------------------
+drkns 29.10.2022 18:00:05 +0100 - build 6042
+
+1. Include PE & file timestamps into generated bug reports.
+
+--------------------------------------------------------------------------------
+drkns 15.10.2022 19:27:16 +0100 - build 6041
+
+1. Add workaround for incorrect encoding in OS-generated CF_UNICODETEXT.
+   See far:config, ClipboardUnicodeWorkaround.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+pepak 13.10.2022 20:18:32 +0100 - build 6040
+
+1. Add special symbols to refer to the left ("![") or to the right ("!]") panel.
+
+--------------------------------------------------------------------------------
+drkns 10.10.2022 18:06:05 +0100 - build 6039
+
+1. Use the real window handle when running in Windows Terminal.
+   This should fix some scenarios like taskbar progress, flashing, icon setting, Alt+F9 etc.
+   It also may or may not break your Terminal, who knows.
+
+--------------------------------------------------------------------------------
+drkns 07.10.2022 23:13:59 +0100 - build 6038
+
+1. gh-551: Screen scrambled when pressing Alt-F9 under Windows 11 22H2
+
+--------------------------------------------------------------------------------
+drkns 06.10.2022 17:43:00 +0100 - build 6037
+
+1. Fix string replace when pattern and/or replacement are views into the same string.
+
+--------------------------------------------------------------------------------
+drkns 05.10.2022 23:47:54 +0100 - build 6036
+
+1. Remove "Colors - Black and white mode".
+
+2. Add "Colors - Set default colors (RGB)" - same as "Set default colors", but fixed RGB values instead of indices.
+
+--------------------------------------------------------------------------------
+drkns 05.10.2022 17:15:46 +0100 - build 6035
+
+1. far:regex: include offsets into match information.
+
+2. Fix 6030.1.
+
+--------------------------------------------------------------------------------
+drkns 04.10.2022 21:56:22 +0100 - build 6034
+
+1. Use IMultiLanguage2 for codepage detection.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 03.10.2022 23:20:09 +0100 - build 6033
+
+1. Add regex testing UI - far:regex
+
+2. Fix regex named groups processing in cases like a(?{name}.)?b, improve tests
+
+3. Suppress logs once the logger is destroyed.
+
+4. Minor refactoring.
+
+--------------------------------------------------------------------------------
+yjh 03.10.2022 00:22:43 +0300 - build 6032
+
+1. SQLite v3.39.4.
+
+--------------------------------------------------------------------------------
+drkns 02.10.2022 21:16:49 +0100 - build 6031
+
+1. Correction of 6030.
+
+--------------------------------------------------------------------------------
+drkns 02.10.2022 19:29:07 +0100 - build 6030
+
+1. Named groups in regular expressions are now included into the usual match list and can be referred by number in order of appearance.
+
+2. Named groups support in RegExpControl:
+   After a successful RECTL_MATCHEX/RECTL_SEARCHEX call RECTL_NAMEDGROUPINDEX with Param1 = 0 and Param2 = <group name>.
+   The return value is the index of the group in the RegExpSearch.Match array, populated by the last call to match/search.
+
+--------------------------------------------------------------------------------
+drkns 29.09.2022 18:22:32 +0100 - build 6029
+
+1. Capture dbgeng and dbghelp logs.
+
+--------------------------------------------------------------------------------
+drkns 21.09.2022 17:59:59 +0100 - build 6028
+
+1. Fix colors import/export.
+
+--------------------------------------------------------------------------------
+drkns 18.09.2022 02:18:21 +0100 - build 6027
+
+1. Support ASan exceptions.
+
+--------------------------------------------------------------------------------
+drkns 16.09.2022 22:16:00 +0100 - build 6026
+
+1. Forum: ESC/F10 does not close Change Drive dialog in "elevated" folders.
+
+--------------------------------------------------------------------------------
+drkns 16.09.2022 00:08:25 +0100 - build 6025
+
+1. Crash on panel update.
+
+--------------------------------------------------------------------------------
+drkns 14.09.2022 23:47:31 +0100 - build 6024
+
+1. Show inline frames in stack traces.
+
+--------------------------------------------------------------------------------
+drkns 13.09.2022 22:45:05 +0100 - build 6023
+
+1. fmt 9.1.1.
+
+2. Catch2 2.13.9.
+
+--------------------------------------------------------------------------------
+drkns 13.09.2022 19:34:03 +0100 - build 6022
+
+1. Optimise VT throughput.
+
+2. Fix VT double underline to underline transitioning.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 10.09.2022 18:06:24 +0100 - build 6021
+
+1. Add smooth rotation to 256 color picker.
+
+--------------------------------------------------------------------------------
+drkns 08.09.2022 01:08:00 +0100 - build 6020
+
+1. Ignore directories when looking for specific file masks, e.g. lng & hlf.
+
+2. Improve exception messages.
+
+3. Improve recovery after exceptions in window processing.
+
+4. Handle exceptions in help & remove a few old workarounds.
+
+--------------------------------------------------------------------------------
+yjh 07.09.2022 00:39:44 +0300 - build 6019
+
+1. SQLite v3.39.3.
+
+--------------------------------------------------------------------------------
+drkns 04.09.2022 18:26:41 +0100 - build 6018
+
+1. 0003336: Regex \{(.)?\} finds } in {}.
+
+--------------------------------------------------------------------------------
+drkns 04.09.2022 16:59:33 +0100 - build 6017
+
+1. Enable VT directly from color dialog if supported.
+
+--------------------------------------------------------------------------------
+drkns 31.08.2022 20:57:09 +0100 - build 6016
+
+1. Support FILE_ATTRIBUTE_DEVICE.
+
+2. Use SAFESEH on x86.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 30.08.2022 19:54:53 +0100 - build 6015
+
+1. Improve exception diagnostics.
+
+--------------------------------------------------------------------------------
+drkns 29.08.2022 21:59:46 +0100 - build 6014
+
+1. Refactoring.
+
+2. Correction of 5998.
+
+3. Minor hlf corrections.
+
+--------------------------------------------------------------------------------
+drkns 13.08.2022 23:34:12 +0100 - build 6013
+
+1. Whole words regex search in editor.
+
+--------------------------------------------------------------------------------
+drkns 13.08.2022 14:23:53 +0100 - build 6012
+
+1. Include disassembly in bug_report.txt.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 10.08.2022 22:34:43 +0100 - build 6011
+
+1. Fix change disk dialog behavior.
+
+2. Do not try to execute empty commands.
+
+3. Fix build in VS 2022 17.4.
+
+--------------------------------------------------------------------------------
+MZK 06.08.2022 18:26:39 -0700 - build 6010
+
+1. Fixed two bugs in the string search algorithm.
+
+--------------------------------------------------------------------------------
+drkns 06.08.2022 15:34:28 +0100 - build 6009
+
+1. Improve exception diagnostics.
+
+--------------------------------------------------------------------------------
+drkns 06.08.2022 11:11:06 +0100 - build 6008
+
+1. Fix Undo issue after 5916 & continue #0003907.
+
+--------------------------------------------------------------------------------
+drkns 05.08.2022 20:04:28 +0100 - build 6007
+
+1. Improve exception diagnostics.
+
+--------------------------------------------------------------------------------
+drkns 04.08.2022 20:33:22 +0100 - build 6006
+
+1. Fix filters issue after swapping panels.
+
+2. Suppress plugin selection dialog during search.
+
+--------------------------------------------------------------------------------
+drkns 02.08.2022 22:50:15 +0100 - build 6005
+
+1. "[x] Search in archives" was trying to read directories.
+
+--------------------------------------------------------------------------------
+drkns 02.08.2022 19:47:00 +0100 - build 6004
+
+1. Correction of 5600.
+
+2. Correction of 5983.
+
+--------------------------------------------------------------------------------
+drkns 01.08.2022 20:30:44 +0100 - build 6003
+
+1. Extend RGB color picker.
+
+2. Restore w2k compatibility.
+
+3. Minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 01.08.2022 02:51:40 +0100 - build 6002
+
+1. Extend 256 color picker.
+
+--------------------------------------------------------------------------------
+drkns 30.07.2022 22:27:06 +0100 - build 6001
+
+1. Refactoring.
+
+2. Improve exception diagnostics.
+
+3. Support UTF-8 in far.exe.ini.
+
+4. Correction of 5936.
+
+5. Correction of 5998.
+
+--------------------------------------------------------------------------------
+drkns 22.07.2022 23:55:11 +0100 - build 6000
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 22.07.2022 01:34:04 +0300 - build 5999
+
+1. SQLite v3.39.2.
+
+--------------------------------------------------------------------------------
+drkns 17.07.2022 17:54:30 +0100 - build 5998
+
+1. Continue fullwidth-aware rendering.
+
+--------------------------------------------------------------------------------
+drkns 16.07.2022 23:17:49 +0100 - build 5997
+
+1. Continue 5996.
+
+--------------------------------------------------------------------------------
+drkns 16.07.2022 20:44:11 +0100 - build 5996
+
+1. Files highlighting - Marking character can contain any number of characters.
+
+--------------------------------------------------------------------------------
+drkns 16.07.2022 00:16:57 +0100 - build 5995
+
+1. Refactoring.
+
+2. Add logger icon.
+
+--------------------------------------------------------------------------------
+yjh 14.07.2022 21:58:48 +0300 - build 5994
+
+1. SQLite v3.39.1.
+
+--------------------------------------------------------------------------------
+drkns 13.07.2022 19:29:19 +0100 - build 5993
+
+2. Continue fullwidth-aware rendering.
+
+--------------------------------------------------------------------------------
+drkns 11.07.2022 21:44:15 +0100 - build 5992
+
+1. Switch to conformant preprocessor.
+
+2. Refactoring.
+
+3. Menu width correction.
+
+4. Fix "use shell name" in disk menu.
+
+--------------------------------------------------------------------------------
+drkns 08.07.2022 08:39:53 +0100 - build 5991
+
+1. Correction of 5989.2.
+
+--------------------------------------------------------------------------------
+drkns 06.07.2022 23:29:00 +0100 - build 5990
+
+1. fmt v9.
+
+2. Improve exception diagnostics, refactoring.
+
+--------------------------------------------------------------------------------
+drkns 02.07.2022 19:56:01 +0100 - build 5989
+
+1. Improve exception diagnostics.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 28.06.2022 02:04:55 +0100 - build 5988
+
+1. Correction of 5983 or #0003951.
+
+--------------------------------------------------------------------------------
+drkns 26.06.2022 21:57:48 +0100 - build 5987
+
+1. Continue 5985.
+
+2. #0003950 - excessive attempts to set the owner when working with folders.
+
+--------------------------------------------------------------------------------
+yjh 26.06.2022 01:28:46 +0300 - build 5986
+
+1. SQLite v3.39.0.
+
+--------------------------------------------------------------------------------
+drkns 25.06.2022 23:06:40 +0100 - build 5985
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 24.06.2022 20:41:44 +0100 - build 5984
+
+1. Add color picker dialog help page.
+
+2. UI colors can be reset separately.
+
+--------------------------------------------------------------------------------
+drkns 23.06.2022 19:19:19 +0100 - build 5983
+
+1. Workaround for broken half-width surrogates (e.g. "𝔟𝔞𝔫𝔞𝔫𝔞") in conhost & WT.
+
+--------------------------------------------------------------------------------
+drkns 22.06.2022 23:59:59 +0100 - build 5982
+
+1. gh-532: Copy file bigger than target file system can store.
+   Do not proceed if we can't reserve the space for the file.
+
+--------------------------------------------------------------------------------
+EugeneManushkin 22.06.2022 14:09:17 +0300 - build 5981
+
+1. Allow run modal editor with XC_OPEN_NEWINSTANCE exit code. This fix invalid EF_OPENMODE_NEWIFOPEN flag behaviour #530.
+
+--------------------------------------------------------------------------------
+drkns 20.06.2022 22:32:45 +0100 - build 5980
+
+1. Allow sourcing of keyboard mappings from xlat tables.
+
+2. Minor refactoring.
+
+--------------------------------------------------------------------------------
+drkns 12.06.2022 20:20:20 +0100 - build 5979
+
+1. 256 color palette support.
+
+2. More "style" attributes: inverse, invisible.
+
+3. Minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 08.06.2022 23:20:56 +0100 - build 5978
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 07.06.2022 01:31:20 +0100 - build 5977
+
+1. More logging.
+
+--------------------------------------------------------------------------------
+drkns 04.06.2022 12:37:01 +0100 - build 5976
+
+1. Correction of 5972.2.
+
+--------------------------------------------------------------------------------
+drkns 03.06.2022 22:47:43 +0100 - build 5975
+
+1. Another day, another workaround for Windows 10 console.
+
+2. More logging.
+
+--------------------------------------------------------------------------------
+yjh 01.06.2022 17:39:33 +0300 - build  5974
+
+1. Fix GPF (in 32bit release) when build with VS2022 (19.32)
+
+--------------------------------------------------------------------------------
+drkns 01.06.2022 00:54:02 +0100 - build 5973
+
+1. Improve exception diagnostics.
+
+2. Use Clang and GCC maps for stack traces enrichment.
+
+--------------------------------------------------------------------------------
+drkns 29.05.2022 20:03:12 +0100 - build 5972
+
+1. Improve exception diagnostics.
+
+2. Validate command line arguments.
+
+--------------------------------------------------------------------------------
+drkns 25.05.2022 01:00:56 +0100 - build 5971
+
+1. Continue 5970.
+
+--------------------------------------------------------------------------------
+drkns 24.05.2022 21:18:27 +0100 - build 5970
+
+1. Intercept heap corruption.
+
+--------------------------------------------------------------------------------
+yjh 07.05.2022 22:32:09 +0300 - build 5969
+
+1. SQLite v3.38.5.
+
+--------------------------------------------------------------------------------
+yjh 05.05.2022 01:02:21 +0300 - build 5968
+
+1. SQLite v3.38.4.
+
+--------------------------------------------------------------------------------
+yjh 28.04.2022 01:20:26 +0300 - build 5967
+
+1. SQLite v3.38.3.
+
+--------------------------------------------------------------------------------
+drkns 24.04.2022 17:14:58 +0100 - build 5966
+
+1. 0003940: Editor crash when changing codepage to UTF16BE.
+
+--------------------------------------------------------------------------------
+drkns 18.04.2022 03:16:06 +0100 - build 5965
+
+1. Correction of 5955.1.
+
+--------------------------------------------------------------------------------
+yjh 28.03.2022 12:19:04 +0300 - build 5964
+
+1. SQLite v3.38.2.
+
+--------------------------------------------------------------------------------
+drkns 24.02.2022 01:23:37 +0000 - build 5963
+
+1. Improve SQLite diagnostics.
+
+2. More logging.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+skipik 23.02.2022 19:46:25 +0300 - build 5962
+
+1. SQLite v3.38.0.
+
+--------------------------------------------------------------------------------
+drkns 04.02.2022 17:54:40 +0000 - build 5961
+
+1. Continue 5960.
+
+--------------------------------------------------------------------------------
+drkns 04.02.2022 00:15:55 +0000 - build 5960
+
+1. Continue 5905: associations were overlooked.
+
+--------------------------------------------------------------------------------
+drkns 02.02.2022 02:02:02 +0000 - build 5959
+
+1. Improve exception diagnostics.
+
+--------------------------------------------------------------------------------
+drkns 01.02.2022 01:17:02 +0000 - build 5958
+
+1. Improve diagnostics in "access denied" errors.
+
+--------------------------------------------------------------------------------
+drkns 28.01.2022 09:21:47 +0000 - build 5957
+
+1. Wrong backwards regex replace with named groups and multiple matches within the line.
+
+2. Regex search didn't work in Help.
+
+3. Regex should be truly thread-safe now (search/match-wise).
+
+4. Other corner case regex fixes.
+
+5. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 25.01.2022 00:07:30 +0000 - build 5956
+
+1. Correction of 5955.1.
+
+--------------------------------------------------------------------------------
+drkns 20.01.2022 20:41:13 +0000 - build 5955
+
+1. Refactoring.
+
+2. GUID for "Groups of file masks" dialog.
+
+--------------------------------------------------------------------------------
+w17 12.01.2022 22:01:17 +0300 - build 5954
+
+1. simplify disk sector size logic
+
+--------------------------------------------------------------------------------
+skipik 07.01.2022 14:11:12 +0300 - build 5953
+
+1. SQLite v3.37.2.
+
+--------------------------------------------------------------------------------
+drkns 04.01.2022 21:22:37 +0000 - build 5952
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+skipik 03.01.2022 22:53:17 +0300 - build 5951
+
+1. SQLite v3.37.1.
+
+--------------------------------------------------------------------------------
+drkns 29.12.2021 22:42:45 +0000 - build 5950
+
+1. Crash (or two) on console detach.
+
+--------------------------------------------------------------------------------
+drkns 26.12.2021 13:58:32 +0000 - build 5949
+
+1. Deadlock in executor in certain scenarios.
+
+--------------------------------------------------------------------------------
+drkns 25.12.2021 22:33:14 +0000 - build 5948
+
+1. FS monitoring again.
+
+--------------------------------------------------------------------------------
+drkns 25.12.2021 16:27:10 +0000 - build 5947
+
+1. Fix URLs processing in Help.
+
+--------------------------------------------------------------------------------
+drkns 23.12.2021 22:36:54 +0000 - build 5946
+
+1. gh-502: Another parentheses-related issue.
+
+--------------------------------------------------------------------------------
+drkns 23.12.2021 17:28:03 +0000 - build 5945
+
+1. gh-502: Removal of Parenthesis from a User Variable Initial Value in F2 User Command.
+
+2. Minor refactoring & tests.
+
+--------------------------------------------------------------------------------
+drkns 23.12.2021 02:14:27 +0000 - build 5944
+
+1. FS monitoring rework (again).
+   Now only one extra thread.
+
+--------------------------------------------------------------------------------
+drkns 22.12.2021 20:00:38 +0000 - build 5943
+
+1. Delay load config DBs.
+
+--------------------------------------------------------------------------------
+drkns 22.12.2021 02:14:35 +0000 - build 5942
+
+1. Continue 5890: fuzzy search is now optional.
+   It can be activated with the third state of the "Case sensitive" option in dialogs.
+
+--------------------------------------------------------------------------------
+drkns 22.12.2021 00:17:17 +0000 - build 5941
+
+1. Refactoring.
+
+2. Add a help page for sort criteria.
+
+--------------------------------------------------------------------------------
+drkns 19.12.2021 13:30:58 +0000 - build 5940
+
+1. Continue 5938.
+
+--------------------------------------------------------------------------------
+drkns 18.12.2021 03:37:55 +0000 - build 5939
+
+1. Alternative NTSTATUS accessing.
+
+--------------------------------------------------------------------------------
+drkns 18.12.2021 01:09:04 +0000 - build 5938
+
+1. FS monitoring rework (again).
+   "System settings - Update panels only when Far is active" is no longer needed and removed.
+
+--------------------------------------------------------------------------------
+drkns 15.12.2021 16:24:56 +0000 - build 5937
+
+1. Data alignment corrections.
+
+--------------------------------------------------------------------------------
+drkns 14.12.2021 12:12:19 +0000 - build 5936
+
+1. Correction of 5932.
+
+--------------------------------------------------------------------------------
+drkns 13.12.2021 23:10:45 +0000 - build 5935
+
+1. Correction of 5932.
+
+--------------------------------------------------------------------------------
+drkns 13.12.2021 21:58:58 +0000 - build 5934
+
+1. Forum: incorrect percents in editor progress bar (and potentially elsewhere).
+
+--------------------------------------------------------------------------------
+drkns 13.12.2021 12:50:18 +0000 - build 5933
+
+1. Typo.
+
+--------------------------------------------------------------------------------
+drkns 13.12.2021 02:32:37 +0000 - build 5932
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 10.12.2021 23:51:14 +0000 - build 5931
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 09.12.2021 17:35:00 +0000 - build 5930
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 09.12.2021 03:02:46 +0000 - build 5929
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 05.12.2021 02:27:10 +0000 - build 5928
+
+1. Continue 2493: now it works with folders as well.
+
+--------------------------------------------------------------------------------
+drkns 03.12.2021 23:17:16 +0000 - build 5927
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 02.12.2021 18:21:35 +0000 - build 5926
+
+1. 0003919 again.
+
+--------------------------------------------------------------------------------
+skipik 01.12.2021 21:42:37 +0300 - build 5925
+
+1. SQLite 3.37.0.
+
+--------------------------------------------------------------------------------
+drkns 02.12.2021 01:03:27 +0000 - build 5924
+
+1. 0003919: Crash on Alt+Enter.
+   Windows 10 is a PITA.
+
+--------------------------------------------------------------------------------
 drkns 26.11.2021 01:22:00 +0000 - build 5923
 
 1. 0003918: Manual non-Persistent selection in Viewer broken since build 5833.

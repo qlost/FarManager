@@ -54,6 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.fs.hpp"
 #include "platform.security.hpp"
 
@@ -163,14 +164,14 @@ static bool SetREPARSE_DATA_BUFFER(const string_view Object, REPARSE_DATA_BUFFER
 
 	if (Attributes & FILE_ATTRIBUTE_READONLY && !os::fs::set_file_attributes(Object, Attributes & ~FILE_ATTRIBUTE_READONLY)) //BUGBUG
 	{
-		LOGWARNING(L"set_file_attributes({}): {}"sv, Object, last_error());
+		LOGWARNING(L"set_file_attributes({}): {}"sv, Object, os::last_error());
 	}
 
 	SCOPE_EXIT
 	{
 		if (Attributes & FILE_ATTRIBUTE_READONLY && !os::fs::set_file_attributes(Object, Attributes)) //BUGBUG
 		{
-			LOGWARNING(L"set_file_attributes({}): {}"sv, Object, last_error());
+			LOGWARNING(L"set_file_attributes({}): {}"sv, Object, os::last_error());
 		}
 
 	};
@@ -364,7 +365,7 @@ bool GetReparsePointInfo(string_view const Object, string& DestBuffer, LPDWORD R
 				WCHAR StringList[1];
 			};
 
-			const auto& AppExecLinkReparseBuffer = *static_cast<APPEXECLINK_REPARSE_DATA_BUFFER const*>(static_cast<void const*>(&rdb->GenericReparseBuffer));
+			const auto& AppExecLinkReparseBuffer = view_as<APPEXECLINK_REPARSE_DATA_BUFFER>(&rdb->GenericReparseBuffer);
 			if (AppExecLinkReparseBuffer.StringCount <= FilenameIndex)
 				return false;
 
@@ -390,7 +391,7 @@ bool GetReparsePointInfo(string_view const Object, string& DestBuffer, LPDWORD R
 
 std::optional<size_t> GetNumberOfLinks(string_view const Name)
 {
-	const os::fs::file File(Name, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT);
+	const os::fs::file File(Name, 0, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT);
 	if (!File)
 		return {};
 
@@ -411,7 +412,7 @@ bool MkHardLink(string_view const ExistingName, string_view const NewName, bool 
 		if (Silent)
 			return false;
 
-		const auto ErrorState = last_error();
+		const auto ErrorState = os::last_error();
 
 		if (OperationFailed(ErrorState, NewName, lng::MError, msg(lng::MCopyCannotCreateLink), false) != operation::retry)
 			break;
@@ -494,7 +495,7 @@ bool GetSubstName(int DriveType, string_view const Path, string &strTargetPath)
 
 bool GetVHDInfo(string_view const RootDirectory, string &strVolumePath, VIRTUAL_STORAGE_TYPE* StorageType)
 {
-	const os::fs::file Root(RootDirectory, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING);
+	const os::fs::file Root(RootDirectory, FILE_READ_ATTRIBUTES, os::fs::file_share_all, nullptr, OPEN_EXISTING);
 	if (!Root)
 		return false;
 
@@ -666,7 +667,7 @@ bool MkSymLink(string_view const Target, string_view const LinkName, ReparsePoin
 		{
 			if (!Silent)
 			{
-				const auto ErrorState = last_error();
+				const auto ErrorState = os::last_error();
 
 				Message(MSG_WARNING, ErrorState,
 					msg(lng::MError),
@@ -688,7 +689,7 @@ bool MkSymLink(string_view const Target, string_view const LinkName, ReparsePoin
 
 		if (!Silent)
 		{
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			Message(MSG_WARNING, ErrorState,
 				msg(lng::MError),
@@ -708,7 +709,7 @@ bool MkSymLink(string_view const Target, string_view const LinkName, ReparsePoin
 
 		if (!Silent)
 		{
-			const auto ErrorState = last_error();
+			const auto ErrorState = os::last_error();
 
 			Message(MSG_WARNING, ErrorState,
 				msg(lng::MError),
@@ -734,7 +735,7 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	case IO_REPARSE_TAG_SYMLINK:                     return msg(lng::MListSymlink);
 
 	// Generated
-#define TAG_STR(name) case IO_REPARSE_TAG_ ## name: return WSTRVIEW(name);
+#define TAG_STR(name) case IO_REPARSE_TAG_##name: return WIDE_SV(#name);
 	// MS tags:
 	TAG_STR(HSM)
 	TAG_STR(HSM2)
@@ -921,7 +922,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameOffset == 30);
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameLength == 20);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), static_cast<char const*>(static_cast<void const*>(Buffer.data()))));
+		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
 	}
 
 	{
@@ -963,7 +964,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.PrintNameLength == 20);
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.Flags == 0);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), static_cast<char const*>(static_cast<void const*>(Buffer.data()))));
+		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
 	}
 }
 

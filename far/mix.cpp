@@ -43,10 +43,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cmdline.hpp"
 #include "dlgedit.hpp"
 #include "strmix.hpp"
-#include "exception.hpp"
 #include "log.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
 
@@ -106,7 +106,7 @@ string MakeTemp(string_view Prefix, bool const WithTempPath, string_view const U
 		// BUGBUG check result
 		if (!os::fs::GetTempPath(strPath))
 		{
-			LOGWARNING(L"GetTempPath(): {}"sv, last_error());
+			LOGWARNING(L"GetTempPath(): {}"sv, os::last_error());
 		}
 	}
 	else if(!UserTempPath.empty())
@@ -116,7 +116,7 @@ string MakeTemp(string_view Prefix, bool const WithTempPath, string_view const U
 
 	AddEndSlash(strPath);
 
-	wchar_t_ptr_n<os::default_buffer_size> Buffer(Prefix.size() + strPath.size() + 13);
+	const wchar_t_ptr_n<os::default_buffer_size> Buffer(Prefix.size() + strPath.size() + 13);
 
 	auto Unique = 23 * GetCurrentProcessId() + s_shift;
 	const auto UniqueCopy = Unique? Unique : 1;
@@ -276,7 +276,7 @@ void FreePluginPanelItemUserData(HANDLE hPlugin, const UserDataItem& Data)
 	if (!Data.FreeData)
 		return;
 
-	FarPanelItemFreeInfo info{ sizeof(FarPanelItemFreeInfo), hPlugin };
+	const FarPanelItemFreeInfo info{ sizeof(info), hPlugin };
 	Data.FreeData(Data.Data, &info);
 }
 
@@ -330,26 +330,21 @@ void plugin_item_list::reserve(size_t const Size)
 
 WINDOWINFO_TYPE WindowTypeToPluginWindowType(const int fType)
 {
-	static const std::pair<window_type, WINDOWINFO_TYPE> TypesMap[] =
+	switch (static_cast<window_type>(fType))
 	{
-		{windowtype_desktop,    WTYPE_DESKTOP},
-		{windowtype_panels,     WTYPE_PANELS},
-		{windowtype_viewer,     WTYPE_VIEWER},
-		{windowtype_editor,     WTYPE_EDITOR},
-		{windowtype_dialog,     WTYPE_DIALOG},
-		{windowtype_menu,       WTYPE_VMENU},
-		{windowtype_help,       WTYPE_HELP},
-		{windowtype_combobox,   WTYPE_COMBOBOX},
-		{windowtype_findfolder, WTYPE_FINDFOLDER},
-		{windowtype_grabber,    WTYPE_GRABBER},
-		{windowtype_hmenu,      WTYPE_HMENU},
-	};
-
-	const auto ItemIterator = std::find_if(CONST_RANGE(TypesMap, i)
-	{
-		return i.first == fType;
-	});
-	return ItemIterator == std::cend(TypesMap)? WTYPE_UNKNOWN : ItemIterator->second;
+	case windowtype_desktop:       return WTYPE_DESKTOP;
+	case windowtype_panels:        return WTYPE_PANELS;
+	case windowtype_viewer:        return WTYPE_VIEWER;
+	case windowtype_editor:        return WTYPE_EDITOR;
+	case windowtype_dialog:        return WTYPE_DIALOG;
+	case windowtype_menu:          return WTYPE_VMENU;
+	case windowtype_help:          return WTYPE_HELP;
+	case windowtype_combobox:      return WTYPE_COMBOBOX;
+	case windowtype_findfolder:    return WTYPE_FINDFOLDER;
+	case windowtype_grabber:       return WTYPE_GRABBER;
+	case windowtype_hmenu:         return WTYPE_HMENU;
+	default:                       return WTYPE_UNKNOWN;
+	}
 }
 
 SetAutocomplete::SetAutocomplete(EditControl* edit, bool NewState):

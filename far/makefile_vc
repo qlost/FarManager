@@ -68,6 +68,9 @@ LINK_OBJS = \
 	"$(INTDIR)\clipboard.obj" \
 	"$(INTDIR)\cmdline.obj" \
 	"$(INTDIR)\codepage_selection.obj" \
+	"$(INTDIR)\color_picker.obj" \
+	"$(INTDIR)\color_picker_256.obj" \
+	"$(INTDIR)\color_picker_rgb.obj" \
 	"$(INTDIR)\colormix.obj" \
 	"$(INTDIR)\common.tests.obj" \
 	"$(INTDIR)\components.obj" \
@@ -132,6 +135,7 @@ LINK_OBJS = \
 	"$(INTDIR)\hotplug.obj" \
 	"$(INTDIR)\imports.obj"\
 	"$(INTDIR)\infolist.obj" \
+	"$(INTDIR)\initguid.obj" \
 	"$(INTDIR)\interf.obj" \
 	"$(INTDIR)\keybar.obj" \
 	"$(INTDIR)\keyboard.obj" \
@@ -163,6 +167,7 @@ LINK_OBJS = \
 	"$(INTDIR)\platform.chrono.obj" \
 	"$(INTDIR)\platform.com.obj" \
 	"$(INTDIR)\platform.concurrency.obj" \
+	"$(INTDIR)\platform.debug.obj" \
 	"$(INTDIR)\platform.env.obj" \
 	"$(INTDIR)\platform.fs.obj" \
 	"$(INTDIR)\platform.memory.obj" \
@@ -246,7 +251,8 @@ lng: $(BOOTSTRAPDIR)farlang.templ
 depfile:
 	@echo Rebuilding dependencies...
 	set BOOTSTRAPDIR=$(BOOTSTRAPDIR)
-	dir /b *.cpp *.hpp *.c *.rc | $(GAWK) -f scripts\mkdep.awk - > $(DEPFILE)
+	set FORCEINCLUDELIST=$(PCH_NAME).hpp memcheck.hpp disabled_warnings.hpp
+	scripts\list_deps.cmd | $(GAWK) -f scripts\mkdep.awk - > $(DEPFILE)
 
 .PHONY: include
 include: \
@@ -295,10 +301,10 @@ AllDirs:
 	$(ULINKFLAGS) $(LINK_OBJS)
 	,"$(OUTDIR)\Far.exe","$(OUTDIR)\Far.map"
 	,$(LINK_LIBS)
-	,far.def,"$(RES_FILE)"
+	,,"$(RES_FILE)"
 <<
 !endif
-!if "$(BUILD_PLATFORM)" == "X86" || "$(BUILD_PLATFORM)" == "AMD64"
+!if ("$(BUILD_PLATFORM)" == "X86" || "$(BUILD_PLATFORM)" == "AMD64") && !defined(LINK_ULINK)
 	@echo Fixing subsystem version
 	editbin /nologo /subsystem:console,$(OS_VERSION) /osversion:$(OS_VERSION) $(OUTDIR)\Far.exe > $(INTDIR)\version_fix.log
 !endif
@@ -311,11 +317,14 @@ $(PCH_FILE): $(PCH_NAME).cpp $(PCH_NAME).hpp
 	@echo Making precompiled headers
 	$(CPP) $(CPPFLAGS) $(PCH_NAME).cpp /Yc$(PCH_NAME).hpp /Fp$(PCH_FILE)
 
-$(INTDIR)\vc_crt_fix_impl.obj: vc_crt_fix_impl.cpp
-	$(CPP) $(CPPFLAGS) /Zc:threadSafeInit- vc_crt_fix_impl.cpp
+$(INTDIR)\initguid.obj: $(@B).cpp
+	$(CPP) $(CPPFLAGS) $(@B).cpp
 
-$(INTDIR)\vc_crt_fix_ulink.obj: vc_crt_fix_ulink.cpp
-	$(CPP) $(CPPFLAGS) vc_crt_fix_ulink.cpp
+$(INTDIR)\vc_crt_fix_impl.obj: $(@B).cpp
+	$(CPP) $(CPPFLAGS) /Zc:threadSafeInit- $(@B).cpp
+
+$(INTDIR)\vc_crt_fix_ulink.obj: $(@B).cpp
+	$(CPP) $(CPPFLAGS) $(@B).cpp
 
 !ifdef NOBATCH
 .c{$(INTDIR)}.obj:

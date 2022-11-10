@@ -50,17 +50,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace encoding
 {
-	enum enabled_diagnostics: unsigned
-	{
-		error_position    = 0_bit,
-		incomplete_bytes  = 1_bit,
-
-		all = ~0u
-	};
-
 	struct diagnostics
 	{
-		unsigned EnabledDiagnostics{ enabled_diagnostics::all };
+		enum: unsigned
+		{
+			error_position = 0_bit,
+			incomplete_bytes = 1_bit,
+
+			all = ~0u
+		};
+
+		unsigned EnabledDiagnostics{ all };
 		std::optional<size_t> ErrorPosition;
 		size_t IncompleteBytes{};
 	};
@@ -177,29 +177,22 @@ namespace encoding
 	public:
 		NONCOPYABLE(writer);
 		writer(std::ostream& Stream, uintptr_t Codepage, bool AddSignature = true, bool IgnoreEncodingErrors = false);
-		void write(string_view Str);
+
+		template<typename... args>
+		void write(string_view Str, const args&... Args)
+		{
+			write_impl(Str);
+			(..., write_impl(Args));
+		}
 
 	private:
+		void write_impl(string_view Str);
+
 		std::string m_Buffer;
 		std::ostream* m_Stream;
 		uintptr_t m_Codepage;
 		bool m_AddSignature;
 		bool m_IgnoreEncodingErrors;
-	};
-
-	class memory_writer
-	{
-	public:
-		NONCOPYABLE(memory_writer);
-		explicit memory_writer(uintptr_t Codepage, bool AddSignature = true);
-		void write(string_view Str, bool validate = true);
-
-		void flush_to(std::ostream& Stream);
-
-	private:
-		std::list<std::string> m_Data;
-		uintptr_t m_Codepage;
-		bool m_AddSignature;
 	};
 
 	bool is_valid_utf8(std::string_view Str, bool PartialContent, bool& PureAscii);
@@ -213,9 +206,11 @@ namespace encoding
 		bool is_high_surrogate(wchar_t Char);
 		bool is_low_surrogate(wchar_t Char);
 		bool is_valid_surrogate_pair(wchar_t First, wchar_t Second);
-		unsigned int extract_codepoint(wchar_t First, wchar_t Second);
-		unsigned int extract_codepoint(string_view Str);
-		std::pair<wchar_t, wchar_t> to_surrogate(unsigned int Codepoint);
+		char32_t extract_codepoint(wchar_t First, wchar_t Second);
+		char32_t extract_codepoint(string_view Str);
+		void remove_first_codepoint(string_view& Str);
+		void remove_last_codepoint(string_view& Str);
+		std::pair<wchar_t, wchar_t> to_surrogate(char32_t Codepoint);
 	}
 }
 

@@ -46,7 +46,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ctrlobj.hpp"
 #include "constitle.hpp"
 #include "taskbar.hpp"
-#include "keyboard.hpp"
 #include "message.hpp"
 #include "config.hpp"
 #include "datetime.hpp"
@@ -70,6 +69,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "scrbuf.hpp"
 
 // Platform:
+#include "platform.hpp"
 #include "platform.fs.hpp"
 
 // Common:
@@ -149,8 +149,9 @@ enum advanced_attributes
 	SA_CHECKBOX_RECALL_ON_OPEN,
 	SA_CHECKBOX_RECALL_ON_DATA_ACCESS,
 	SA_CHECKBOX_STRICTLY_SEQUENTIAL,
+	SA_CHECKBOX_DEVICE,
 
-	SA_ADVANCED_ATTRIBUTE_LAST = SA_CHECKBOX_STRICTLY_SEQUENTIAL,
+	SA_ADVANCED_ATTRIBUTE_LAST = SA_CHECKBOX_DEVICE,
 };
 
 constexpr size_t advanced_attributes_count = SA_ADVANCED_ATTRIBUTE_LAST - SA_ADVANCED_ATTRIBUTE_FIRST + 1;
@@ -190,6 +191,7 @@ AttributeMap[]
 	{ SA_CHECKBOX_RECALL_ON_OPEN,               FILE_ATTRIBUTE_RECALL_ON_OPEN,        lng::MSetAttrRecallOnOpen,       },
 	{ SA_CHECKBOX_RECALL_ON_DATA_ACCESS,        FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, lng::MSetAttrRecallOnDataAccess, },
 	{ SA_CHECKBOX_STRICTLY_SEQUENTIAL,          FILE_ATTRIBUTE_STRICTLY_SEQUENTIAL,   lng::MSetAttrStrictlySequential, },
+	{ SA_CHECKBOX_DEVICE,                       FILE_ATTRIBUTE_DEVICE,                lng::MSetAttrDevice,             },
 };
 
 static_assert(std::size(AttributeMap) == main_attributes_count + advanced_attributes_count);
@@ -257,9 +259,9 @@ struct SetAttrDlgParam
 	Owner;
 };
 
-static void convert_date(os::chrono::time_point const TimePoint, string& Date, string& Time)
+static auto convert_date(os::chrono::time_point const TimePoint)
 {
-	ConvertDate(TimePoint, Date, Time, 16, 2);
+	return ConvertDate(TimePoint, 16, 2);
 }
 
 static void set_date_or_time(Dialog* const Dlg, int const Id, string const& Value, bool const MakeUnchanged)
@@ -274,7 +276,7 @@ static void set_dates_and_times(Dialog* const Dlg, const time_map& TimeMapEntry,
 
 	if (TimePoint)
 	{
-		convert_date(*TimePoint, Date, Time);
+		std::tie(Date, Time) = convert_date(*TimePoint);
 	}
 
 	set_date_or_time(Dlg, TimeMapEntry.DateId, Date, MakeUnchanged);
@@ -323,7 +325,7 @@ static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
 
 static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Param2)
 {
-	const auto DlgParam = reinterpret_cast<SetAttrDlgParam*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
+	const auto DlgParam = edit_as<SetAttrDlgParam*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
 
 	switch (Msg)
 	{
@@ -455,13 +457,13 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 			if (Param1 != SA_TEXT_LASTWRITE && Param1 != SA_TEXT_CREATION && Param1 != SA_TEXT_LASTACCESS && Param1 != SA_TEXT_CHANGE)
 				break;
 
-			const auto Record = static_cast<const INPUT_RECORD*>(Param2);
-			if (Record->EventType != MOUSE_EVENT)
+			const auto& Record = *static_cast<INPUT_RECORD const*>(Param2);
+			if (Record.EventType != MOUSE_EVENT)
 				break;
 
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-			if (Record->Event.MouseEvent.dwEventFlags == DOUBLE_CLICK)
+			if (Record.Event.MouseEvent.dwEventFlags == DOUBLE_CLICK)
 				set_dates_and_times(Dlg, TimeMap[label_to_time_map_index(Param1)], os::chrono::nt_clock::now(), false);
 			else
 				Dlg->SendMessage(DM_SETFOCUS, Param1 + 1, nullptr);
@@ -477,7 +479,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 				{
 					SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-					FarListInfo li{ sizeof(FarListInfo) };
+					FarListInfo li{ sizeof(li) };
 					Dlg->SendMessage(DM_LISTINFO, Param1, &li);
 					const auto m = Param1 == SA_COMBO_HARDLINK ? lng::MSetAttrHardLinks : lng::MSetAttrDfsTargets;
 					Dlg->SendMessage(DM_SETTEXTPTR, Param1, UNSAFE_CSTR(concat(msg(m), L" ("sv, str(li.ItemsNumber), L')')));
@@ -513,7 +515,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 			if (locale.date_format() != date_type::ymd)
 				break;
 
-			if (reinterpret_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, Param1, nullptr))[0] != L' ')
+			if (view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, Param1, nullptr))[0] != L' ')
 				break;
 
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
@@ -732,7 +734,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 		{ DI_BUTTON,    {{0,       DlgY-3}, {0,       DlgY-3}}, DIF_CENTERGROUP, msg(lng::MCancel), },
 	});
 
-	SetAttrDlgParam DlgParam={};
+	SetAttrDlgParam DlgParam{};
 	const size_t SelCount = SrcPanel? SrcPanel->GetSelCount() : 1;
 
 	if (!SelCount)
@@ -765,7 +767,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 		}
 	}
 
-	FarList NameList={sizeof(FarList)};
+	FarList NameList{ sizeof(NameList) };
 	std::vector<string> Links;
 	std::vector<FarListItem> ListItems;
 
@@ -785,7 +787,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			// BUGBUG
 			if (!os::fs::get_find_data(*Object, SingleSelFindData))
 			{
-				LOGWARNING(L"get_find_data({}): {}"sv, *Object, last_error());
+				LOGWARNING(L"get_find_data({}): {}"sv, *Object, os::last_error());
 			}
 
 			SingleSelFileName = *Object;
@@ -860,9 +862,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				}
 			}
 
-			const auto FolderPresent = os::fs::is_directory(SingleSelFindData.Attributes);
-
-			if (FolderPresent)
+			if (os::fs::is_directory(SingleSelFindData))
 				EnableSubfolders();
 
 			if (SingleSelFindData.Attributes != INVALID_FILE_ATTRIBUTES)
@@ -874,7 +874,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 				for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
 				{
-					convert_date(std::invoke(i.Accessor, SingleSelFindData), State.Date.InitialValue, State.Time.InitialValue);
+					std::tie(State.Date.InitialValue, State.Time.InitialValue) = convert_date(std::invoke(i.Accessor, SingleSelFindData));
 
 					AttrDlg[i.DateId].strData = State.Date.InitialValue;
 					AttrDlg[i.TimeId].strData = State.Time.InitialValue;
@@ -916,9 +916,9 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 							{
 								const auto path = path::join(SrcPanel->GetCurDir(), SingleSelFileName);
 								os::netapi::ptr<DFS_INFO_3> DfsInfo;
-								auto Result = imports.NetDfsGetInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, reinterpret_cast<LPBYTE*>(&ptr_setter(DfsInfo)));
+								auto Result = imports.NetDfsGetInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
 								if (Result != NERR_Success)
-									Result = imports.NetDfsGetClientInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, reinterpret_cast<LPBYTE*>(&ptr_setter(DfsInfo)));
+									Result = imports.NetDfsGetClientInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
 								if (Result == NERR_Success)
 								{
 									KnownReparsePoint = true;
@@ -997,7 +997,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			}
 
 			// обработка случая "несколько хардлинков"
-			if (os::fs::is_file(SingleSelFindData.Attributes))
+			if (os::fs::is_file(SingleSelFindData))
 			{
 				if (const auto Hardlinks = GetNumberOfLinks(SingleSelFileName); Hardlinks && *Hardlinks > 1)
 				{
@@ -1063,7 +1063,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 			for (const auto& PanelItem: SrcPanel->enum_selected())
 			{
-				if (!FolderPresent && os::fs::is_directory(PanelItem.Attributes))
+				if (!FolderPresent && os::fs::is_directory(PanelItem))
 				{
 					FolderPresent = true;
 					EnableSubfolders();
@@ -1130,7 +1130,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				if (!Time)
 					continue;
 
-				convert_date(*Time, State.Date.InitialValue, State.Time.InitialValue);
+				std::tie(State.Date.InitialValue, State.Time.InitialValue) = convert_date(*Time);
 
 				AttrDlg[i.DateId].strData = State.Date.InitialValue;
 				AttrDlg[i.TimeId].strData = State.Time.InitialValue;
@@ -1252,10 +1252,6 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					if(SrcPanel)
 					{
 						Global->CtrlObject->Cp()->GetAnotherPanel(SrcPanel)->CloseFile();
-					}
-
-					if(SrcPanel)
-					{
 						SrcPanel->GetSelName(nullptr);
 					}
 
@@ -1279,7 +1275,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 							NewFindData.Attributes = (SingleSelFindData.Attributes | SetAttr) & ~ClearAttr;
 
 							const state
-								Current{ L""s, SingleSelFindData }, // BUGBUG, should we read the owner?
+								Current{ SelCount == 1 && !AttrDlg[SA_CHECKBOX_SUBFOLDERS].Selected? DlgParam.Owner.InitialValue : L""s, SingleSelFindData},
 								New{ AttrDlg[SA_EDIT_OWNER].strData, NewFindData };
 
 							if (!process_single_file(SingleSelFileName, Current, New, AttrDlgAccessor, SkipErrors))
@@ -1329,7 +1325,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			break;
 		case SA_BUTTON_SYSTEMDLG:
 			{
-				SHELLEXECUTEINFOW seInfo={sizeof(seInfo)};
+				SHELLEXECUTEINFO seInfo{ sizeof(seInfo) };
 				seInfo.nShow = SW_SHOW;
 				seInfo.fMask = SEE_MASK_INVOKEIDLIST;
 				NTPath strFullName(SingleSelFileName);
@@ -1344,9 +1340,9 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					seInfo.lpFile += 4;
 				}
 				seInfo.lpVerb = L"properties";
-				const auto strCurDir = os::fs::GetCurrentDirectory();
+				const auto strCurDir = os::fs::get_current_directory();
 				seInfo.lpDirectory=strCurDir.c_str();
-				ShellExecuteExW(&seInfo);
+				ShellExecuteEx(&seInfo);
 			}
 			return false;
 
@@ -1372,7 +1368,7 @@ void ShellSetFileAttributes(Panel* SrcPanel, const string* Object)
 	{
 		ShellSetFileAttributesImpl(SrcPanel, Object);
 	}
-	catch (const operation_cancelled&)
+	catch (operation_cancelled const&)
 	{
 		// Nop
 	}

@@ -46,7 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace char_width
 {
-	using codepoint = unsigned int;
+	using codepoint = char32_t;
 
 	bool is_wide(codepoint Codepoint);
 
@@ -54,6 +54,8 @@ namespace char_width
 	bool is_enabled();
 
 	void invalidate();
+
+	bool is_half_width_surrogate_broken();
 }
 
 #endif // CHAR_WIDTH_HPP_D66C86AC_3415_4FD1_89DA_0AB843FFEEB8

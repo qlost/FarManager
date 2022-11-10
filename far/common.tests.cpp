@@ -122,7 +122,7 @@ TEST_CASE("algorithm.apply_permutation")
 		std::array Data{ 'E', 'L', 'V', 'I', 'S' };
 		std::array const Expected{ 'L', 'I', 'V', 'E', 'S' };
 		std::array Indices{ 1, 3, 2, 0, 4 };
-		static_assert(
+		STATIC_REQUIRE(
 			std::size(Data) == std::size(Expected) &&
 			std::size(Data) == std::size(Indices)
 		);
@@ -151,7 +151,7 @@ TEST_CASE("algorithm.contains")
 	{
 		constexpr std::array Data{ 1, 2, 3 };
 
-		// TODO: static_assert
+		// TODO: STATIC_REQUIRE
 		// GCC stdlib isn't constexpr yet :(
 		REQUIRE(contains(Data, 1));
 		REQUIRE(contains(Data, 2));
@@ -171,27 +171,25 @@ TEST_CASE("algorithm.contains")
 
 TEST_CASE("algorithm.in_closed_range")
 {
-	static_assert(in_closed_range(0, 0, 0));
-	static_assert(in_closed_range(0, 0, 1));
-	static_assert(in_closed_range(0, 1, 1));
-	static_assert(in_closed_range(1, 1, 1));
-	static_assert(in_closed_range(1, 3, 5));
+	STATIC_REQUIRE(in_closed_range(0, 0, 0));
+	STATIC_REQUIRE(in_closed_range(0, 0, 1));
+	STATIC_REQUIRE(in_closed_range(0, 1, 1));
+	STATIC_REQUIRE(in_closed_range(1, 1, 1));
+	STATIC_REQUIRE(in_closed_range(1, 3, 5));
 
-	static_assert(!in_closed_range(0, 1, 0));
-	static_assert(!in_closed_range(1, 0, 0));
-	static_assert(!in_closed_range(1, 1, 0));
-	static_assert(!in_closed_range(1, 0, 1));
-	static_assert(!in_closed_range(5, 3, 1));
-	REQUIRE(true);
+	STATIC_REQUIRE(!in_closed_range(0, 1, 0));
+	STATIC_REQUIRE(!in_closed_range(1, 0, 0));
+	STATIC_REQUIRE(!in_closed_range(1, 1, 0));
+	STATIC_REQUIRE(!in_closed_range(1, 0, 1));
+	STATIC_REQUIRE(!in_closed_range(5, 3, 1));
 }
 
 TEST_CASE("algorithm.any_none_of")
 {
-	static_assert(any_of(1, 1));
-	static_assert(any_of(1, 1, 2, 3));
-	static_assert(none_of(1, 0));
-	static_assert(none_of(1, 2, 3));
-	REQUIRE(true);
+	STATIC_REQUIRE(any_of(1, 1));
+	STATIC_REQUIRE(any_of(1, 1, 2, 3));
+	STATIC_REQUIRE(none_of(1, 0));
+	STATIC_REQUIRE(none_of(1, 2, 3));
 }
 
 //----------------------------------------------------------------------------
@@ -354,10 +352,21 @@ TEST_CASE("chrono")
 
 TEST_CASE("enum_substrings")
 {
-	const std::array Baseline = { L"abc"sv, L"def"sv, L"q"sv };
+	const std::array Baseline{ L"abc"sv, L"def"sv, L"q"sv };
 	auto BaselineIterator = Baseline.begin();
 
-	for (const auto& i : enum_substrings(L"abc\0def\0q\0"sv.data()))
+	for (const auto& i: enum_substrings(L"abc\0def\0q\0"sv.data()))
+	{
+		REQUIRE(i == *BaselineIterator++);
+	}
+
+	REQUIRE(BaselineIterator == Baseline.end());
+
+	BaselineIterator = Baseline.begin();
+
+	auto DataNoLastNulls = L"abc\0def\0q_"sv;
+	DataNoLastNulls.remove_suffix(1);
+	for (const auto& i: enum_substrings(DataNoLastNulls))
 	{
 		REQUIRE(i == *BaselineIterator++);
 	}
@@ -372,7 +381,7 @@ TEST_CASE("enum_substrings")
 TEST_CASE("enum_tokens")
 {
 	{
-		const std::array Baseline = { L"abc"sv, L""sv, L"def"sv, L" q "sv, L"123"sv };
+		const std::array Baseline{ L"abc"sv, L""sv, L"def"sv, L" q "sv, L"123"sv };
 		auto BaselineIterator = Baseline.begin();
 
 		for (const auto& i: enum_tokens(L"abc;,def; q ,123;"sv, L",;"sv))
@@ -384,7 +393,7 @@ TEST_CASE("enum_tokens")
 	}
 
 	{
-		const std::array Baseline = { L"abc;"sv, L"de;,f"sv, L"123"sv, L""sv };
+		const std::array Baseline{ L"abc;"sv, L"de;,f"sv, L"123"sv, L""sv };
 		auto BaselineIterator = Baseline.begin();
 
 		for (const auto& i: enum_tokens_with_quotes(L"\"abc;\",\"de;,f\";123;;"sv, L",;"sv))
@@ -396,7 +405,7 @@ TEST_CASE("enum_tokens")
 	}
 
 	{
-		const std::array Baseline = { L"abc"sv, L"def"sv, L""sv };
+		const std::array Baseline{ L"abc"sv, L"def"sv, L""sv };
 		auto BaselineIterator = Baseline.begin();
 
 		for (const auto& i: enum_tokens_custom_t<with_trim>(L"  abc|   def  |  "sv, L"|"sv))
@@ -467,11 +476,22 @@ TEST_CASE("from_string")
 	}
 
 	REQUIRE(from_string<int>(L"-1"sv) == -1);
-	REQUIRE(from_string<unsigned int>(L"4294967295"sv) == 4294967295u);
-	REQUIRE(from_string<unsigned long long>(L"18446744073709551615"sv) == 18446744073709551615ull);
+	REQUIRE(from_string<int32_t>(L"-2147483648"sv) == std::numeric_limits<int32_t>::min());
+	REQUIRE(from_string<int32_t>(L"2147483647"sv) == std::numeric_limits<int32_t>::max());
+	REQUIRE(from_string<uint32_t>(L"4294967295"sv) == std::numeric_limits<uint32_t>::max());
+	REQUIRE(from_string<int64_t>(L"-9223372036854775808"sv) == std::numeric_limits<int64_t>::min());
+	REQUIRE(from_string<int64_t>(L"9223372036854775807"sv) == std::numeric_limits<int64_t>::max());
+	REQUIRE(from_string<uint64_t>(L"18446744073709551615"sv) == std::numeric_limits<uint64_t>::max());
 
-	REQUIRE_THROWS_AS(from_string<short>(L"32768"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<unsigned int>(L"4294967296"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<uint64_t>(L"18446744073709551616"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int64_t>(L"-9223372036854775809"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int64_t>(L"9223372036854775808"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<uint32_t>(L"4294967296"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int32_t>(L"-2147483649"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int32_t>(L"2147483648"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<uint16_t>(L"65536"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int16_t>(L"-32769"sv), std::out_of_range);
+	REQUIRE_THROWS_AS(from_string<int16_t>(L"32768"sv), std::out_of_range);
 	REQUIRE_THROWS_AS(from_string<unsigned int>(L"-42"sv), std::out_of_range);
 	REQUIRE_THROWS_AS(from_string<int>(L"fubar"sv), std::invalid_argument);
 	REQUIRE_THROWS_AS(from_string<int>({}), std::invalid_argument);
@@ -486,34 +506,88 @@ TEST_CASE("from_string")
 
 //----------------------------------------------------------------------------
 
+#include "common/function_ref.hpp"
+
+TEST_CASE("function_ref")
+{
+	{
+		struct s
+		{
+			static int square(int const i) { return i * i; }
+		};
+
+		function_ref const Func = &s::square;
+		REQUIRE(Func(2) == 4);
+	}
+
+	{
+		struct square
+		{
+			int operator()(int const i) const { return i * i; }
+		};
+
+		square const Square;
+		function_ref const Func = Square;
+		REQUIRE(Func(2) == 4);
+	}
+
+	{
+		const auto square = [](int const i) { return i * i; };
+
+		function_ref const Func = square;
+		REQUIRE(Func(2) == 4);
+	}
+
+	{
+		const auto square = [&](int const i) { return i * i; };
+
+		function_ref const Func = square;
+		REQUIRE(Func(2) == 4);
+	}
+
+	{
+		auto square = [&](int const i) mutable { return i * i; };
+
+		function_ref const Func = square;
+		REQUIRE(Func(2) == 4);
+	}
+
+	{
+		const auto square = [](int const i) mutable { return i * i; };
+
+		function_ref const Func = square;
+		REQUIRE(Func(2) == 4);
+	}
+}
+
+//----------------------------------------------------------------------------
+
 #include "common/function_traits.hpp"
 
 TEST_CASE("function_traits")
 {
 	{
 		using t = function_traits<void()>;
-		static_assert(t::arity == 0);
-		static_assert(std::is_same_v<t::result_type, void>);
+		STATIC_REQUIRE(t::arity == 0);
+		STATIC_REQUIRE(std::is_same_v<t::result_type, void>);
 	}
 
 	{
 		using t = function_traits<char(short, int, long)>;
-		static_assert(t::arity == 3);
-		static_assert(std::is_same_v<t::arg<0>, short>);
-		static_assert(std::is_same_v<t::arg<1>, int>);
-		static_assert(std::is_same_v<t::arg<2>, long>);
-		static_assert(std::is_same_v<t::result_type, char>);
+		STATIC_REQUIRE(t::arity == 3);
+		STATIC_REQUIRE(std::is_same_v<t::arg<0>, short>);
+		STATIC_REQUIRE(std::is_same_v<t::arg<1>, int>);
+		STATIC_REQUIRE(std::is_same_v<t::arg<2>, long>);
+		STATIC_REQUIRE(std::is_same_v<t::result_type, char>);
 	}
 
 	{
 		struct s { double f(bool) const { return 0; } };
 		using t = function_traits<decltype(&s::f)>;
-		static_assert(t::arity == 1);
-		static_assert(std::is_same_v<t::arg<0>, bool>);
-		static_assert(std::is_same_v<t::result_type, double>);
+		STATIC_REQUIRE(t::arity == 1);
+		STATIC_REQUIRE(std::is_same_v<t::arg<0>, bool>);
+		STATIC_REQUIRE(std::is_same_v<t::result_type, double>);
 	}
-
-	REQUIRE(true);
 }
 
 //----------------------------------------------------------------------------
@@ -538,7 +612,7 @@ TEST_CASE("io")
 template<typename type>
 static void TestKeepAlive()
 {
-	static_assert(std::is_same_v<decltype(keep_alive(std::declval<type>())), keep_alive<type>>);
+	STATIC_REQUIRE(std::is_same_v<decltype(keep_alive(std::declval<type>())), keep_alive<type>>);
 }
 
 TEST_CASE("keep_alive")
@@ -546,8 +620,6 @@ TEST_CASE("keep_alive")
 	TestKeepAlive<int>();
 	TestKeepAlive<int&>();
 	TestKeepAlive<const int&>();
-
-	REQUIRE(true);
 }
 
 //----------------------------------------------------------------------------
@@ -591,7 +663,7 @@ TEST_CASE("lazy")
 
 TEST_CASE("monitored")
 {
-	monitored<int> a(42);
+	monitored a(42);
 	REQUIRE(!a.touched());
 	a = 33;
 	REQUIRE(a.touched());
@@ -608,7 +680,7 @@ TEST_CASE("monitored")
 TEST_CASE("movable")
 {
 	const auto Value = 42;
-	movable<int> m1 = Value;
+	movable m1 = Value;
 	REQUIRE(m1 == Value);
 
 	const auto m2 = std::move(m1);
@@ -650,8 +722,8 @@ TEST_CASE("placement")
 		int& m_Value;
 	};
 
-	std::aligned_storage_t<sizeof(raii), alignof(raii)> Data;
-	auto& Object = reinterpret_cast<raii&>(Data);
+	alignas(raii) std::byte Data[sizeof(raii)];
+	auto& Object = edit_as<raii>(&Data);
 
 	int Value = 0;
 	placement::construct(Object, Value);
@@ -679,7 +751,7 @@ TEST_CASE("range.static")
 					// Workaround for VS19
 					[[maybe_unused]] auto& RangeRef = Range;
 
-					static_assert(std::is_same_v<decltype(ContainerGetter(ContainerVersion)), decltype(RangeGetter(Range))>);
+					STATIC_REQUIRE(std::is_same_v<decltype(ContainerGetter(ContainerVersion)), decltype(RangeGetter(Range))>);
 				};
 
 // std::cbegin and friends are broken in the standard for shallow-const containers, thus the member version.
@@ -706,25 +778,24 @@ TEST_CASE("range.static")
 	{
 		int Data[2]{};
 		range Range(std::begin(Data), std::end(Data));
-		static_assert(std::is_same_v<decltype(*Range.begin()), int&>);
-		static_assert(std::is_same_v<decltype(*Range.cbegin()), const int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Range.begin()), int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Range.cbegin()), const int&>);
 	}
 
 	{
 		std::vector<int> Data;
 		range Range(std::begin(Data), std::end(Data));
-		static_assert(std::is_same_v<decltype(*Range.begin()), int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Range.begin()), int&>);
 		// It's not possible to deduce const_iterator here
-		static_assert(std::is_same_v<decltype(*Range.cbegin()), int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Range.cbegin()), int&>);
 	}
 
 	{
 		int Data[2]{};
 		span Span(Data);
-		static_assert(std::is_same_v<decltype(*Span.begin()), int&>);
-		static_assert(std::is_same_v<decltype(*Span.cbegin()), const int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Span.begin()), int&>);
+		STATIC_REQUIRE(std::is_same_v<decltype(*Span.cbegin()), const int&>);
 	}
-	REQUIRE(true);
 }
 
 TEST_CASE("range.dynamic")
@@ -779,9 +850,10 @@ TEST_CASE("range.dynamic")
 namespace
 {
 	template<scope_exit::scope_type type>
-	static void test_scope_impl(bool const Throw, bool const MustBeTriggered)
+	void test_scope_impl(bool const Throw, bool const MustBeTriggered)
 	{
 		bool IsTriggered = false;
+		bool IsThrown = false;
 
 		try
 		{
@@ -792,9 +864,11 @@ namespace
 		}
 		catch (int)
 		{
+			IsThrown = true;
 		}
 
 		REQUIRE(IsTriggered == MustBeTriggered);
+		REQUIRE(IsThrown == Throw);
 	}
 
 	enum
@@ -804,7 +878,7 @@ namespace
 	};
 
 	template<scope_exit::scope_type type>
-	static void test_scope(int const When)
+	void test_scope(int const When)
 	{
 		test_scope_impl<type>(true, (When & on_fail) != 0);
 		test_scope_impl<type>(false, (When & on_success) != 0);
@@ -823,11 +897,11 @@ TEST_CASE("scope_exit")
 
 TEST_CASE("smart_ptr")
 {
-	char_ptr_n<1> Ptr;
+	const char_ptr_n<1> Ptr;
 	constexpr auto ActualStaticSize = sizeof(std::unique_ptr<char[]>) / sizeof(char);
-	char_ptr_n<ActualStaticSize> Ptr2;
+	const char_ptr_n<ActualStaticSize> Ptr2;
 
-	static_assert(sizeof(Ptr) == sizeof(Ptr2));
+	STATIC_REQUIRE(sizeof(Ptr) == sizeof(Ptr2));
 	REQUIRE(Ptr.size() == Ptr2.size());
 }
 
@@ -986,6 +1060,22 @@ TEST_CASE("string_utils.contains")
 	}
 }
 
+TEST_CASE("string_utils.within")
+{
+	const auto Haystack = L"banana"sv;
+
+	REQUIRE(within(Haystack, Haystack.substr(0)));
+	REQUIRE(within(Haystack, Haystack.substr(0, 2)));
+	REQUIRE(within(Haystack, Haystack.substr(2, 2)));
+	REQUIRE(within(Haystack, Haystack.substr(4)));
+	REQUIRE(within(Haystack, Haystack.substr(Haystack.size() - 1)));
+
+	// Empty views are not within anything.
+	REQUIRE(!within(Haystack, Haystack.substr(0, 0)));
+	REQUIRE(!within(Haystack, Haystack.substr(1, 0)));
+	REQUIRE(!within(Haystack, Haystack.substr(Haystack.size())));
+}
+
 TEST_CASE("string_utils.quotes")
 {
 	static const struct
@@ -1068,7 +1158,7 @@ TEST_CASE("string_utils.misc")
 	REQUIRE(concat(L'a', L"bc", L"def"sv, L"1234"s) == L"abcdef1234"sv);
 	REQUIRE(concat(L""sv, L""sv).empty());
 
-	REQUIRE(join(std::array{ L"123"sv, L"45"sv, L""sv, L"6"sv }, L","sv) == L"123,45,,6"sv);
+	REQUIRE(join(L","sv, std::array{ L"123"sv, L"45"sv, L""sv, L"6"sv }) == L"123,45,,6"sv);
 
 	REQUIRE(L"123"s + L"45"sv == L"12345"sv);
 	REQUIRE(L"123"sv + L"45"s == L"12345"sv);
@@ -1078,9 +1168,44 @@ TEST_CASE("string_utils.misc")
 	REQUIRE(make_string_view(Str.begin() + 1, Str.end() - 1) == L"234"sv);
 }
 
+#ifdef __cpp_lib_generic_unordered_lookup
+TEST_CASE("string_utils.generic_lookup")
+{
+	const unordered_string_map<int> Map
+	{
+		{ L"123"s, 123 },
+	};
+
+	REQUIRE(Map.find(L"123"sv) != Map.cend());
+	REQUIRE(Map.find(L"123") != Map.cend());
+}
+#endif
+
 //----------------------------------------------------------------------------
 
 #include "common/utility.hpp"
+
+TEST_CASE("utility.grow_exp_noshrink")
+{
+	static const struct
+	{
+		size_t Current, Desired, Expected;
+	}
+	Tests[]
+	{
+		{ 0, 1, 1 },
+		{ 1, 1, 1 },
+		{ 1, 0, 1 },
+		{ 0, 2, 2 },
+		{ 1, 2, 2 },
+		{ 2, 2, 2 },
+	};
+
+	for (const auto& i : Tests)
+	{
+		REQUIRE(grow_exp_noshrink(i.Current, i.Desired) == i.Expected);
+	}
+}
 
 TEMPLATE_TEST_CASE("utility.reserve_exp_noshrink", "", string, std::vector<int>)
 {
@@ -1240,6 +1365,98 @@ TEST_CASE("utility.aligned_size")
 	}
 }
 
+namespace utility_integers_detail
+{
+	template<const auto& LargeValues, size_t Index, const auto& SmallValues>
+	static void check_make_integer()
+	{
+		using L = std::remove_reference_t<decltype(LargeValues[0])>;
+		constexpr auto Offset = sizeof(LargeValues[0]) / sizeof(SmallValues[0]) * Index;
+		STATIC_REQUIRE(make_integer<L>(SmallValues[Offset + 0], SmallValues[Offset + 1]) == LargeValues[Index]);
+	}
+
+	template<const auto& LargeValues, const auto& SmallValues, size_t... LargeI>
+	static void check_make_integers_impl(std::index_sequence<LargeI...>)
+	{
+		(check_make_integer<LargeValues, LargeI, SmallValues>(), ...);
+	}
+
+	template<const auto& LargeValues, const auto& SmallValues>
+	static void check_make_integers()
+	{
+		check_make_integers_impl<LargeValues, SmallValues>(std::make_index_sequence<std::size(LargeValues)>{});
+	}
+
+
+	template<const auto& LargeValues, size_t Index, const auto& SmallValues, size_t... SmallI>
+	static void check_extract_integer(std::index_sequence<SmallI...>)
+	{
+		using S = std::remove_reference_t<decltype(SmallValues[0])>;
+		STATIC_REQUIRE(((extract_integer<S, SmallI>(LargeValues[Index]) == SmallValues[sizeof...(SmallI) * Index + SmallI]) && ...));
+	}
+
+	template<const auto& LargeValues, const auto& SmallValues, size_t... LargeI>
+	static void check_extract_integers_impl(std::index_sequence<LargeI...>)
+	{
+		(check_extract_integer<LargeValues, LargeI, SmallValues>(std::make_index_sequence<sizeof(LargeValues[0]) / sizeof(SmallValues[0])>{}), ...);
+	}
+
+	template<const auto& LargeValues, const auto& SmallValues>
+	static void check_extract_integers()
+	{
+		check_extract_integers_impl<LargeValues, SmallValues>(std::make_index_sequence<std::size(LargeValues)>{});
+	}
+
+	static constexpr uint64_t u64[]
+	{
+		0xFEDCBA9876543210,
+	};
+
+	static constexpr uint32_t u32[]
+	{
+		0x76543210,
+		0xFEDCBA98,
+	};
+
+	static constexpr uint16_t u16[]
+	{
+		0x3210,
+		0x7654,
+		0xBA98,
+		0xFEDC,
+	};
+
+	static constexpr uint8_t u8[]
+	{
+		0x10,
+		0x32,
+		0x54,
+		0x76,
+		0x98,
+		0xBA,
+		0xDC,
+		0xFE,
+	};
+}
+
+TEST_CASE("utility.integers")
+{
+	using namespace utility_integers_detail;
+
+	check_make_integers<u64, u32>();
+	check_make_integers<u32, u16>();
+	check_make_integers<u16, u8>();
+
+	check_extract_integers<u64, u32>();
+	check_extract_integers<u64, u16>();
+	check_extract_integers<u64, u8>();
+
+	check_extract_integers<u32, u16>();
+	check_extract_integers<u32, u8>();
+
+	check_extract_integers<u16, u8>();
+}
+
 //----------------------------------------------------------------------------
 
 #include "common/uuid.hpp"
@@ -1254,17 +1471,17 @@ TEST_CASE("uuid")
 
 	REQUIRE(Uuid == UuidWithBrackets);
 
-	static_assert(Uuid.Data1 == 0x01234567);
-	static_assert(Uuid.Data2 == 0x89AB);
-	static_assert(Uuid.Data3 == 0xCDEF);
-	static_assert(Uuid.Data4[0] == 0x01);
-	static_assert(Uuid.Data4[1] == 0x23);
-	static_assert(Uuid.Data4[2] == 0x45);
-	static_assert(Uuid.Data4[3] == 0x67);
-	static_assert(Uuid.Data4[4] == 0x89);
-	static_assert(Uuid.Data4[5] == 0xAB);
-	static_assert(Uuid.Data4[6] == 0xCD);
-	static_assert(Uuid.Data4[7] == 0xEF);
+	STATIC_REQUIRE(Uuid.Data1 == 0x01234567);
+	STATIC_REQUIRE(Uuid.Data2 == 0x89AB);
+	STATIC_REQUIRE(Uuid.Data3 == 0xCDEF);
+	STATIC_REQUIRE(Uuid.Data4[0] == 0x01);
+	STATIC_REQUIRE(Uuid.Data4[1] == 0x23);
+	STATIC_REQUIRE(Uuid.Data4[2] == 0x45);
+	STATIC_REQUIRE(Uuid.Data4[3] == 0x67);
+	STATIC_REQUIRE(Uuid.Data4[4] == 0x89);
+	STATIC_REQUIRE(Uuid.Data4[5] == 0xAB);
+	STATIC_REQUIRE(Uuid.Data4[6] == 0xCD);
+	STATIC_REQUIRE(Uuid.Data4[7] == 0xEF);
 
 	REQUIRE(uuid::str(Uuid) == UuidStr);
 
@@ -1319,8 +1536,8 @@ TEST_CASE("view.enumerate")
 
 TEST_CASE("view.reverse")
 {
-	const std::array Data     = { 1, 2, 3, 4, 5 };
-	const std::array Reversed = { 5, 4, 3, 2, 1 };
+	const std::array Data    { 1, 2, 3, 4, 5 };
+	const std::array Reversed{ 5, 4, 3, 2, 1 };
 
 	auto Iterator = std::cbegin(Reversed);
 

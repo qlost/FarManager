@@ -32,6 +32,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <tuple>
+
 //----------------------------------------------------------------------------
 
 namespace detail
@@ -40,6 +42,7 @@ namespace detail
 	struct function_traits_impl
 	{
 		using result_type = result;
+		using signature_type = result(args...);
 
 		static constexpr auto arity = sizeof...(args);
 

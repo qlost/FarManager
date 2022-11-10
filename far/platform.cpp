@@ -43,6 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "string_utils.hpp"
 #include "exception.hpp"
 #include "log.hpp"
+#include "encoding.hpp"
 
 // Platform:
 #include "platform.fs.hpp"
@@ -50,8 +51,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/algorithm.hpp"
+#include "common/from_string.hpp"
 #include "common/range.hpp"
 #include "common/string_utils.hpp"
+#include "common/view/where.hpp"
 
 // External:
 #include "format.hpp"
@@ -107,12 +110,14 @@ namespace os
 
 		void handle_closer::operator()(HANDLE Handle) const noexcept
 		{
-			CloseHandle(Handle);
+			if (!CloseHandle(Handle))
+				LOGERROR(L"CloseHandle(): {}"sv, last_error());
 		}
 
 		void printer_handle_closer::operator()(HANDLE Handle) const noexcept
 		{
-			ClosePrinter(Handle);
+			if (!ClosePrinter(Handle))
+				LOGWARNING(L"ClosePrinter(): {}"sv, last_error());
 		}
 	}
 
@@ -131,7 +136,23 @@ namespace os
 
 NTSTATUS get_last_nt_status()
 {
-	return imports.RtlGetLastNtStatus? imports.RtlGetLastNtStatus() : STATUS_SUCCESS;
+	if (imports.RtlGetLastNtStatus)
+		return imports.RtlGetLastNtStatus();
+
+WARNING_PUSH()
+WARNING_DISABLE_GCC("-Warray-bounds")
+	const auto Teb = NtCurrentTeb();
+WARNING_POP()
+
+	constexpr auto Offset =
+#ifdef _WIN64
+		0x1250
+#else
+		0x0BF4
+#endif
+		;
+
+	return view_as<NTSTATUS>(Teb, Offset);
 }
 
 void set_last_nt_status(NTSTATUS const Status)
@@ -148,6 +169,8 @@ void set_last_error_from_ntstatus(NTSTATUS const Status)
 
 static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 {
+	SCOPED_ACTION(os::last_error_guard);
+
 	memory::local::ptr<wchar_t> Buffer;
 	const size_t Size = FormatMessage(
 			(Nt? FORMAT_MESSAGE_FROM_HMODULE : FORMAT_MESSAGE_FROM_SYSTEM) |
@@ -157,9 +180,15 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 		(Nt? GetModuleHandle(L"ntdll.dll") : nullptr),
 		ErrorCode,
 		0,
-		reinterpret_cast<wchar_t*>(&ptr_setter(Buffer)),
+		edit_as<wchar_t*>(&ptr_setter(Buffer)),
 		0,
 		nullptr);
+
+	if (!Size)
+	{
+		LOGERROR(L"FormatMessage({}): {}"sv, ErrorCode, last_error());
+		return {};
+	}
 
 	string Result(Buffer.get(), Size);
 	std::replace_if(ALL_RANGE(Result), IsEol, L' ');
@@ -210,6 +239,39 @@ last_error_guard::~last_error_guard()
 void last_error_guard::dismiss()
 {
 	m_Active = false;
+}
+
+string error_state::Win32ErrorStr() const
+{
+	return format_error(Win32Error);
+}
+
+string error_state::NtErrorStr() const
+{
+	return format_ntstatus(NtError);
+}
+
+string error_state::to_string() const
+{
+	const auto StrWin32Error = Win32Error? format(FSTR(L"LastError: {}"sv), Win32ErrorStr()) : L""s;
+	const auto StrNtError    = NtError?    format(FSTR(L"NTSTATUS: {}"sv),  NtErrorStr())    : L""s;
+
+	string_view const Errors[]
+	{
+		StrWin32Error,
+		StrNtError,
+	};
+
+	return join(L", "sv, where(Errors, [](string_view const Str){ return !Str.empty(); }));
+}
+
+error_state last_error()
+{
+	return
+	{
+		GetLastError(),
+		get_last_nt_status(),
+	};
 }
 
 
@@ -271,18 +333,33 @@ bool get_locale_value(LCID const LcId, LCTYPE const Id, string& Value)
 
 bool get_locale_value(LCID const LcId, LCTYPE const Id, int& Value)
 {
-	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, reinterpret_cast<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
+	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, edit_as<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
 }
 
 string GetPrivateProfileString(string_view const AppName, string_view const KeyName, string_view const Default, string_view const FileName)
 {
 	string Value;
-	return detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> const Buffer)
+
+	if (!detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> const Buffer)
 	{
 		const auto Size = ::GetPrivateProfileString(null_terminated(AppName).c_str(), null_terminated(KeyName).c_str(), null_terminated(Default).c_str(), Buffer.data(), static_cast<DWORD>(Buffer.size()), null_terminated(FileName).c_str());
 		return Size == Buffer.size() - 1? Buffer.size() * 2 : Size;
-	})?
-		Value : string(Default);
+	}))
+		return {};
+
+	// GetPrivateProfileStringW doesn't work with UTF-8 and interprets it as ANSI.
+	// We try to re-convert if possible.
+
+	const auto AnsiBytes = encoding::ansi::get_bytes(Value);
+
+	if (encoding::ansi::get_chars(AnsiBytes) != Value)
+		return Value;
+
+	bool PureAscii{};
+	if (!encoding::is_valid_utf8(AnsiBytes, false, PureAscii) || PureAscii)
+		return Value;
+
+	return encoding::utf8::get_chars(AnsiBytes);
 }
 
 bool GetWindowText(HWND Hwnd, string& Text)
@@ -431,7 +508,45 @@ handle OpenConsoleActiveScreenBuffer()
 	return handle(fs::low::create_file(L"CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr));
 }
 
-	namespace rtdl
+HKL make_hkl(int32_t const Layout)
+{
+	// For an unknown reason HKLs must be promoted as signed integers on x64:
+	// 0x1NNNNNNN -> 0x000000001NNNNNNN
+	// 0xFNNNNNNN -> 0xFFFFFFFFFNNNNNNN
+	return reinterpret_cast<HKL>(static_cast<intptr_t>(extract_integer<WORD, 1>(Layout)? Layout : make_integer<int32_t, uint16_t>(Layout, Layout)));
+}
+
+HKL make_hkl(string_view const LayoutStr)
+{
+	if (uint32_t Layout; from_string(LayoutStr, Layout, nullptr, 16) && Layout)
+	{
+		return make_hkl(Layout);
+	}
+
+	return {};
+}
+
+bool is_interactive_user_session()
+{
+	const auto WindowStation = GetProcessWindowStation();
+	if (!WindowStation)
+	{
+		LOGWARNING(L"GetProcessWindowStation(): {}"sv, last_error());
+		return false; // assume the worse
+	}
+
+	USEROBJECTFLAGS Flags;
+	if (!GetUserObjectInformation(WindowStation, UOI_FLAGS, &Flags, sizeof(Flags), {}))
+	{
+		LOGWARNING(L"GetUserObjectInformation(): {}"sv, last_error());
+		return false; // assume the worse
+	}
+
+	// An invisible window station suggests that we aren't interactive.
+	return flags::check_all(Flags.dwFlags, WSF_VISIBLE);
+}
+
+namespace rtdl
 	{
 		void module::module_deleter::operator()(HMODULE Module) const
 		{
@@ -457,6 +572,24 @@ handle OpenConsoleActiveScreenBuffer()
 		{
 			return Module? ::GetProcAddress(Module, Name) : nullptr;
 		}
+
+		opaque_function_pointer::opaque_function_pointer(const module& Module, const char* Name):
+			m_Module(&Module),
+			m_Name(Name)
+		{}
+
+		opaque_function_pointer::operator bool() const noexcept
+		{
+			return get_pointer() != nullptr;
+		}
+
+		void* opaque_function_pointer::get_pointer() const
+		{
+			if (!m_Pointer)
+				m_Pointer = m_Module->GetProcAddress<void*>(m_Name);
+
+			return *m_Pointer;
+		}
 	}
 
 	namespace uuid
@@ -466,77 +599,6 @@ handle OpenConsoleActiveScreenBuffer()
 			UUID Uuid;
 			UuidCreate(&Uuid);
 			return Uuid;
-		}
-	}
-
-	namespace debug
-	{
-		bool debugger_present()
-		{
-			return IsDebuggerPresent() != FALSE;
-		}
-
-		void breakpoint(bool const Always)
-		{
-			if (Always || debugger_present())
-				DebugBreak();
-		}
-
-		void print(const wchar_t* const Str)
-		{
-			OutputDebugString(Str);
-		}
-
-		void print(string const& Str)
-		{
-			print(Str.c_str());
-		}
-
-		void set_thread_name(const wchar_t* Name)
-		{
-			if (imports.SetThreadDescription)
-				imports.SetThreadDescription(GetCurrentThread(), Name);
-		}
-
-		std::vector<uintptr_t> current_stack(size_t const FramesToSkip, size_t const FramesToCapture)
-		{
-			if (!imports.RtlCaptureStackBackTrace)
-				return {};
-
-			std::vector<uintptr_t> Stack;
-			Stack.reserve(128);
-
-			// http://web.archive.org/web/20140815000000*/http://msdn.microsoft.com/en-us/library/windows/hardware/ff552119(v=vs.85).aspx
-			// In Windows XP and Windows Server 2003, the sum of the FramesToSkip and FramesToCapture parameters must be less than 63.
-			static const auto Limit = IsWindowsVistaOrGreater()? std::numeric_limits<size_t>::max() : 62;
-
-			const auto Skip = FramesToSkip + 1; // 1 for this frame
-			const auto Capture = std::min(FramesToCapture, Limit - Skip);
-
-			for (size_t i = 0; i != FramesToCapture;)
-			{
-				void* Pointers[128];
-
-				DWORD DummyHash;
-				const auto Size = imports.RtlCaptureStackBackTrace(
-					static_cast<DWORD>(Skip + i),
-					static_cast<DWORD>(std::min(std::size(Pointers), Capture - i)),
-					Pointers,
-					&DummyHash // MSDN says it's optional, but it's not true on Win2k
-				);
-
-				if (!Size)
-					break;
-
-				std::transform(Pointers, Pointers + Size, std::back_inserter(Stack), [](void* Ptr)
-				{
-					return reinterpret_cast<uintptr_t>(Ptr);
-				});
-
-				i += Size;
-			}
-
-			return Stack;
 		}
 	}
 }
