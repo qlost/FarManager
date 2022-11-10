@@ -20,12 +20,12 @@ Temporary panel plugin class implementation
 #include "guid.hpp"
 //#include <SimpleString.hpp>
 
-//#include <algorithm.hpp>
-//#include <enum_tokens.hpp>
-//#include <scope_exit.hpp>
-//#include <smart_ptr.hpp>
-//#include <string_utils.hpp>
-//#include <view/zip.hpp>
+#include <algorithm.hpp>
+#include <enum_tokens.hpp>
+#include <scope_exit.hpp>
+#include <smart_ptr.hpp>
+#include <string_utils.hpp>
+#include <view/zip.hpp>
 
 constexpr auto REMOVE_FLAG = 1;
 
@@ -62,15 +62,15 @@ TmpPanel::TmpPanel(const string_view HostFile):
 	kbt->CountLabels = ARRAYSIZE(FKeys) / 3;
 	kbt->Labels = kbl;
 
-	for (size_t j=0,i=0; i < ARRAYSIZE(FKeys); i+=3, ++j)
+	for (size_t j = 0, i = 0; i < ARRAYSIZE(FKeys); i += 3, ++j)
 	{
 		kbl[j].Key.VirtualKeyCode = FKeys[i];
-		kbl[j].Key.ControlKeyState = FKeys[i+1];
+		kbl[j].Key.ControlKeyState = FKeys[i + 1];
 
-		if (FKeys[i+2])
+		if (FKeys[i + 2])
 		{
-			kbl[j].Text = kbl[j].LongText = GetMsg(FKeys[i+2]);
-			if (!StartupOptCommonPanel && kbl[j].Key.VirtualKeyCode == VK_F12 && kbl[j].Key.ControlKeyState == (SHIFT_PRESSED|LEFT_ALT_PRESSED))
+			kbl[j].Text = kbl[j].LongText = GetMsg(FKeys[i + 2]);
+			if (!Opt.CommonPanel && kbl[j].Key.VirtualKeyCode == VK_F12 && kbl[j].Key.ControlKeyState == (SHIFT_PRESSED | LEFT_ALT_PRESSED))
 				kbl[j].Text = kbl[j].LongText = L"";
 		}
 		else
@@ -156,7 +156,7 @@ void TmpPanel::GetOpenPanelInfo(OpenPanelInfo& Info)
 	Info.PanelModesArray = PanelModesArray;
 	Info.PanelModesNumber = std::size(PanelModesArray);
 	Info.StartPanelMode = L'0' + StartModeIndex;
-	opInfo->KeyBar=kbt;
+	Info.KeyBar=kbt;
 }
 
 

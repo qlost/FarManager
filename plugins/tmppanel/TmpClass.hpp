@@ -19,6 +19,7 @@ public:
 	NONCOPYABLE(TmpPanel);
 
 	explicit TmpPanel(string_view HostFile = {});
+	~TmpPanel();
 
 	int GetFindData(PluginPanelItem*& pPanelItem, size_t& pItemsNumber, OPERATION_MODES OpMode);
 	void GetOpenPanelInfo(OpenPanelInfo& Info);
