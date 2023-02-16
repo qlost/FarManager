@@ -87,9 +87,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "scrbuf.hpp"
 #include "log.hpp"
 #include "char_width.hpp"
-#include "clipboard.hpp"
 
 // Platform:
+#include "platform.clipboard.hpp"
 #include "platform.env.hpp"
 
 // Common:
@@ -236,9 +236,9 @@ void Options::PanelSettings()
 
 	auto& AutoUpdateEnabled = Builder.AddCheckbox(lng::MConfigAutoUpdateLimit, AutoUpdate);
 	auto& AutoUpdateLimitItem = Builder.AddIntEditField(AutoUpdateLimit, 6);
-	AutoUpdateLimitItem.Indent(4);
 	Builder.LinkFlags(AutoUpdateEnabled, AutoUpdateLimitItem, DIF_DISABLE, false);
 	Builder.AddTextBefore(AutoUpdateLimitItem, lng::MConfigAutoUpdateLimit2).Indent(4);
+	AutoUpdateLimitItem.Indent(4);
 	Builder.AddCheckbox(lng::MConfigAutoUpdateRemoteDrive, AutoUpdateRemoteDrive);
 
 	Builder.AddSeparator();
@@ -370,7 +370,6 @@ void Options::InterfaceSettings()
 			CMOpt.CopyTimeRule = 3;
 
 		SetFarConsoleMode();
-		::SetPalette();
 		consoleicons::instance().update_icon();
 
 		const auto& Panels = Global->CtrlObject->Cp();
@@ -818,7 +817,6 @@ void Options::ViewerConfig(ViewerOptions &ViOptRef, bool Local)
 
 	Builder.StartColumns();
 	Builder.AddCheckbox(lng::MViewConfigPersistentSelection, ViOptRef.PersistentBlocks);
-	Builder.AddCheckbox(lng::MViewConfigEditAutofocus, ViOptRef.SearchEditFocus);
 	const auto& TabSize = Builder.AddIntEditField(ViOptRef.TabSize, 3);
 	Builder.AddTextAfter(TabSize, lng::MViewConfigTabSize);
 	Builder.ColumnBreak();
@@ -1779,7 +1777,7 @@ Options::Options():
 
 	ClipboardUnicodeWorkaround.SetCallback(option::notifier([](bool const Value)
 	{
-		clipboard::enable_ansi_to_unicode_conversion_workaround(Value);
+		os::clipboard::enable_ansi_to_unicode_conversion_workaround(Value);
 	}));
 
 	SetPalette.SetCallback(option::notifier([](bool const Value)
@@ -2102,7 +2100,6 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewerShortPos"sv,            ViOpt.SaveShortPos, true},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewerWrapMode"sv,            ViOpt.SaveWrapMode, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewMode"sv,                  ViOpt.SaveViewMode, true},
-		{FSSF_PRIVATE,           NKeyViewer,                 L"SearchEditFocus"sv,               ViOpt.SearchEditFocus, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SearchRegexp"sv,                  ViOpt.SearchRegexp, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SearchWrapStop"sv,                ViOpt.SearchWrapStop, BSTATE_CHECKED},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"ShowArrows"sv,                    ViOpt.ShowArrows, true},
@@ -2599,7 +2596,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 					{
 						SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-						static bool HideUnchanged = true;
+						m_HideUnchanged = !m_HideUnchanged;
 
 						FarListInfo ListInfo{ sizeof(ListInfo) };
 						Dlg->SendMessage(DM_LISTINFO, Param1, &ListInfo);
@@ -2612,7 +2609,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 								continue;
 
 							bool NeedUpdate = false;
-							if(HideUnchanged)
+							if(m_HideUnchanged)
 							{
 								if(!(Item.Item.Flags&LIF_CHECKED))
 								{
@@ -2634,7 +2631,6 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 								Dlg->SendMessage(DM_LISTUPDATE, Param1, &UpdatedItem);
 							}
 						}
-						HideUnchanged = !HideUnchanged;
 					}
 					break;
 				}
@@ -2678,7 +2674,9 @@ bool Options::AdvancedConfig(config_type Mode)
 
 	AdvancedConfigDlg[ac_item_listbox].ListItems = &Items;
 
-	const auto Dlg = Dialog::create(AdvancedConfigDlg, &Options::AdvancedConfigDlgProc, &Strings);
+	m_HideUnchanged = false;
+
+	const auto Dlg = Dialog::create(AdvancedConfigDlg, std::bind_front(&Options::AdvancedConfigDlgProc, this), &Strings);
 	Dlg->SetHelp(L"FarConfig"sv);
 	Dlg->SetPosition({ -1, -1, DlgWidth, DlgHeight });
 	Dlg->SetId(AdvancedConfigId);

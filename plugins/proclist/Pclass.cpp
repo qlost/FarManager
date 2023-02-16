@@ -1303,10 +1303,23 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 	if (Rec->EventType != KEY_EVENT)
 		return FALSE;
 
-	int Key = Rec->Event.KeyEvent.wVirtualKeyCode;
-	unsigned int ControlState = Rec->Event.KeyEvent.dwControlKeyState;
+	const auto Key = Rec->Event.KeyEvent.wVirtualKeyCode;
+	const auto ControlState = Rec->Event.KeyEvent.dwControlKeyState;
 
-	if ((ControlState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) && Key == L'R')
+	const auto check_control = [ControlState](unsigned const Mask)
+	{
+		constexpr auto ValidMask =
+			RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED |
+			RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED |
+			SHIFT_PRESSED;
+
+		const auto FilteredControlState = ControlState & ValidMask;
+		const auto OtherKeys = ValidMask & ~Mask;
+
+		return (FilteredControlState & Mask) && !(FilteredControlState & OtherKeys);
+	};
+
+	if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && Key == L'R')
 	{
 		pPerfThread->SmartReread();
 		return FALSE;
@@ -1345,7 +1358,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if (ControlState == SHIFT_PRESSED && Key == VK_F3)
+	else if (check_control(SHIFT_PRESSED) && Key == VK_F3)
 	{
 		PanelInfo pi{ sizeof(PanelInfo) };
 		PsInfo.PanelControl(this, FCTL_GETPANELINFO, 0, &pi);
@@ -1400,7 +1413,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if (ControlState == 0 && Key == VK_F6)
+	else if (check_control(0) && Key == VK_F6)
 	{
 		{
 			wchar_t Host[1024] = {};
@@ -1453,7 +1466,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		Reread();
 		return TRUE;
 	}
-	else if (ControlState == SHIFT_PRESSED && Key == VK_F6)
+	else if (check_control(SHIFT_PRESSED) && Key == VK_F6)
 	{
 		// go to local host
 		pPerfThread = {};
@@ -1507,7 +1520,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 	}
 
 #endif
-	else if (ControlState == SHIFT_PRESSED && (Key == VK_F1 || Key == VK_F2) && (HostName.empty() || Opt.EnableWMI))
+	else if (check_control(SHIFT_PRESSED) && (Key == VK_F1 || Key == VK_F2) && (HostName.empty() || Opt.EnableWMI))
 	{
 		//lower/raise priority class
 		PanelInfo PInfo = { sizeof(PanelInfo) };
@@ -1651,7 +1664,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		Config();
 		return TRUE;*/
 	}
-	else if ((ControlState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) && Key == L'F')
+	else if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && Key == L'F')
 	{
 		PanelInfo pi = { sizeof(PanelInfo) };
 		PsInfo.PanelControl(this, FCTL_GETPANELINFO, 0, &pi);
@@ -1675,28 +1688,35 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if ((ControlState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) && Key == VK_F12)
+	else if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && (Key >= VK_F3 && Key <= VK_F12))
 	{
-		struct
+		if (
+			Key == VK_F5 || // Write time
+			Key == VK_F9    // Access time
+			)
+			return TRUE;
+
+		static const struct
 		{
 			unsigned id;
 			unsigned SortMode;
+			unsigned Key;
 			bool InvertByDefault;
 		}
 		StaticItems[]
 		{
-			{MSortByName,           SM_NAME,                 false, },
-			{MSortByExt,            SM_EXT,                  false, },
-			{MSortBySize,           SM_SIZE,                 true,  },
-			{MSortByUnsorted,       SM_UNSORTED,             false, },
-			{MSortByTime,           SM_CTIME,                true,  },
-			{MSortByDescriptions,   SM_DESCR,                false, },
-			{MSortByOwner,          SM_OWNER,                false, },
-			//{MPageFileBytes,        SM_COMPRESSEDSIZE        true,  },
-			{MTitlePID,             SM_PROCLIST_PID,         true,  },
-			{MTitleParentPID,       SM_PROCLIST_PARENTPID,   true,  },
-			{MTitleThreads,         SM_NUMLINKS,             true,  },
-			{MTitlePriority,        SM_PROCLIST_PRIOR,       true   },
+			{MSortByName,           SM_NAME,                 VK_F3,  false, },
+			{MSortByExt,            SM_EXT,                  VK_F4,  false, },
+			{MSortBySize,           SM_SIZE,                 VK_F6,  true,  },
+			{MSortByUnsorted,       SM_UNSORTED,             VK_F7,  false, },
+			{MSortByTime,           SM_CTIME,                VK_F8,  true,  },
+			{MSortByDescriptions,   SM_DESCR,                VK_F10, false, },
+			{MSortByOwner,          SM_OWNER,                VK_F11, false, },
+			//{MPageFileBytes,        SM_COMPRESSEDSIZE,       0,      true,  },
+			{MTitlePID,             SM_PROCLIST_PID,         0,      true,  },
+			{MTitleParentPID,       SM_PROCLIST_PARENTPID,   0,      true,  },
+			{MTitleThreads,         SM_NUMLINKS,             0,      true,  },
+			{MTitlePriority,        SM_PROCLIST_PRIOR,       0,      true   },
 			//{0,-1},
 			//{MUseSortGroups,0},
 			//{MShowSelectedFirst,-1}
@@ -1706,6 +1726,21 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		PsInfo.PanelControl(this, FCTL_GETPANELINFO, 0, &pi);
 
 		const auto Reversed = (pi.Flags & PFLAGS_REVERSESORTORDER) != 0;
+
+		if (Key != VK_F12)
+		{
+			const auto CurrentSortMode = SortMode;
+			const auto& StaticItem = std::find_if(std::cbegin(StaticItems), std::cend(StaticItems), [Key](const auto& i) { return i.Key == Key; });
+
+			SortMode = StaticItem->SortMode;
+			PsInfo.PanelControl(this, FCTL_SETSORTMODE, SortMode, {});
+
+			const auto SameSelected = SortMode == CurrentSortMode;
+			PsInfo.PanelControl(this, FCTL_SETSORTORDER, SameSelected? !Reversed : StaticItem->InvertByDefault, {});
+
+			return TRUE;
+		}
+
 		const auto cIndicator = Reversed? L'▼' : L'▲';
 		const auto KnownSortingSlot =
 			pi.SortMode == FarSortModeSlot ||
@@ -1713,7 +1748,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		const auto CheckFlag = [&](size_t const Value)
 		{
-			return KnownSortingSlot && SortMode == Value? MIF_CHECKED | cIndicator : 0;
+			return KnownSortingSlot && SortMode == Value? MIF_SELECTED | MIF_CHECKED | cIndicator : 0;
 		};
 
 		std::vector<FarMenuItem> Items;
@@ -1762,6 +1797,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		if (rc >= 0)
 		{
 			const auto IsStatic = static_cast<size_t>(rc) < std::size(StaticItems);
+			const auto CurrentSortMode = SortMode;
 
 			SortMode = IsStatic?
 				StaticItems[rc].SortMode :
@@ -1772,12 +1808,9 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 			PsInfo.PanelControl(this, FCTL_SETSORTMODE, FarSortMode, {});
 
 			const auto InvertByDefault = !IsStatic || StaticItems[rc].InvertByDefault;
-			const auto SameSelected = static_cast<unsigned>(FarSortMode) == LastFarSortMode && SortMode == LastInternalSortMode;
+			const auto SameSelected = SortMode == CurrentSortMode;
 
-			PsInfo.PanelControl(this, FCTL_SETSORTORDER, SameSelected? !InvertByDefault : InvertByDefault, {});
-
-			LastFarSortMode = FarSortMode;
-			LastInternalSortMode = SortMode;
+			PsInfo.PanelControl(this, FCTL_SETSORTORDER, SameSelected? !Reversed : InvertByDefault, {});
 			/*
 			else if(rc==std::size(StaticItems)-2)
 			Control(FCTL_SETSORTORDER, &items[rc].mode);
@@ -1960,15 +1993,24 @@ int Plist::Compare(const PluginPanelItem* Item1, const PluginPanelItem* Item2, u
 	switch (SortMode)
 	{
 	case SM_PROCLIST_PID:
-		diff = compare_numbers(pd1.dwPID, pd2.dwPID);
+		diff = compare_numbers(
+			pd1.dwPID,
+			pd2.dwPID
+		);
 		break;
 
 	case SM_PROCLIST_PARENTPID:
-		diff = compare_numbers(pd1.dwParentPID, pd2.dwParentPID);
+		diff = compare_numbers(
+			pd1.dwParentPID,
+			pd2.dwParentPID
+		);
 		break;
 
 	case SM_PROCLIST_PRIOR:
-		diff = compare_numbers(pd2.dwPrBase, pd1.dwPrBase);
+		diff = compare_numbers(
+			pd1.dwPrBase,
+			pd2.dwPrBase
+		);
 		break;
 
 	default:
@@ -1978,10 +2020,10 @@ int Plist::Compare(const PluginPanelItem* Item1, const PluginPanelItem* Item2, u
 			const auto data2 = pPerfThread->GetProcessData(pd2.dwPID, static_cast<DWORD>(Item2->NumberOfLinks));
 
 			if (!data1)
-				return data2? 1 : 0;
+				return data2? -1 : 0;
 
 			if (!data2)
-				return -1;
+				return 1;
 
 			bool bPerSec = false;
 			auto smode = SortMode;
@@ -1997,13 +2039,24 @@ int Plist::Compare(const PluginPanelItem* Item1, const PluginPanelItem* Item2, u
 			//  i=0; //????
 			//}
 
-			diff = bPerSec? compare_numbers(data2->qwResults[i], data1->qwResults[i]) : compare_numbers(data2->qwCounters[i], data1->qwCounters[i]);
+			diff = bPerSec?
+				compare_numbers(
+					data1->qwResults[i],
+					data2->qwResults[i]
+				) :
+				compare_numbers(
+					data1->qwCounters[i],
+					data2->qwCounters[i]
+			);
 		}
 		break;
 	}
 
 	if (diff == 0)
-		diff = compare_numbers(reinterpret_cast<uintptr_t>(Item1->UserData.Data), reinterpret_cast<uintptr_t>(Item2->UserData.Data)); // unsorted
+		diff = compare_numbers(
+			reinterpret_cast<uintptr_t>(Item1->UserData.Data),
+			reinterpret_cast<uintptr_t>(Item2->UserData.Data)
+		); // unsorted
 
 	return diff;
 }

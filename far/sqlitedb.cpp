@@ -167,14 +167,9 @@ static void sqlite_log(void*, int const Code, const char* const Message)
 	LOG(Level, L"SQLite {} ({}): {}"sv, GetErrorString(Code), Code, encoding::utf8::get_chars(Message));
 }
 
-bool far_sqlite_exception::is_constaint_unique() const
+bool far_sqlite_exception::is_constraint_unique() const
 {
 	return m_ErrorCode == SQLITE_CONSTRAINT_UNIQUE;
-}
-
-bool far_sqlite_exception::is_corrupt_index() const
-{
-	return m_ErrorCode == SQLITE_CORRUPT_INDEX;
 }
 
 void SQLiteDb::library_load()
@@ -330,7 +325,10 @@ std::pair<string, int> SQLiteDb::SQLiteStmt::get_sql() const
 		return { encoding::utf8::get_chars(Sql), ErrorOffset };
 	}
 
-	return { encoding::utf8::get_chars(sqlite::sqlite3_normalized_sql(m_Stmt.get())), ErrorOffset };
+	if (const auto Sql = sqlite::sqlite3_sql(m_Stmt.get()))
+		return { encoding::utf8::get_chars(Sql), ErrorOffset };
+
+	return { L"query"s, ErrorOffset };
 }
 
 static std::string_view get_column_text(sqlite::sqlite3_stmt* Stmt, int Col)
@@ -454,7 +452,7 @@ public:
 		if (WAL && !os::fs::can_create_file(concat(Path, L'.', uuid::str(os::uuid::generate())))) // can't open db -- copy to %TEMP%
 		{
 			const auto TmpDbPath = concat(MakeTemp(), str(GetCurrentProcessId()), L'-', PointToName(Path));
-			if (!os::fs::copy_file(Path, TmpDbPath, nullptr, nullptr, nullptr, 0))
+			if (!os::fs::copy_file(Path, TmpDbPath, nullptr, nullptr, 0))
 				throw_exception(Path, SQLITE_READONLY);
 
 			Deleter.add(TmpDbPath);

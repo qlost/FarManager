@@ -191,6 +191,28 @@ static bool FindObject(string_view const Command, string& strDest)
 	return false;
 }
 
+static string get_comspec()
+{
+	if (auto Comspec = os::env::expand(Global->Opt->Exec.Comspec); !Comspec.empty())
+		return Comspec;
+
+	if (auto Comspec = os::env::get(L"COMSPEC"sv); !Comspec.empty())
+		return Comspec;
+
+	return {};
+}
+
+static string exclude_cmds()
+{
+	if (!Global->Opt->Exec.strExcludeCmds.empty())
+		return os::env::expand(Global->Opt->Exec.strExcludeCmds);
+
+	if (equal_icase(PointToName(get_comspec()), L"cmd.exe"sv))
+		return L"ASSOC;CALL;CD;CHCP;CHDIR;CLS;COLOR;COPY;DATE;DEL;DIR;DPATH;ECHO;ERASE;EXIT;FOR;FTYPE;IF;KEYS;MD;MKDIR;MKLINK;MOVE;PATH;PAUSE;POPD;PROMPT;PUSHD;RD;REM;REN;RENAME;RMDIR;SET;START;TIME;TITLE;TYPE;VER;VERIFY;VOL"s;
+
+	return {};
+}
+
 /*
  true: ok, found command & arguments.
  false: it's too complex, let comspec deal with it.
@@ -273,7 +295,7 @@ static bool PartCmdLine(string_view const FullCommand, string& Command, string& 
 	}
 
 	const auto Cmd = make_string_view(Begin, CmdEnd);
-	const auto ExcludeCmds = enum_tokens(os::env::expand(Global->Opt->Exec.strExcludeCmds), L";"sv);
+	const auto ExcludeCmds = enum_tokens(exclude_cmds(), L";"sv);
 	if (std::any_of(ALL_CONST_RANGE(ExcludeCmds), [&](string_view const i){ return equal_icase(i, Cmd); }))
 		return false;
 
@@ -300,7 +322,8 @@ void OpenFolderInShell(string_view const Folder)
 	Execute(Info);
 }
 
-static void wait_for_process_or_detach(os::handle const& Process, int const ConsoleDetachKey, point const& ConsoleSize, rectangle const& ConsoleWindowRect)
+[[nodiscard]]
+static os::handle wait_for_process_or_detach(os::handle Process, int const ConsoleDetachKey, point const& ConsoleSize, rectangle const& ConsoleWindowRect)
 {
 	const auto ConfigVKey = TranslateKeyToVK(ConsoleDetachKey);
 
@@ -381,25 +404,49 @@ static void wait_for_process_or_detach(os::handle const& Process, int const Cons
 		  чего работающее приложение могло и не ожидать.
 		*/
 
+		if (const auto Window = console.GetWindow())   // если окно имело HOTKEY, то старое должно его забыть.
+			SendMessage(Window, WM_SETHOTKEY, 0, 0);
+
 		console.Free();
 		console.Allocate();
 
-		if (const auto Window = console.GetWindow())   // если окно имело HOTKEY, то старое должно его забыть.
-			SendMessage(Window, WM_SETHOTKEY, 0, 0);
+		InitConsole();
 
 		console.SetSize(ConsoleSize);
 		console.SetWindowRect(ConsoleWindowRect);
 		console.SetSize(ConsoleSize);
 
-		os::chrono::sleep_for(100ms);
-		InitConsole();
-
 		console.SetAllAliases(std::move(Aliases));
 
-		return;
+		return {};
 	}
+
+	return Process;
 }
 
+static void log_process_exit_code(os::handle const& Process)
+{
+	DWORD ExitCode;
+	if (!GetExitCodeProcess(Process.native_handle(), &ExitCode))
+	{
+		LOGWARNING(L"GetExitCodeProcess(): {}"sv, os::last_error());
+		return;
+	}
+
+	LOG(
+		ExitCode == EXIT_SUCCESS?
+			logging::level::debug :
+			logging::level::warning,
+		L"Exit code: {}"sv,
+		ExitCode
+	);
+
+	if (ExitCode != EXIT_SUCCESS && ExitCode != EXIT_FAILURE)
+	{
+		LOGWARNING(L"{}"sv, os::format_error(ExitCode));
+		LOGWARNING(L"{}"sv, os::format_ntstatus(ExitCode));
+	}
+}
 
 static void after_process_creation(os::handle Process, execute_info::wait_mode const WaitMode, HANDLE Thread, point const& ConsoleSize, rectangle const& ConsoleWindowRect, function_ref<void(bool)> const ConsoleActivator)
 {
@@ -422,9 +469,16 @@ static void after_process_creation(os::handle Process, execute_info::wait_mode c
 				return;
 
 			if (const auto ConsoleDetachKey = KeyNameToKey(Global->Opt->ConsoleDetachKey))
-				wait_for_process_or_detach(Process, ConsoleDetachKey, ConsoleSize, ConsoleWindowRect);
+			{
+				Process = wait_for_process_or_detach(std::move(Process), ConsoleDetachKey, ConsoleSize, ConsoleWindowRect);
+				if (Process)
+					log_process_exit_code(Process);
+			}
 			else
+			{
 				Process.wait();
+				log_process_exit_code(Process);
+			}
 		}
 		return;
 
@@ -433,26 +487,24 @@ static void after_process_creation(os::handle Process, execute_info::wait_mode c
 		if (Thread)
 			ResumeThread(Thread);
 		Process.wait();
+		log_process_exit_code(Process);
 		return;
 	}
 }
 
 static bool UseComspec(string& FullCommand, string& Command, string& Parameters)
 {
-	Command = os::env::expand(Global->Opt->Exec.Comspec);
+	Command = get_comspec();
+
 	if (Command.empty())
 	{
-		Command = os::env::get(L"COMSPEC"sv);
-		if (Command.empty())
-		{
-			Message(MSG_WARNING,
-				msg(lng::MError),
-				{
-					msg(lng::MComspecNotFound)
-				},
-				{ lng::MOk });
-			return false;
-		}
+		Message(MSG_WARNING,
+			msg(lng::MError),
+			{
+				msg(lng::MComspecNotFound)
+			},
+			{ lng::MOk });
+		return false;
 	}
 
 	try
@@ -484,6 +536,8 @@ static bool execute_createprocess(string const& Command, string const& Parameter
 
 	auto FullCommand = full_command(quote(Command), Parameters);
 	STARTUPINFO si{ sizeof(si) };
+
+	LOGDEBUG(L"CreateProcess({})"sv, FullCommand);
 
 	if (!CreateProcess(
 		// We can't pass ApplicationName - if it's a bat file with a funny name (e.g. containing '&')
@@ -535,6 +589,8 @@ static bool execute_shell(string const& Command, string const& Parameters, strin
 			Info.fMask |= SEE_MASK_CLASSNAME;
 		}
 	}
+
+	LOGDEBUG(L"ShellExecuteEx({})"sv, Command);
 
 	if (!ShellExecuteEx(&Info))
 	{
@@ -818,7 +874,7 @@ static string_view PrepareOSIfExist(string_view const CmdLine, predicate IsExist
 
 	auto Command = CmdLine;
 
-	while (starts_with(Command, L'@'))
+	while (Command.starts_with(L'@'))
 		Command.remove_prefix(1);
 
 	const auto skip_spaces = [](string_view& Str)

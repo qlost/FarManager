@@ -55,7 +55,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/2d/algorithm.hpp"
 #include "common/algorithm.hpp"
 #include "common/enum_substrings.hpp"
-#include "common/function_traits.hpp"
 #include "common/io.hpp"
 #include "common/range.hpp"
 #include "common/scope_exit.hpp"
@@ -70,6 +69,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CSI ESC L"["
 #define OSC ESC L"]"
 #define ST ESC L"\\"
+#define ANSISYSSC CSI "s"
+#define ANSISYSRC CSI "u"
 
 static bool sWindowMode;
 static bool sEnableVirtualTerminal;
@@ -310,16 +311,203 @@ namespace console_detail
 		public:
 #define DECLARE_IMPORT_FUNCTION(name, ...) os::rtdl::function_pointer<__VA_ARGS__> p ## name{ m_Module, #name }
 
-			DECLARE_IMPORT_FUNCTION(ReadOutput,           BOOL(WINAPI*)(FAR_CHAR_INFO* Buffer, COORD BufferSize, COORD BufferCoord, SMALL_RECT* ReadRegion));
-			DECLARE_IMPORT_FUNCTION(WriteOutput,          BOOL(WINAPI*)(const FAR_CHAR_INFO* Buffer, COORD BufferSize, COORD BufferCoord, SMALL_RECT* WriteRegion));
-			DECLARE_IMPORT_FUNCTION(Commit,               BOOL(WINAPI*)());
-			DECLARE_IMPORT_FUNCTION(GetTextAttributes,    BOOL(WINAPI*)(FarColor* Attributes));
-			DECLARE_IMPORT_FUNCTION(SetTextAttributes,    BOOL(WINAPI*)(const FarColor* Attributes));
-			DECLARE_IMPORT_FUNCTION(ClearExtraRegions,    BOOL(WINAPI*)(const FarColor* Color, int Mode));
+			DECLARE_IMPORT_FUNCTION(ReadOutput,           BOOL WINAPI(FAR_CHAR_INFO* Buffer, COORD BufferSize, COORD BufferCoord, SMALL_RECT* ReadRegion));
+			DECLARE_IMPORT_FUNCTION(WriteOutput,          BOOL WINAPI(const FAR_CHAR_INFO* Buffer, COORD BufferSize, COORD BufferCoord, SMALL_RECT* WriteRegion));
+			DECLARE_IMPORT_FUNCTION(Commit,               BOOL WINAPI());
+			DECLARE_IMPORT_FUNCTION(GetTextAttributes,    BOOL WINAPI(FarColor* Attributes));
+			DECLARE_IMPORT_FUNCTION(SetTextAttributes,    BOOL WINAPI(const FarColor* Attributes));
+			DECLARE_IMPORT_FUNCTION(ClearExtraRegions,    BOOL WINAPI(const FarColor* Color, int Mode));
 
 #undef DECLARE_IMPORT_FUNCTION
 		}
 		Imports;
+	};
+
+	enum
+	{
+		BufferSize = 8192
+	};
+
+	static bool is_redirected(int const HandleType)
+	{
+		DWORD Mode;
+		return !GetConsoleMode(GetStdHandle(HandleType), &Mode);
+	}
+
+	class consolebuf final: public std::wstreambuf
+	{
+	public:
+		NONCOPYABLE(consolebuf);
+
+		explicit(false) consolebuf(int const Type):
+			m_Type(Type),
+			m_Redirected(is_redirected(Type)),
+			m_InBuffer(BufferSize, {}),
+			m_OutBuffer(BufferSize, {})
+		{
+			setg(m_InBuffer.data(), m_InBuffer.data() + m_InBuffer.size(), m_InBuffer.data() + m_InBuffer.size());
+			setp(m_OutBuffer.data(), m_OutBuffer.data() + m_OutBuffer.size());
+		}
+
+		void color(const FarColor& Color)
+		{
+			m_Colour = Color;
+		}
+
+protected:
+		int_type underflow() override
+		{
+			const auto Size = read(m_InBuffer);
+			if (!Size)
+				return traits_type::eof();
+
+			setg(m_InBuffer.data(), m_InBuffer.data(), m_InBuffer.data() + Size);
+			return m_InBuffer[0];
+		}
+
+		int_type overflow(int_type Ch) override
+		{
+			write({ pbase(), static_cast<size_t>(pptr() - pbase()) });
+
+			setp(m_OutBuffer.data(), m_OutBuffer.data() + m_OutBuffer.size());
+
+			if (traits_type::eq_int_type(Ch, traits_type::eof()))
+			{
+				flush();
+			}
+			else
+			{
+				sputc(Ch);
+			}
+
+			return 0;
+		}
+
+		int sync() override
+		{
+			overflow(traits_type::eof());
+			return 0;
+		}
+
+	private:
+		size_t read(span<wchar_t> const Str) const
+		{
+			if (m_Redirected)
+			{
+				DWORD BytesRead;
+				if (!ReadFile(GetStdHandle(m_Type), Str.data(), static_cast<DWORD>(Str.size() * sizeof(wchar_t)), &BytesRead, {}))
+					throw MAKE_FAR_FATAL_EXCEPTION(L"File read error"sv);
+
+				return BytesRead / sizeof(wchar_t);
+			}
+
+			size_t Size;
+			if (!::console.Read(Str, Size))
+				throw MAKE_FAR_FATAL_EXCEPTION(L"Console read error"sv);
+
+			return Size;
+		}
+
+		void write(string_view const Str) const
+		{
+			if (Str.empty())
+				return;
+
+			if (m_Redirected)
+			{
+				const auto write = [&](void const* Data, size_t const Size)
+				{
+					DWORD BytesWritten;
+					if (!WriteFile(GetStdHandle(m_Type), Data, static_cast<DWORD>(Size), &BytesWritten, {}))
+						throw MAKE_FAR_FATAL_EXCEPTION(L"File write error"sv);
+				};
+
+				if constexpr (constexpr auto UseUtf8Output = true)
+				{
+					const auto Utf8Str = encoding::utf8::get_bytes(Str);
+					write(Utf8Str.data(), Utf8Str.size());
+				}
+				else
+				{
+					write(Str.data(), Str.size() * sizeof(wchar_t));
+				}
+
+				return;
+			}
+
+			FarColor CurrentColor;
+			const auto ChangeColour = m_Colour && ::console.GetTextAttributes(CurrentColor);
+
+			if (ChangeColour)
+			{
+				::console.SetTextAttributes(colors::merge(CurrentColor, *m_Colour));
+			}
+
+			SCOPE_EXIT{ if (ChangeColour) ::console.SetTextAttributes(CurrentColor); };
+
+			if (!::console.Write(Str))
+				throw MAKE_FAR_FATAL_EXCEPTION(L"Console write error"sv);
+		}
+
+		void flush() const
+		{
+			if (m_Redirected)
+			{
+				FlushFileBuffers(GetStdHandle(m_Type));
+				return;
+			}
+
+			::console.Commit();
+		}
+
+		int m_Type;
+		bool m_Redirected;
+		string m_InBuffer, m_OutBuffer;
+		std::optional<FarColor> m_Colour;
+	};
+
+	class stream_buffer_overrider
+	{
+	public:
+		NONCOPYABLE(stream_buffer_overrider);
+
+		stream_buffer_overrider(std::wios& Stream, int const HandleType, std::optional<FarColor> const Color = {}):
+			m_Buf(HandleType),
+			m_Override(Stream, m_Buf)
+		{
+			if (Color)
+				m_Buf.color(*Color);
+		}
+
+	private:
+		consolebuf m_Buf;
+		io::wstreambuf_override m_Override;
+	};
+
+	class console_detail::console::stream_buffers_overrider
+	{
+	public:
+		NONCOPYABLE(stream_buffers_overrider);
+
+		stream_buffers_overrider():
+			m_ErrorColor(fg_color(F_LIGHTRED)),
+			m_In(std::wcin, STD_INPUT_HANDLE),
+			m_Out(std::wcout, STD_OUTPUT_HANDLE),
+			m_Err(std::wcerr, STD_ERROR_HANDLE, m_ErrorColor),
+			m_Log(std::wclog, STD_ERROR_HANDLE, m_ErrorColor)
+		{
+		}
+
+	private:
+		static FarColor fg_color(int const NtColor)
+		{
+			auto Color = colors::NtColorToFarColor(NtColor);
+			colors::make_transparent(Color.BackgroundColor);
+			return Color;
+		}
+
+		FarColor m_ErrorColor;
+		stream_buffer_overrider m_In, m_Out, m_Err, m_Log;
 	};
 
 	static nifty_counter::buffer<external_console> Storage;
@@ -334,9 +522,6 @@ namespace console_detail
 
 	console::~console()
 	{
-		if (m_FileHandle != -1)
-			_close(m_FileHandle);
-
 		placement::destruct(ExternalConsole);
 	}
 
@@ -1253,19 +1438,6 @@ WARNING_POP()
 					::console.SetWindowRect(csbi.srWindow);
 			};
 
-			point CursorPosition{ WriteRegion.left, WriteRegion.top };
-
-			if (sWindowMode)
-			{
-				CursorPosition.y -= ::GetDelta(csbi);
-
-				if (CursorPosition.y < 0)
-				{
-					// Drawing above the viewport
-					CursorPosition.y = 0;
-				}
-			}
-
 			string Str;
 
 			// The idea is to reduce the number of reallocations,
@@ -1276,8 +1448,13 @@ WARNING_POP()
 			std::optional<FarColor> LastColor;
 
 			point ViewportSize;
-			if (!::console.GetSize(ViewportSize))
-				return false;
+			{
+				rectangle WindowRect;
+				if (!::console.GetWindowRect(WindowRect))
+					return false;
+
+				ViewportSize = { WindowRect.width(), WindowRect.height() };
+			}
 
 			// If SubRect is too tall (e.g. when we flushing the old content of console resize), the rest will be dropped.
 			// VT is a bloody joke.
@@ -1285,18 +1462,34 @@ WARNING_POP()
 			{
 				if (SubrectOffset)
 				{
-					// Move the viewport down
-					if (!::console.SetCursorRealPosition({0, csbi.dwSize.Y - 1}))
+					// Move the viewport one "page" down
+					if (!::console.SetCursorRealPosition({0, std::min(csbi.dwSize.Y - 1, WriteRegion.top + SubrectOffset + ViewportSize.y - 1)}))
 						return false;
 					// Set cursor position within the viewport
 					if (!::console.SetCursorRealPosition({ WriteRegion.left, WriteRegion.top + SubrectOffset }))
 						return false;
 				}
 
+				// Don't do CUP here: the viewport origin is too unstable to rely on it, especially since we touch it just above.
+				// Saving, restoring and moving down seems to be more reliable.
+				// Words cannot describe how much I despise VT.
+
+				// Save cursor position
+				Str = ANSISYSSC ""sv;
+
 				for (const auto& i: irange(SubRect.top + SubrectOffset, std::min(SubRect.top + SubrectOffset + ViewportSize.y, SubRect.bottom + 1)))
 				{
 					if (i != SubRect.top + SubrectOffset)
-						format_to(Str, FSTR(CSI L"{};{}H"sv), CursorPosition.y + 1 + (i - SubrectOffset - SubRect.top), CursorPosition.x + 1);
+					{
+						Str +=
+							ANSISYSRC // Restore cursor position
+							CSI L"1B" // Move cursor down
+							ANSISYSSC // Save again
+							""sv;
+
+						// For some reason restoring the cursor position affects colors
+						LastColor.reset();
+					}
 
 					make_vt_sequence(Buffer[i].subspan(SubRect.left, SubRect.width()), Str, LastColor);
 				}
@@ -1571,33 +1764,16 @@ WARNING_POP()
 			BufferCoord.y + WriteRegion.height() - 1
 		};
 
-		return (IsVtEnabled()? implementation::WriteOutputVT : implementation::WriteOutputNT)(Buffer, SubRect, WriteRegion);
+		return (IsVtActive()? implementation::WriteOutputVT : implementation::WriteOutputNT)(Buffer, SubRect, WriteRegion);
 	}
 
-	bool console::Read(string& Buffer, size_t& Size) const
+	bool console::Read(span<wchar_t> const Buffer, size_t& Size) const
 	{
-		const auto InputHandle = GetInputHandle();
-
 		DWORD NumberOfCharsRead;
-
-		DWORD Mode;
-		if (GetMode(InputHandle, Mode))
+		if (!ReadConsole(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &NumberOfCharsRead, {}))
 		{
-			if (!ReadConsole(InputHandle, Buffer.data(), static_cast<DWORD>(Buffer.size()), &NumberOfCharsRead, nullptr))
-			{
-				LOGERROR(L"ReadConsole(): {}"sv, os::last_error());
-				return false;
-			}
-		}
-		else
-		{
-			if (!ReadFile(InputHandle, Buffer.data(), static_cast<DWORD>(Buffer.size() * sizeof(wchar_t)), &NumberOfCharsRead, nullptr))
-			{
-				LOGERROR(L"ReadFile(): {}"sv, os::last_error());
-				return false;
-			}
-
-			NumberOfCharsRead /= sizeof(wchar_t);
+			LOGERROR(L"ReadConsole(): {}"sv, os::last_error());
+			return false;
 		}
 
 		Size = NumberOfCharsRead;
@@ -1607,36 +1783,13 @@ WARNING_POP()
 	bool console::Write(const string_view Str) const
 	{
 		DWORD NumberOfCharsWritten;
-		const auto OutputHandle = GetOutputHandle();
-
-		DWORD Mode;
-		if (GetMode(OutputHandle, Mode))
+		if (!WriteConsole(GetOutputHandle(), Str.data(), static_cast<DWORD>(Str.size()), &NumberOfCharsWritten, {}))
 		{
-			if (!WriteConsole(OutputHandle, Str.data(), static_cast<DWORD>(Str.size()), &NumberOfCharsWritten, nullptr))
-			{
-				LOGERROR(L"WriteConsole(): {}"sv, os::last_error());
-				return false;
-			}
-
-			return true;
+			LOGERROR(L"WriteConsole(): {}"sv, os::last_error());
+			return false;
 		}
 
-		// Redirected output
-
-		if (m_FileHandle == -1)
-		{
-			HANDLE OsHandle;
-			if (!DuplicateHandle(GetCurrentProcess(), OutputHandle, GetCurrentProcess(), &OsHandle, 0, FALSE, DUPLICATE_SAME_ACCESS))
-				return false;
-
-			m_FileHandle = _open_osfhandle(reinterpret_cast<intptr_t>(OsHandle), _O_U8TEXT);
-			if (m_FileHandle == -1)
-				return false;
-
-			_setmode(m_FileHandle, _O_U8TEXT);
-		}
-
-		return _write(m_FileHandle, Str.data(), static_cast<unsigned int>(Str.size() * sizeof(wchar_t))) != -1;
+		return true;
 	}
 
 	bool console::Commit() const
@@ -1666,7 +1819,7 @@ WARNING_POP()
 		if (ExternalConsole.Imports.pSetTextAttributes)
 			return ExternalConsole.Imports.pSetTextAttributes(&Attributes) != FALSE;
 
-		return (IsVtEnabled()? implementation::SetTextAttributesVT : implementation::SetTextAttributesNT)(Attributes);
+		return (IsVtActive()? implementation::SetTextAttributesVT : implementation::SetTextAttributesNT)(Attributes);
 	}
 
 	bool console::GetCursorInfo(CONSOLE_CURSOR_INFO& ConsoleCursorInfo) const
@@ -1758,15 +1911,15 @@ WARNING_POP()
 		});
 	}
 
-	console::console_aliases::console_aliases() = default;
-	console::console_aliases::~console_aliases() = default;
-
 	struct console::console_aliases::data
 	{
 		// We only use it to bulk copy the aliases from one console to another,
 		// so no need to care about case insensitivity and fancy lookup.
 		std::vector<std::pair<string, std::vector<std::pair<string, string>>>> Aliases;
 	};
+
+	console::console_aliases::console_aliases() = default;
+	console::console_aliases::~console_aliases() = default;
 
 	console::console_aliases console::GetAllAliases() const
 	{
@@ -1841,14 +1994,47 @@ WARNING_POP()
 		return true;
 	}
 
-	point console::GetLargestWindowSize() const
+	static bool validate_console_size(point const Size)
 	{
-		point Result = GetLargestConsoleWindowSize(GetOutputHandle());
+		// https://github.com/microsoft/terminal/issues/10337
+
+		// As of 7 Oct 2022 GetLargestConsoleWindowSize is broken in WT.
+		// It takes the current screen resolution and divides it by an inadequate font size, e.g. 1x16.
+
+		// It is unlikely that it is ever gonna be fixed, so we do a few very basic checks here to filter out obvious rubbish.
+
+		if (Size.x <= 0 || Size.y <= 0)
+			return false;
+
+		// A typical screen ratio these days is roughly 2:1.
+		// A typical font cell is about 1:2, so the expected screen ratio in cells
+		// is around 4 for the landscape and around 1 for the portrait, give or take.
+		// Anything twice larger than that is likely rubbish.
+		if (Size.x >= 8 * Size.y || Size.y >= 2 * Size.x)
+			return false;
+
+		// The API works with SHORTs, anything larger than that makes no sense.
+		if (Size.x >= std::numeric_limits<SHORT>::max() || Size.y >= std::numeric_limits<SHORT>::max())
+			return false;
+
+		return true;
+	}
+
+	point console::GetLargestWindowSize(HANDLE const ConsoleOutput) const
+	{
+		point Result = GetLargestConsoleWindowSize(ConsoleOutput);
+
+		if (!validate_console_size(Result))
+		{
+			LOGERROR(L"GetLargestConsoleWindowSize(): the reported size {{{}, {}}} makes no sense. Talk to your terminal or OS vendor."sv, Result.x, Result.y);
+			return {};
+		}
+
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		if (get_console_screen_buffer_info(GetOutputHandle(), &csbi) && csbi.dwSize.Y > Result.y)
+		if (get_console_screen_buffer_info(ConsoleOutput, &csbi) && csbi.dwSize.Y > Result.y)
 		{
 			CONSOLE_FONT_INFO FontInfo;
-			if (get_current_console_font(GetOutputHandle(), FontInfo))
+			if (get_current_console_font(ConsoleOutput, FontInfo))
 			{
 				Result.x -= Round(GetSystemMetrics(SM_CXVSCROLL), static_cast<int>(FontInfo.dwFontSize.X));
 			}
@@ -2025,6 +2211,12 @@ WARNING_POP()
 			SetCursorPosition({ 0, WindowRect.height() - 1 });
 	}
 
+	bool console::IsVtEnabled() const
+	{
+		DWORD Mode;
+		return GetMode(GetOutputHandle(), Mode) && Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	}
+
 	short console::GetDelta() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -2126,10 +2318,9 @@ WARNING_POP()
 		return GetDelta() != 0;
 	}
 
-	bool console::IsVtEnabled() const
+	bool console::IsVtActive() const
 	{
-		DWORD Mode;
-		return sEnableVirtualTerminal && GetMode(GetOutputHandle(), Mode) && Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+		return sEnableVirtualTerminal && IsVtEnabled();
 	}
 
 	bool console::ExternalRendererLoaded() const
@@ -2260,112 +2451,6 @@ WARNING_POP()
 }
 
 NIFTY_DEFINE(console_detail::console, console);
-
-enum
-{
-	BufferSize = 8192
-};
-
-class consolebuf final: public std::wstreambuf
-{
-public:
-	NONCOPYABLE(consolebuf);
-
-	consolebuf():
-		m_InBuffer(BufferSize, {}),
-		m_OutBuffer(BufferSize, {})
-	{
-		setg(m_InBuffer.data(), m_InBuffer.data() + m_InBuffer.size(), m_InBuffer.data() + m_InBuffer.size());
-		setp(m_OutBuffer.data(), m_OutBuffer.data() + m_OutBuffer.size());
-	}
-
-	void color(const FarColor& Color)
-	{
-		m_Colour = Color;
-	}
-
-protected:
-	int_type underflow() override
-	{
-		size_t Read;
-		if (!console.Read(m_InBuffer, Read))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Console read error"sv);
-
-		if (!Read)
-			return traits_type::eof();
-
-		setg(m_InBuffer.data(), m_InBuffer.data(), m_InBuffer.data() + Read);
-		return m_InBuffer[0];
-	}
-
-	int_type overflow(int_type Ch) override
-	{
-		if (!Write({ pbase(), static_cast<size_t>(pptr() - pbase()) }))
-			return traits_type::eof();
-
-		setp(m_OutBuffer.data(), m_OutBuffer.data() + m_OutBuffer.size());
-
-		if (traits_type::eq_int_type(Ch, traits_type::eof()))
-		{
-			console.Commit();
-		}
-		else
-		{
-			sputc(Ch);
-		}
-
-		return 0;
-	}
-
-	int sync() override
-	{
-		overflow(traits_type::eof());
-		return 0;
-	}
-
-private:
-	bool Write(string_view Str)
-	{
-		if (Str.empty())
-			return true;
-
-		FarColor CurrentColor;
-		const auto ChangeColour = m_Colour && console.GetTextAttributes(CurrentColor);
-
-		if (ChangeColour)
-		{
-			console.SetTextAttributes(colors::merge(CurrentColor, *m_Colour));
-		}
-
-		SCOPE_EXIT{ if (ChangeColour) console.SetTextAttributes(CurrentColor); };
-
-		return console.Write(Str);
-	}
-
-	string m_InBuffer, m_OutBuffer;
-	std::optional<FarColor> m_Colour;
-};
-
-class console_detail::console::stream_buffers_overrider
-{
-public:
-	NONCOPYABLE(stream_buffers_overrider);
-
-	stream_buffers_overrider():
-		m_In(std::wcin, m_BufIn),
-		m_Out(std::wcout, m_BufOut),
-		m_Err(std::wcerr, m_BufErr),
-		m_Log(std::wclog, m_BufLog)
-	{
-		auto Color = colors::NtColorToFarColor(F_LIGHTRED);
-		colors::make_transparent(Color.BackgroundColor);
-		m_BufErr.color(Color);
-	}
-
-private:
-	consolebuf m_BufIn, m_BufOut, m_BufErr, m_BufLog;
-	io::wstreambuf_override m_In, m_Out, m_Err, m_Log;
-};
 
 #ifdef ENABLE_TESTS
 

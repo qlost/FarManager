@@ -437,7 +437,7 @@ static std::optional<int> ProcessServiceModes(span<const wchar_t* const> const A
 
 	if (Args.size() == 4 && IsElevationArgument(Args[0])) // /service:elevation {UUID} PID UsePrivileges
 	{
-		return ElevationMain(Args[1], std::wcstoul(Args[2], nullptr, 10), *Args[3] == L'1');
+		return ElevationMain(Args[1], from_string<DWORD>(Args[2]), *Args[3] == L'1');
 	}
 
 	if (in_closed_range(2u, Args.size(), 5u) && (isArg(L"export"sv) || isArg(L"import"sv)))
@@ -957,15 +957,7 @@ static int mainImpl(span<const wchar_t* const> const Args)
 
 static void configure_exception_handling(int Argc, const wchar_t* const Argv[])
 {
-#ifdef _DEBUG
-	// _OUT_TO_STDERR is the default for console apps, but it is less convenient for debugging.
-	// Use -service to set it back to _OUT_TO_STDERR (e.g. for macro tests on CI).
-	_set_error_mode(_OUT_TO_MSGBOX);
-
-	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_WNDW);
-	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_WNDW);
-	_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_WNDW);
-#endif
+	os::debug::crt_report_to_ui();
 
 	for (const auto& i : span(Argv + 1, Argc - 1))
 	{
@@ -980,18 +972,7 @@ static void configure_exception_handling(int Argc, const wchar_t* const Argv[])
 
 		if (equal_icase(i + 1, L"service"sv))
 		{
-#ifdef _DEBUG
-			_set_error_mode(_OUT_TO_STDERR);
-
-			(void)_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-			(void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-			(void)_CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-
-			_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-			_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-			_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-#endif
-
+			os::debug::crt_report_to_stderr();
 			continue;
 		}
 	}
@@ -1060,11 +1041,10 @@ static int wmain_seh()
 
 int main()
 {
-	os::debug::set_thread_name(L"Main Thread");
-
 	return seh_try_with_ui(
 	[]
 	{
+		os::debug::set_thread_name(L"Main Thread");
 		return wmain_seh();
 	},
 	[](DWORD const ExceptionCode) -> int

@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 #include "platform.fs.hpp"
 #include "platform.memory.hpp"
+#include "platform.reg.hpp"
 
 // Common:
 #include "common/algorithm.hpp"
@@ -186,7 +187,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 
 	if (!Size)
 	{
-		LOGERROR(L"FormatMessage({}): {}"sv, ErrorCode, last_error());
+		LOGERROR(L"FormatMessage(0x{:08X}): {}"sv, ErrorCode, last_error());
 		return {};
 	}
 
@@ -221,24 +222,22 @@ string format_ntstatus(NTSTATUS const Status)
 }
 
 last_error_guard::last_error_guard():
-	m_LastError(GetLastError()),
-	m_LastStatus(get_last_nt_status()),
-	m_Active(true)
+	m_Error(last_error())
 {
 }
 
 last_error_guard::~last_error_guard()
 {
-	if (!m_Active)
+	if (!m_Error)
 		return;
 
-	SetLastError(m_LastError);
-	set_last_nt_status(m_LastStatus);
+	SetLastError(m_Error->Win32Error);
+	set_last_nt_status(m_Error->NtError);
 }
 
 void last_error_guard::dismiss()
 {
-	m_Active = false;
+	m_Error.reset();
 }
 
 string error_state::Win32ErrorStr() const
@@ -526,6 +525,64 @@ HKL make_hkl(string_view const LayoutStr)
 	return {};
 }
 
+std::vector<HKL> get_keyboard_layout_list()
+{
+	std::vector<HKL> Result;
+
+	if (const auto LayoutNumber = GetKeyboardLayoutList(0, nullptr))
+	{
+		Result.resize(LayoutNumber);
+		Result.resize(GetKeyboardLayoutList(LayoutNumber, Result.data())); // if less than expected
+
+		return Result;
+	}
+
+	// GetKeyboardLayoutList can fail in telnet mode, which is, technically, a right thing to do.
+	// However, we still need to map the keys.
+	// The code below emulates it in the hope that your client and server layouts are more or less similar.
+	LOGWARNING(L"GetKeyboardLayoutList(): {}"sv, os::last_error());
+
+	Result.reserve(10);
+	string LayoutStr, LayoutIdStr;
+	for (const auto& i: os::reg::enum_value(os::reg::key::current_user, L"Keyboard Layout\\Preload"sv))
+	{
+		try
+		{
+			// Just to make sure we're not trying to parse some rubbish
+			[[maybe_unused]] const auto PreloadNumber = from_string<int>(i.name());
+
+			const auto PreloadStr = i.get_string();
+			const auto Preload = from_string<uint32_t>(PreloadStr, {}, 16);
+			const auto PrimaryLanguageId = extract_integer<uint16_t, 0>(Preload);
+
+			const auto LayoutValue = os::reg::key::current_user.get(L"Keyboard Layout\\Substitutes"sv, PreloadStr, LayoutStr)?
+				from_string<uint32_t>(LayoutStr, {}, 16) :
+				Preload;
+
+			const auto SecondaryLanguageId = extract_integer<uint16_t, 0>(LayoutValue);
+
+			const string_view LayoutView = LayoutValue == Preload? PreloadStr : LayoutStr;
+
+			const auto LayoutId = os::reg::key::local_machine.get(concat(L"SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\"sv, LayoutView), L"Layout Id"sv, LayoutIdStr)?
+				from_string<int>(LayoutIdStr, {}, 16) :
+				0;
+
+			const auto FinalLayout = make_integer<uint32_t, uint16_t>(PrimaryLanguageId, LayoutId? (LayoutId & 0xfff) | 0xf000 : SecondaryLanguageId);
+
+			Result.emplace_back(os::make_hkl(FinalLayout));
+		}
+		catch (std::exception const& e)
+		{
+			LOGWARNING(L"{}", e);
+		}
+	}
+
+	if (Result.empty())
+		Result.emplace_back(make_hkl(0x04090409)); // Fallback to US
+
+	return Result;
+}
+
 bool is_interactive_user_session()
 {
 	const auto WindowStation = GetProcessWindowStation();
@@ -553,24 +610,53 @@ namespace rtdl
 			FreeLibrary(Module);
 		}
 
-		HMODULE module::get_module() const noexcept
+		module::module(string_view const Name, bool const AlternativeLoad):
+			m_name(Name),
+			m_AlternativeLoad(AlternativeLoad)
 		{
-			if (!m_tried && !m_module && !m_name.empty())
-			{
-				m_tried = true;
-				m_module.reset(LoadLibrary(m_name.c_str()));
-
-				if (!m_module && m_AlternativeLoad && IsAbsolutePath(m_name))
-				{
-					m_module.reset(LoadLibraryEx(m_name.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH));
-				}
-			}
-			return m_module.get();
 		}
 
-		FARPROC module::get_proc_address(HMODULE Module, const char* Name) const
+		module::operator bool() const noexcept
 		{
-			return Module? ::GetProcAddress(Module, Name) : nullptr;
+			return get_module(false) != nullptr;
+		}
+
+		const string& module::name() const
+		{
+			assert(!m_name.empty());
+			return m_name;
+		}
+
+		HMODULE module::get_module(bool const Mandatory) const
+		{
+			assert(!m_name.empty());
+
+			if (!m_module)
+			{
+				LOGDEBUG(L"LoadLibraryEx({})"sv, m_name);
+				m_module.emplace(LoadLibraryEx(m_name.c_str(), nullptr, 0));
+
+				if (!*m_module && m_AlternativeLoad && IsAbsolutePath(m_name))
+				{
+					LOGDEBUG(L"LoadLibraryEx({}): {}"sv, m_name, os::last_error());
+					LOGDEBUG(L"LoadLibraryEx({}, altered)"sv, m_name);
+					m_module->reset(LoadLibraryEx(m_name.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH));
+				}
+
+				if (!*m_module)
+					LOGWARNING(L"LoadLibraryEx({}): {}"sv, m_name, os::last_error());
+			}
+
+			if (!*m_module && Mandatory)
+				throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"Error loading {}: {}"sv), m_name, last_error()));
+
+			return m_module->get();
+		}
+
+		void* module::get_proc_address(const char* const Name) const
+		{
+			const auto& Module = get_module(true);
+			return reinterpret_cast<void*>(::GetProcAddress(Module, Name));
 		}
 
 		opaque_function_pointer::opaque_function_pointer(const module& Module, const char* Name):
@@ -580,15 +666,18 @@ namespace rtdl
 
 		opaque_function_pointer::operator bool() const noexcept
 		{
-			return get_pointer() != nullptr;
+			return get_pointer(false) != nullptr;
 		}
 
-		void* opaque_function_pointer::get_pointer() const
+		void* opaque_function_pointer::get_pointer(bool const Mandatory) const
 		{
 			if (!m_Pointer)
-				m_Pointer = m_Module->GetProcAddress<void*>(m_Name);
+				m_Pointer = *m_Module? m_Module->GetProcAddress<void*>(m_Name) : nullptr;
 
-			return *m_Pointer;
+			if (const auto Pointer = *m_Pointer; Pointer || !Mandatory)
+				return Pointer;
+
+			throw MAKE_FAR_FATAL_EXCEPTION(format(FSTR(L"{}!{} is missing: {}"sv), m_Module->name(), encoding::ansi::get_chars(m_Name), last_error()));
 		}
 	}
 
@@ -656,4 +745,38 @@ TEST_CASE("platform.string.receiver")
 		REQUIRE(validate(Data));
 	}
 }
+
+TEST_CASE("platform.rtdl")
+{
+	{
+		os::rtdl::module const Module(L"kernel32"sv);
+		REQUIRE(Module);
+		REQUIRE(Module.GetProcAddress<void*>("GetProcAddress"));
+		REQUIRE(!Module.GetProcAddress<void*>("¡Dame tu mano"));
+
+		{
+			os::rtdl::function_pointer<decltype(GetLastError)> const Pointer(Module, "GetLastError");
+			REQUIRE(Pointer);
+			REQUIRE(Pointer());
+		}
+
+		{
+			os::rtdl::function_pointer<void()> const Pointer(Module, "Y venga conmigo!");
+			REQUIRE(!Pointer);
+			REQUIRE_THROWS_AS(Pointer(), far_fatal_exception);
+		}
+	}
+
+	{
+		os::rtdl::module const Module(L"nul"sv);
+		REQUIRE(!Module);
+
+		REQUIRE_THROWS_AS(Module.GetProcAddress<void*>("¡Vámonos al viaje para buscar los sonidos mágicos"), far_fatal_exception);
+
+		os::rtdl::function_pointer<void()> const Pointer(Module, "De Ecuador!");
+		REQUIRE(!Pointer);
+		REQUIRE_THROWS_AS(Pointer(), far_fatal_exception);
+	}
+}
+
 #endif

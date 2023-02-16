@@ -1,12 +1,13 @@
-﻿#ifndef REL_OPS_HPP_216C5B74_491D_4AE0_AA85_4A424C1CF3BA
-#define REL_OPS_HPP_216C5B74_491D_4AE0_AA85_4A424C1CF3BA
+﻿#ifndef PLATFORM_CLIPBOARD_HPP_49E6F44B_4F91_46FB_BDAA_CB8DF4D4764D
+#define PLATFORM_CLIPBOARD_HPP_49E6F44B_4F91_46FB_BDAA_CB8DF4D4764D
 #pragma once
 
 /*
-rel_ops.hpp
+platform.clipboard.hpp
+
 */
 /*
-Copyright © 2016 Far Group
+Copyright © 2022 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,24 +33,37 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// Internal:
+
+// Platform:
+
+// Common:
+
+// External:
+
 //----------------------------------------------------------------------------
 
-template <class T>
-struct rel_ops
+namespace os::clipboard
 {
-	[[nodiscard]] friend bool operator!=(const T& a, const T& b) { return !(a == b); }
-	[[nodiscard]] friend bool operator> (const T& a, const T& b) { return b < a; }
-	[[nodiscard]] friend bool operator<=(const T& a, const T& b) { return !(b < a); }
-	[[nodiscard]] friend bool operator>=(const T& a, const T& b) { return !(a < b); }
+	void enable_ansi_to_unicode_conversion_workaround(bool Enable);
 
-	template <class Y> [[nodiscard]] friend bool operator!=(const T& a, const Y& b) { return !(a == b); }
-	template <class Y> [[nodiscard]] friend bool operator> (const T& a, const Y& b) { return b < a; }
-	template <class Y> [[nodiscard]] friend bool operator<=(const T& a, const Y& b) { return !(b < a); }
-	template <class Y> [[nodiscard]] friend bool operator>=(const T& a, const Y& b) { return !(a < b); }
-	template <class Y> [[nodiscard]] friend bool operator!=(const Y& a, const T& b) { return !(a == b); }
-	template <class Y> [[nodiscard]] friend bool operator> (const Y& a, const T& b) { return b < a; }
-	template <class Y> [[nodiscard]] friend bool operator<=(const Y& a, const T& b) { return !(b < a); }
-	template <class Y> [[nodiscard]] friend bool operator>=(const Y& a, const T& b) { return !(a < b); }
-};
+	bool open();
+	bool close();
+	bool clear();
+	bool set_text(string_view Str);
+	bool set_vtext(string_view Str);
+	bool set_files(string_view NamesData, bool Move);
+	bool get_text(string& Data);
+	bool get_vtext(string& Data);
 
-#endif // REL_OPS_HPP_216C5B74_491D_4AE0_AA85_4A424C1CF3BA
+#ifdef ENABLE_TESTS
+	namespace testing
+	{
+		class state;
+		state* capture();
+		void restore(state* State);
+	}
+#endif
+}
+
+#endif // PLATFORM_CLIPBOARD_HPP_49E6F44B_4F91_46FB_BDAA_CB8DF4D4764D

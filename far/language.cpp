@@ -132,7 +132,7 @@ bool GetLangParam(const os::fs::file& LangFile, string_view const ParamName, str
 			return true;
 		}
 
-		if (starts_with(i.Str, L'"'))
+		if (i.Str.starts_with(L'"'))
 		{
 			// '"' indicates some meaningful string.
 			// Parameters can be only in the header, no point to go deeper
@@ -145,19 +145,8 @@ bool GetLangParam(const os::fs::file& LangFile, string_view const ParamName, str
 
 static bool SelectLanguage(bool HelpLanguage, string& Dest)
 {
-	lng Title;
-	string_view Mask;
-
-	if (HelpLanguage)
-	{
-		Title = lng::MHelpLangTitle;
-		Mask=Global->HelpFileMask;
-	}
-	else
-	{
-		Title = lng::MLangTitle;
-		Mask=LangFileMask;
-	}
+	const auto Title = HelpLanguage? lng::MHelpLangTitle : lng::MLangTitle;
+	const auto Mask = HelpLanguage? Global->HelpFileMask : LangFileMask;
 
 	const auto LangMenu = VMenu2::create(msg(Title), {}, ScrY - 4);
 	LangMenu->SetMenuFlags(VMENU_WRAPMODE);
@@ -271,45 +260,46 @@ enum class lng_line_type
 	both
 };
 
-static lng_line_type parse_lng_line(const string_view str, bool ParseLabels, string_view& Label, string_view& Data)
+struct lng_line
 {
-	Label = {};
-	Data = {};
+	lng_line_type Type;
+	string_view
+		Label,
+		Text;
+};
 
+static lng_line parse_lng_line(const string_view str, bool ParseLabels)
+{
 	//-- "Text"
-	if (starts_with(str, L'"'))
+	if (str.starts_with(L'"'))
 	{
-		Data = str.substr(1, str.size() - (ends_with(str, L'"')? 2 : 1));
-		return lng_line_type::text;
+		return { lng_line_type::text, {}, str.substr(1, str.size() - (str.ends_with(L'"')? 2 : 1)) };
 	}
 
 	//-- //[Label]
 	if (ParseLabels)
 	{
 		const auto Prefix = L"//["sv, Suffix = L"]"sv;
-		if (starts_with(str, Prefix) && ends_with(str, Suffix))
+		if (str.starts_with(Prefix) && str.ends_with(Suffix))
 		{
-			Label = str.substr(Prefix.size(), str.size() - Prefix.size() - Suffix.size());
-			return lng_line_type::label;
+			return { lng_line_type::label, str.substr(Prefix.size(), str.size() - Prefix.size() - Suffix.size()) };
 		}
 	}
 
 	//-- MLabel="Text"
-	if (ParseLabels && ends_with(str, L'"') && std::iswalpha(str.front()))
+	if (ParseLabels && str.ends_with(L'"') && std::iswalpha(str.front()))
 	{
 		auto [Name, Value] = split(str);
 		inplace::trim(Name);
 		inplace::trim(Value);
 
-		if (!Name.empty() && Value.size() > 1 && starts_with(Value, L'"'))
+		if (!Name.empty() && Value.size() > 1 && Value.starts_with(L'"'))
 		{
-			Label = Name;
-			Data = Value.substr(1, Value.size() - 2);
-			return lng_line_type::both;
+			return { lng_line_type::both, Name, Value.substr(1, Value.size() - 2) };
 		}
 	}
 
-	return lng_line_type::none;
+	return { lng_line_type::none };
 }
 
 class language_data final: public i_language_data
@@ -346,20 +336,19 @@ static void LoadCustomStrings(string_view const FileName, unordered_string_map<s
 
 	for (const auto& i: enum_lines(Stream, CustomFileCodepage))
 	{
-		string_view Label, Text;
-		switch (parse_lng_line(trim(i.Str), true, Label, Text))
+		switch (const auto Line = parse_lng_line(trim(i.Str), true); Line.Type)
 		{
 		case lng_line_type::label:
-			SavedLabel = Label;
+			SavedLabel = Line.Label;
 			break;
 
 		case lng_line_type::text:
-			Strings.emplace(std::move(SavedLabel), ConvertString(Text));
+			Strings.emplace(std::move(SavedLabel), ConvertString(Line.Text));
 			SavedLabel.clear();
 			break;
 
 		case lng_line_type::both:
-			Strings.emplace(Label, ConvertString(Text));
+			Strings.emplace(Line.Label, ConvertString(Line.Text));
 			break;
 
 		default:
@@ -410,11 +399,10 @@ void language::load(string_view const Path, string_view const Language, int Coun
 
 	for (const auto& i: enum_lines(Stream, LangFileCodePage))
 	{
-		string_view Label, Text;
-		switch (parse_lng_line(trim(i.Str), LoadLabels, Label, Text))
+		switch (auto Line = parse_lng_line(trim(i.Str), LoadLabels); Line.Type)
 		{
 		case lng_line_type::label:
-			SavedLabel = Label;
+			SavedLabel = Line.Label;
 			break;
 
 		case lng_line_type::text:
@@ -423,12 +411,12 @@ void language::load(string_view const Path, string_view const Language, int Coun
 				const auto Iterator = CustomStrings.find(SavedLabel);
 				if (Iterator != CustomStrings.cend())
 				{
-					Text = Iterator->second;
+					Line.Text = Iterator->second;
 				}
 				SavedLabel.clear();
 			}
 
-			Data->add(ConvertString(Text));
+			Data->add(ConvertString(Line.Text));
 			break;
 
 		default:
@@ -513,30 +501,29 @@ TEST_CASE("language.parser")
 {
 	static const struct
 	{
-		string_view Line, Label, Data;
-		lng_line_type Result;
+		string_view Input;
+		lng_line Result;
 	}
 	Tests[]
 	{
-		{ L"\"Text\""sv,      {},          L"Text"sv,  lng_line_type::text,  },
-		{ L"\"Text"sv,        {},          L"Text"sv,  lng_line_type::text,  },
-		{ L"//[Label]"sv,     L"Label"sv,  {},         lng_line_type::label, },
-		{ L"//[Lab"sv,        {},          {},         lng_line_type::none,  },
-		{ L"foo = \"bar\""sv, L"foo"sv,    L"bar"sv,   lng_line_type::both,  },
-		{ L"foo=\"bar"sv,     {},          {},         lng_line_type::none,  },
-		{ L"foo=bar\""sv,     {},          {},         lng_line_type::none,  },
-		{ L"foo=bar"sv,       {},          {},         lng_line_type::none,  },
-		{ L"foo="sv,          {},          {},         lng_line_type::none,  },
-		{ L"foo"sv,           {},          {},         lng_line_type::none,  },
+		{ L"\"Text\""sv,      { lng_line_type::text,  {},          L"Text"sv, }, },
+		{ L"\"Text"sv,        { lng_line_type::text,  {},          L"Text"sv, }, },
+		{ L"//[Label]"sv,     { lng_line_type::label, L"Label"sv,  {},        }, },
+		{ L"//[Lab"sv,        { lng_line_type::none,  {},          {},        }, },
+		{ L"foo = \"bar\""sv, { lng_line_type::both,  L"foo"sv,    L"bar"sv,  }, },
+		{ L"foo=\"bar"sv,     { lng_line_type::none,  {},          {},        }, },
+		{ L"foo=bar\""sv,     { lng_line_type::none,  {},          {},        }, },
+		{ L"foo=bar"sv,       { lng_line_type::none,  {},          {},        }, },
+		{ L"foo="sv,          { lng_line_type::none,  {},          {},        }, },
+		{ L"foo"sv,           { lng_line_type::none,  {},          {},        }, },
 	};
 
 	for (const auto& i: Tests)
 	{
-		string_view Label, Data;
-		const auto Result = parse_lng_line(i.Line, true, Label, Data);
-		REQUIRE(i.Result == Result);
-		REQUIRE(i.Label == Label);
-		REQUIRE(i.Data == Data);
+		const auto Result = parse_lng_line(i.Input, true);
+		REQUIRE(i.Result.Type == Result.Type);
+		REQUIRE(i.Result.Label == Result.Label);
+		REQUIRE(i.Result.Text == Result.Text);
 	}
 }
 

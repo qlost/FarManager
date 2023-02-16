@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/algorithm.hpp"
+#include "common/from_string.hpp"
 #include "common/function_ref.hpp"
 #include "common/io.hpp"
 
@@ -55,6 +56,38 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "format.hpp"
 
 //----------------------------------------------------------------------------
+
+static bool get_codepage_info(unsigned const Codepage, wchar_t const* const CodepageStr, CPINFOEX& Info)
+{
+	if (GetCPInfoEx(Codepage, 0, &Info))
+		return true;
+
+	CPINFO cpi;
+	if (!GetCPInfo(Codepage, &cpi))
+		return false;
+
+	Info = {};
+	Info.MaxCharSize = cpi.MaxCharSize;
+	xwcsncpy(Info.CodePageName, CodepageStr, std::size(Info.CodePageName));
+	return true;
+}
+
+static string_view extract_codepage_name(string_view const Str)
+{
+	// Windows: "XXXX (Name)", Wine: "Name"
+
+	const auto OpenBracketPos = Str.find(L'(');
+	if (OpenBracketPos == Str.npos)
+		return Str;
+
+	const auto Name = Str.substr(OpenBracketPos + 1);
+
+	const auto CloseBracketPos = Name.rfind(L')');
+	if (CloseBracketPos == Str.npos)
+		return Str;
+
+	return Name.substr(0, CloseBracketPos);
+}
 
 class installed_codepages
 {
@@ -81,40 +114,17 @@ private:
 		return Context->enum_cp_callback(cpNum);
 	}
 
-	BOOL enum_cp_callback(wchar_t const* cpNum)
+	BOOL enum_cp_callback(wchar_t const* CpStr)
 	{
 		return cpp_try(
 		[&]
 		{
-			const auto cp = static_cast<unsigned>(std::wcstoul(cpNum, nullptr, 10));
+			const auto Codepage = from_string<unsigned>(CpStr);
 
 			CPINFOEX cpix;
-			if (!GetCPInfoEx(cp, 0, &cpix))
-			{
-				CPINFO cpi;
-				if (!GetCPInfo(cp, &cpi))
-					return TRUE;
+			if (get_codepage_info(Codepage, CpStr, cpix) && cpix.MaxCharSize >= 1)
+				m_InstalledCp.try_emplace(Codepage, cp_info{ string(extract_codepage_name(cpix.CodePageName)), static_cast<unsigned char>(cpix.MaxCharSize) });
 
-				cpix.MaxCharSize = cpi.MaxCharSize;
-				xwcsncpy(cpix.CodePageName, cpNum, std::size(cpix.CodePageName));
-			}
-
-			if (cpix.MaxCharSize < 1)
-				return TRUE;
-
-			string_view cp_data = cpix.CodePageName;
-			// Windows: "XXXX (Name)", Wine: "Name"
-			const auto OpenBracketPos = cp_data.find(L'(');
-			if (OpenBracketPos != string::npos)
-			{
-				const auto CloseBracketPos = cp_data.rfind(L')');
-				if (CloseBracketPos != string::npos && CloseBracketPos > OpenBracketPos)
-				{
-					cp_data = cp_data.substr(OpenBracketPos + 1, CloseBracketPos - OpenBracketPos - 1);
-				}
-			}
-
-			m_InstalledCp[cp] = { string(cp_data), static_cast<unsigned char>(cpix.MaxCharSize) };
 			return TRUE;
 		},
 		[&]
@@ -445,12 +455,17 @@ static size_t get_bytes_impl(uintptr_t const Codepage, string_view const Str, sp
 	}
 }
 
-uintptr_t encoding::codepage::ansi()
+uintptr_t encoding::codepage::detail::utf8::id()
+{
+	return CP_UTF8;
+}
+
+uintptr_t encoding::codepage::detail::ansi::id()
 {
 	return GetACP();
 }
 
-uintptr_t encoding::codepage::oem()
+uintptr_t encoding::codepage::detail::oem::id()
 {
 	return GetOEMCP();
 }
@@ -712,7 +727,7 @@ static const int OPT = opt + 255;
 static const int PLS = pls + b64 + 62;
 static const int MNS = mns + dir + 255;
 
-constexpr short operator ""_D(unsigned long long const n)
+constexpr short operator""_D(unsigned long long const n)
 {
 	return static_cast<short>(dir + b64 + n);
 }
@@ -1474,19 +1489,6 @@ string ShortReadableCodepageName(uintptr_t cp)
 // PureAscii makes sense only if the function returned true
 bool encoding::is_valid_utf8(std::string_view const Str, bool const PartialContent, bool& PureAscii)
 {
-	// The number of consecutive 1 bits in 000-111
-	static constexpr char LookupTable[]
-	{
-		0, // 000
-		0, // 001
-		0, // 010
-		0, // 011
-		1, // 100
-		1, // 101
-		2, // 110
-		3, // 111
-	};
-
 	bool Ascii = true;
 	size_t ContinuationBytes = 0;
 	const unsigned char Min = 0b10000000, Max = 0b10111111;
@@ -1509,25 +1511,22 @@ bool encoding::is_valid_utf8(std::string_view const Str, bool const PartialConte
 			continue;
 		}
 
-		if (::utf8::is_ascii_byte(c))
+		const auto BytesCount = std::countl_one(c);
+		if (!BytesCount)
 			continue;
 
+		ContinuationBytes = BytesCount - 1;
+
 		Ascii = false;
-
-		const auto Bits = (c & 0b01110000) >> 4;
-
-		ContinuationBytes = LookupTable[Bits];
-		if (!ContinuationBytes)
-			return false;
-
-		if (c & bit(7 - 1 - ContinuationBytes))
-			return false;
 
 		NextMin = Min;
 		NextMax = Max;
 
 		switch (ContinuationBytes)
 		{
+		default:
+			return false;
+
 		case 1:
 			if (c < 0b11000010)
 				return false;
@@ -1556,6 +1555,29 @@ bool encoding::is_valid_utf8(std::string_view const Str, bool const PartialConte
 #ifdef ENABLE_TESTS
 
 #include "testing.hpp"
+
+TEST_CASE("encoding.extract_codepage_name")
+{
+	static const struct
+	{
+		string_view Str, Name;
+	}
+	Tests[]
+	{
+		{ {},                        {} },
+		{ L"banana"sv,               L"banana"sv },
+		{ L"69 (ANSI - Klingon)"sv,  L"ANSI - Klingon"sv },
+		{ L"(((deeper)))"sv,         L"((deeper))"sv },
+		{ L"(no"sv,                  L"(no"sv },
+		{ L")(oh no"sv,              L")(oh no"sv },
+		{ L")(oh yes)("sv,           L"oh yes"sv },
+	};
+
+	for (const auto& i: Tests)
+	{
+		REQUIRE(extract_codepage_name(i.Str) == i.Name);
+	}
+}
 
 TEST_CASE("encoding.basic")
 {

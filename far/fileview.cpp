@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mix.hpp"
 #include "stddlg.hpp"
 #include "macroopcode.hpp"
+#include "notification.hpp"
 #include "plugins.hpp"
 #include "lang.hpp"
 #include "exitcode.hpp"
@@ -66,6 +67,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.hpp"
+#include "platform.concurrency.hpp"
 #include "platform.fs.hpp"
 
 // Common:
@@ -134,7 +136,7 @@ private:
 	// Deliberately empty. It doesn't have to do anything,
 	// its only purpose is waking up the main loop
 	// and generating KEY_NONE to reload the file.
-	listener m_Listener{ []{} };
+	listener m_Listener{ listener::scope{L"FileView"sv}, [] {}};
 
 	std::optional<std::chrono::milliseconds> m_UpdatePeriod;
 	os::concurrency::timer m_ReloadTimer;
@@ -569,6 +571,10 @@ FileViewer::~FileViewer()
 void FileViewer::OnDestroy()
 {
 	m_bClosing = true;
+
+	if (!m_DisableHistory && (Global->CtrlObject->Cp()->ActivePanel() || m_Name != L"-"sv))
+		Global->CtrlObject->ViewHistory->AddToHistory(m_View->GetFileName(), HR_VIEWER);
+
 	m_View->OnDestroy();
 }
 

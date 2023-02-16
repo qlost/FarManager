@@ -68,6 +68,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "format.hpp"
 #include "tinyxml.hpp"
 
+#include <share.h>
+
 //----------------------------------------------------------------------------
 
 static const auto XmlDocumentRootName = "farconfig";
@@ -113,7 +115,7 @@ static auto& CreateChild(tinyxml::XMLElement& Parent, const char* Name)
 template<typename T>
 static void SetAttribute(tinyxml::XMLElement& Element, const char* Name, T const& Value)
 {
-	if constexpr (std::is_convertible_v<T, std::string_view>)
+	if constexpr (std::convertible_to<T, std::string_view>)
 		Element.SetAttribute(Name, null_terminated_t<char>(Value).c_str());
 	else
 		Element.SetAttribute(Name, Value);
@@ -1963,26 +1965,44 @@ private:
 
 	static void reindex(db_initialiser const& Db)
 	{
-		static const std::pair<std::string_view, std::string_view> ReindexTables[]
+		static constexpr struct
 		{
-			{ EDITORPOSITION_HISTORY_NAME ""sv, EDITORPOSITION_HISTORY_SCHEMA ""sv },
-			{ VIEWERPOSITION_HISTORY_NAME ""sv, VIEWERPOSITION_HISTORY_SCHEMA ""sv },
+			std::string_view Name;
+			string_view WideName;
+			std::string_view Schema;
+		}
+		ReindexTables[]
+		{
+#define INIT_TABLE(x) CHAR_SV(x ## POSITION_HISTORY_NAME), WIDE_SV(x ## POSITION_HISTORY_NAME), CHAR_SV(x ## POSITION_HISTORY_SCHEMA)
+			{ INIT_TABLE(EDITOR) },
+			{ INIT_TABLE(VIEWER) },
+#undef INIT_TABLE
 		};
 
-		for (const auto& [Name, Schema]: ReindexTables)
+		for (const auto& Table: ReindexTables)
 		{
-			const auto reindex = [&, Name = Name]{ Db.Exec(format(FSTR("REINDEX {}"sv), Name)); };
+			const auto reindex = [&]{ Db.Exec(format(FSTR("REINDEX {}"sv), Table.Name)); };
 
 			try
 			{
-				reindex();
+				if (const auto stmtIntegrityCheck = Db.create_stmt(format(FSTR("PRAGMA INTEGRITY_CHECK({})"sv), Table.Name)); stmtIntegrityCheck.Step())
+				{
+					if (const auto Result = stmtIntegrityCheck.GetColText(0); Result != L"ok"sv)
+					{
+						LOGWARNING(L"Integrity issue in {}: {}, reindexing the table"sv, Table.WideName, Result);
+						reindex();
+						LOGINFO(L"Reindexing of {} completed"sv, Table.WideName);
+					}
+				}
 			}
 			catch (far_sqlite_exception const& e)
 			{
-				if (!e.is_constaint_unique())
+				LOGWARNING(L"{}"sv, e);
+
+				if (!e.is_constraint_unique())
 					throw;
 
-				recreate_position_history(Db, Name, Schema);
+				recreate_position_history(Db, Table.Name, Table.Schema);
 				reindex();
 			}
 		}
@@ -2478,7 +2498,7 @@ std::unique_ptr<T> config_provider::CreateDatabase(string_view const Name, bool 
 	const auto FullName = GetDatabasePath(Name, Local);
 
 	os::mutex m(os::make_name<os::mutex>(Local? Global->Opt->LocalProfilePath : Global->Opt->ProfilePath, Name));
-	SCOPED_ACTION(std::lock_guard)(m);
+	SCOPED_ACTION(std::scoped_lock)(m);
 
 	auto Database = CreateWithFallback<T>(FullName);
 

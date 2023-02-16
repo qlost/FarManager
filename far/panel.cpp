@@ -39,7 +39,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Internal:
 #include "keyboard.hpp"
-#include "flink.hpp"
 #include "keys.hpp"
 #include "filepanels.hpp"
 #include "treelist.hpp"
@@ -826,7 +825,7 @@ int Panel::SetPluginCommand(int Command,int Param1,void* Param2)
 			Update(Param1?UPDATE_KEEP_SELECTION:0);
 
 			if (GetType() == panel_type::QVIEW_PANEL)
-				UpdateViewPanel();
+				Parent()->GetAnotherPanel(this)->UpdateViewPanel();
 
 			Result=TRUE;
 			break;

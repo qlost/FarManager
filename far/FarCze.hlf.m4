@@ -1713,6 +1713,11 @@ citlivost porovnávání.
 od ostatního textu mezerami, tabulátory, zalomeními, nebo
 standardními oddělovači, které jsou: #!%^&*()+|{}:"<>?`-=\\[];',./#.
 
+ #Fuzzy search# is diacritical insensitive, treats ligatures equivalent
+to their corresponding multicharacter sequences and fancy numerals
+to corresponding number characters, and ignores some other minor
+differences.
+
  Seznam #"Použít znakovou sadu"# umožňuje zvolit konkrétní znakovou sadu
 pro vyhledávání textu, nebo lze pro vyhledávání textu v souborech různými
 znakovými sadami použít nastavení #Všechny znakové sady#, kdy jsou použity
@@ -2881,25 +2886,22 @@ beginning in the text.
 
  Poznámka:
 
- 1. ^<wrap>Do vyvolaného ~vyhledávacího~@ViewerSearch@ dialogu můžete začít psát text,
-který hledáte.
-
- 2. ^<wrap>The viewer opens files with the permission to be deleted.
+ 1. ^<wrap>The viewer opens files with the permission to be deleted.
 If another process attempts to delete the file while it is open in the
 viewer, the file will be deleted after the viewer is closed. Any
 operation on a file while its deletion is pending will fail. This is
 a feature of the Windows operating system.
 
- 3. ^<wrap>The maximum number of columns displayed in the #text#
+ 2. ^<wrap>The maximum number of columns displayed in the #text#
 ~view mode~@ViewerMode@ can be configured in the
 ~Viewer settings~@ViewerSettings@ dialog. The range is between 100 to 100,000,
 the default is 10,000. Lines longer than the maximum will be split into
 several screen rows even if word wrap mode is turned off.
 
- 4. ^<wrap>Far starts ~searching~@ViewerSearch@ (#F7#) from the
+ 3. ^<wrap>Far starts ~searching~@ViewerSearch@ (#F7#) from the
 beginning of the currently visible area.
 
- 5. ^<wrap>To auto-scroll a file which is being appended by another
+ 4. ^<wrap>To auto-scroll a file which is being appended by another
 process (conf. Linux “tail”), go to the end of the file (press the #End# key).
 
 
@@ -3106,6 +3108,14 @@ módy a nastavení:
  Enable the use of ~regular expressions~@RegExp@ in the search string.
 The multiline search is not supported.
 
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
+
 
 @Editor
 $ #Editor#
@@ -3241,6 +3251,14 @@ $ #Editor: search/replace#
  #Regular expressions#
  Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
 Each line is processed individually, so multi-line expressions and line break characters will not be found.
+
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
 
  ~Preserve style~@PreserveStyle@
  Preserve style (case and delimiters in program source code) of the replaced text.
@@ -3849,9 +3867,6 @@ Pro zadání souboru pro prohlížení použijte ~speciální symboly~@MetaSymbo
 @=
  #Persistent selection#
  Do not remove block selection after moving the cursor.
-
- #Search dialog auto-focus#
- Always returns focus to the search text field in the Viewer ~Search~@ViewerSearch@ dialog.
 
  #Velikost Tabulátoru#
  Počet mezer ve znaku tabulátoru.
@@ -5855,7 +5870,7 @@ is not listed in this parameter and the program “date.exe” exists
 in one of the #PATH# directories, the internal command processor’s
 command can never be executed.
 
- Ready-made settings for CMD.EXE, COMMAND.COM, and other well-known
+ Ready-made settings for CMD.EXE and other well-known
 command processors can be found in the
 #Addons\SetUp\Executor.*.farconfig# files.
 

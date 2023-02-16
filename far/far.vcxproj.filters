@@ -344,6 +344,9 @@
     <ClCompile Include="platform.chrono.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="platform.clipboard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="platform.com.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -584,7 +587,7 @@
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\cpp.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\enum_substrings.hpp">
       <Filter>Header Files\common</Filter>
@@ -613,6 +616,9 @@
     <ClInclude Include="common\lazy.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
+    <ClInclude Include="common\library.hpp">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
     <ClInclude Include="common\monitored.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
@@ -638,9 +644,6 @@
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\range.hpp">
-      <Filter>Header Files\common</Filter>
-    </ClInclude>
-    <ClInclude Include="common\rel_ops.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\scope_exit.hpp">
@@ -968,6 +971,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="platform.chrono.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform.clipboard.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="platform.com.hpp">

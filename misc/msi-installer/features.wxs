@@ -112,7 +112,6 @@
           <ComponentRef Id="Descript.ion_7" />
           <ComponentRef Id="Executor.4NT.farconfig" />
           <ComponentRef Id="Executor.CMD.farconfig" />
-          <ComponentRef Id="Executor.COMMAND.farconfig" />
           <ComponentRef Id="WindowsGUI.farconfig" />
           <ComponentRef Id="WindowsGUI.lua" />
         </Feature>
@@ -985,6 +984,9 @@
           </Feature>
           <Feature Id="Proclist.Lithuanian" Level="1" Display="hidden" AllowAdvertise="no">
             <ComponentRef Id="ProcLit.lng" />
+          </Feature>
+          <Feature Id="Proclist.Spanish" Level="1" Display="hidden" AllowAdvertise="no">
+            <ComponentRef Id="ProcSpa.lng" />
           </Feature>
           <Feature Id="Proclist.MapFiles" Level="1" Display="hidden" AllowAdvertise="no">
             <ComponentRef Id="ProcList.map" />

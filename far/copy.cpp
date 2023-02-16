@@ -67,7 +67,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lang.hpp"
 #include "manager.hpp"
 #include "copy_progress.hpp"
-#include "string_utils.hpp"
 #include "cvtname.hpp"
 #include "exception_handler.hpp"
 #include "global.hpp"
@@ -116,8 +115,6 @@ class ShellCopy : noncopyable
 public:
 	ShellCopy(panel_ptr SrcPanel, bool Move, bool Link, bool CurrentOnly, bool Ask, int& ToPlugin, string* PluginDestPath, bool ToSubdir);
 
-	DWORD CopyProgressRoutine(unsigned long long TotalFileSize, unsigned long long TotalBytesTransferred, unsigned long long StreamSize, unsigned long long StreamBytesTransferred, DWORD StreamNumber, DWORD CallbackReason, HANDLE hSourceFile, HANDLE hDestinationFile);
-
 	enum class security
 	{
 		do_nothing,
@@ -127,10 +124,10 @@ public:
 
 private:
 	// called by ShellCopy
-	void copy_selected_items(string_view Dest);
+	void copy_selected_items(string_view Dest, std::optional<error_state_ex>& ErrorState);
 
 	// called by copy_selected_items 4 times
-	COPY_CODES ShellCopyOneFile(string_view Src, const os::fs::find_data& SrcData, string& strDest, int KeepPathPos, bool Rename);
+	COPY_CODES ShellCopyOneFile(string_view Src, const os::fs::find_data& SrcData, string& strDest, int KeepPathPos, bool Rename, std::optional<error_state_ex>& ErrorState);
 
 	void CheckStreams(string_view Src, string_view DestPath);
 
@@ -266,18 +263,15 @@ static const struct
 }
 SecurityMove
 {
-	// These static_casts are redundant and only to suppress a spurious warning C4838 in VS2017.
-	// See https://github.com/FarGroup/FarManager/issues/166
-	// TODO: remove once we drop support for VS2017.
-	static_cast<int>(0_bit),
-	static_cast<int>(0_bit | 1_bit),
-	static_cast<int>(2_bit),
+	0_bit,
+	0_bit | 1_bit,
+	2_bit,
 },
 SecurityCopy
 {
-	static_cast<int>(3_bit),
-	static_cast<int>(3_bit | 4_bit),
-	static_cast<int>(5_bit),
+	3_bit,
+	3_bit | 4_bit,
+	5_bit,
 };
 
 static bool ZoomedState, IconicState;
@@ -1360,7 +1354,9 @@ ShellCopy::ShellCopy(
 
 		NeedDizUpdate = true;
 
-		copy_selected_items(strNameTmp);
+		std::optional<error_state_ex> ErrorState;
+
+		copy_selected_items(strNameTmp, ErrorState);
 
 		flags::change(Flags, FCOPY_COPYSYMLINKCONTENTS, OldCopySymlinkContents);
 
@@ -1381,7 +1377,7 @@ ShellCopy::ShellCopy(
 }
 
 
-void ShellCopy::copy_selected_items(const string_view Dest)
+void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_state_ex>& ErrorState)
 {
 	//SaveScreen SaveScr;
 	os::fs::attributes DestAttr = INVALID_FILE_ATTRIBUTES;
@@ -1491,9 +1487,9 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 				auto Exists_2 = Exists_1;
 				while ( !Exists_2 && !SkipErrors)
 				{
-					const auto ErrorState = os::last_error();
+					ErrorState = os::last_error();
 
-					switch (OperationFailed(ErrorState, strDestDriveRoot, lng::MError, {}))
+					switch (OperationFailed(*ErrorState, strDestDriveRoot, lng::MError, {}))
 					{
 					case operation::retry:
 						Exists_2 = os::fs::exists(strDestDriveRoot);
@@ -1552,7 +1548,7 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 
 		if (RPT==RP_JUNCTION || RPT==RP_SYMLINK || RPT==RP_SYMLINKFILE || RPT==RP_SYMLINKDIR)
 		{
-			if (!MkSymLink(i.FileName, strDest, RPT))
+			if (!MkSymLink(i.FileName, strDest, RPT, ErrorState))
 				return;
 
 			// Отметим (Ins) несколько каталогов, ALT-F6 Enter - выделение с папок не снялось.
@@ -1575,7 +1571,7 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 				do
 				{
 					// attempt to move
-					CopyCode = ShellCopyOneFile(i.FileName, i, strDestPath, KeepPathPos, true);
+					CopyCode = ShellCopyOneFile(i.FileName, i, strDestPath, KeepPathPos, true, ErrorState);
 				}
 				while (CopyCode==COPY_RETRY);
 
@@ -1621,7 +1617,7 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 			{
 				// copy or fallback from move
 				// for directories this only creates the top directory, the content is copied later (see below)
-				CopyCode = ShellCopyOneFile(i.FileName, i, strCopyDest, KeepPathPos, false);
+				CopyCode = ShellCopyOneFile(i.FileName, i, strCopyDest, KeepPathPos, false, ErrorState);
 			}
 			while (CopyCode==COPY_RETRY);
 
@@ -1691,7 +1687,7 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 
 						do
 						{
-							Ret=ShellCopyOneFile(strFullName,SrcData,strCopyDest,KeepPathPos,NeedRename);
+							Ret = ShellCopyOneFile(strFullName, SrcData, strCopyDest, KeepPathPos, NeedRename, ErrorState);
 						}
 						while (Ret==COPY_RETRY);
 
@@ -1733,7 +1729,7 @@ void ShellCopy::copy_selected_items(const string_view Dest)
 
 					do
 					{
-						SubCopyCode = ShellCopyOneFile(strFullName, SrcData, strCopyDest, KeepPathPos, false);
+						SubCopyCode = ShellCopyOneFile(strFullName, SrcData, strCopyDest, KeepPathPos, false, ErrorState);
 					}
 					while (SubCopyCode==COPY_RETRY);
 
@@ -1798,7 +1794,8 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
     const os::fs::find_data &SrcData,
     string &strDest,
 	int const KeepPathPos,
-	bool const Rename
+	bool const Rename,
+	std::optional<error_state_ex>& ErrorState
 )
 {
 	CP->reset_current();
@@ -1945,8 +1942,8 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 				// Пытаемся переименовать, пока не отменят
 				while (!os::fs::move_file(Src, strDestPath))
 				{
-					const auto ErrorState = os::last_error();
-					switch (OperationFailed(ErrorState, Src, lng::MError, msg(lng::MCopyCannotRenameFolder), true, false))
+					ErrorState = os::last_error();
+					switch (OperationFailed(*ErrorState, Src, lng::MError, msg(lng::MCopyCannotRenameFolder), true, false))
 					{
 					case operation::retry:
 						continue;
@@ -2014,8 +2011,8 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 					strDestPath,
 					sd? &SecAttr : nullptr))
 				{
-					const auto ErrorState = os::last_error();
-					const auto MsgCode = Message(MSG_WARNING, ErrorState,
+					ErrorState = os::last_error();
+					const auto MsgCode = Message(MSG_WARNING, *ErrorState,
 						msg(lng::MError),
 						{
 							msg(lng::MCopyCannotCreateFolder),
@@ -2053,7 +2050,7 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 			// Directory symbolic links and junction points are handled by CreateDirectoryEx.
 			if (!IsDirectory && IsReparsePoint && !CopySymlinkContents && RPT == RP_EXACTCOPY)
 			{
-				if (!MkSymLink(Src, strDestPath, RPT))
+				if (!MkSymLink(Src, strDestPath, RPT, ErrorState))
 					return COPY_FAILURE;
 			}
 
@@ -2086,8 +2083,6 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 
 		for (;;)
 		{
-			std::optional<error_state_ex> ErrorState;
-
 			if (!(Flags&FCOPY_COPYTONUL) && Rename)
 			{
 				int AskDelete;
@@ -2327,7 +2322,7 @@ void ShellCopy::CheckStreams(const string_view Src, const string_view DestPath)
 
 	const auto StreamsEnumerator = os::fs::enum_streams(Src);
 
-	if (!std::any_of(ALL_CONST_RANGE(StreamsEnumerator), [](WIN32_FIND_STREAM_DATA const& i){ return !starts_with(i.cStreamName, L"::"sv); }))
+	if (!std::any_of(ALL_CONST_RANGE(StreamsEnumerator), [](WIN32_FIND_STREAM_DATA const& i){ return !string_view(i.cStreamName).starts_with(L"::"sv); }))
 		return;
 
 	switch (Message(MSG_WARNING, msg(lng::MWarning),
@@ -2437,11 +2432,11 @@ bool ShellCopy::ShellCopyFile(
 				LOGWARNING(L"delete_file({}): {}"sv, strDestName, os::last_error());
 			}
 
-			return MkHardLink(SrcName,strDestName);
+			return MkHardLink(SrcName,strDestName, ErrorState, true);
 		}
 		else
 		{
-			return MkSymLink(SrcName, strDestName, RPT);
+			return MkSymLink(SrcName, strDestName, RPT, ErrorState, true);
 		}
 	}
 
@@ -2822,27 +2817,28 @@ intptr_t ShellCopy::WarnDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* P
 	{
 		case DM_OPENVIEWER:
 		{
-			if (const auto WFN = view_as<const file_names_for_overwrite_dialog*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr)))
-			{
-				NamesList List;
-				List.AddName(*WFN->Src);
-				List.AddName(*WFN->Dest);
-				const auto ViewName = *(Param1 == WDLG_SRCFILEBTN ? WFN->Src : WFN->Dest);
-				List.SetCurName(ViewName);
+			const auto& WFN = view_as<const file_names_for_overwrite_dialog>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
 
-				const auto Viewer = FileViewer::create(
-					ViewName,
-					false,
-					false,
-					true,
-					-1,
-					{},
-					&List,
-					false);
+			NamesList List;
+			List.AddName(*WFN.Src);
+			List.AddName(*WFN.Dest);
+			const auto ViewName = *(Param1 == WDLG_SRCFILEBTN? WFN.Src : WFN.Dest);
+			List.SetCurName(ViewName);
 
-				if (Viewer->GetExitCode()) Global->WindowManager->ExecuteModal(Viewer);
-				Global->WindowManager->ResizeAllWindows();
-			}
+			const auto Viewer = FileViewer::create(
+				ViewName,
+				false,
+				false,
+				true,
+				-1,
+				{},
+				&List,
+				false);
+
+			if (Viewer->GetExitCode())
+				Global->WindowManager->ExecuteModal(Viewer);
+
+			Global->WindowManager->ResizeAllWindows();
 		}
 		break;
 		case DN_CTLCOLORDLGITEM:
@@ -3281,39 +3277,56 @@ void ShellCopy::ResetSecurity(const string_view FileName)
 
 bool ShellCopy::ShellSystemCopy(const string_view SrcName, const string_view DestName, const os::fs::find_data &SrcData)
 {
+	m_FileHandleForStreamSizeFix = nullptr;
+	std::exception_ptr ExceptionPtr;
+
+	const auto callback = [&](
+		unsigned long long TotalFileSize,
+		unsigned long long TotalBytesTransferred,
+		unsigned long long StreamSize,
+		unsigned long long StreamBytesTransferred,
+		DWORD StreamNumber,
+		DWORD CallbackReason,
+		HANDLE SourceFile,
+		HANDLE DestinationFile
+	)
+	{
+		return cpp_try(
+		[&]
+		{
+			bool Abort = false;
+			if (CP->IsCancelled())
+			{
+				Abort=true;
+			}
+
+			CheckAndUpdateConsole();
+			//fix total size
+			if (StreamNumber == 1 && SourceFile != m_FileHandleForStreamSizeFix)
+			{
+				CP->add_total_bytes(TotalFileSize - StreamSize);
+				CP->set_current_total(TotalFileSize);
+				m_FileHandleForStreamSizeFix = SourceFile;
+			}
+
+			CP->set_current_copied(TotalBytesTransferred);
+
+			return Abort?
+				PROGRESS_CANCEL :
+				PROGRESS_CONTINUE;
+		},
+		[&]
+		{
+			SAVE_EXCEPTION_TO(ExceptionPtr);
+			return PROGRESS_CANCEL;
+		});
+	};
+
 	const auto sd = GetSecurity(SrcName);
 
-	m_FileHandleForStreamSizeFix = nullptr;
-
-	struct callback_data
+	if (!os::fs::copy_file(SrcName, DestName, callback, {}, Flags & FCOPY_DECRYPTED_DESTINATION? COPY_FILE_ALLOW_DECRYPTED_DESTINATION : 0))
 	{
-		ShellCopy* Owner;
-		std::exception_ptr ExceptionPtr;
-	};
-
-	struct callback_wrapper
-	{
-		static DWORD CALLBACK callback(LARGE_INTEGER TotalFileSize, LARGE_INTEGER TotalBytesTransferred, LARGE_INTEGER StreamSize, LARGE_INTEGER StreamBytesTransferred, DWORD StreamNumber, DWORD CallbackReason, HANDLE SourceFile, HANDLE DestinationFile, LPVOID Data)
-		{
-			const auto CallbackData = static_cast<callback_data*>(Data);
-
-			return cpp_try(
-			[&]
-			{
-				return CallbackData->Owner->CopyProgressRoutine(TotalFileSize.QuadPart, TotalBytesTransferred.QuadPart, StreamSize.QuadPart, StreamBytesTransferred.QuadPart, StreamNumber, CallbackReason, SourceFile, DestinationFile);
-			},
-			[&]
-			{
-				SAVE_EXCEPTION_TO(CallbackData->ExceptionPtr);
-				return PROGRESS_CANCEL;
-			});
-		}
-	};
-
-	callback_data CallbackData{ this };
-	if (!os::fs::copy_file(SrcName, DestName, callback_wrapper::callback, &CallbackData, nullptr, Flags&FCOPY_DECRYPTED_DESTINATION ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION : 0))
-	{
-		rethrow_if(CallbackData.ExceptionPtr);
+		rethrow_if(ExceptionPtr);
 		Flags&=~FCOPY_DECRYPTED_DESTINATION;
 		if (GetLastError() == ERROR_REQUEST_ABORTED)
 			cancel_operation();
@@ -3335,28 +3348,6 @@ bool ShellCopy::ShellSystemCopy(const string_view SrcName, const string_view Des
 	}
 
 	return true;
-}
-
-DWORD ShellCopy::CopyProgressRoutine(unsigned long long TotalFileSize, unsigned long long TotalBytesTransferred, unsigned long long StreamSize, unsigned long long StreamBytesTransferred, DWORD StreamNumber, DWORD CallbackReason, HANDLE hSourceFile, HANDLE hDestinationFile)
-{
-	bool Abort = false;
-	if (CP->IsCancelled())
-	{
-		Abort=true;
-	}
-
-	CheckAndUpdateConsole();
-	//fix total size
-	if (StreamNumber == 1 && hSourceFile != m_FileHandleForStreamSizeFix)
-	{
-		CP->add_total_bytes(TotalFileSize - StreamSize);
-		CP->set_current_total(TotalFileSize);
-		m_FileHandleForStreamSizeFix = hSourceFile;
-	}
-
-	CP->set_current_copied(TotalBytesTransferred);
-
-	return Abort?PROGRESS_CANCEL:PROGRESS_CONTINUE;
 }
 
 std::pair<unsigned long long, unsigned long long> ShellCopy::CalcTotalSize() const

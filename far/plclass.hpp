@@ -211,19 +211,11 @@ namespace detail
 	{
 		auto& operator=(intptr_t value) { Result = value; return *this; }
 		auto& operator=(HANDLE value) { Result = reinterpret_cast<intptr_t>(value); return *this; }
-		operator intptr_t() const { return Result; }
-		operator void*() const { return ToPtr(Result); }
-		operator bool() const { return Result != 0; }
+		explicit(false) operator intptr_t() const { return Result; }
+		explicit(false) operator void*() const { return ToPtr(Result); }
+		explicit(false) operator bool() const { return Result != 0; }
 		intptr_t Result;
 	};
-
-	// A workaround for 2017.
-	// TODO: remove once we drop support for VS2017.
-	template<typename result_type, typename function, typename... args>
-	void assign(result_type& Result, function const& Function, args&&... Args)
-	{
-		Result = Function(FWD(Args)...);
-	}
 }
 
 class Plugin
@@ -286,7 +278,7 @@ public:
 	template<typename T>
 	bool has(const T& es) const
 	{
-		static_assert(std::is_base_of_v<detail::ExecuteStruct, T>);
+		static_assert(std::derived_from<T, detail::ExecuteStruct>);
 		return has(es.export_id);
 	}
 
@@ -318,8 +310,6 @@ public:
 		return make_raii_wrapper<&Plugin::increase_activity, &Plugin::decrease_activity>(this);
 	}
 
-	void SubscribeToSynchroEvents();
-
 protected:
 	template<export_index Export, bool Native = true>
 	struct ExecuteStruct: detail::ExecuteStruct
@@ -346,7 +336,7 @@ protected:
 			if constexpr (std::is_void_v<std::invoke_result_t<function_type, args...>>)
 				Function(FWD(Args)...);
 			else
-				::detail::assign(es, Function, FWD(Args)...);
+				es = Function(FWD(Args)...);
 		});
 	}
 
@@ -367,6 +357,7 @@ private:
 	void InitExports();
 	void ClearExports();
 	void SetUuid(const UUID& Uuid);
+	void SubscribeToSynchroEvents();
 
 	void increase_activity();
 	void decrease_activity();
@@ -395,7 +386,7 @@ private:
 	string m_strUuid;
 	std::atomic_size_t m_Activity{};
 
-	std::atomic_bool m_SynchroListenerCreated{};
+	bool m_SynchroListenerCreated{};
 	std::unique_ptr<listener> m_SynchroListener;
 };
 

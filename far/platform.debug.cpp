@@ -53,6 +53,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // External:
 
+#include <crtdbg.h>
+
 //----------------------------------------------------------------------------
 
 namespace os::debug
@@ -192,7 +194,7 @@ namespace os::debug
 		StackFrame.AddrFrame = address(Data.Frame);
 		StackFrame.AddrStack = address(Data.Stack);
 
-		if constexpr (std::is_same_v<T, STACKFRAME_EX>)
+		if constexpr (std::same_as<T, STACKFRAME_EX>)
 		{
 			StackFrame.StackFrameSize = sizeof(StackFrame);
 		}
@@ -204,7 +206,7 @@ namespace os::debug
 			// we always use it with the current process only.
 
 			DWORD InlineFrameContext;
-			if constexpr (std::is_same_v<T, STACKFRAME_EX>)
+			if constexpr (std::same_as<T, STACKFRAME_EX>)
 				InlineFrameContext = StackFrame.InlineFrameContext;
 			else
 				InlineFrameContext = 0;
@@ -287,6 +289,34 @@ namespace os::debug
 			return false;
 
 		return (frameContext.FrameType & STACK_FRAME_TYPE_INLINE) != 0;
+	}
+
+	void crt_report_to_ui()
+	{
+#ifdef _DEBUG
+		// _OUT_TO_STDERR is the default for console apps, but it is less convenient for debugging.
+		// Use -service to set it back to _OUT_TO_STDERR (e.g. for macro tests on CI).
+		_set_error_mode(_OUT_TO_MSGBOX);
+
+		_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_WNDW);
+		_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_WNDW);
+		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_WNDW);
+#endif
+	}
+
+	void crt_report_to_stderr()
+	{
+#ifdef _DEBUG
+		_set_error_mode(_OUT_TO_STDERR);
+
+		(void)_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+		(void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+		(void)_CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+		_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+		_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+#endif
 	}
 }
 
@@ -432,10 +462,14 @@ namespace os::debug::symbols
 			header info;
 			static constexpr auto max_name_size = MAX_SYM_NAME;
 
-			using char_type = VALUE_TYPE(header::Name);
+			using char_type = value_type<decltype(info.Name)>;
 			char_type name[max_name_size + 1];
 
-			using result_type = std::pair<std::basic_string_view<char_type>, size_t>;
+			struct symbol
+			{
+				std::basic_string_view<char_type> Name;
+				size_t Displacement;
+			};
 		};
 
 		struct symbol_storage
@@ -456,11 +490,11 @@ namespace os::debug::symbols
 
 	static symbol frame_get_symbol(HANDLE const Process, uintptr_t const Address, symbol_storage& Storage)
 	{
-		const auto Get = [&](auto const& Getter, auto& Buffer) -> typename package<decltype(Buffer.info)>::result_type
+		const auto Get = [&]<typename T>(auto const& Getter, package<T>& Buffer) -> typename package<T>::symbol
 		{
 			Buffer.info.SizeOfStruct = sizeof(Buffer.info);
 
-			constexpr auto IsOldApi = std::is_same_v<decltype(Buffer.info), IMAGEHLP_SYMBOL64>;
+			constexpr auto IsOldApi = std::same_as<T, IMAGEHLP_SYMBOL64>;
 			if constexpr (IsOldApi)
 			{
 				// This one is for Win2k, which doesn't have SymFromAddr.
@@ -486,34 +520,34 @@ namespace os::debug::symbols
 			}
 
 			// Old dbghelp versions (e.g. XP) not always populate NameLen
-			return { { Buffer.info.Name, NameSize? NameSize : std::char_traits<VALUE_TYPE(Buffer.info.Name)>::length(Buffer.info.Name) }, static_cast<size_t>(Displacement) };
+			return { { Buffer.info.Name, NameSize? NameSize : std::char_traits<typename package<T>::char_type>::length(Buffer.info.Name) }, static_cast<size_t>(Displacement) };
 		};
 
 		if (imports.SymFromAddrW)
 		{
-			const auto Name = Get(imports.SymFromAddrW, Storage.SymbolInfo.emplace<0>());
-			if (Name.first.empty())
+			const auto Symbol = Get(imports.SymFromAddrW, Storage.SymbolInfo.emplace<0>());
+			if (Symbol.Name.empty())
 				return {};
 
-			return { Name.first, Name.second };
+			return { Symbol.Name, Symbol.Displacement };
 		}
 
 		if (imports.SymFromAddr)
 		{
-			const auto Name = Get(imports.SymFromAddr, Storage.SymbolInfo.emplace<1>());
-			if (Name.first.empty())
+			const auto Symbol = Get(imports.SymFromAddr, Storage.SymbolInfo.emplace<1>());
+			if (Symbol.Name.empty())
 				return {};
 
-			return { Storage.SymbolName = encoding::ansi::get_chars(Name.first), Name.second };
+			return { Storage.SymbolName = encoding::ansi::get_chars(Symbol.Name), Symbol.Displacement };
 		}
 
 		if (imports.SymGetSymFromAddr64)
 		{
-			const auto Name = Get(imports.SymGetSymFromAddr64, Storage.SymbolInfo.emplace<2>());
-			if (Name.first.empty())
+			const auto Symbol = Get(imports.SymGetSymFromAddr64, Storage.SymbolInfo.emplace<2>());
+			if (Symbol.Name.empty())
 				return {};
 
-			return { Storage.SymbolName = encoding::ansi::get_chars(Name.first), Name.second };
+			return { Storage.SymbolName = encoding::ansi::get_chars(Symbol.Name), Symbol.Displacement };
 		}
 
 		return {};
@@ -658,7 +692,7 @@ namespace os::debug::symbols
 		{
 			if (i.InlineContext)
 			{
-				// If InlineContext is populated, the frames are from StackWalkEx and any inline frames are alrady included.
+				// If InlineContext is populated, the frames are from StackWalkEx and any inline frames are already included.
 				handle_frame(Process, ModuleName, i, is_inline_frame(i.InlineContext), Storage, MapFiles, Consumer);
 				continue;
 			}

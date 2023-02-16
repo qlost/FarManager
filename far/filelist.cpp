@@ -79,6 +79,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "panelmix.hpp"
 #include "processname.hpp"
 #include "mix.hpp"
+#include "notification.hpp"
 #include "elevation.hpp"
 #include "uuids.far.hpp"
 #include "uuids.far.dialogs.hpp"
@@ -107,7 +108,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/enum_tokens.hpp"
-#include "common/rel_ops.hpp"
 #include "common/scope_exit.hpp"
 #include "common/string_utils.hpp"
 #include "common/utility.hpp"
@@ -361,7 +361,7 @@ DWORD FileListItem::NumberOfLinks(const FileList* Owner) const
 	{
 		SCOPED_ACTION(elevation::suppress);
 		const auto Hardlinks = GetNumberOfLinks(GetItemFullName(*this, Owner));
-		static_assert(std::is_same_v<decltype(m_NumberOfLinks), DWORD>);
+		static_assert(std::same_as<decltype(m_NumberOfLinks), DWORD>);
 		m_NumberOfLinks = Hardlinks? static_cast<DWORD>(*Hardlinks) : values::unknown(m_NumberOfLinks);
 	}
 
@@ -382,7 +382,7 @@ static void GetStreamsCountAndSize(const FileList* Owner, const FileListItem& It
 		size_t StreamsCount = 0;
 		if (EnumStreams(GetItemFullName(Item, Owner), StreamsSize, StreamsCount))
 		{
-			static_assert(std::is_same_v<decltype(NumberOfStreams), DWORD&>);
+			static_assert(std::same_as<decltype(NumberOfStreams), DWORD&>);
 			NumberOfStreams = static_cast<DWORD>(StreamsCount);
 		}
 		else
@@ -486,6 +486,36 @@ struct FileList::PrevDataItem
 	string strPrevName;
 	list_data PrevListData;
 	int PrevTopFile;
+};
+
+class FileList::background_updater
+{
+public:
+	explicit background_updater(FileList* const Owner):
+		m_Owner(Owner)
+	{
+	}
+
+	const auto& event_id() const
+	{
+		return m_Listener.GetEventName();
+	}
+
+private:
+	listener m_Listener{ listener::scope{L"FileList"sv}, [this]
+	{
+		if (Global->WindowManager->IsPanelsActive() && m_Owner->IsVisible())
+		{
+			m_Owner->UpdateIfChanged(true);
+			m_Owner->Redraw();
+		}
+		else
+		{
+			m_Owner->m_UpdatePending = true;
+		}
+	}};
+
+	FileList* m_Owner;
 };
 
 file_panel_ptr FileList::create(window_ptr Owner)
@@ -766,7 +796,6 @@ private:
 			return compare_numbers(a.StreamsSize(m_Owner), b.StreamsSize(m_Owner));
 
 		default:
-			assert(false);
 			UNREACHABLE;
 		}
 	}
@@ -1102,7 +1131,7 @@ long long FileList::VMProcess(int OpCode,void *vParam,long long iParam)
 	return 0;
 }
 
-class file_state: public rel_ops<file_state>
+class file_state
 {
 public:
 	static auto get(string_view const Filename)
@@ -2811,9 +2840,6 @@ bool FileList::SetCurDir(string_view const NewDir, bool ClosePanel, bool IsUpdat
 
 	if (!NewDir.empty())
 	{
-		if (m_PanelMode != panel_mode::PLUGIN_PANEL)
-			Panel::SetCurDir(NewDir, ClosePanel, IsUpdated, Silent);
-
 		return ChangeDir(NewDir, NewDir == L".."sv, true, IsUpdated, &UsedData, OFP_NORMAL, Silent);
 	}
 
@@ -2839,7 +2865,7 @@ bool FileList::ChangeDir(string_view const NewDir, bool IsParent, bool ResolvePa
 		}
 		else
 		{
-			Global->CtrlObject->FolderHistory->AddToHistory(GetCurDir());
+			Global->CtrlObject->FolderHistory->AddToHistory(m_CurDir);
 			if (!IsPopPlugin)
 				InitFSWatcher(false);
 		}
@@ -2897,6 +2923,11 @@ bool FileList::ChangeDir(string_view const NewDir, bool IsParent, bool ResolvePa
 		  + Если у плагина нет OPIF_REALNAMES, то история папок не пишется в реестр */
 		string strInfoCurDir = NullToEmpty(m_CachedOpenPanelInfo.CurDir);
 		string strInfoHostFile = NullToEmpty(m_CachedOpenPanelInfo.HostFile);
+		if (m_CachedOpenPanelInfo.Flags & OPIF_SHORTCUT)
+		{
+			const auto strInfoData = NullToEmpty(m_CachedOpenPanelInfo.ShortcutData);
+			Global->CtrlObject->FolderHistory->AddToHistory(strInfoCurDir, HR_DEFAULT, &PluginManager::GetUUID(GetPluginHandle()), strInfoHostFile, strInfoData);
+		}
 
 		/* $ 25.04.01 DJ
 		   при неудаче SetDirectory не сбрасываем выделение
@@ -2952,6 +2983,9 @@ bool FileList::ChangeDir(string_view const NewDir, bool IsParent, bool ResolvePa
 	}
 	else
 	{
+		if (!equal_icase(ConvertNameToFull(strSetDir), m_CurDir))
+			Global->CtrlObject->FolderHistory->AddToHistory(m_CurDir);
+
 		if (IsParent)
 		{
 			if (RootPath)
@@ -4564,23 +4598,19 @@ static void edit_sort_layers(int MenuPos)
 	SortLayersMenu->Run([&](const Manager::Key& RawKey)
 	{
 		const auto Pos = SortLayersMenu->GetSelectPos();
-		if (!Pos)
-			return false;
 
 		switch (const auto Key = RawKey())
 		{
 		case KEY_INS:
 		case KEY_NUMPAD0:
-			if (Pos > 0)
+			if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
 			{
-				if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
-				{
-					const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
-					const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
-					SortLayersMenu->AddItem(MenuItemEx{ msg(SortModes[NewSortModeIndex].Label), MIF_CHECKED | order_indicator(Order) }, Pos);
-					SortLayersMenu->SetSelectPos(Pos);
-					SortLayers.emplace(SortLayers.begin() + Pos, static_cast<panel_sort>(NewSortModeIndex), Order);
-				}
+				const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
+				const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
+				const auto InsertPos = Pos > 0? Pos : 1;
+				SortLayersMenu->AddItem(MenuItemEx{ msg(SortModes[NewSortModeIndex].Label), MIF_CHECKED | order_indicator(Order) }, InsertPos);
+				SortLayersMenu->SetSelectPos(InsertPos);
+				SortLayers.emplace(SortLayers.begin() + InsertPos, static_cast<panel_sort>(NewSortModeIndex), Order);
 			}
 			break;
 
@@ -4594,29 +4624,35 @@ static void edit_sort_layers(int MenuPos)
 			break;
 
 		case KEY_F4:
-			if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
+			if (Pos > 0)
 			{
-				const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
-				const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
-				SortLayersMenu->at(Pos).Name = msg(SortModes[NewSortModeIndex].Label);
-				SortLayersMenu->at(Pos).SetCustomCheck(order_indicator(Order));
-				SortLayers[Pos] = { static_cast<panel_sort>(NewSortModeIndex), Order };
-				SortLayersMenu->Redraw();
+				if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
+				{
+					const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
+					const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
+					SortLayersMenu->at(Pos).Name = msg(SortModes[NewSortModeIndex].Label);
+					SortLayersMenu->at(Pos).SetCustomCheck(order_indicator(Order));
+					SortLayers[Pos] = { static_cast<panel_sort>(NewSortModeIndex), Order };
+					SortLayersMenu->Redraw();
+				}
 			}
 			break;
 
 		case L'+':
 		case KEY_ADD:
-			SetCheck(Pos, sort_order::ascend);
+			if (Pos > 0)
+				SetCheck(Pos, sort_order::ascend);
 			break;
 
 		case L'-':
 		case KEY_SUBTRACT:
-			SetCheck(Pos, sort_order::descend);
+			if (Pos > 0)
+				SetCheck(Pos, sort_order::descend);
 			break;
 
 		case L'*':
 		case KEY_MULTIPLY:
+			if (Pos > 0)
 			{
 				const auto CurrentOrder = SortLayers[Pos].second;
 				const auto NewOrder =
@@ -5606,11 +5642,11 @@ void FileList::FileListToPluginItem(const FileListItem& fi, PluginPanelItemHolde
 	auto& pi = Holder.Item;
 
 	FileListItemToPluginPanelItemBasic(fi, pi);
-	pi.NumberOfLinks = fi.IsNumberOfLinksRead() ? fi.NumberOfLinks(this) : 0;
 
 	Holder.set_name(fi.FileName);
-	Holder.set_alt_name(fi.AlternateFileName());
-	Holder.set_columns(fi.CustomColumns);
+
+	if (const auto& AltName = fi.AlternateFileName(); !AltName.empty())
+		Holder.set_alt_name(AltName);
 
 	if (fi.DizText)
 		Holder.set_description(fi.DizText);
@@ -5620,6 +5656,12 @@ void FileList::FileListToPluginItem(const FileListItem& fi, PluginPanelItemHolde
 		if (const auto& Owner = fi.Owner(this); !Owner.empty())
 			Holder.set_owner(Owner);
 	}
+
+	if (!fi.CustomColumns.empty())
+		Holder.set_columns(fi.CustomColumns);
+
+	if (fi.IsNumberOfLinksRead())
+		pi.NumberOfLinks = fi.NumberOfLinks(this);
 }
 
 size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelItem* gpi) const
@@ -6114,7 +6156,7 @@ void FileList::PluginHostGetFiles()
 			continue;
 
 		int OpMode=OPM_TOPLEVEL;
-		if (contains(UsedPlugins, hCurPlugin->plugin()))
+		if (UsedPlugins.contains(hCurPlugin->plugin()))
 			OpMode|=OPM_SILENT;
 
 		span<PluginPanelItem> Items;
@@ -6357,6 +6399,9 @@ int FileList::ProcessOneHostFile(const FileListItem* Item)
 void FileList::SetPluginMode(std::unique_ptr<plugin_panel>&& PluginPanel, string_view const PluginFile, bool SendOnFocus)
 {
 	const auto ParentWindow = Parent();
+
+	if (m_PanelMode != panel_mode::PLUGIN_PANEL)
+		Global->CtrlObject->FolderHistory->AddToHistory(m_CurDir);
 
 	PushPlugin(std::move(PluginPanel), PluginFile);
 
@@ -6979,36 +7024,6 @@ void FileList::UpdateIfChanged(bool Changed)
 	Update(UPDATE_KEEP_SELECTION);
 }
 
-class FileList::background_updater
-{
-public:
-	explicit background_updater(FileList* const Owner):
-		m_Owner(Owner)
-	{
-	}
-
-	const auto& event_id() const
-	{
-		return m_Listener.GetEventName();
-	}
-
-private:
-	listener m_Listener{[this]
-	{
-		if (Global->WindowManager->IsPanelsActive() && m_Owner->IsVisible())
-		{
-			m_Owner->UpdateIfChanged(true);
-			m_Owner->Redraw();
-		}
-		else
-		{
-			m_Owner->m_UpdatePending = true;
-		}
-	}};
-
-	FileList* m_Owner;
-};
-
 void FileList::InitFSWatcher(bool CheckTree)
 {
 	if (m_PanelMode == panel_mode::PLUGIN_PANEL)
@@ -7039,8 +7054,8 @@ struct hash_less
 {
 	struct arg
 	{
-		arg(unsigned long long const Value): m_Value(Value) {}
-		arg(FileListItem const& Value): m_Value(Value.FileId) {}
+		explicit(false) arg(unsigned long long const Value): m_Value(Value) {}
+		explicit(false) arg(FileListItem const& Value): m_Value(Value.FileId) {}
 		unsigned long long m_Value;
 	};
 
@@ -7070,13 +7085,56 @@ void FileList::MoveSelection(list_data& From, list_data& To)
 	std::vector<size_t> OldPositions;
 	OldPositions.reserve(To.size());
 
+	std::set<decltype(From.begin())> MatchedNames;
+
 	const auto npos = static_cast<size_t>(-1);
+
+	const auto find_old_item = [&](FileListItem const& NewItem)
+	{
+		range const EqualRange = std::equal_range(ALL_RANGE(From), make_hash(NewItem.FileName), hash_less{});
+		if (EqualRange.empty())
+			return From.end();
+
+		if (EqualRange.size() == 1 && !EqualRange.begin()->FileName.empty())
+			return EqualRange.begin();
+
+		MatchedNames.clear();
+		for (auto Iterator = EqualRange.begin(); Iterator != EqualRange.end(); ++Iterator)
+		{
+			if (!Iterator->FileName.empty())
+				MatchedNames.insert(Iterator);
+		}
+
+		const auto filter = [&](const auto& Predicate)
+		{
+			std::erase_if(MatchedNames, Predicate);
+		};
+
+		{
+			const auto HasAltName = NewItem.HasAlternateFileName();
+			const auto& AltName = NewItem.AlternateFileName();
+			filter([&](const auto& Item){ return Item->HasAlternateFileName() != HasAltName || Item->AlternateFileName() != AltName; });
+			if (MatchedNames.size() == 1)
+				return *MatchedNames.begin();
+		}
+
+		filter([&](const auto& Item){ return Item->CreationTime != NewItem.CreationTime; });
+		if (MatchedNames.size() == 1)
+			return *MatchedNames.begin();
+
+		filter([&](const auto& Item){ return Item->CRC32 != NewItem.CRC32; });
+		if (MatchedNames.size() == 1)
+			return *MatchedNames.begin();
+
+		// At this point we still have multiple matching names, but none of the items appear to be similar enough.
+		// It is safer to consider this "not found" and drop the selection than pick and select an unrelated item.
+		return From.end();
+	};
 
 	for (auto& i: To)
 	{
-		const auto& [EqualBegin, EqualEnd] = std::equal_range(ALL_RANGE(From), make_hash(i.FileName), hash_less{});
-		const auto OldItemIterator = std::find_if(EqualBegin, EqualEnd, [&](FileListItem const& Item){ return Item.FileName == i.FileName;});
-		if (OldItemIterator == EqualEnd)
+		const auto OldItemIterator = find_old_item(i);
+		if (OldItemIterator == From.end())
 		{
 			OldPositions.emplace_back(npos);
 			continue;
@@ -7999,10 +8057,13 @@ bool FileList::ConvertName(const string_view SrcName, string& strDest, const siz
 		const auto VisualExtensionLength = visual_string_length(Extension);
 		const auto AlignedVisualExtensionLength = std::max(size_t{ 3 }, VisualExtensionLength);
 
-		const auto SpacesBetween =
+		auto SpacesBetween =
 			VisualNameLength + AlignedVisualExtensionLength <= MaxLength?
 				MaxLength - VisualNameLength - AlignedVisualExtensionLength:
 				1;
+
+		if (!SpacesBetween && VisualNameLength + VisualExtensionLength < MaxLength)
+			SpacesBetween = MaxLength - VisualNameLength - VisualExtensionLength;
 
 		const auto SpacesAfter = MaxLength - VisualNameLength - SpacesBetween - VisualExtensionLength;
 

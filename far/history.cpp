@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vmenu2.hpp"
 #include "global.hpp"
 #include "FarDlgBuilder.hpp"
+#include "log.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -93,7 +94,7 @@ namespace
 
 		bool check(os::chrono::time_point const Time) const
 		{
-			return Time < m_StartTime || contains(m_KnownRecords, Time);
+			return Time < m_StartTime || m_KnownRecords.contains(Time);
 		}
 
 		void add(os::chrono::time_point const Time)
@@ -188,6 +189,8 @@ void History::AddToHistory(string_view const Str, history_record_type const Type
 
 		break;
 	}
+
+	LOGTRACE(L"AddToHistory({})"sv, Str);
 
 	HistoryCfgRef()->DeleteAndAddAsync(DeleteId, m_TypeHistory, m_HistoryName, Str, Type, Lock, Time, strUuid, File, Data);  //Async - should never be used in a transaction
 
@@ -739,7 +742,7 @@ bool History::GetSimilar(string &strStr, int LastCmdPartLength, bool bAppend)
 			continue;
 
 		if (bAppend)
-			strStr.append(strName, Length, string::npos); // gcc 7.3-8.1 bug: npos required. TODO: Remove after we move to 8.2 or later
+			strStr.append(strName, Length);
 		else
 			strStr = strName;
 

@@ -1,3 +1,19 @@
+drkns 14.02.2023 21:56:31 +0000 - build 120
+
+1. A few fixes.
+
+zg 10.02.2023 15:30:29 +0200 - build 119
+
+1. continue 118.
+
+zg 10.02.2023 15:13:13 +0200 - build 118
+
+1. forum: ralt+shift+f3 didn't work.
+
+drkns 10.11.2022 17:40:00 +0000 - build 117
+
+1. Add GUID to "Save file list" dialog.
+
 drkns 09.11.2022 19:37:38 +0000 - build 116
 
 1. Populate reparse point types.

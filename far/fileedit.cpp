@@ -1640,7 +1640,7 @@ bool FileEditor::LoadFile(const string_view Name, int& UserBreak, error_state_ex
 		{
 			if (testBOM && IsUnicodeOrUtfCodePage(m_codepage))
 			{
-				if (starts_with(Str.Str, encoding::bom_char))
+				if (Str.Str.starts_with(encoding::bom_char))
 				{
 					Str.Str.remove_prefix(1);
 					m_bAddSignature = true;
@@ -2143,6 +2143,9 @@ void FileEditor::SetScreenPosition()
 
 void FileEditor::OnDestroy()
 {
+	if (Global->CtrlObject && !m_Flags.Check(FFILEEDIT_DISABLEHISTORY) && !equal_icase(strFileName, msg(lng::MNewFileName)))
+		Global->CtrlObject->ViewHistory->AddToHistory(strFullFileName, m_editor->m_Flags.Check(Editor::FEDITOR_LOCKMODE)? HR_EDITOR_RO : HR_EDITOR);
+
 	//AY: флаг оповещающий закрытие редактора.
 	m_bClosing = true;
 
@@ -2834,10 +2837,10 @@ bool FileEditor::AskOverwrite(const string_view FileName)
 
 uintptr_t FileEditor::GetDefaultCodePage()
 {
-	intptr_t cp = Global->Opt->EdOpt.DefaultCodePage;
-	if (cp < 0 || !codepages::IsCodePageSupported(cp))
-		cp = encoding::codepage::ansi();
-	return cp;
+	const auto cp = encoding::codepage::normalise(Global->Opt->EdOpt.DefaultCodePage);
+	return cp == CP_DEFAULT || !codepages::IsCodePageSupported(cp)?
+		encoding::codepage::ansi() :
+		cp;
 }
 
 Editor* FileEditor::GetEditor()

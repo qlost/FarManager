@@ -144,7 +144,7 @@ namespace os
 
 			constexpr handle_t() = default;
 
-			constexpr handle_t(std::nullptr_t)
+			constexpr explicit(false) handle_t(std::nullptr_t)
 			{
 			}
 
@@ -242,22 +242,6 @@ namespace os
 	[[nodiscard]]
 	string format_ntstatus(NTSTATUS Status);
 
-	class last_error_guard
-	{
-	public:
-		NONCOPYABLE(last_error_guard);
-
-		last_error_guard();
-		~last_error_guard();
-
-		void dismiss();
-
-	private:
-		DWORD m_LastError;
-		NTSTATUS m_LastStatus;
-		bool m_Active;
-	};
-
 	struct error_state
 	{
 		DWORD Win32Error = ERROR_SUCCESS;
@@ -277,6 +261,19 @@ namespace os
 
 	error_state last_error();
 
+	class last_error_guard
+	{
+	public:
+		NONCOPYABLE(last_error_guard);
+
+		last_error_guard();
+		~last_error_guard();
+
+		void dismiss();
+
+	private:
+		std::optional<error_state> m_Error;
+	};
 
 	bool WNetGetConnection(string_view LocalName, string &RemoteName);
 
@@ -335,43 +332,36 @@ namespace os
 			NONCOPYABLE(module);
 			MOVABLE(module);
 
-			explicit module(string_view const Name, bool AlternativeLoad = false):
-				m_name(Name),
-				m_tried(),
-				m_AlternativeLoad(AlternativeLoad)
-			{}
+			explicit module(string_view Name, bool AlternativeLoad = false);
 
 			template<typename T>
 			[[nodiscard]]
 			T GetProcAddress(const char* name) const
 			{
-				return reinterpret_cast<T>(reinterpret_cast<void*>(get_proc_address(get_module(), name)));
+				return reinterpret_cast<T>(get_proc_address(name));
 			}
 
 			[[nodiscard]]
-			explicit operator bool() const noexcept
-			{
-				return get_module() != nullptr;
-			}
+			explicit operator bool() const noexcept;
 
 			[[nodiscard]]
-			const string& name() const
-			{
-				return m_name;
-			}
+			const string& name() const;
 
 		private:
 			[[nodiscard]]
-			HMODULE get_module() const noexcept;
+			HMODULE get_module(bool Mandatory) const;
 
-			FARPROC get_proc_address(HMODULE Module, const char* Name) const;
+			void* get_proc_address(const char* Name) const;
 
-			struct module_deleter { void operator()(HMODULE Module) const; };
+			struct module_deleter
+			{
+				void operator()(HMODULE Module) const;
+			};
+
 			using module_ptr = std::unique_ptr<std::remove_pointer_t<HMODULE>, module_deleter>;
 
 			string m_name;
-			mutable module_ptr m_module;
-			mutable bool m_tried;
+			mutable std::optional<module_ptr> m_module;
 			bool m_AlternativeLoad;
 		};
 
@@ -390,7 +380,7 @@ namespace os
 
 		protected:
 			[[nodiscard]]
-			void* get_pointer() const;
+			void* get_pointer(bool Mandatory) const;
 
 		private:
 			const module* m_Module;
@@ -401,11 +391,13 @@ namespace os
 		template<typename T>
 		class function_pointer: public opaque_function_pointer
 		{
+			using raw_function_pointer = std::conditional_t<std::is_pointer_v<T>, T, T*>;
+
 		public:
 			using opaque_function_pointer::opaque_function_pointer;
 
 			[[nodiscard]]
-			operator T() const { return reinterpret_cast<T>(get_pointer()); }
+			explicit(false) operator raw_function_pointer() const { return reinterpret_cast<raw_function_pointer>(get_pointer(true)); }
 		};
 	}
 
@@ -435,6 +427,7 @@ namespace os
 
 	HKL make_hkl(int32_t Layout);
 	HKL make_hkl(string_view LayoutStr);
+	std::vector<HKL> get_keyboard_layout_list();
 
 	bool is_interactive_user_session();
 }

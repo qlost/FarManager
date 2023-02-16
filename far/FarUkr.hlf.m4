@@ -1730,10 +1730,15 @@ $ #Пошук файла#
 переводу рядка або стандартними відокремлювачами, котрі за замовчуванням
 такі: #!%^&*()+|{}:"<>?`-=\[];',./#.
 
- By checking the #Search for hex# option you can search for the files
-containing hexadecimal sequence of the specified bytes. In this case #Case#
-#sensitive#, #Whole words#, #Using code page# and #Search for folders#
-options are disabled and their values doesn't affect the search process.
+ #Fuzzy search# is diacritical insensitive, treats ligatures equivalent
+to their corresponding multicharacter sequences and fancy numerals
+to corresponding number characters, and ignores some other minor
+differences.
+
+ By selecting #Hex# option you can search for the files containing hexadecimal
+sequence of the specified bytes. In this case, #Case sensitive#, #Whole words#,
+#Fuzzy search#, #Using code page# and #Search for folders# options are disabled
+and their values do not affect the search process.
 
  #Not containing# allows to find files #not# containing the specified text or code.
 
@@ -2910,26 +2915,23 @@ beginning in the text.
 
  Примітки:
 
- 1. ^<wrap>Для виклику діалогу ~пошуку~@ViewerSearch@ ви також можете просто почати
-вводити призначений для пошуку текст.
-
- 2. ^<wrap>Файл відкривається у програмі перегляду із дозволом на
+ 1. ^<wrap>Файл відкривається у програмі перегляду із дозволом на
 видалення його стороннім процесом. Якщо відбудеться таке
 видалення, то реально файл буде видалений із каталогу тільки
 після закриття програми перегляду, при цьому він не буде
 доступний для обробки із любого процесу - це властивість
 операційної системи Windows.
 
- 3. ^<wrap>The maximum number of columns displayed in the #text#
+ 2. ^<wrap>The maximum number of columns displayed in the #text#
 ~view mode~@ViewerMode@ can be configured in the
 ~Viewer settings~@ViewerSettings@ dialog. The range is between 100 to 100,000,
 the default is 10,000. Рядки довжиною більше цього числа будуть займати
  на екрані не один рядок, а кілька, навіть якщо вимкнений режим переносу рядків.
 
- 4. ^<wrap>Far ~шукає~@ViewerSearch@ перше входження підрядка (#F7#) з початку видимої
+ 3. ^<wrap>Far ~шукає~@ViewerSearch@ перше входження підрядка (#F7#) з початку видимої
  ділянки екрана програми перегляду.
 
- 5. ^<wrap>To auto-scroll a file which is being appended by another
+ 4. ^<wrap>To auto-scroll a file which is being appended by another
 process (conf. Linux “tail”), go to the end of the file (press the #End# key).
 
 
@@ -3136,6 +3138,14 @@ $ #Пошук у програмі перегляду#
  Enable the use of ~regular expressions~@RegExp@ in the search string.
 The multiline search is not supported.
 
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
+
 
 @Editor
 $ #Вбудований редактор#
@@ -3271,6 +3281,14 @@ $ #Editor: search/replace#
  #Regular expressions#
  Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
 Each line is processed individually, so multi-line expressions and line break characters will not be found.
+
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
 
  ~Preserve style~@PreserveStyle@
  Preserve style (case and delimiters in program source code) of the replaced text.
@@ -3877,9 +3895,6 @@ $ #Конфігурація програми перегляду#
 @=
  #Persistent selection#
  Do not remove block selection after moving the cursor.
-
- #Search dialog auto-focus#
- Always returns focus to the search text field in the Viewer ~Search~@ViewerSearch@ dialog.
 
  #Розмір табуляції#
  Кількість пробілів при показі символа табуляції.
@@ -5908,7 +5923,7 @@ is not listed in this parameter and the program “date.exe” exists
 in one of the #PATH# directories, the internal command processor’s
 command can never be executed.
 
- Ready-made settings for CMD.EXE, COMMAND.COM, and other well-known
+ Ready-made settings for CMD.EXE and other well-known
 command processors can be found in the
 #Addons\SetUp\Executor.*.farconfig# files.
 

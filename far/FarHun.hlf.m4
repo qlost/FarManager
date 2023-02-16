@@ -1732,6 +1732,11 @@ szövegrészeket, ha a megadott karaktersort a többitől a szóköz, tabulátor
 soremelés karakter választja el, vagy a szabványos határoló karakterek,
 amelyek alapértelmezés szerint: #!%^&*()+|{}:"<>?`-=\\[];',./#.
 
+ #Fuzzy search# is diacritical insensitive, treats ligatures equivalent
+to their corresponding multicharacter sequences and fancy numerals
+to corresponding number characters, and ignores some other minor
+differences.
+
  A #Keresés hexákra# opcióval hexadecimális számsorokat adhatunk meg
 keresési feltételként. Ebben az esetben a #Nagy/kisbetű érzékeny#, a
 #Csak egész szavak#, a #Kódlap# és a #Keresés mappákra# opciók
@@ -2929,24 +2934,21 @@ beginning in the text.
 
  Megjegyzések:
 
- 1. ^<wrap>A ~keresőablak~@ViewerSearch@ meghívásához a nézőkében az is elég, ha elkezdjük
-begépelni a keresett szöveget.
-
- 2. ^<wrap>Az, hogy a nézőkében megnyitunk egy fájlt, nem zárja ki,
+ 1. ^<wrap>Az, hogy a nézőkében megnyitunk egy fájlt, nem zárja ki,
 hogy közben egy másik folyamat ne törölhetné azt. Annak ellenére, hogy a fájl
 valójában csak a nézőke bezárásakor törlődik, a törölt fájlra irányuló további
 műveletek hibával fognak leállni - ez Windows sajátosság.
 
- 3. ^<wrap>The maximum number of columns displayed in the #text#
+ 2. ^<wrap>The maximum number of columns displayed in the #text#
 ~view mode~@ViewerMode@ can be configured in the
 ~Viewer settings~@ViewerSettings@ dialog. The range is between 100 to 100,000,
 the default is 10,000. Ha valamelyik sor túllépi ezt, a Far akkor is
 több sorban jeleníti meg, ha a sortörés ki van kapcsolva.
 
- 4. ^<wrap>A Far nézőke ~keresője~@ViewerSearch@ (#F7#) a fájl képernyőn
+ 3. ^<wrap>A Far nézőke ~keresője~@ViewerSearch@ (#F7#) a fájl képernyőn
 megjelenő részének kezdetétől az első előfordulásig keresi a sztringet.
 
- 5. ^<wrap>Ha automatikusan szeretnénk gördíteni egy folyamatosan változó
+ 4. ^<wrap>Ha automatikusan szeretnénk gördíteni egy folyamatosan változó
 tartalmú fájlt, vigyük a kurzort a fájl végére (az End billentyűvel).
 
 
@@ -3154,6 +3156,14 @@ vagy a szabványos elválasztó karakterek: #!%^&*()+|{}:"<>?`-=\\[];',./#
  Enable the use of ~regular expressions~@RegExp@ in the search string.
 The multiline search is not supported.
 
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
+
 
 @Editor
 $ #Szerkesztő#
@@ -3289,6 +3299,14 @@ $ #Editor: search/replace#
  #Regular expressions#
  Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
 Each line is processed individually, so multi-line expressions and line break characters will not be found.
+
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
 
  ~Preserve style~@PreserveStyle@
  Preserve style (case and delimiters in program source code) of the replaced text.
@@ -3910,9 +3928,6 @@ A parancssorban a megnézendő fájlnevek megadásához alkalmazhatunk ~különl
 @=
  #Maradó blokkok#
  Nem veszi le a kijelölést a blokkokról, ha megmozdítjuk a kurzort.
-
- #Search dialog auto-focus#
- Always returns focus to the search text field in the Viewer ~Search~@ViewerSearch@ dialog.
 
  #Tabulátor mérete#
  A tabulátor szóközökben mért hossza.
@@ -5932,7 +5947,7 @@ is not listed in this parameter and the program “date.exe” exists
 in one of the #PATH# directories, the internal command processor’s
 command can never be executed.
 
- Ready-made settings for CMD.EXE, COMMAND.COM, and other well-known
+ Ready-made settings for CMD.EXE and other well-known
 command processors can be found in the
 #Addons\SetUp\Executor.*.farconfig# files.
 

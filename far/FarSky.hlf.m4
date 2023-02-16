@@ -1682,10 +1682,15 @@ prikázať presné porovnávanie veľkých a malých písmen.
 from other text with spaces, tab characters, line breaks or standard
 separators, which by default are: #!%^&*()+|{}:"<>?`-=\\[];',./#.
 
- By checking the #Search for hex# option you can search for the files
-containing hexadecimal sequence of the specified bytes. In this case #Case#
-#sensitive#, #Whole words#, #Using code page# and #Search for folders#
-options are disabled and their values doesn't affect the search process.
+ #Fuzzy search# is diacritical insensitive, treats ligatures equivalent
+to their corresponding multicharacter sequences and fancy numerals
+to corresponding number characters, and ignores some other minor
+differences.
+
+ By selecting #Hex# option you can search for the files containing hexadecimal
+sequence of the specified bytes. In this case, #Case sensitive#, #Whole words#,
+#Fuzzy search#, #Using code page# and #Search for folders# options are disabled
+and their values do not affect the search process.
 
  #Not containing# allows to find files #not# containing the specified text or code.
 
@@ -2842,25 +2847,22 @@ beginning in the text.
 
  Poznámky:
 
- 1. ^<wrap>Dialógové okno ~hľadania~@ViewerSearch@ sa spustí automaticky ak začnete
-písať text, ktorý chcete vyhľadať.
-
- 2. ^<wrap>The viewer opens files with the permission to be deleted.
+ 1. ^<wrap>The viewer opens files with the permission to be deleted.
 If another process attempts to delete the file while it is open in the
 viewer, the file will be deleted after the viewer is closed. Any
 operation on a file while its deletion is pending will fail. This is
 a feature of the Windows operating system.
 
- 3. ^<wrap>The maximum number of columns displayed in the #text#
+ 2. ^<wrap>The maximum number of columns displayed in the #text#
 ~view mode~@ViewerMode@ can be configured in the
 ~Viewer settings~@ViewerSettings@ dialog. The range is between 100 to 100,000,
 the default is 10,000. Lines longer than the maximum will be split into
 several screen rows even if word wrap mode is turned off.
 
- 4. ^<wrap>Far starts ~searching~@ViewerSearch@ (#F7#) from the
+ 3. ^<wrap>Far starts ~searching~@ViewerSearch@ (#F7#) from the
 beginning of the currently visible area.
 
- 5. ^<wrap>To auto-scroll a file which is being appended by another
+ 4. ^<wrap>To auto-scroll a file which is being appended by another
 process (conf. Linux “tail”), go to the end of the file (press the #End# key).
 
 
@@ -3067,6 +3069,14 @@ while searching (so, for example, #Text# will not be found when searching for #t
  Enable the use of ~regular expressions~@RegExp@ in the search string.
 The multiline search is not supported.
 
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
+
 
 @Editor
 $ #Editor#
@@ -3202,6 +3212,14 @@ $ #Editor: search/replace#
  #Regular expressions#
  Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
 Each line is processed individually, so multi-line expressions and line break characters will not be found.
+
+ #Fuzzy search#
+ The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
+ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
+fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
+
+ Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
+in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
 
  ~Preserve style~@PreserveStyle@
  Preserve style (case and delimiters in program source code) of the replaced text.
@@ -3811,9 +3829,6 @@ Na špecifikáciu mena súboru, ktorý sa má prezrieť použite ~špeciálne sy
 @=
  #Persistent selection#
  Do not remove block selection after moving the cursor.
-
- #Search dialog auto-focus#
- Always returns focus to the search text field in the Viewer ~Search~@ViewerSearch@ dialog.
 
  #Veľkosť tabulátora#
  Počet medzier reprezentujúcich znak tabulátora.
@@ -5816,7 +5831,7 @@ is not listed in this parameter and the program “date.exe” exists
 in one of the #PATH# directories, the internal command processor’s
 command can never be executed.
 
- Ready-made settings for CMD.EXE, COMMAND.COM, and other well-known
+ Ready-made settings for CMD.EXE and other well-known
 command processors can be found in the
 #Addons\SetUp\Executor.*.farconfig# files.
 
