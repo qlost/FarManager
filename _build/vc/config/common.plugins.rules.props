@@ -22,5 +22,5 @@
     <None Include="*.def" />
   </ItemGroup>
   <Import Project="$(MSBuildThisFileDirectory)\common.plugins.rules.copy.props" />
-  <Import Project="$(MSBuildThisFileDirectory)\common.plugins.rules.crt_fix.props" />
+  <!--Import Project="$(MSBuildThisFileDirectory)\common.plugins.rules.crt_fix.props" /-->
 </Project>

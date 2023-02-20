@@ -9,6 +9,21 @@
 #include <initguid.h>
 #include "guid.hpp"
 
+/////////////////////////////////////////////////////////////////////////////////
+_ACRTIMP __declspec(noreturn) void __cdecl _invalid_parameter_noinfo_noreturn(void) {};
+
+__declspec(noreturn)
+_ACRTIMP void __cdecl _invoke_watson(
+    _In_opt_z_ wchar_t const* _Expression,
+    _In_opt_z_ wchar_t const* _FunctionName,
+    _In_opt_z_ wchar_t const* _FileName,
+    _In_       unsigned int _LineNo,
+    _In_       uintptr_t _Reserved) {};
+
+void __cdecl std::_Xlength_error(char const*) {};
+
+void(__cdecl* std::_Raise_handler)(class stdext::exception const&) {};
+/////////////////////////////////////////////////////////////////////////////////
 
 wchar_t *GetEditorFileName();
 const wchar_t *FindTopic(bool ForwardDirect=false, bool RestorePos=true);
