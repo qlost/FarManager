@@ -604,7 +604,7 @@ void Options::MaskGroupsSettings()
 						}
 						MasksMenu->SetPosition({ -1, -1, -1, -1 });
 						MasksMenu->SetTitle(Value);
-						MasksMenu->SetBottomTitle(format(msg(lng::MMaskGroupTotal), MasksMenu->GetShowItemCount()));
+						MasksMenu->SetBottomTitle(far::vformat(msg(lng::MMaskGroupTotal), MasksMenu->GetShowItemCount()));
 						Filter = true;
 					}
 				}
@@ -1623,7 +1623,7 @@ void IntOption::Export(FarSettingsItem& To) const
 
 string IntOption::ExInfo() const
 {
-	return format(FSTR(L" = 0x{:X}"sv), as_unsigned(Get()));
+	return far::format(L" = 0x{:X}"sv, as_unsigned(Get()));
 }
 
 
@@ -1705,8 +1705,6 @@ Options::Options():
 
 	PanelRightClickRule.SetCallback(option::validator([](long long Value) { return Value %= 3; }));
 	PanelCtrlAltShiftRule.SetCallback(option::validator([](long long Value) { return Value %= 3; }));
-
-	HelpTabSize.SetCallback(option::validator([](long long Value) { return DefaultTabSize; })); // пока жестко пропишем...
 
 	const auto MacroKeyValidator = [](const string& Value, unsigned& Key, string_view const DefaultValue, unsigned DefaultKey)
 	{
@@ -1866,7 +1864,6 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyEditor,                 L"ReadOnlyLock"sv,                  EdOpt.ReadOnlyLock, 0},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SaveEditorPos"sv,                 EdOpt.SavePos, true},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SaveEditorShortPos"sv,            EdOpt.SaveShortPos, true},
-		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchRegexp"sv,                  EdOpt.SearchRegexp, false},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchSelFound"sv,                EdOpt.SearchSelFound, false},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchCursorAtEnd"sv,             EdOpt.SearchCursorAtEnd, false},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"ShowKeyBar"sv,                    EdOpt.ShowKeyBar, true},
@@ -1878,7 +1875,6 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyEditor,                 L"UseExternalEditor"sv,             EdOpt.UseExternalEditor, false},
 		{FSSF_EDITOR,            NKeyEditor,                 L"WordDiv"sv,                       EdOpt.strWordDiv, WordDiv0},
 		{FSSF_PRIVATE,           NKeyHelp,                   L"ActivateURL"sv,                   HelpURLRules, 1},
-		{FSSF_PRIVATE,           NKeyHelp,                   L"HelpSearchRegexp"sv,              HelpSearchRegexp, false},
 		{FSSF_PRIVATE,           NKeyCommandHistory,         L"Count"sv,                         HistoryCount, 1000},
 		{FSSF_PRIVATE,           NKeyCommandHistory,         L"Lifetime"sv,                      HistoryLifetime, 90},
 		{FSSF_PRIVATE,           NKeyDialogHistory,          L"Count"sv,                         DialogsHistoryCount, 1000},
@@ -1899,6 +1895,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyInterface,              L"CursorSize2"sv,                   CursorSize[1], 10},
 		{FSSF_PRIVATE,           NKeyInterface,              L"CursorSize3"sv,                   CursorSize[2], 99},
 		{FSSF_PRIVATE,           NKeyInterface,              L"CursorSize4"sv,                   CursorSize[3], 99},
+		{FSSF_PRIVATE,           NKeyInterface,              L"GrabberCursorSize"sv,             GrabberCursorSize, 50},
 		{FSSF_PRIVATE,           NKeyInterface,              L"EditorTitleFormat"sv,             strEditorTitleFormat, L"%Lng %File"sv},
 		{FSSF_PRIVATE,           NKeyInterface,              L"FormatNumberSeparators"sv,        FormatNumberSeparators, L""sv},
 		{FSSF_PRIVATE,           NKeyInterface,              L"FullWidthAwareRendering"sv,       FullWidthAwareRendering, 0},
@@ -2033,13 +2030,14 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeySystem,                 L"FindFolders"sv,                   FindOpt.FindFolders, true},
 		{FSSF_PRIVATE,           NKeySystem,                 L"FindSymLinks"sv,                  FindOpt.FindSymLinks, true},
 		{FSSF_PRIVATE,           NKeySystem,                 L"FolderInfo"sv,                    InfoPanel.strFolderInfoFiles, L"DirInfo,File_Id.diz,Descript.ion,ReadMe.*,Read.Me"sv},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDelta"sv,                  MsWheelDelta, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaEdit"sv,              MsWheelDeltaEdit, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaHelp"sv,              MsWheelDeltaHelp, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaView"sv,              MsWheelDeltaView, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDelta"sv,                 MsHWheelDelta, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDeltaEdit"sv,             MsHWheelDeltaEdit, 1},
-		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDeltaView"sv,             MsHWheelDeltaView, 1},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDelta"sv,                  MsWheelDelta, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaEdit"sv,              MsWheelDeltaEdit, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaHelp"sv,              MsWheelDeltaHelp, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelDeltaView"sv,              MsWheelDeltaView, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDelta"sv,                 MsHWheelDelta, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDeltaEdit"sv,             MsHWheelDeltaEdit, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsHWheelDeltaView"sv,             MsHWheelDeltaView, 0},
+		{FSSF_PRIVATE,           NKeySystem,                 L"MsWheelThreshold"sv,              MsWheelThreshold, 0},
 		{FSSF_PRIVATE,           NKeySystem,                 L"MultiCopy"sv,                     CMOpt.MultiCopy, false},
 		{FSSF_PRIVATE,           NKeySystem,                 L"MultiMakeDir"sv,                  MultiMakeDir, false},
 #ifndef NO_WRAPPER
@@ -2100,7 +2098,6 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewerShortPos"sv,            ViOpt.SaveShortPos, true},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewerWrapMode"sv,            ViOpt.SaveWrapMode, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SaveViewMode"sv,                  ViOpt.SaveViewMode, true},
-		{FSSF_PRIVATE,           NKeyViewer,                 L"SearchRegexp"sv,                  ViOpt.SearchRegexp, false},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"SearchWrapStop"sv,                ViOpt.SearchWrapStop, BSTATE_CHECKED},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"ShowArrows"sv,                    ViOpt.ShowArrows, true},
 		{FSSF_PRIVATE,           NKeyViewer,                 L"ShowKeyBar"sv,                    ViOpt.ShowKeyBar, true},
@@ -2254,7 +2251,7 @@ static auto deserialise_sort_layers(string_view const LayersStr)
 
 static auto serialise_sort_layer(std::pair<panel_sort, sort_order> const& Layer)
 {
-	return format(FSTR(L"S{}:O{}"sv), Layer.first, Layer.second);
+	return far::format(L"S{}:O{}"sv, Layer.first, Layer.second);
 }
 
 static auto serialise_sort_layers(span<std::pair<panel_sort, sort_order> const> const Layers)

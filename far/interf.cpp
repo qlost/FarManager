@@ -722,12 +722,25 @@ point GetCursorPos()
 
 void SetCursorType(bool const Visible, size_t Size)
 {
-	if (Size == static_cast<size_t>(-1) || !Visible)
+	if (Size == static_cast<size_t>(-1))
 	{
-		const size_t index = IsConsoleFullscreen()? 1 : 0;
-		Size = Global->Opt->CursorSize[index]? static_cast<int>(Global->Opt->CursorSize[index]) : InitialCursorInfo.dwSize;
+		Size = static_cast<size_t>(Global->Opt->CursorSize[IsConsoleFullscreen()? 1 : 0]);
 	}
+
+	if (!Size)
+		Size = InitialCursorInfo.dwSize;
+
 	Global->ScrBuf->SetCursorType(Visible, Size);
+}
+
+void HideCursor()
+{
+	SetCursorType(false, 0);
+}
+
+void ShowCursor()
+{
+	SetCursorType(true, -1);
 }
 
 void SetInitialCursorType()
@@ -755,13 +768,18 @@ void Text(point Where, const FarColor& Color, string_view const Str)
 	Text(Str);
 }
 
-static void string_to_buffer_simple(string_view const Str, std::vector<FAR_CHAR_INFO>& Buffer, size_t)
+static void string_to_buffer_simple(string_view const Str, std::vector<FAR_CHAR_INFO>& Buffer, size_t const MaxSize)
 {
-	std::transform(ALL_CONST_RANGE(Str), std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, CurColor }; });
+	const auto From = Str.substr(0, MaxSize);
+	Buffer.reserve(From.size());
+
+	std::transform(ALL_CONST_RANGE(From), std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, CurColor }; });
 }
 
 static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_CHAR_INFO>& Buffer, size_t const MaxSize)
 {
+	Buffer.reserve(Str.size());
+
 	while(!Str.empty() && Buffer.size() != MaxSize)
 	{
 		wchar_t Char[]{ Str[0], 0 };
@@ -835,7 +853,6 @@ size_t Text(string_view Str, size_t const MaxWidth)
 		return 0;
 
 	std::vector<FAR_CHAR_INFO> Buffer;
-	Buffer.reserve(Str.size());
 
 	(char_width::is_enabled()?string_to_buffer_full_width_aware : string_to_buffer_simple)(Str, Buffer, MaxWidth);
 
@@ -1526,7 +1543,7 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 	string StrPercent;
 	if (ShowPercent)
 	{
-		StrPercent = format(FSTR(L" {:3}%"sv), Percent);
+		StrPercent = far::format(L" {:3}%"sv, Percent);
 		Size = Size > StrPercent.size()? Size - StrPercent.size(): 0;
 	}
 	string Str(Size, BoxSymbols[BS_X_B0]);
@@ -1684,7 +1701,7 @@ size_t ConsoleChoice(string_view const Message, string_view const Choices, size_
 
 	for (;;)
 	{
-		std::wcout << format(FSTR(L"\n{} ({})? "sv), Message, join(L"/"sv, Choices)) << std::flush;
+		std::wcout << far::format(L"\n{} ({})? "sv, Message, join(L"/"sv, Choices)) << std::flush;
 
 		wchar_t Input;
 		std::wcin.clear();
@@ -1716,9 +1733,10 @@ TEST_CASE("interf.highlight")
 		size_t HotkeyVisualPos;
 		struct
 		{
-			size_t PosVisual;
-			size_t PosReal;
-		};
+			size_t Visual;
+			size_t Real;
+		}
+		Pos;
 	}
 	Tests[]
 	{
@@ -1756,7 +1774,7 @@ TEST_CASE("interf.highlight")
 
 		REQUIRE(HiStrlen(i.Input) == i.Result.size());
 
-		REQUIRE(HiFindRealPos(i.Input, i.PosVisual) == i.PosReal);
+		REQUIRE(HiFindRealPos(i.Input, i.Pos.Visual) == i.Pos.Real);
 	}
 }
 

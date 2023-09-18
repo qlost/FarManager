@@ -37,8 +37,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "common/compiler.hpp"
 
-#if !CHECK_COMPILER(CL, 19, 29, 0)
-#error Visual C++ 2019 Update 11 (or higher) required
+#if !CHECK_COMPILER(CL, 19, 29, 30148)
+#error Visual C++ 2019 Update 16.11.24 (or higher) required
 #elif !CHECK_COMPILER(GCC, 10, 0, 0)
 #error GCC 10.0.0 (or higher) required
 #elif !CHECK_COMPILER(CLANG, 10, 0, 0)
@@ -50,6 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // These semi-magical defines and appropriate overloads in cpp.hpp are intended to fix this madness.
 
 // Force C version to return const
+#undef _CONST_RETURN
 #define _CONST_RETURN const
 // Disable broken inline overloads
 #define __CORRECT_ISO_CPP_WCHAR_H_PROTO
@@ -84,6 +85,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <random>
 #include <regex>
 #include <set>
+#include <span>
 #include <sstream>
 #include <stack>
 #include <string>

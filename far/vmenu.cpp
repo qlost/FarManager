@@ -871,35 +871,32 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 		case MCODE_F_MENU_GETHOTKEY:
 		case MCODE_F_MENU_GETVALUE: // S=Menu.GetValue([N])
 		{
-			intptr_t Param = iParam;
-
-			if (Param == -1)
-				Param = SelectPos;
+			if (iParam == -1)
+				iParam = SelectPos;
 			else
-				Param = VisualPosToReal(Param);
+				iParam = VisualPosToReal(static_cast<int>(iParam));
 
-			if (Param>=0 && Param<static_cast<intptr_t>(Items.size()))
+			if (iParam < 0 || iParam >= static_cast<long long>(Items.size()))
+				return 0;
+
+			const auto& menuEx = at(iParam);
+			if (OpCode == MCODE_F_MENU_GETVALUE)
 			{
-				const auto& menuEx = at(Param);
-				if (OpCode == MCODE_F_MENU_GETVALUE)
-				{
-					*static_cast<string*>(vParam) = menuEx.Name;
-					return 1;
-				}
-				else
-				{
-					return GetHighlights(&menuEx);
-				}
+				*static_cast<string*>(vParam) = menuEx.Name;
+				return 1;
 			}
-
-			return 0;
+			else
+			{
+				return GetHighlights(&menuEx);
+			}
 		}
 
 		case MCODE_F_MENU_ITEMSTATUS: // N=Menu.ItemStatus([N])
 		{
-			if (iParam == -1LL)
+			if (iParam == -1)
 				iParam = SelectPos;
-			else if (iParam >= static_cast<int>(size()) || iParam <= -1LL)
+
+			if (iParam < 0 || iParam >= static_cast<long long>(size()))
 				return -1;
 
 			const auto& menuEx = at(iParam);
@@ -1278,25 +1275,17 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 		case KEY_ALTEND:            case KEY_ALT|KEY_NUMPAD1:
 		case KEY_RALTEND:           case KEY_RALT|KEY_NUMPAD1:
 		{
-			if (any_of(LocalKey, KEY_ALTHOME, KEY_RALTHOME, KEY_ALT | KEY_NUMPAD7, KEY_RALT | KEY_NUMPAD7))
-			{
-				for (auto& i: Items)
-				{
-					i.ShowPos = 0;
-				}
-			}
-			else
-			{
+			if (SetAllItemsShowPos(any_of(LocalKey & ~KEY_CTRLMASK, KEY_HOME, KEY_NUMPAD7)? 0 : -1))
+				ShowMenu(true);
 
-				for (auto& i: Items)
-				{
-					const auto Len = CheckFlags(VMENU_SHOWAMPERSAND)? visual_string_length(i.Name) : HiStrlen(i.Name);
-					if (Len >= MaxLineWidth)
-						i.ShowPos = Len - MaxLineWidth;
-				}
-			}
+			break;
+		}
+		case KEY_ALTSHIFTHOME:      case KEY_ALTSHIFT|KEY_NUMPAD7:
+		case KEY_ALTSHIFTEND:       case KEY_ALTSHIFT|KEY_NUMPAD1:
+		{
+			if (SetItemShowPos(SelectPos, any_of(LocalKey & ~KEY_CTRLMASK, KEY_HOME, KEY_NUMPAD7)? 0 : -1))
+				ShowMenu(true);
 
-			ShowMenu(true);
 			break;
 		}
 		case KEY_ALTLEFT:   case KEY_ALT|KEY_NUMPAD4:  case KEY_MSWHEEL_LEFT:
@@ -1304,23 +1293,35 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 		case KEY_ALTRIGHT:  case KEY_ALT|KEY_NUMPAD6:  case KEY_MSWHEEL_RIGHT:
 		case KEY_RALTRIGHT: case KEY_RALT|KEY_NUMPAD6:
 		{
-			bool NeedRedraw=false;
-
-			for (const auto& I: irange(Items.size()))
-				if (ShiftItemShowPos(static_cast<int>(I), any_of(LocalKey, KEY_ALTLEFT, KEY_RALTLEFT, KEY_ALT | KEY_NUMPAD4, KEY_RALT | KEY_NUMPAD4, KEY_MSWHEEL_LEFT)? -1 : 1))
-					NeedRedraw=true;
-
-			if (NeedRedraw)
+			if (ShiftAllItemsShowPos(any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4, KEY_MSWHEEL_LEFT)? -1 : 1))
 				ShowMenu(true);
 
 			break;
 		}
-		case KEY_ALTSHIFTLEFT:      case KEY_ALT|KEY_SHIFT|KEY_NUMPAD4:
-		case KEY_RALTSHIFTLEFT:     case KEY_RALT|KEY_SHIFT|KEY_NUMPAD4:
-		case KEY_ALTSHIFTRIGHT:     case KEY_ALT|KEY_SHIFT|KEY_NUMPAD6:
-		case KEY_RALTSHIFTRIGHT:    case KEY_RALT|KEY_SHIFT|KEY_NUMPAD6:
+		case KEY_CTRLALTLEFT:   case KEY_CTRLALTNUMPAD4:  case KEY_CTRL|KEY_MSWHEEL_LEFT:
+		case KEY_CTRLRALTLEFT:  case KEY_CTRLRALTNUMPAD4:
+		case KEY_CTRLALTRIGHT:  case KEY_CTRLALTNUMPAD6:  case KEY_CTRL|KEY_MSWHEEL_RIGHT:
+		case KEY_CTRLRALTRIGHT: case KEY_CTRLRALTNUMPAD6:
 		{
-			if (ShiftItemShowPos(SelectPos, any_of(LocalKey, KEY_ALTSHIFTLEFT, KEY_RALTSHIFTLEFT, KEY_ALT | KEY_SHIFT | KEY_NUMPAD4, KEY_RALT | KEY_SHIFT | KEY_NUMPAD4)? -1 : 1))
+			if (ShiftAllItemsShowPos(any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4, KEY_MSWHEEL_LEFT)? -20 : 20))
+				ShowMenu(true);
+
+			break;
+		}
+		case KEY_ALTSHIFTLEFT:      case KEY_ALTSHIFTNUMPAD4:
+		case KEY_RALTSHIFTLEFT:     case KEY_RALTSHIFTNUMPAD4:
+		case KEY_ALTSHIFTRIGHT:     case KEY_ALTSHIFTNUMPAD6:
+		case KEY_RALTSHIFTRIGHT:    case KEY_RALTSHIFTNUMPAD6:
+		{
+			if (ShiftItemShowPos(SelectPos, any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4)? -1 : 1))
+				ShowMenu(true);
+
+			break;
+		}
+		case KEY_CTRLSHIFTLEFT:     case KEY_CTRLSHIFTNUMPAD4:
+		case KEY_CTRLSHIFTRIGHT:    case KEY_CTRLSHIFTNUMPAD6:
+		{
+			if (ShiftItemShowPos(SelectPos, any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4)? -20 : 20))
 				ShowMenu(true);
 
 			break;
@@ -1500,8 +1501,35 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 	return true;
 }
 
+bool VMenu::ClickHandler(window* Menu, int const MenuClick)
+{
+	switch (MenuClick)
+	{
+	case VMENUCLICK_APPLY:
+		return Menu->ProcessKey(Manager::Key(KEY_ENTER));
+
+	case VMENUCLICK_CANCEL:
+		return Menu->ProcessKey(Manager::Key(KEY_ESC));
+
+	case VMENUCLICK_IGNORE:
+	default:
+		return true;
+	}
+}
+
 bool VMenu::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 {
+	if (IsMouseButtonEvent(MouseEvent->dwEventFlags) && MouseEvent->dwButtonState && !m_Where.contains(MouseEvent->dwMousePosition))
+	{
+		const auto NewButtonState = MouseEvent->dwButtonState & ~IntKeyState.PrevMouseButtonState;
+		if (NewButtonState & FROM_LEFT_1ST_BUTTON_PRESSED)
+			return ClickHandler(this, Global->Opt->VMenu.LBtnClick);
+		else if (NewButtonState & FROM_LEFT_2ND_BUTTON_PRESSED)
+			return ClickHandler(this, Global->Opt->VMenu.MBtnClick);
+		else if (NewButtonState & RIGHTMOST_BUTTON_PRESSED)
+			return ClickHandler(this, Global->Opt->VMenu.RBtnClick);
+	}
+
 	const auto Parent = GetDialog();
 	if (IsComboBox() && !Parent->GetDropDownOpened())
 	{
@@ -1521,7 +1549,7 @@ bool VMenu::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 
 	if (!GetShowItemCount())
 	{
-		if (MouseEvent->dwButtonState && !MouseEvent->dwEventFlags)
+		if (MouseEvent->dwButtonState && IsMouseButtonEvent(MouseEvent->dwEventFlags))
 			SetExitCode(-1);
 		return false;
 	}
@@ -1530,10 +1558,10 @@ bool VMenu::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 	const int MsY = MouseEvent->dwMousePosition.Y;
 
 	// необходимо знать, что RBtn был нажат ПОСЛЕ появления VMenu, а не до
-	if (MouseEvent->dwButtonState&RIGHTMOST_BUTTON_PRESSED && MouseEvent->dwEventFlags==0)
+	if ((MouseEvent->dwButtonState & RIGHTMOST_BUTTON_PRESSED) && IsMouseButtonEvent(MouseEvent->dwEventFlags))
 		bRightBtnPressed=true;
 
-	if (MouseEvent->dwButtonState&FROM_LEFT_2ND_BUTTON_PRESSED && MouseEvent->dwEventFlags!=MOUSE_MOVED)
+	if ((MouseEvent->dwButtonState & FROM_LEFT_2ND_BUTTON_PRESSED) && IsMouseButtonEvent(MouseEvent->dwEventFlags))
 	{
 		if (
 			m_BoxType == NO_BOX?
@@ -1684,7 +1712,7 @@ bool VMenu::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 
 		if (MsPos>=0 && MsPos<static_cast<int>(Items.size()) && ItemCanHaveFocus(Items[MsPos]))
 		{
-			if (IntKeyState.MousePos.x != IntKeyState.MousePrevPos.x || IntKeyState.MousePos.y != IntKeyState.MousePrevPos.y || !MouseEvent->dwEventFlags)
+			if (IntKeyState.MousePos.x != IntKeyState.MousePrevPos.x || IntKeyState.MousePos.y != IntKeyState.MousePrevPos.y || IsMouseButtonEvent(MouseEvent->dwEventFlags))
 			{
 				/* TODO:
 
@@ -1710,41 +1738,15 @@ bool VMenu::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 
 			/* $ 13.10.2001 VVM
 			  + Запомнить нажатие клавиши мышки и только в этом случае реагировать при отпускании */
-			if (!MouseEvent->dwEventFlags && (MouseEvent->dwButtonState & (FROM_LEFT_1ST_BUTTON_PRESSED|RIGHTMOST_BUTTON_PRESSED)))
+			if (IsMouseButtonEvent(MouseEvent->dwEventFlags) && (MouseEvent->dwButtonState & (FROM_LEFT_1ST_BUTTON_PRESSED|RIGHTMOST_BUTTON_PRESSED)))
 				SetMenuFlags(VMENU_MOUSEDOWN);
 
-			if (!MouseEvent->dwEventFlags && !(MouseEvent->dwButtonState & (FROM_LEFT_1ST_BUTTON_PRESSED|RIGHTMOST_BUTTON_PRESSED)) && CheckFlags(VMENU_MOUSEDOWN))
+			if (IsMouseButtonEvent(MouseEvent->dwEventFlags) && !(MouseEvent->dwButtonState & (FROM_LEFT_1ST_BUTTON_PRESSED|RIGHTMOST_BUTTON_PRESSED)) && CheckFlags(VMENU_MOUSEDOWN))
 			{
 				ClearFlags(VMENU_MOUSEDOWN);
 				ProcessKey(Manager::Key(KEY_ENTER));
 			}
 		}
-
-		return true;
-	}
-	else if (m_BoxType!=NO_BOX && (MouseEvent->dwButtonState & 3) && !MouseEvent->dwEventFlags)
-	{
-		const auto ClickOpt = (MouseEvent->dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) ? Global->Opt->VMenu.LBtnClick : Global->Opt->VMenu.RBtnClick;
-		if (ClickOpt==VMENUCLICK_CANCEL)
-			ProcessKey(Manager::Key(KEY_ESC));
-
-		return true;
-	}
-	else if (m_BoxType!=NO_BOX && !(MouseEvent->dwButtonState&FROM_LEFT_1ST_BUTTON_PRESSED) && (IntKeyState.PrevMouseButtonState&FROM_LEFT_1ST_BUTTON_PRESSED) && !MouseEvent->dwEventFlags && (Global->Opt->VMenu.LBtnClick==VMENUCLICK_APPLY))
-	{
-		ProcessKey(Manager::Key(KEY_ENTER));
-
-		return true;
-	}
-	else if (m_BoxType!=NO_BOX && !(MouseEvent->dwButtonState&FROM_LEFT_2ND_BUTTON_PRESSED) && (IntKeyState.PrevMouseButtonState&FROM_LEFT_2ND_BUTTON_PRESSED) && !MouseEvent->dwEventFlags && (Global->Opt->VMenu.MBtnClick==VMENUCLICK_APPLY))
-	{
-		ProcessKey(Manager::Key(KEY_ENTER));
-
-		return true;
-	}
-	else if (m_BoxType!=NO_BOX && bRightBtnPressed && !(MouseEvent->dwButtonState&RIGHTMOST_BUTTON_PRESSED) && (IntKeyState.PrevMouseButtonState&RIGHTMOST_BUTTON_PRESSED) && !MouseEvent->dwEventFlags && (Global->Opt->VMenu.RBtnClick==VMENUCLICK_APPLY))
-	{
-		ProcessKey(Manager::Key(KEY_ENTER));
 
 		return true;
 	}
@@ -1781,36 +1783,75 @@ int VMenu::VisualPosToReal(int VPos) const
 	return ItemIterator != Items.cend()? ItemIterator - Items.cbegin() : -1;
 }
 
-bool VMenu::ShiftItemShowPos(int Pos, int Direct)
+size_t VMenu::GetItemMaxShowPos(int Item)
 {
-	auto ItemShowPos = Items[Pos].ShowPos;
+	const auto Len{ VMFlags.Check(VMENU_SHOWAMPERSAND)? visual_string_length(Items[Item].Name) : HiStrlen(Items[Item].Name) };
+	if (Len <= MaxLineWidth)
+		return 0;
+	return Len - MaxLineWidth;
+}
 
-	const auto Len = VMFlags.Check(VMENU_SHOWAMPERSAND)? visual_string_length(Items[Pos].Name) : HiStrlen(Items[Pos].Name);
+bool VMenu::SetItemShowPos(int Item, int NewShowPos)
+{
+	const auto MaxShowPos{ GetItemMaxShowPos(Item) };
+	auto OldShowPos{ Items[Item].ShowPos };
 
-	if (Len < MaxLineWidth || (Direct < 0 && !ItemShowPos) || (Direct > 0 && ItemShowPos > Len))
-		return false;
-
-	if (Direct < 0)
+	if (NewShowPos >= 0)
 	{
-		if (ItemShowPos)
-			--ItemShowPos;
+		Items[Item].ShowPos = std::min(static_cast<size_t>(NewShowPos), MaxShowPos);
 	}
 	else
 	{
-		++ItemShowPos;
+		Items[Item].ShowPos = MaxShowPos - std::min(static_cast<size_t>(-(NewShowPos + 1)), MaxShowPos);
 	}
 
-	if (ItemShowPos + MaxLineWidth > Len)
-		ItemShowPos = Len - MaxLineWidth;
+	if (Items[Item].ShowPos == OldShowPos)
+		return false;
 
-	if (ItemShowPos != Items[Pos].ShowPos)
+	VMFlags.Set(VMENU_UPDATEREQUIRED);
+	return true;
+}
+
+bool VMenu::ShiftItemShowPos(int Item, int Shift)
+{
+	const auto MaxShowPos{ GetItemMaxShowPos(Item) };
+	auto ItemShowPos{ std::min(Items[Item].ShowPos, MaxShowPos) }; // Just in case
+
+	if (Shift >= 0)
 	{
-		Items[Pos].ShowPos = ItemShowPos;
-		VMFlags.Set(VMENU_UPDATEREQUIRED);
-		return true;
+		ItemShowPos += std::min(static_cast<size_t>(Shift), MaxShowPos - ItemShowPos);
+	}
+	else
+	{
+		ItemShowPos -= std::min(static_cast<size_t>(-Shift), ItemShowPos);
 	}
 
-	return false;
+	if (ItemShowPos == Items[Item].ShowPos)
+		return false;
+
+	Items[Item].ShowPos = ItemShowPos;
+	VMFlags.Set(VMENU_UPDATEREQUIRED);
+	return true;
+}
+
+bool VMenu::SetAllItemsShowPos(int NewShowPos)
+{
+	bool NeedRedraw = false;
+
+	for (const auto& I : irange(Items.size()))
+		NeedRedraw |= SetItemShowPos(static_cast<int>(I), NewShowPos);
+
+	return NeedRedraw;
+}
+
+bool VMenu::ShiftAllItemsShowPos(int Shift)
+{
+	bool NeedRedraw = false;
+
+	for (const auto& I : irange(Items.size()))
+		NeedRedraw |= ShiftItemShowPos(static_cast<int>(I), Shift);
+
+	return NeedRedraw;
 }
 
 void VMenu::Show()
@@ -1928,7 +1969,7 @@ void VMenu::DisplayObject()
 		ClearFlags(VMENU_REFILTERREQUIRED);
 	}
 
-	SetCursorType(false, 10);
+	HideCursor();
 
 	if (!CheckFlags(VMENU_LISTBOX) && !SaveScr)
 	{

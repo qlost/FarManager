@@ -144,7 +144,7 @@ string ConvertTemplateTreeName(string_view const strTemplate, string_view const 
 	string Str(strTemplate);
 
 	replace(Str, L"%D"sv, D);
-	replace(Str, L"%SN"sv, format(FSTR(L"{:04X}-{:04X}"sv), extract_integer<WORD, 1>(SN), extract_integer<WORD, 0>(SN)));
+	replace(Str, L"%SN"sv, far::format(L"{:04X}-{:04X}"sv, extract_integer<WORD, 1>(SN), extract_integer<WORD, 0>(SN)));
 	replace(Str, L"%L"sv, L);
 	replace(Str, L"%SR"sv, SR);
 	replace(Str, L"%SH"sv, SH);
@@ -319,7 +319,7 @@ static bool GetCacheTreeName(string_view const Root, string& strName, bool const
 	}
 
 	std::replace(ALL_RANGE(strRemoteName), path::separator, L'_');
-	strName = format(FSTR(L"{}\\{}.{:X}.{}.{}"sv), strFolderName, strVolumeName, dwVolumeSerialNumber, strFileSystemName, strRemoteName);
+	strName = far::format(L"{}\\{}.{:X}.{}.{}"sv, strFolderName, strVolumeName, dwVolumeSerialNumber, strFileSystemName, strRemoteName);
 	return true;
 }
 
@@ -645,7 +645,7 @@ public:
 		{
 			{ DI_DOUBLEBOX, {{ 3, 1 }, { DlgW - 4, DlgH - 2 }}, DIF_NONE,      msg(lng::MTreeTitle), },
 			{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE,      msg(lng::MReadingTree) },
-			{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_NONE,      {} },
+			{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_SHOWAMPERSAND, {} },
 		});
 
 		init(ProgressDlgItems, { -1, -1, DlgW, DlgH });
@@ -659,7 +659,7 @@ public:
 
 static auto OpenTreeFile(string_view const Name, bool const Writable)
 {
-	return os::fs::file(Name, Writable? FILE_WRITE_DATA : FILE_READ_DATA, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, Writable? OPEN_ALWAYS : OPEN_EXISTING);
+	return os::fs::file(Name, Writable? FILE_WRITE_DATA : FILE_READ_DATA, os::fs::file_share_read, nullptr, Writable? OPEN_ALWAYS : OPEN_EXISTING);
 }
 
 static bool MustBeCached(string_view const Root)
@@ -1212,21 +1212,21 @@ bool TreeList::ProcessKey(const Manager::Key& Key)
 		case(KEY_MSWHEEL_UP | KEY_ALT):
 		case(KEY_MSWHEEL_UP | KEY_RALT):
 		{
-			Scroll(LocalKey & (KEY_ALT | KEY_RALT)? -1 : static_cast<int>(-Global->Opt->MsWheelDelta));
+			Scroll(-static_cast<int>((LocalKey == KEY_MSWHEEL_UP? get_wheel_scroll_lines(Global->Opt->MsWheelDelta) : 1) * Key.NumberOfWheelEvents()));
 			return true;
 		}
 		case KEY_MSWHEEL_DOWN:
 		case(KEY_MSWHEEL_DOWN | KEY_ALT):
 		case(KEY_MSWHEEL_DOWN | KEY_RALT):
 		{
-			Scroll(LocalKey& (KEY_ALT | KEY_RALT)? 1 : static_cast<int>(Global->Opt->MsWheelDelta));
+			Scroll(static_cast<int>((LocalKey == KEY_MSWHEEL_DOWN? get_wheel_scroll_lines(Global->Opt->MsWheelDelta) : 1) * Key.NumberOfWheelEvents()));
 			return true;
 		}
 		case KEY_MSWHEEL_LEFT:
 		case(KEY_MSWHEEL_LEFT | KEY_ALT):
 		case(KEY_MSWHEEL_LEFT | KEY_RALT):
 		{
-			const auto Roll = LocalKey & (KEY_ALT | KEY_RALT)? 1 : static_cast<int>(Global->Opt->MsHWheelDelta);
+			const auto Roll = (LocalKey == KEY_MSWHEEL_LEFT? get_wheel_scroll_chars(Global->Opt->MsHWheelDelta) : 1) * Key.NumberOfWheelEvents();
 			repeat(Roll, [&]{ ProcessKey(Manager::Key(KEY_LEFT));});
 			return true;
 		}
@@ -1234,7 +1234,7 @@ bool TreeList::ProcessKey(const Manager::Key& Key)
 		case(KEY_MSWHEEL_RIGHT | KEY_ALT):
 		case(KEY_MSWHEEL_RIGHT | KEY_RALT):
 		{
-			const auto Roll = LocalKey & (KEY_ALT | KEY_RALT)? 1 : static_cast<int>(Global->Opt->MsHWheelDelta);
+			const auto Roll = (LocalKey == KEY_MSWHEEL_RIGHT? get_wheel_scroll_chars(Global->Opt->MsHWheelDelta) : 1) * Key.NumberOfWheelEvents();
 			repeat(Roll, [&]{ ProcessKey(Manager::Key(KEY_RIGHT));});
 			return true;
 		}
@@ -1583,11 +1583,11 @@ bool TreeList::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 		if (m_ListData.empty())
 			return true;
 
-		if (((MouseEvent->dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) &&
-		        MouseEvent->dwEventFlags==DOUBLE_CLICK) ||
-		        ((MouseEvent->dwButtonState & RIGHTMOST_BUTTON_PRESSED) &&
-		         !MouseEvent->dwEventFlags) ||
-		        (OldFile!=m_CurFile && Global->Opt->Tree.AutoChangeFolder && !m_ModalMode))
+		if (
+			((MouseEvent->dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && MouseEvent->dwEventFlags == DOUBLE_CLICK) ||
+			((MouseEvent->dwButtonState & RIGHTMOST_BUTTON_PRESSED) && IsMouseButtonEvent(MouseEvent->dwEventFlags)) ||
+			(OldFile!=m_CurFile && Global->Opt->Tree.AutoChangeFolder && !m_ModalMode)
+		)
 		{
 			const auto control = MouseEvent->dwControlKeyState & (SHIFT_PRESSED | LEFT_ALT_PRESSED | LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED | RIGHT_CTRL_PRESSED);
 
@@ -1688,7 +1688,10 @@ bool TreeList::ReadTreeFile()
 	{
 		ReadLines(TreeFile, [&](const string_view Name)
 		{
+WARNING_PUSH()
+WARNING_DISABLE_GCC("-Wmaybe-uninitialized") // Rubbish
 			m_ListData.emplace_back(string_view(m_Root).substr(0, RootLength) + Name);
+WARNING_POP()
 		});
 	}
 	catch (std::exception const& e)

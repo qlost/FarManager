@@ -94,9 +94,8 @@ struct DlgUserControl
 };
 
 //////////////////////////////////////////////////////////////////////////
-/*
-   Функция, определяющая - "Может ли элемент диалога иметь фокус ввода"
-*/
+// Функции, определяющие - "Может ли элемент диалога иметь фокус ввода"
+//
 static bool CanGetFocus(int Type)
 {
 	switch (Type)
@@ -115,6 +114,11 @@ static bool CanGetFocus(int Type)
 		default:
 			return false;
 	}
+}
+
+static bool CanGetFocus(int Type, FARDIALOGITEMFLAGS Flags)
+{
+	return CanGetFocus(Type) && !(Flags & (DIF_NOFOCUS | DIF_DISABLE | DIF_HIDDEN));
 }
 
 static bool IsEmulatedEditorLine(const DialogItemEx& Item)
@@ -686,9 +690,8 @@ void Dialog::InitDialogObjects(size_t ID)
 		}
 		// предварительный поиск фокуса
 		if (m_FocusPos == static_cast<size_t>(-1) &&
-		        CanGetFocus(Item.Type) &&
-		        (Item.Flags&DIF_FOCUS) &&
-		        !(Item.Flags&(DIF_DISABLE|DIF_NOFOCUS|DIF_HIDDEN)))
+		        CanGetFocus(Item.Type, Item.Flags) &&
+		        (Item.Flags&DIF_FOCUS))
 			m_FocusPos=I; // запомним первый фокусный элемент
 
 		Item.Flags&=~DIF_FOCUS; // сбросим для всех, чтобы не оказалось,
@@ -715,7 +718,7 @@ void Dialog::InitDialogObjects(size_t ID)
 	{
 		const auto ItemIterator = std::find_if(CONST_RANGE(Items, i)
 		{
-			return CanGetFocus(i.Type) && !(i.Flags&(DIF_DISABLE|DIF_NOFOCUS|DIF_HIDDEN));
+			return CanGetFocus(i.Type, i.Flags);
 		});
 		if (ItemIterator != Items.cend())
 		{
@@ -1272,7 +1275,7 @@ void Dialog::GetDialogObjectsExpandData()
 					EditPtr->SetString(strData);
 					EditPtr->SetCallbackState(true);
 
-					i.strData = strData;
+					i.strData = std::move(strData);
 				}
 
 				break;
@@ -1436,7 +1439,7 @@ intptr_t Dialog::CtlColorDlgItem(FarColor Color[4], size_t ItemPos, FARDIALOGITE
 		{
 			if (Focus)
 			{
-				SetCursorType(false, 10);
+				HideCursor();
 				// TEXT
 				Color[0] = colors::PaletteColorToFarColor(IsWarning? (DisabledItem?COL_WARNDIALOGDISABLED:(Default?COL_WARNDIALOGSELECTEDDEFAULTBUTTON:COL_WARNDIALOGSELECTEDBUTTON)) : (DisabledItem?COL_DIALOGDISABLED:(Default?COL_DIALOGSELECTEDDEFAULTBUTTON:COL_DIALOGSELECTEDBUTTON)));
 				// HiText
@@ -1955,7 +1958,7 @@ void Dialog::ShowDialog(size_t ID)
 				{
 					//   Отключение мигающего курсора при перемещении диалога
 					if (!IsMoving())
-						SetCursorType(true, -1);
+						ShowCursor();
 
 					MoveCursor({ m_Where.left + CX1 + 1, m_Where.top + CY1 });
 				}
@@ -2002,7 +2005,7 @@ void Dialog::ShowDialog(size_t ID)
 				{
 					//   Отключение мигающего курсора при перемещении диалога
 					if (!IsMoving())
-						SetCursorType(true, -1);
+						ShowCursor();
 
 					EditPtr->Show();
 				}
@@ -2013,7 +2016,7 @@ void Dialog::ShowDialog(size_t ID)
 
 				//   Отключение мигающего курсора при перемещении диалога
 				if (IsMoving())
-					SetCursorType(false, 0);
+					HideCursor();
 
 				if (ItemHasDropDownArrow(&Item))
 				{
@@ -2073,7 +2076,7 @@ void Dialog::ShowDialog(size_t ID)
 							SetCursorType(UCData->CursorVisible, UCData->CursorSize);
 						}
 						else
-							SetCursorType(false, -1);
+							HideCursor();
 					}
 				}
 
@@ -2659,7 +2662,7 @@ bool Dialog::ProcessKey(const Manager::Key& Key)
 				focus->SetString(strStr);
 				focus->SetCurPos(0);
 
-				for (const auto& Item: span(Items).subspan(m_FocusPos + 1, EditorLastPos - m_FocusPos))
+				for (const auto& Item: std::span(Items).subspan(m_FocusPos + 1, EditorLastPos - m_FocusPos))
 				{
 					const auto next = static_cast<DlgEdit*>(Item.ObjPtr);
 					strStr = next->GetString();
@@ -2756,6 +2759,7 @@ bool Dialog::ProcessKey(const Manager::Key& Key)
 			else
 			{
 				size_t MinDist=1000, Pos = 0, MinPos=0;
+				const auto IsLeft = any_of(LocalKey(), KEY_LEFT, KEY_NUMPAD4, KEY_MSWHEEL_LEFT);
 				for (const auto &i :Items)
 				{
 					if (Pos != m_FocusPos &&
@@ -2765,7 +2769,7 @@ bool Dialog::ProcessKey(const Manager::Key& Key)
 					{
 						const auto Dist = i.X1-Items[m_FocusPos].X1;
 
-						if ((any_of(LocalKey(), KEY_LEFT, KEY_SHIFTNUMPAD4) && Dist < 0) || (any_of(LocalKey(), KEY_RIGHT, KEY_SHIFTNUMPAD6) && Dist > 0))
+						if ((IsLeft && Dist < 0) || (!IsLeft && Dist > 0))
 						{
 							if (static_cast<size_t>(std::abs(Dist))<MinDist)
 							{
@@ -3149,7 +3153,7 @@ bool Dialog::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 		)
 		{
 			auto& List = Item.ListPtr;
-			if (!MouseRecord.dwEventFlags && !(MouseRecord.dwButtonState&FROM_LEFT_1ST_BUTTON_PRESSED) && (PrevMouseRecord.dwButtonState&FROM_LEFT_1ST_BUTTON_PRESSED))
+			if (IsMouseButtonEvent(MouseRecord.dwEventFlags) && !(MouseRecord.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && (PrevMouseRecord.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED))
 			{
 				if (PrevMouseRecord.dwMousePosition.X==MsX && PrevMouseRecord.dwMousePosition.Y==MsY)
 				{
@@ -3193,7 +3197,7 @@ bool Dialog::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 									CloseDialog();
 									return true;
 								}
-								if (!MouseRecord.dwEventFlags && (MouseRecord.dwButtonState&FROM_LEFT_1ST_BUTTON_PRESSED) && !(PrevMouseRecord.dwButtonState&FROM_LEFT_1ST_BUTTON_PRESSED))
+								if (IsMouseButtonEvent(MouseRecord.dwEventFlags) && (MouseRecord.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && !(PrevMouseRecord.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED))
 									PrevMouseRecord=MouseRecord;
 							}
 						}
@@ -3217,37 +3221,27 @@ bool Dialog::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 		}
 	}
 
-	if (!m_Where.contains(MouseRecord.dwMousePosition))
+	if (IsMouseButtonEvent(MouseEvent->dwEventFlags) && !m_Where.contains(MouseRecord.dwMousePosition))
 	{
-		if (DialogMode.Check(DMODE_CLICKOUTSIDE) && !DlgProc(DN_CONTROLINPUT,-1,&mouse))
+		if (!DlgProc(DN_CONTROLINPUT,-1,&mouse))
 		{
 			if (!DialogMode.Check(DMODE_SHOW))
 				return false;
 
-			if (!(mouse.Event.MouseEvent.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && (IntKeyState.PrevMouseButtonState&FROM_LEFT_1ST_BUTTON_PRESSED) && (Global->Opt->Dialogs.MouseButton&DMOUSEBUTTON_LEFT))
+			const auto NewButtonState = mouse.Event.MouseEvent.dwButtonState & ~IntKeyState.PrevMouseButtonState;
+			if ((NewButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && (Global->Opt->Dialogs.MouseButton & DMOUSEBUTTON_LEFT))
 				ProcessKey(Manager::Key(KEY_ESC));
-			else if (!(mouse.Event.MouseEvent.dwButtonState & RIGHTMOST_BUTTON_PRESSED) && (IntKeyState.PrevMouseButtonState&RIGHTMOST_BUTTON_PRESSED) && (Global->Opt->Dialogs.MouseButton&DMOUSEBUTTON_RIGHT))
+			else if ((NewButtonState & RIGHTMOST_BUTTON_PRESSED) && (Global->Opt->Dialogs.MouseButton & DMOUSEBUTTON_RIGHT))
 				ProcessKey(Manager::Key(KEY_ENTER));
 		}
-		else if (DialogMode.Check(DMODE_CLICKOUTSIDE))
-		{
-			DialogMode.Clear(DMODE_CLICKOUTSIDE);
-			return true;
-		}
-
-		if (mouse.Event.MouseEvent.dwButtonState)
-			DialogMode.Set(DMODE_CLICKOUTSIDE);
 
 		return true;
 	}
 
 	if (!mouse.Event.MouseEvent.dwButtonState)
-	{
-		DialogMode.Clear(DMODE_CLICKOUTSIDE);
 		return false;
-	}
 
-	if (!mouse.Event.MouseEvent.dwEventFlags || mouse.Event.MouseEvent.dwEventFlags==DOUBLE_CLICK)
+	if (IsMouseButtonEvent(mouse.Event.MouseEvent.dwEventFlags))
 	{
 		// первый цикл - все за исключением рамок.
 		//for (I=0; I < ItemCount;I++)
@@ -3594,10 +3588,17 @@ bool Dialog::Do_ProcessFirstCtrl()
 	}
 	else
 	{
-		const auto ItemIterator = std::find_if(CONST_RANGE(Items, i)
+		auto ItemIterator = std::find_if(CONST_RANGE(Items, i)
 		{
-			return CanGetFocus(i.Type);
+			return (i.Flags & DIF_HOMEITEM) && CanGetFocus(i.Type, i.Flags);
 		});
+		if (ItemIterator == Items.cend())
+		{
+			ItemIterator = std::find_if(CONST_RANGE(Items, i)
+			{
+				return CanGetFocus(i.Type, i.Flags);
+			});
+		}
 		if (ItemIterator != Items.cend())
 		{
 			ChangeFocus2(ItemIterator - Items.begin());
@@ -6067,6 +6068,10 @@ class dialogs_set: public singleton<dialogs_set>
 
 public:
 	std::unordered_set<Dialog*> Set;
+
+private:
+	dialogs_set() = default;
+	~dialogs_set() = default;
 };
 
 void Dialog::AddToList()
@@ -6102,4 +6107,28 @@ Dialog::suppress_redraw::suppress_redraw(Dialog* Dlg):
 Dialog::suppress_redraw::~suppress_redraw()
 {
 	m_Dlg->SendMessage(DM_ENABLEREDRAW, 1, nullptr);
+}
+
+string_view get_dialog_item_text(Dialog* const Dlg, int const Id)
+{
+	FarDialogItemData Item{ sizeof(Item) };
+	Dlg->SendMessage(DM_GETTEXT, Id, &Item);
+
+	return
+	{
+		reinterpret_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, Id, {})),
+		Item.PtrLength
+	};
+}
+
+void set_dialog_item_text(Dialog* const Dlg, int const Id, string_view const Text)
+{
+	FarDialogItemData Item
+	{
+		sizeof(Item),
+		Text.size(),
+		const_cast<wchar_t*>(Text.data())
+	};
+
+	Dlg->SendMessage(DM_SETTEXT, Id, &Item);
 }

@@ -56,20 +56,21 @@ public:
 	imports();
 
 private:
-#define DEFINE_MODULE(MODULE) const os::rtdl::module m_##MODULE{WIDE_SV(#MODULE)}
+#define MODULE(MODULE) m_##MODULE{WIDE_SV(#MODULE)}
 
-	DEFINE_MODULE(ntdll);
-	DEFINE_MODULE(kernel32);
-	DEFINE_MODULE(shell32);
-	DEFINE_MODULE(user32);
-	DEFINE_MODULE(virtdisk);
-	DEFINE_MODULE(rstrtmgr);
-	DEFINE_MODULE(netapi32);
-	DEFINE_MODULE(dbgeng);
-	DEFINE_MODULE(dbghelp);
-	DEFINE_MODULE(dwmapi);
+	const os::rtdl::module
+		MODULE(ntdll),
+		MODULE(kernel32),
+		MODULE(shell32),
+		MODULE(user32),
+		MODULE(virtdisk),
+		MODULE(rstrtmgr),
+		MODULE(netapi32),
+		MODULE(dbgeng),
+		MODULE(dbghelp),
+		MODULE(dwmapi);
 
-#undef DEFINE_MODULE
+#undef MODULE
 
 
 	template<const os::rtdl::module imports::* ModuleAccessor, auto Name, auto StubFunction>
@@ -117,6 +118,7 @@ public: \
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, void,  NTAPI, void,     RtlReleaseResource, PRTL_RESOURCE Res); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, void,  NTAPI, void,     RtlDeleteResource, PRTL_RESOURCE Res); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQueryInformationProcess, HANDLE ProcessHandle, PROCESSINFOCLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength); // NT4
+	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQueryInformationThread, HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass, PVOID ThreadInformation, ULONG ThreadInformationLength, PULONG ReturnLength); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQuerySystemInformation, SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, zero,  NTAPI, WORD,     RtlCaptureStackBackTrace, DWORD FramesToSkip, DWORD FramesToCapture, PVOID* BackTrace, PDWORD BackTraceHash); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, RtlGetVersion, PRTL_OSVERSIONINFOW VersionInformation); // 2k
@@ -153,6 +155,7 @@ public: \
 	DEFINE_IMPORT_FUNCTION(kernel32, le, void,    WINAPI,  void,    ReleaseSRWLockExclusive, PSRWLOCK SRWLock); // Vista
 	DEFINE_IMPORT_FUNCTION(kernel32, le, void,    WINAPI,  void,    ReleaseSRWLockShared, PSRWLOCK SRWLock); // Vista
 	DEFINE_IMPORT_FUNCTION(kernel32, le, zero,    WINAPI,  int,     CompareStringOrdinal, LPCWCH String1, int Count1, LPCWCH String2, int Count2, BOOL IgnoreCase); // Vista
+	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    GetProductInfo, DWORD OSMajorVersion, DWORD OSMinorVersion, DWORD SpMajorVersion, DWORD SpMinorVersion, PDWORD ReturnedProductType);
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    GetPhysicallyInstalledSystemMemory, PULONGLONG TotalMemoryInKilobytes); // Vista SP1
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOLEAN, TryAcquireSRWLockExclusive, PSRWLOCK SRWLock); // 7
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOLEAN, TryAcquireSRWLockShared, PSRWLOCK SRWLock); // 7
@@ -236,8 +239,7 @@ namespace imports_detail
 	{
 		static const auto Pointer = [&]
 		{
-			const auto& Module = std::invoke(ModuleAccessor, ::imports);
-			if (const auto DynamicPointer = reinterpret_cast<function_type>(get_pointer_impl(Module, Name)))
+			if (const auto DynamicPointer = reinterpret_cast<function_type>(get_pointer_impl(std::invoke(ModuleAccessor, ::imports), Name)))
 				return DynamicPointer;
 
 			return StubFunction;

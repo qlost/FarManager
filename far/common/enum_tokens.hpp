@@ -50,12 +50,6 @@ namespace detail
 		void postprocess(std::wstring_view&) noexcept {}
 	};
 
-	template<typename base_type, size_t index, template<typename> typename operation>
-	concept has_operation = requires
-	{
-		operation<std::tuple_element_t<index + 1, base_type>>();
-	};
-
 	template<typename... args>
 	class composite_overrider: public base<std::tuple<null_overrider, args...>>
 	{
@@ -88,8 +82,9 @@ namespace detail
 		[[nodiscard]]
 		auto& get_opt()
 		{
+			constexpr auto HasOperation = requires { operation<std::tuple_element_t<index + 1, base_type>>(); };
 			// This idiotic cast to std::tuple is for clang
-			return std::get<has_operation<base_type, index, operation>? index + 1 : 0>(static_cast<base_type&>(*this));
+			return std::get<HasOperation? index + 1 : 0>(static_cast<base_type&>(*this));
 		}
 
 		template<typename T>
@@ -240,17 +235,22 @@ public:
 
 private:
 	[[nodiscard]]
-	bool get(bool Reset, std::wstring_view& Value) const
+	bool get(bool const Reset, std::wstring_view& Value) const
 	{
 		if (Reset)
+		{
 			m_Iterator = m_View.cbegin();
-		else if (m_Iterator != m_View.cend())
-			++m_Iterator;
-
-		if (m_Iterator == m_View.cend())
+			m_Finished = false;
+		}
+		else if (m_Finished)
 			return false;
 
 		m_Iterator = policy::extract(m_Iterator, m_View.cend(), m_Separators, Value);
+
+		m_Finished = m_Iterator == m_View.cend();
+		if (!m_Finished)
+			++m_Iterator;
+
 		return true;
 	}
 
@@ -258,6 +258,7 @@ private:
 	std::wstring_view m_View;
 	std::wstring_view m_Separators;
 	mutable std::wstring_view::const_iterator m_Iterator{};
+	mutable bool m_Finished{};
 };
 
 using enum_tokens = enum_tokens_t<detail::simple_policy>;

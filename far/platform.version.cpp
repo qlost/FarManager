@@ -76,8 +76,8 @@ namespace os::version
 		if (!Translation)
 			return false;
 
-		m_BlockPath = format(
-			FSTR(L"\\StringFileInfo\\{:04X}{:04X}\\"sv),
+		m_BlockPath = far::format(
+			L"\\StringFileInfo\\{:04X}{:04X}\\"sv,
 			extract_integer<WORD, 0>(*Translation),
 			extract_integer<WORD, 1>(*Translation)
 		);
@@ -104,30 +104,37 @@ namespace os::version
 
 	bool is_win10_build_or_later(DWORD const Build)
 	{
-		static const auto Result = [&]
+		OSVERSIONINFOEXW osvi
 		{
-			OSVERSIONINFOEXW osvi
-			{
-				sizeof(osvi),
-				extract_integer<BYTE, 1>(_WIN32_WINNT_WIN10),
-				extract_integer<BYTE, 0>(_WIN32_WINNT_WIN10),
-				Build
-			};
+			sizeof(osvi),
+			extract_integer<BYTE, 1>(_WIN32_WINNT_WIN10),
+			extract_integer<BYTE, 0>(_WIN32_WINNT_WIN10),
+			Build
+		};
 
-			const auto ConditionMask = condition_mask<
-				VER_MAJORVERSION,
-				VER_MINORVERSION,
-				VER_BUILDNUMBER
-			>(VER_GREATER_EQUAL);
+		const auto ConditionMask = condition_mask<
+			VER_MAJORVERSION,
+			VER_MINORVERSION,
+			VER_BUILDNUMBER
+		>(VER_GREATER_EQUAL);
 
-			return VerifyVersionInfo(
-				&osvi,
-				VER_MAJORVERSION |
-				VER_MINORVERSION |
-				VER_BUILDNUMBER,
-				ConditionMask) != FALSE;
-		}();
+		return VerifyVersionInfo(
+			&osvi,
+			VER_MAJORVERSION |
+			VER_MINORVERSION |
+			VER_BUILDNUMBER,
+			ConditionMask) != FALSE;
+	}
 
+	bool is_win10_1607_or_later()
+	{
+		static const auto Result = is_win10_build_or_later(14393);
+		return Result;
+	}
+
+	bool is_win10_1703_or_later()
+	{
+		static const auto Result = is_win10_build_or_later(15063);
 		return Result;
 	}
 
@@ -135,16 +142,16 @@ namespace os::version
 	{
 		file_version Version;
 		if (!Version.read(Name))
-			return L"Unknown"s;
+			return last_error().Win32ErrorStr();
 
 		if (const auto Str = Version.get_string(L"FileVersion"sv))
 			return Str;
 
 		const auto FixedInfo = Version.get_fixed_info();
 		if (!FixedInfo)
-			return L"Unknown"s;
+			return last_error().Win32ErrorStr();
 
-		return format(FSTR(L"{}.{}.{}.{}"sv),
+		return far::format(L"{}.{}.{}.{}"sv,
 			extract_integer<WORD, 1>(FixedInfo->dwFileVersionMS),
 			extract_integer<WORD, 0>(FixedInfo->dwFileVersionMS),
 			extract_integer<WORD, 1>(FixedInfo->dwFileVersionLS),
@@ -173,7 +180,7 @@ WARNING_POP()
 		case VER_PLATFORM_WIN32_NT:
 			return L"Windows NT"s;
 		default:
-			return format(FSTR(L"Unknown ({})"sv), PlatformId);
+			return far::format(L"Unknown ({})"sv, PlatformId);
 		}
 	}
 
@@ -188,17 +195,17 @@ WARNING_POP()
 		case VER_NT_SERVER:
 			return L"Server"s;
 		default:
-			return format(FSTR(L"Unknown ({})"sv), ProductType);
+			return far::format(L"Unknown ({})"sv, ProductType);
 		}
 	}
 
 	static auto windows_service_pack(OSVERSIONINFOEX const& Info)
 	{
 		if (*Info.szCSDVersion)
-			return format(FSTR(L" {} ({}.{})"sv), Info.szCSDVersion, Info.wServicePackMajor, Info.wServicePackMinor);
+			return far::format(L" {} ({}.{})"sv, Info.szCSDVersion, Info.wServicePackMajor, Info.wServicePackMinor);
 
 		if (Info.wServicePackMajor)
-			return format(FSTR(L" {}.{}"sv), Info.wServicePackMajor, Info.wServicePackMinor);
+			return far::format(L" {}.{}"sv, Info.wServicePackMajor, Info.wServicePackMinor);
 
 		return L""s;
 	}
@@ -207,16 +214,21 @@ WARNING_POP()
 	{
 		OSVERSIONINFOEX Info{ sizeof(Info) };
 		if (!get_os_version(Info))
-			return L"Unknown"s;
+			return last_error().Win32ErrorStr();
 
-		return format(FSTR(L"{} {} {}.{}.{}{}, 0x{:X}"sv),
+		DWORD ProductType;
+		if (!imports.GetProductInfo || !imports.GetProductInfo(-1, -1, -1, -1, &ProductType))
+			ProductType = 0;
+
+		return far::format(L"{} {} {}.{}.{}{}, 0x{:X}/0x{:X}"sv,
 			windows_platform(Info.dwPlatformId),
 			windows_product_type(Info.wProductType),
 			Info.dwMajorVersion,
 			Info.dwMinorVersion,
 			Info.dwBuildNumber,
 			windows_service_pack(Info),
-			Info.wSuiteMask
+			Info.wSuiteMask,
+			ProductType
 		);
 	}
 
@@ -246,7 +258,7 @@ WARNING_POP()
 		)
 			return {};
 
-		return format(FSTR(L" ({}, version {}, OS build {}.{})"sv), ProductName, DisplayVersion, CurrentBuild, UBR);
+		return far::format(L" ({}, version {}, OS build {}.{})"sv, ProductName, DisplayVersion, CurrentBuild, UBR);
 	}
 
 	string os_version()

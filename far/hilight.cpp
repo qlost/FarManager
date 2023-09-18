@@ -238,7 +238,7 @@ static FileFilterParams LoadHighlight(/*const*/ HierarchicalConfig& cfg, const H
 	auto MarkRead = false;
 	if (string Mark; cfg.GetValue(key, names::Mark, Mark))
 	{
-		Colors.Mark.Mark = Mark;
+		Colors.Mark.Mark = std::move(Mark);
 		MarkRead = true;
 	}
 
@@ -541,7 +541,6 @@ void HighlightDlgUpdateUserControl(matrix_view<FAR_CHAR_INFO> const& VBufColorEx
 {
 	const size_t ColorIndices[]{ highlight::color::normal, highlight::color::selected, highlight::color::normal_current, highlight::color::selected_current };
 
-	int VBufRow = 0;
 	for (const auto& [ColorRef, Index, Row]: zip(Colors.Color, ColorIndices, VBufColorExample))
 	{
 		auto BakedColor = ColorRef;
@@ -567,8 +566,6 @@ void HighlightDlgUpdateUserControl(matrix_view<FAR_CHAR_INFO> const& VBufColorEx
 		}
 
 		Row.back() = { BoxSymbols[BS_V1], Row.front().Attributes };
-
-		++VBufRow;
 	}
 }
 

@@ -441,12 +441,14 @@ static bool MacroPluginOp(int OpCode, const FarMacroValue& Param, MacroPluginRet
 	FarMacroValue values[]{ static_cast<double> (OpCode), Param };
 	FarMacroCall fmc{ sizeof(fmc), 2, values };
 	OpenMacroPluginInfo info{ MCT_KEYMACRO, &fmc };
-	if (CallMacroPlugin(&info))
-	{
-		if (Ret) *Ret=info.Ret;
-		return true;
-	}
-	return false;
+
+	if (!CallMacroPlugin(&info))
+		return false;
+
+	if (Ret)
+		*Ret=info.Ret;
+
+	return true;
 }
 
 int KeyMacro::GetExecutingState()
@@ -818,7 +820,7 @@ int KeyMacro::GetKey()
 				if (!mpr.Count || mpr.Values[0].Type != FMVT_STRING)
 					break;
 
-				const auto Uuid = uuid::try_parse(string_view(mpr.Values[0].String));
+				const auto Uuid = uuid::try_parse(mpr.Values[0].String);
 				if (!Uuid)
 					break;
 
@@ -831,7 +833,7 @@ int KeyMacro::GetKey()
 				UUID MenuUuid;
 				if (*Arg && (mpr.ReturnType==MPRT_PLUGINMENU || mpr.ReturnType==MPRT_PLUGINCONFIG))
 				{
-					if (const auto MenuUuidOpt = uuid::try_parse(string_view(Arg)))
+					if (const auto MenuUuidOpt = uuid::try_parse(Arg))
 					{
 						MenuUuid = *MenuUuidOpt;
 						cpInfo.ItemUuid = &MenuUuid;
@@ -1246,7 +1248,7 @@ bool KeyMacro::GetMacroSettings(int Key, unsigned long long& Flags, string_view 
 	MacroSettingsDlg[MS_CHECKBOX_CMDLINE].Selected = 2;
 	MacroSettingsDlg[MS_CHECKBOX_SELBLOCK].Selected = 2;
 
-	MacroSettingsDlg[MS_DOUBLEBOX].strData = format(msg(lng::MMacroSettingsTitle), KeyToText(Key));
+	MacroSettingsDlg[MS_DOUBLEBOX].strData = far::vformat(msg(lng::MMacroSettingsTitle), KeyToText(Key));
 	//if(!(Key&0x7F000000))
 	//MacroSettingsDlg[3].Flags|=DIF_DISABLE;
 	MacroSettingsDlg[MS_CHECKBOX_OUPUT].Selected=Flags&MFLAGS_ENABLEOUTPUT?1:0;
@@ -1405,7 +1407,7 @@ public:
 	void PassValue(const string& str) const;
 	void PassValue(const TVar& Var) const;
 
-	template<typename T> requires std::is_integral_v<T> || std::is_enum_v<T>
+	template<typename T> requires std::integral<T> || std::is_enum_v<T>
 	void PassValue(T const Value) const
 	{
 		return PassValue(static_cast<long long>(Value));
@@ -1713,7 +1715,7 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 	case MCODE_C_EOF:
 		{
 			if (!CurrentWindow)
-				api.PassBoolean(true);
+				return api.PassBoolean(true);
 
 			if (
 				none_of(m_Area, MACROAREA_USERMENU, MACROAREA_MAINMENU, MACROAREA_MENU) &&
@@ -2188,7 +2190,7 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 
 			const auto SyncCall = Data->Values[0].Boolean == 0;
 			const auto SysID = Data->Values[1].String;
-			const auto Uuid = uuid::try_parse(string_view(SysID));
+			const auto Uuid = uuid::try_parse(SysID);
 
 			if (!Uuid || !Global->CtrlObject->Plugins->FindPlugin(*Uuid))
 				return api.PassBoolean(false);
@@ -3113,7 +3115,7 @@ void FarMacroApi::menushowFunc() const
 		if (bAutoNumbering && !(bSorting || bPacking) && !(NewItem.Flags & LIF_SEPARATOR))
 		{
 			LineCount++;
-			NewItem.Name = format(FSTR(L"{:{}} - {}"sv), LineCount, nLeftShift - 3, NewItem.Name);
+			NewItem.Name = far::format(L"{:{}} - {}"sv, LineCount, nLeftShift - 3, NewItem.Name);
 		}
 		Menu->AddItem(NewItem);
 		CurrentPos=PosLF+1;
@@ -3148,7 +3150,7 @@ void FarMacroApi::menushowFunc() const
 			if (!(Item.Flags & LIF_SEPARATOR))
 			{
 				LineCount++;
-				Item.Name = format(FSTR(L"{:{}} - {}"sv), LineCount, nLeftShift - 3, Item.Name);
+				Item.Name = far::format(L"{:{}} - {}"sv, LineCount, nLeftShift - 3, Item.Name);
 			}
 		}
 	}
@@ -3498,11 +3500,11 @@ void FarMacroApi::dlgsetfocusFunc() const
 	const auto Index = static_cast<unsigned>(Params[0].asInteger()) - 1;
 
 	if (Global->CtrlObject->Macro.GetArea() != MACROAREA_DIALOG)
-		PassValue(-1);
+		return PassValue(-1);
 
 	const auto Dlg = std::dynamic_pointer_cast<Dialog>(Global->WindowManager->GetCurrentWindow());
 	if (!Dlg)
-		PassValue(-1);
+		return PassValue(-1);
 
 	auto Ret = Dlg->VMProcess(MCODE_V_DLGCURPOS);
 	if (static_cast<int>(Index) >= 0)
@@ -3912,7 +3914,6 @@ void FarMacroApi::editorsetFunc() const
 		ShowScrollBar           = 15,
 		EditOpenedForWrite      = 16,
 		SearchSelFound          = 17,
-		SearchRegexp            = 18,
 		ShowWhiteSpace          = 20,
 	};
 
@@ -3998,10 +3999,6 @@ void FarMacroApi::editorsetFunc() const
 		Ret = EdOpt.SearchSelFound;
 		break;
 
-	case editor_options::SearchRegexp:
-		Ret = EdOpt.SearchRegexp;
-		break;
-
 	case editor_options::ShowWhiteSpace:
 		Ret = EdOpt.ShowWhiteSpace;
 		break;
@@ -4079,10 +4076,6 @@ void FarMacroApi::editorsetFunc() const
 
 	case editor_options::SearchSelFound:
 		EdOpt.SearchSelFound = longState != 0;
-		break;
-
-	case editor_options::SearchRegexp:
-		EdOpt.SearchRegexp = longState != 0;
 		break;
 
 	case editor_options::ShowWhiteSpace:
@@ -4821,7 +4814,7 @@ void FarMacroApi::pluginexistFunc() const
 	if (!mData->Count || mData->Values[0].Type != FMVT_STRING)
 		return PassBoolean(false);
 
-	const auto Uuid = uuid::try_parse(string_view(mData->Values[0].String));
+	const auto Uuid = uuid::try_parse(mData->Values[0].String);
 	PassBoolean(Uuid && Global->CtrlObject->Plugins->FindPlugin(*Uuid) != nullptr);
 }
 
@@ -5008,7 +5001,7 @@ M1:
 					MessageTemplate = SetChange? lng::MMacroDeleteKey : lng::MMacroReDefinedKey;
 					//"Макроклавиша '{0}'   будет удалена : уже определена."
 				}
-				const auto strBuf = format(msg(MessageTemplate), strKeyText);
+				const auto strBuf = far::vformat(msg(MessageTemplate), strKeyText);
 
 				const std::array ChangeButtons{ lng::MYes, lng::MMacroEditKey, lng::MNo };
 				const std::array NoChangeButtons{ lng::MYes, lng::MNo };

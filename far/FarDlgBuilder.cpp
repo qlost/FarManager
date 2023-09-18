@@ -185,7 +185,7 @@ template<typename int_type>
 class CheckBoxIntBinding final: public DialogItemBinding
 {
 public:
-	explicit CheckBoxIntBinding(int_type& Value, int Mask):
+	explicit CheckBoxIntBinding(int_type& Value, unsigned Mask):
 		m_Value(Value),
 		m_Mask(Mask)
 	{
@@ -353,14 +353,14 @@ DialogItemEx& DialogBuilder::AddText(lng_string const Text)
 	return Item;
 }
 
-DialogItemEx& DialogBuilder::AddCheckbox(lng_string const Text, int& Value, int Mask, bool ThreeState)
+DialogItemEx& DialogBuilder::AddCheckbox(lng_string const Text, int& Value, unsigned Mask, bool ThreeState)
 {
 	auto& Item = AddCheckboxImpl(Text, Value, Mask, ThreeState);
 	SetLastItemBinding(std::make_unique<CheckBoxIntBinding<int>>(Value, Mask));
 	return Item;
 }
 
-DialogItemEx& DialogBuilder::AddCheckbox(lng_string const Text, IntOption& Value, int Mask, bool ThreeState)
+DialogItemEx& DialogBuilder::AddCheckbox(lng_string const Text, IntOption& Value, unsigned Mask, bool ThreeState)
 {
 	auto& Item = AddCheckboxImpl(Text, Value, Mask, ThreeState);
 	SetLastItemBinding(std::make_unique<CheckBoxIntBinding<IntOption>>(Value, Mask));
@@ -436,7 +436,7 @@ DialogItemEx& DialogBuilder::AddIntEditField(IntOption& Value, int Width)
 DialogItemEx& DialogBuilder::AddHexEditField(IntOption& Value, int Width)
 {
 	auto& Item = AddDialogItem(DI_FIXEDIT, L"");
-	Item.strData = format(FSTR(L"{:016X}"sv), as_unsigned(Value.Get()));
+	Item.strData = far::format(L"{:016X}"sv, as_unsigned(Value.Get()));
 	SetNextY(Item);
 	Item.X2 = Item.X1 + Width - 1;
 
@@ -450,7 +450,7 @@ DialogItemEx& DialogBuilder::AddHexEditField(IntOption& Value, int Width)
 DialogItemEx& DialogBuilder::AddBinaryEditField(IntOption& Value, int Width)
 {
 	auto& Item = AddDialogItem(DI_FIXEDIT, L"");
-	Item.strData = format(FSTR(L"{0:064b}"), as_unsigned(Value.Get()));
+	Item.strData = far::format(L"{0:064b}", as_unsigned(Value.Get()));
 	SetNextY(Item);
 	Item.X2 = Item.X1 + Width - 1;
 
@@ -941,7 +941,7 @@ intptr_t DialogBuilder::DoShowDialog()
 }
 
 template<typename value_type>
-DialogItemEx& DialogBuilder::AddCheckboxImpl(lng_string const Text, value_type& Value, int Mask, bool ThreeState)
+DialogItemEx& DialogBuilder::AddCheckboxImpl(lng_string const Text, value_type& Value, unsigned Mask, bool ThreeState)
 {
 	auto& Item = AddDialogItem(DI_CHECKBOX, Text.c_str());
 	if (ThreeState && !Mask)

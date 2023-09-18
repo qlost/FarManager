@@ -285,7 +285,9 @@ static PropInfo c_prop_info[] =
   { kpidUserId, MSG_KPID_USER_ID, nullptr },
   { kpidGroupId, MSG_KPID_GROUP_ID, nullptr },
   { kpidDeviceMajor, MSG_KPID_DEVICE_MAJOR, nullptr },
-  { kpidDeviceMinor, MSG_KPID_DEVICE_MINOR, nullptr }
+  { kpidDeviceMinor, MSG_KPID_DEVICE_MINOR, nullptr },
+  { kpidDevMajor, MSG_KPID_DEV_MAJOR, nullptr },
+  { kpidDevMinor, MSG_KPID_DEV_MINOR, nullptr }
 };
 
 static const PropInfo* find_prop_info(PROPID prop_id) {
@@ -414,7 +416,7 @@ void Archive::load_arc_attr() {
   if (total_size_defined) {
     attr.name = Far::get_msg(MSG_PROPERTY_COMPRESSION_RATIO);
     auto arc_size = archive_filesize();
-    unsigned ratio = total_size ? al_round(static_cast<double>(arc_size) / total_size * 100) : 100;
+    unsigned ratio = total_size ? al_round(static_cast<double>(arc_size) / static_cast<double>(total_size) * 100.0) : 100;
     if (ratio > 100)
       ratio = 100;
     attr.value = int_to_str(ratio) + L'%';

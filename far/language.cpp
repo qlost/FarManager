@@ -80,7 +80,7 @@ std::tuple<os::fs::file, string, uintptr_t> OpenLangFile(string_view const Path,
 
 		auto& [CurrentFile, CurrentLngName, CurrentCodepage] = CurrentFileData;
 
-		CurrentFile = os::fs::file(CurrentFileName, FILE_READ_DATA, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
+		CurrentFile = os::fs::file(CurrentFileName, FILE_READ_DATA, os::fs::file_share_read, nullptr, OPEN_EXISTING);
 		if (!CurrentFile)
 			continue;
 
@@ -157,7 +157,7 @@ static bool SelectLanguage(bool HelpLanguage, string& Dest)
 		if (!os::fs::is_file(FindData))
 			continue;
 
-		const os::fs::file LangFile(path::join(Global->g_strFarPath, FindData.FileName), FILE_READ_DATA, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
+		const os::fs::file LangFile(path::join(Global->g_strFarPath, FindData.FileName), FILE_READ_DATA, os::fs::file_share_read, nullptr, OPEN_EXISTING);
 		if (!LangFile)
 			continue;
 
@@ -320,7 +320,7 @@ private:
 
 static void LoadCustomStrings(string_view const FileName, unordered_string_map<string>& Strings)
 {
-	const os::fs::file CustomFile(FileName, FILE_READ_DATA, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
+	const os::fs::file CustomFile(FileName, FILE_READ_DATA, os::fs::file_share_read, nullptr, OPEN_EXISTING);
 	if (!CustomFile)
 		return;
 
@@ -368,7 +368,7 @@ void language::load(string_view const Path, string_view const Language, int Coun
 	const auto [LangFile, LangFileName, LangFileCodePage] = OpenLangFile(Path, LangFileMask, Language);
 	if (!LangFile)
 	{
-		throw MAKE_FAR_KNOWN_EXCEPTION(format(FSTR(L"Cannot find any language files in \"{}\""sv), Path));
+		throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Cannot find any language files in \"{}\""sv, Path));
 	}
 
 	Data->m_FileName = LangFile.GetName();
@@ -427,8 +427,8 @@ void language::load(string_view const Path, string_view const Language, int Coun
 	//   Проведем проверку на количество строк в LNG-файлах
 	if (CountNeed != -1 && static_cast<size_t>(CountNeed) != Data->size())
 	{
-		throw MAKE_FAR_KNOWN_EXCEPTION(format(
-			FSTR(L"Language file \"{}\" is malformed: expected {} items, found {}"sv),
+		throw MAKE_FAR_KNOWN_EXCEPTION(far::format(
+			L"Language file \"{}\" is malformed: expected {} items, found {}"sv,
 			Data->m_FileName,
 			CountNeed,
 			Data->size()));
@@ -450,7 +450,7 @@ bool i_language_data::validate(size_t MsgId) const
 		{
 			msg(lng::MBadLanguageFile),
 			m_FileName,
-			format(msg(lng::MLanguageStringNotFound), MsgId)
+			far::vformat(msg(lng::MLanguageStringNotFound), MsgId)
 		},
 		{ lng::MOk, lng::MQuit }) == message_result::second_button)
 	{

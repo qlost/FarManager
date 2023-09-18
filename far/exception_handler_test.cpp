@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 #include "platform.concurrency.hpp"
 #include "platform.debug.hpp"
+#include "platform.memory.hpp"
 
 // Common:
 #include "common/preprocessor.hpp"
@@ -290,10 +291,13 @@ namespace tests
 #endif
 	}
 
+WARNING_PUSH()
+WARNING_DISABLE_CLANG("-Wmissing-noreturn")
 	static void cpp_assertion_failure()
 	{
 		assert(true == false);
 	}
+WARNING_POP()
 
 	static void seh_access_violation_read()
 	{
@@ -327,6 +331,36 @@ namespace tests
 
 		volatile const func_t InvalidAddress = nullptr;
 		InvalidAddress();
+	}
+
+	static void seh_access_violation_ex_np()
+	{
+		using func_t = void(*)();
+
+		volatile const func_t InvalidAddress = reinterpret_cast<func_t>(1);
+		assert(!os::memory::is_pointer(reinterpret_cast<void const*>(InvalidAddress)));
+		InvalidAddress();
+	}
+
+	static void seh_access_violation_bad()
+	{
+		RaiseException(STATUS_ACCESS_VIOLATION, 0, 0, {});
+	}
+
+	static void seh_in_page_error()
+	{
+		// No idea how to generate a real one easily
+
+		static const int Symbol = 42;
+
+		ULONG_PTR const Args[]
+		{
+			static_cast<ULONG_PTR>(EXCEPTION_READ_FAULT),
+			reinterpret_cast<ULONG_PTR>(&Symbol),
+			static_cast<ULONG_PTR>(STATUS_IO_DEVICE_ERROR),
+		};
+
+		RaiseException(STATUS_IN_PAGE_ERROR, 0, static_cast<DWORD>(std::size(Args)), Args);
 	}
 
 	static void seh_divide_by_zero()
@@ -388,6 +422,11 @@ namespace tests
 		{
 			HeapFree(GetProcessHeap(), 0, m);
 		}
+	}
+
+	static void seh_heap_no_memory()
+	{
+		[[maybe_unused]] const auto m = HeapAlloc(GetProcessHeap(), HEAP_GENERATE_EXCEPTIONS, std::numeric_limits<size_t>::max());
 	}
 
 	static void seh_fp_divide_by_zero()
@@ -523,10 +562,18 @@ static bool trace()
 	Menu->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND);
 	Menu->SetPosition({ -1, -1, 0, 0 });
 
-	tracer.get_symbols({}, os::debug::current_stacktrace(), [&](string_view const Line)
+	const auto add_to_menu = [&](string_view const Line)
 	{
 		Menu->AddItem(string(Line));
-	});
+	};
+
+	tracer.current_stacktrace({}, add_to_menu);
+
+	if (std::current_exception())
+	{
+		Menu->AddItem(MenuItemEx(L"Exception stack"s, LIF_SEPARATOR));
+		tracer.exception_stacktrace({}, add_to_menu);
+	}
 
 	Menu->Run();
 
@@ -574,11 +621,15 @@ static bool ExceptionTestHook(Manager::Key const& key)
 		{ tests::seh_access_violation_write,   L"SEH access violation (write)"sv },
 		{ tests::seh_access_violation_ex_nx,   L"SEH access violation (execute NX)"sv },
 		{ tests::seh_access_violation_ex_nul,  L"SEH access violation (execute nullptr)"sv },
+		{ tests::seh_access_violation_ex_np,   L"SEH access violation (execute non-ptr)"sv },
+		{ tests::seh_access_violation_bad,     L"SEH access violation (malformed)"sv },
+		{ tests::seh_in_page_error,            L"SEH in page error"sv },
 		{ tests::seh_divide_by_zero,           L"SEH divide by zero"sv },
 		{ tests::seh_divide_by_zero_thread,    L"SEH divide by zero (thread)"sv },
 		{ tests::seh_int_overflow,             L"SEH int overflow"sv },
 		{ tests::seh_stack_overflow,           L"SEH stack overflow"sv },
 		{ tests::seh_heap_corruption,          L"SEH heap corruption"sv },
+		{ tests::seh_heap_no_memory,           L"SEH heap no memory"sv },
 		{ tests::seh_fp_divide_by_zero,        L"SEH floating-point divide by zero"sv },
 		{ tests::seh_fp_overflow,              L"SEH floating-point overflow"sv },
 		{ tests::seh_fp_underflow,             L"SEH floating-point underflow"sv },

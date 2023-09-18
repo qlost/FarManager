@@ -67,10 +67,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ESC L"\u001b"
 #define CSI ESC L"["
-#define OSC ESC L"]"
-#define ST ESC L"\\"
-#define ANSISYSSC CSI "s"
-#define ANSISYSRC CSI "u"
+#define OSC(Command) ESC L"]" Command ESC L"\\"sv
+#define ANSISYSSC CSI L"s"
+#define ANSISYSRC CSI L"u"
 
 static bool sWindowMode;
 static bool sEnableVirtualTerminal;
@@ -512,6 +511,26 @@ protected:
 
 	static nifty_counter::buffer<external_console> Storage;
 	static auto& ExternalConsole = reinterpret_cast<external_console&>(Storage);
+
+	class hide_cursor
+	{
+	public:
+		NONCOPYABLE(hide_cursor);
+
+		hide_cursor():
+			m_Restore(::console.GetCursorInfo(m_CursorInfo) && ::console.SetCursorInfo({ m_CursorInfo.dwSize }))
+		{
+		}
+
+		~hide_cursor()
+		{
+			if (m_Restore)
+				(void)::console.SetCursorInfo(m_CursorInfo);
+		}
+
+		CONSOLE_CURSOR_INFO m_CursorInfo{};
+		bool m_Restore{};
+	};
 
 	console::console():
 		m_OriginalInputHandle(GetStdHandle(STD_INPUT_HANDLE)),
@@ -1139,14 +1158,14 @@ protected:
 
 	static constexpr struct
 	{
-		string_view Normal, Intense, ExtendedColour;
 		COLORREF FarColor::* Color;
 		FARCOLORFLAGS Flags;
+		string_view Normal, Intense, ExtendedColour;
 	}
 	ColorsMapping[]
 	{
-		{ L"3"sv,  L"9"sv, L"38"sv, &FarColor::ForegroundColor, FCF_FG_INDEX },
-		{ L"4"sv, L"10"sv, L"48"sv, &FarColor::BackgroundColor, FCF_BG_INDEX },
+		{ &FarColor::ForegroundColor, FCF_FG_INDEX, L"3"sv, L"9"sv,  L"38"sv },
+		{ &FarColor::BackgroundColor, FCF_BG_INDEX, L"4"sv, L"10"sv, L"48"sv },
 	};
 
 	static constexpr struct
@@ -1183,12 +1202,12 @@ protected:
 			if (Index < 16)
 				append(Str, ColorPart & FOREGROUND_INTENSITY? Mapping.Intense : Mapping.Normal, static_cast<wchar_t>(L'0' + vt_base_color_index(Index)));
 			else
-				format_to(Str, FSTR(L"{};5;{}"sv), Mapping.ExtendedColour, Index);
+				far::format_to(Str, L"{};5;{}"sv, Mapping.ExtendedColour, Index);
 		}
 		else
 		{
 			const auto RGBA = colors::to_rgba(ColorPart);
-			format_to(Str, FSTR(L"{};2;{};{};{}"sv), Mapping.ExtendedColour, RGBA.r, RGBA.g, RGBA.b);
+			far::format_to(Str, L"{};2;{};{};{}"sv, Mapping.ExtendedColour, RGBA.r, RGBA.g, RGBA.b);
 		}
 	}
 
@@ -1320,9 +1339,9 @@ WARNING_PUSH()
 WARNING_DISABLE_GCC("-Wmaybe-uninitialized")
 
 						if (Cell.Char == *LeadingChar)
-WARNING_POP()
 					{
 						if (Cell.Char == encoding::replace_char && !char_width::is_wide(encoding::replace_char))
+WARNING_POP()
 						{
 							// As of 13 Jul 2022 ReadConsoleOutputW doesn't work with surrogate pairs (see microsoft/terminal#10810)
 							// It returns two FFFDs instead with leading and trailing flags.
@@ -1404,18 +1423,11 @@ WARNING_POP()
 			if (!::console.GetCursorRealPosition(SavedCursorPosition))
 				return false;
 
-			CONSOLE_CURSOR_INFO SavedCursorInfo;
-			if (!::console.GetCursorInfo(SavedCursorInfo))
-				return false;
-
 			// Ideally this should be filtered out earlier
 			if (WriteRegion.left > csbi.dwSize.X - 1 || WriteRegion.top > csbi.dwSize.Y - 1)
 				return false;
 
-
-			// Hide cursor
-			if (!::console.SetCursorInfo({1}))
-				return false;
+			SCOPED_ACTION(hide_cursor);
 
 			// Move the viewport down
 			if (!::console.SetCursorRealPosition({0, csbi.dwSize.Y - 1}))
@@ -1431,8 +1443,6 @@ WARNING_POP()
 				::console.SetCursorRealPosition({ 0, csbi.dwSize.Y - 1 });
 				// Restore cursor position within the viewport
 				::console.SetCursorRealPosition(SavedCursorPosition);
-				// Restore cursor
-				::console.SetCursorInfo(SavedCursorInfo);
 				// Restore buffer relative position
 				if (csbi.srWindow.Left || csbi.srWindow.Bottom != csbi.dwSize.Y - 1)
 					::console.SetWindowRect(csbi.srWindow);
@@ -1475,7 +1485,7 @@ WARNING_POP()
 				// Words cannot describe how much I despise VT.
 
 				// Save cursor position
-				Str = ANSISYSSC ""sv;
+				Str = ANSISYSSC L""sv;
 
 				for (const auto& i: irange(SubRect.top + SubrectOffset, std::min(SubRect.top + SubrectOffset + ViewportSize.y, SubRect.bottom + 1)))
 				{
@@ -1485,7 +1495,7 @@ WARNING_POP()
 							ANSISYSRC // Restore cursor position
 							CSI L"1B" // Move cursor down
 							ANSISYSSC // Save again
-							""sv;
+							L""sv;
 
 						// For some reason restoring the cursor position affects colors
 						LastColor.reset();
@@ -1504,44 +1514,25 @@ WARNING_POP()
 			return ::console.Write(CSI L"0m"sv);
 		}
 
-		class cursor_suppressor
+		class cursor_suppressor: public hide_cursor
 		{
 		public:
 			NONCOPYABLE(cursor_suppressor);
 
-			cursor_suppressor()
+			cursor_suppressor():
+				m_Restore(::console.GetCursorRealPosition(m_Position) && ::console.SetCursorPosition({}))
 			{
-				CONSOLE_CURSOR_INFO Info;
-				if (!::console.GetCursorInfo(Info))
-					return;
-
-				if (!::console.SetCursorInfo({ 1 }))
-					return;
-
-				m_Info = Info;
-
-				point Position;
-				if (!::console.GetCursorRealPosition(Position))
-					return;
-
-				if (!::console.SetCursorPosition({}))
-					return;
-
-				m_Position = Position;
 			}
 
 			~cursor_suppressor()
 			{
-				if (m_Position)
-					::console.SetCursorRealPosition(*m_Position);
-
-				if (m_Info)
-					::console.SetCursorInfo(*m_Info);
+				if (m_Restore)
+					(void)::console.SetCursorRealPosition(m_Position);
 			}
 
 		private:
-			std::optional<point> m_Position;
-			std::optional<CONSOLE_CURSOR_INFO> m_Info;
+			point m_Position;
+			bool m_Restore{};
 		};
 
 		static bool WriteOutputNTImpl(CHAR_INFO const* const Buffer, point const BufferSize, rectangle const& WriteRegion)
@@ -1697,12 +1688,12 @@ WARNING_POP()
 		static bool SetPaletteVT(std::array<COLORREF, 16> const& Palette)
 		{
 			string Str;
-			Str.reserve(OSC L"4;15;rgb:ff/ff/ff" ST ""sv.size() * 16);
+			Str.reserve(OSC(L"4;15;rgb:ff/ff/ff").size() * 16);
 
 			for (const auto& [Color, i] : enumerate(Palette))
 			{
 				const union { COLORREF Color; rgba RGBA; } Value{ Color };
-				format_to(Str, FSTR(OSC L"4;{};rgb:{:02x}/{:02x}/{:02x}" ST ""sv), vt_color_index(i), Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
+				far::format_to(Str, OSC(L"4;{};rgb:{:02x}/{:02x}/{:02x}"), vt_color_index(i), Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
 			}
 
 			return ::console.Write(Str);
@@ -2036,7 +2027,7 @@ WARNING_POP()
 			CONSOLE_FONT_INFO FontInfo;
 			if (get_current_console_font(ConsoleOutput, FontInfo))
 			{
-				Result.x -= Round(GetSystemMetrics(SM_CXVSCROLL), static_cast<int>(FontInfo.dwFontSize.X));
+				Result.x -= std::lround(GetSystemMetrics(SM_CXVSCROLL) * 1.0 / FontInfo.dwFontSize.X);
 			}
 		}
 		return Result;
@@ -2186,29 +2177,26 @@ WARNING_POP()
 #endif
 	}
 
-	void console::ResetPosition() const
+	bool console::ResetViewportPosition() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
 		if (!get_console_screen_buffer_info(GetOutputHandle(), &csbi))
-			return;
+			return false;
 
-		if (!csbi.srWindow.Left && csbi.srWindow.Bottom == csbi.dwSize.Y - 1)
-			return;
+		rectangle const Window = csbi.srWindow;
+		point SavedCursorPosition;
+		const auto RestoreCursorPosition = GetCursorRealPosition(SavedCursorPosition) && SavedCursorPosition.y > csbi.dwSize.Y - Window.height() && SavedCursorPosition.x < Window.width();
 
-		csbi.srWindow.Right -= csbi.srWindow.Left;
-		csbi.srWindow.Left = 0;
-		csbi.srWindow.Top += csbi.dwSize.Y - 1 - csbi.srWindow.Bottom;
-		csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
-		SetWindowRect(csbi.srWindow);
-	}
+		SCOPED_ACTION(hide_cursor);
 
-	bool console::ResetViewportPosition() const
-	{
-		rectangle WindowRect;
-		return
-			GetWindowRect(WindowRect) &&
-			SetCursorPosition({}) &&
-			SetCursorPosition({ 0, WindowRect.height() - 1 });
+		// Move the viewport down
+		if (!SetCursorRealPosition({ 0, csbi.dwSize.Y - 1 }))
+			return false;
+
+		if (RestoreCursorPosition)
+			(void)SetCursorRealPosition(SavedCursorPosition);
+
+		return true;
 	}
 
 	bool console::IsVtEnabled() const
@@ -2332,7 +2320,7 @@ WARNING_POP()
 	{
 		// It ain't stupid if it works
 
-		if (!m_WidthTestScreen)
+		const auto initialize = [this]
 		{
 			m_WidthTestScreen.reset(CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, {}, {}, CONSOLE_TEXTMODE_BUFFER, {}));
 
@@ -2347,11 +2335,22 @@ WARNING_POP()
 			{
 				LOGWARNING(L"SetConsoleScreenBufferSize(): {}"sv, os::last_error());
 			}
+		};
+
+		if (!m_WidthTestScreen)
+		{
+			initialize();
 		}
 
-		if (!SetConsoleCursorPosition(m_WidthTestScreen.native_handle(), {}))
+		while (!SetConsoleCursorPosition(m_WidthTestScreen.native_handle(), {}))
 		{
 			LOGWARNING(L"SetConsoleCursorPosition(): {}"sv, os::last_error());
+
+			if (GetLastError() != ERROR_INVALID_HANDLE)
+				return false;
+
+			LOGINFO(L"Reinitializing");
+			initialize();
 			return false;
 		}
 
@@ -2428,6 +2427,31 @@ WARNING_POP()
 		sEnableVirtualTerminal = Value;
 	}
 
+	static wchar_t state_to_vt(TBPFLAG const State)
+	{
+		switch (State)
+		{
+		case TBPF_NOPROGRESS:    return L'0';
+		case TBPF_INDETERMINATE: return L'3';
+		case TBPF_NORMAL:        return L'1';
+		case TBPF_ERROR:         return L'2';
+		case TBPF_PAUSED:        return L'4';
+		default:
+			UNREACHABLE;
+		}
+	}
+
+	void console::set_progress_state(TBPFLAG const State) const
+	{
+		send_vt_command(far::format(OSC(L"9;4;{}"), state_to_vt(State)));
+	}
+
+	void console::set_progress_value(TBPFLAG const State, size_t const Percent) const
+	{
+		// 🤦
+		send_vt_command(far::format(OSC(L"9;4;{};{}"), state_to_vt(State), Percent));
+	}
+
 	bool console::GetCursorRealPosition(point& Position) const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
@@ -2447,6 +2471,26 @@ WARNING_POP()
 		}
 
 		return true;
+	}
+
+	bool console::send_vt_command(string_view Command) const
+	{
+		// Happy path
+		if (::console.IsVtEnabled())
+			return Write(Command);
+
+		// Legacy console
+		if (!IsVtSupported())
+			return false;
+
+		// If VT is not enabled, we enable it temporarily
+		if (std::pair<HANDLE, DWORD> Data{ GetOutputHandle(), 0 }; GetMode(Data.first, Data.second) && SetMode(Data.first, Data.second | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+		{
+			SCOPE_EXIT{ SetMode(Data.first, Data.second); };
+			return Write(Command);
+		}
+
+		return false;
 	}
 }
 
@@ -2511,7 +2555,7 @@ TEST_CASE("console.vt_sequence")
 		std::optional<FarColor> LastColor;
 		console_detail::make_vt_sequence(Buffer, Str, LastColor);
 
-		REQUIRE(Str == CSI L"92;44;1m" L"  " CSI "22m" L" "sv);
+		REQUIRE(Str == CSI L"92;44;1m" L"  " CSI L"22m" L" "sv);
 	}
 
 	{
@@ -2531,7 +2575,7 @@ TEST_CASE("console.vt_sequence")
 		std::optional<FarColor> LastColor;
 		console_detail::make_vt_sequence(Buffer, Str, LastColor);
 
-		REQUIRE(Str == CSI L"92;44;21m" L"  " CSI "24;4m" L" "sv);
+		REQUIRE(Str == CSI L"92;44;21m" L"  " CSI L"24;4m" L" "sv);
 	}
 }
 

@@ -164,7 +164,7 @@ private:
 		int bracketscount{};
 		int maxbackref{};
 #ifdef RE_DEBUG
-		std::wstring resrc;
+		string resrc;
 #endif
 
 		int CalcLength(string_view src);
@@ -229,5 +229,12 @@ private:
 
 		int GetBracketsCount() const {return bracketscount;}
 };
+
+constexpr string_view get_match(string_view const Str, RegExpMatch const& Match)
+{
+	assert(Match.start >= 0);
+	assert(Match.end >= Match.start);
+	return Str.substr(Match.start, Match.end - Match.start);
+}
 
 #endif // REGEXP_HPP_18B41BD7_69F8_461A_8A81_069B447D5554

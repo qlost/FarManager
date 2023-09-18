@@ -62,7 +62,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/from_string.hpp"
-#include "common/lazy.hpp"
 #include "common/scope_exit.hpp"
 
 // External:
@@ -165,7 +164,7 @@ namespace
 
 	auto get_location(std::string_view const Function, std::string_view const File, int const Line)
 	{
-		return format(FSTR(L"{}, {}({})"sv), encoding::utf8::get_chars(Function), encoding::utf8::get_chars(File), Line);
+		return far::format(L"{}, {}({})"sv, encoding::utf8::get_chars(Function), encoding::utf8::get_chars(File), Line);
 	}
 
 	auto get_thread_id()
@@ -175,10 +174,10 @@ namespace
 
 	struct message
 	{
-		message(string_view const Str, logging::level const Level, std::string_view const Function, std::string_view const File, int const Line, size_t const TraceDepth):
+		message(string&& Str, logging::level const Level, std::string_view const Function, std::string_view const File, int const Line, size_t const TraceDepth):
 			m_ThreadId(get_thread_id()),
 			m_LevelString(level_to_string(Level)),
-			m_Data(Str),
+			m_Data(std::move(Str)),
 			m_Location(get_location(Function, File, Line)),
 			m_Level(Level)
 		{
@@ -188,11 +187,12 @@ namespace
 			{
 				m_Data += L"\nLog stack:\n"sv;
 
-				const auto FramesToSkip = 4; // log -> engine.log -> submit -> this ctor
-				tracer.get_symbols({}, os::debug::current_stacktrace(FramesToSkip, TraceDepth), [&](string_view const TraceLine)
+				const auto FramesToSkip = 3; // log -> engine::log -> this ctor
+				tracer.current_stacktrace({}, [&](string_view const TraceLine)
 				{
 					append(m_Data, TraceLine, L'\n');
-				});
+				},
+				FramesToSkip, TraceDepth);
 			}
 		}
 
@@ -459,7 +459,7 @@ namespace
 
 		static os::fs::file open_file()
 		{
-			os::fs::file File(make_filename(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS);
+			os::fs::file File(make_filename(), GENERIC_WRITE, os::fs::file_share_read, nullptr, OPEN_ALWAYS);
 			if (!File)
 				throw MAKE_FAR_EXCEPTION(L"Can't create a log file"sv);
 
@@ -490,7 +490,7 @@ namespace
 			STARTUPINFO si{ sizeof(si) };
 			PROCESS_INFORMATION pi{};
 
-			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(format(FSTR(L"\"{}\" {} {}"sv), m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
+			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(far::format(L"\"{}\" {} {}"sv, m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
 			{
 				LOGERROR(L"{}"sv, os::last_error());
 				return;
@@ -546,7 +546,7 @@ namespace
 		static constexpr auto name = L"pipe"sv;
 
 	private:
-		string m_PipeName{ format(FSTR(L"\\\\.\\pipe\\far_{}.log"sv), GetCurrentProcessId()) };
+		string m_PipeName{ far::format(L"\\\\.\\pipe\\far_{}.log"sv, GetCurrentProcessId()) };
 		os::handle m_Pipe{ CreateNamedPipe(m_PipeName.c_str(), PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 0, 0, 0, {}) };
 		string m_ThisModule{ os::fs::get_current_process_file_name() };
 		bool m_Connected{};
@@ -607,7 +607,7 @@ namespace
 
 		void poll(string_view const Name)
 		{
-			os::debug::set_thread_name(format(FSTR(L"Log sink ({})"sv), Name));
+			os::debug::set_thread_name(far::format(L"Log sink ({})"sv, Name));
 
 			return seh_try_no_ui(
 				[&]
@@ -673,7 +673,7 @@ namespace
 	};
 
 	template<typename sink_type>
-	class sync final: public sink_boilerplate<sink_type>, private synchronized_impl<sink_type>
+	class sync final: public synchronized_impl<sink_boilerplate<sink_type>>
 	{
 	public:
 		static constexpr auto mode = sink_mode::sync;
@@ -813,7 +813,8 @@ namespace logging
 				configure_env();
 			}
 
-			m_Sink->configure(Parameters);
+			if (m_Sink)
+				m_Sink->configure(Parameters);
 		}
 
 		[[nodiscard]]
@@ -855,19 +856,18 @@ namespace logging
 			}
 		}
 
-		void log(string_view const Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
+		void log(string&& Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
 		{
 			if (m_Status == engine_status::in_progress)
 			{
-				message Message(Str, Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0);
-				m_QueuedMessages.emplace(std::move(Message));
+				m_QueuedMessages.push({ std::move(Str), Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
 				return;
 			}
 
 			if (!filter(Level))
 				return;
 
-			submit({ Str, Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
+			submit({ std::move(Str), Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
 		}
 
 		static void suppress()
@@ -963,7 +963,7 @@ namespace logging
 
 	static thread_local size_t RecursionGuard{};
 
-	void log(string_view const Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
+	void log(string&& Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
 	{
 		// Log can potentially log itself, directly or through other parts of the code.
 		// Allow one level of recursion for diagnostics
@@ -973,7 +973,7 @@ namespace logging
 		++RecursionGuard;
 		SCOPE_EXIT{ --RecursionGuard; };
 
-		log_engine.log(Str, Level, Function, File, Line);
+		log_engine.log(std::move(Str), Level, Function, File, Line);
 	}
 
 	void show()
@@ -1008,7 +1008,7 @@ namespace logging
 		{
 			const auto ErrorState = os::last_error();
 
-			if (!ConsoleYesNo(L"Retry"sv, false, [&]{ std::wcerr << format(FSTR(L"Can't open pipe {}: {}"sv), PipeName, ErrorState.Win32ErrorStr()) << std::endl; }))
+			if (!ConsoleYesNo(L"Retry"sv, false, [&]{ std::wcerr << far::format(L"Can't open pipe {}: {}"sv, PipeName, ErrorState.Win32ErrorStr()) << std::endl; }))
 				return EXIT_FAILURE;
 		}
 
@@ -1037,7 +1037,7 @@ namespace logging
 					return EXIT_SUCCESS;
 				}
 
-				std::wcerr << format(FSTR(L"Error reading pipe {}: {}"sv), PipeName, e) << std::endl;
+				std::wcerr << far::format(L"Error reading pipe {}: {}"sv, PipeName, e) << std::endl;
 				os::chrono::sleep_for(5s);
 				return EXIT_FAILURE;
 			}
@@ -1048,7 +1048,7 @@ namespace logging
 			}
 			catch (far_exception const& e)
 			{
-				std::wcerr << format(FSTR(L"sink_console::process(): {}"sv), e) << std::endl;
+				std::wcerr << far::format(L"sink_console::process(): {}"sv, e) << std::endl;
 			}
 		}
 	}

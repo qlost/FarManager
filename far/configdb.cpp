@@ -49,6 +49,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "global.hpp"
 #include "stddlg.hpp"
 #include "log.hpp"
+#include "colormix.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -81,10 +82,10 @@ public:
 	{
 		const file_ptr XmlFile(_wfsopen(NTPath(File).c_str(), L"rb", _SH_DENYWR));
 		if (!XmlFile)
-			throw MAKE_FAR_KNOWN_EXCEPTION(format(FSTR(L"Error opening file \"{}\": {}"sv), File, os::format_errno(errno)));
+			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
 
 		if (const auto LoadResult = m_Document.LoadFile(XmlFile.get()); LoadResult != tinyxml::XML_SUCCESS)
-			throw MAKE_FAR_KNOWN_EXCEPTION(format(FSTR(L"Error loading document from \"{}\": {}"sv), File, encoding::utf8::get_chars(m_Document.ErrorIDToName(LoadResult))));
+			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error loading document from \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(LoadResult))));
 
 		const auto root = m_Document.FirstChildElement(XmlDocumentRootName);
 		SetRoot(root);
@@ -141,10 +142,10 @@ public:
 	{
 		const file_ptr XmlFile(_wfsopen(NTPath(File).c_str(), L"w", _SH_DENYWR));
 		if (!XmlFile)
-			throw MAKE_FAR_KNOWN_EXCEPTION(format(FSTR(L"Error opening file \"{}\": {}"sv), File, os::format_errno(errno)));
+			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
 
 		if (const auto SaveResult = m_Document.SaveFile(XmlFile.get()); SaveResult != tinyxml::XML_SUCCESS)
-			throw MAKE_FAR_KNOWN_EXCEPTION(format(FSTR(L"Error saving document to \"{}\": {}"sv), File, encoding::utf8::get_chars(m_Document.ErrorIDToName(SaveResult))));
+			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error saving document to \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(SaveResult))));
 	}
 
 private:
@@ -841,23 +842,6 @@ private:
 	};
 };
 
-const std::pair<FARCOLORFLAGS, string_view> ColorFlagNames[]
-{
-	{ FCF_FG_INDEX,        L"fgindex"sv      },
-	{ FCF_BG_INDEX,        L"bgindex"sv      },
-	{ FCF_INHERIT_STYLE,   L"inherit"sv      },
-	{ FCF_FG_BOLD,         L"bold"sv         },
-	{ FCF_FG_ITALIC,       L"italic"sv       },
-	{ FCF_FG_UNDERLINE,    L"underline"sv    },
-	{ FCF_FG_UNDERLINE2,   L"underline2"sv   },
-	{ FCF_FG_OVERLINE,     L"overline"sv     },
-	{ FCF_FG_STRIKEOUT,    L"strikeout"sv    },
-	{ FCF_FG_FAINT,        L"faint"sv        },
-	{ FCF_FG_BLINK,        L"blink"sv        },
-	{ FCF_FG_INVERSE,      L"inverse"sv      },
-	{ FCF_FG_INVISIBLE,    L"invisible"sv    },
-};
-
 const std::pair<FARCOLORFLAGS, string_view> LegacyColorFlagNames[]
 {
 	{ FCF_FG_INDEX, L"fg4bit"sv },
@@ -892,7 +876,7 @@ private:
 				SetAttribute(e, "type", "color"sv);
 				SetAttribute(e, "background", encoding::utf8::get_bytes(to_hex_wstring(Color.BackgroundColor)));
 				SetAttribute(e, "foreground", encoding::utf8::get_bytes(to_hex_wstring(Color.ForegroundColor)));
-				SetAttribute(e, "flags", encoding::utf8::get_bytes(FlagsToString(Color.Flags, ColorFlagNames)));
+				SetAttribute(e, "flags", encoding::utf8::get_bytes(colors::ColorFlagsToString(Color.Flags)));
 				return;
 			}
 		}
@@ -913,7 +897,7 @@ private:
 			if (const auto flags = e.Attribute("flags"))
 			{
 				const auto FlagsStr = encoding::utf8::get_chars(flags);
-				Color.Flags = StringToFlags(FlagsStr, ColorFlagNames) | StringToFlags(FlagsStr, LegacyColorFlagNames);
+				Color.Flags = colors::ColorStringToFlags(FlagsStr) | StringToFlags(FlagsStr, LegacyColorFlagNames);
 			}
 
 			return bytes(view_bytes(Color));
@@ -980,7 +964,7 @@ private:
 			{
 				SetAttribute(e, "background", encoding::utf8::get_bytes(to_hex_wstring(Color.BackgroundColor)));
 				SetAttribute(e, "foreground", encoding::utf8::get_bytes(to_hex_wstring(Color.ForegroundColor)));
-				SetAttribute(e, "flags", encoding::utf8::get_bytes(FlagsToString(Color.Flags, ColorFlagNames)));
+				SetAttribute(e, "flags", encoding::utf8::get_bytes(colors::ColorFlagsToString(Color.Flags)));
 			}
 		}
 	}
@@ -1005,7 +989,7 @@ private:
 				FarColor Color{};
 				Color.BackgroundColor = std::strtoul(background, nullptr, 16);
 				Color.ForegroundColor = std::strtoul(foreground, nullptr, 16);
-				Color.Flags = StringToFlags(encoding::utf8::get_chars(flags), ColorFlagNames);
+				Color.Flags = colors::ColorStringToFlags(encoding::utf8::get_chars(flags));
 				SetValue(Name, Color);
 			}
 			else
@@ -1981,11 +1965,11 @@ private:
 
 		for (const auto& Table: ReindexTables)
 		{
-			const auto reindex = [&]{ Db.Exec(format(FSTR("REINDEX {}"sv), Table.Name)); };
+			const auto reindex = [&]{ Db.Exec(far::format("REINDEX {}"sv, Table.Name)); };
 
 			try
 			{
-				if (const auto stmtIntegrityCheck = Db.create_stmt(format(FSTR("PRAGMA INTEGRITY_CHECK({})"sv), Table.Name)); stmtIntegrityCheck.Step())
+				if (const auto stmtIntegrityCheck = Db.create_stmt(far::format("PRAGMA INTEGRITY_CHECK({})"sv, Table.Name)); stmtIntegrityCheck.Step())
 				{
 					if (const auto Result = stmtIntegrityCheck.GetColText(0); Result != L"ok"sv)
 					{
@@ -2017,16 +2001,16 @@ private:
 		// The order is important - https://sqlite.org/lang_altertable.html
 
 		// 1. Create new table
-		Db.Exec(format(FSTR("CREATE TABLE {}_new{}"sv), Table, Schema));
+		Db.Exec(far::format("CREATE TABLE {}_new{}"sv, Table, Schema));
 
 		// 2. Copy data. "WHERE 1=1" is a dirty hack to prevent xfer optimization.
-		Db.Exec(format(FSTR("INSERT OR IGNORE INTO {0}_new SELECT * FROM {0} WHERE 1=1"sv), Table));
+		Db.Exec(far::format("INSERT OR IGNORE INTO {0}_new SELECT * FROM {0} WHERE 1=1"sv, Table));
 
 		// 3. Drop old table
-		Db.Exec(format(FSTR("DROP TABLE {}"sv), Table));
+		Db.Exec(far::format("DROP TABLE {}"sv, Table));
 
 		// 4. Rename new into old
-		Db.Exec(format(FSTR("ALTER TABLE {0}_new RENAME TO {0}"sv), Table));
+		Db.Exec(far::format("ALTER TABLE {0}_new RENAME TO {0}"sv, Table));
 	}
 
 	void Delete(primary_key const id) override
@@ -2428,7 +2412,7 @@ static string rename_bad_database(string_view const Name)
 {
 	for (size_t i = 0; ; ++i)
 	{
-		const auto Dest = format(FSTR(L"{}.bad{}"sv), Name, i? format(FSTR(L".{}"sv), Name) : L""sv);
+		const auto Dest = far::format(L"{}.bad{}"sv, Name, i? far::format(L".{}"sv, Name) : L""sv);
 		if (os::fs::move_file(Name, Dest))
 			return Dest;
 
@@ -2480,7 +2464,7 @@ std::unique_ptr<T> config_provider::CreateWithFallback(string_view const Name)
 		try
 		{
 			auto Result = std::make_unique<T>(Name);
-			Report(format(FSTR(L"  - database file is renamed to {} and new one is created"sv), PointToName(NewName)));
+			Report(far::format(L"  - database file is renamed to {} and new one is created"sv, PointToName(NewName)));
 			return Result;
 		}
 		catch (far_sqlite_exception const& e2)
@@ -2568,7 +2552,7 @@ config_provider::implementation::~implementation()
 
 static auto pluginscache_db_name()
 {
-	return format(FSTR(L"plugincache.{}"sv), build::platform());
+	return far::format(L"plugincache.{}"sv, build::platform());
 }
 
 
@@ -2601,7 +2585,7 @@ void config_provider::Export(string_view const File)
 	representation_destination Representation;
 	auto& root = Representation.Root();
 	const auto Version = build::version();
-	SetAttribute(root, "version", format(FSTR("{}.{}.{}"), Version.Major, Version.Minor, Version.Build));
+	SetAttribute(root, "version", far::format("{}.{}.{}"sv, Version.Major, Version.Minor, Version.Build));
 
 	GeneralCfg()->Export(Representation);
 	LocalGeneralCfg()->Export(Representation);

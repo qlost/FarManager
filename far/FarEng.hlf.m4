@@ -310,8 +310,35 @@ $ #Keyboard reference#
 $ #Menu control commands#
  #Common menu and drop-down list commands#
 
- Filter menu or list items                          #Ctrl+Alt+F,RAlt#
- Lock filter                                             #Ctrl+Alt+L#
+ #Ctrl+Alt+F#, #RAlt#
+ Filter menu or list items.
+
+ #Ctrl+Alt+L#
+ Lock filter.
+
+ #Alt+Left#, #Alt+Right#, #MsWheelLeft#, #MsWheelRight#
+ Scroll all items horizontally.
+
+ #Alt+Shift+Left#, #Alt+Shift+Right#
+ Scroll the selected item horizontally.
+
+ #Ctrl+Alt+Left#, #Ctrl+Alt+Right#, #Ctrl+MsWheelLeft#, #Ctrl+MsWheelRight#
+ Scroll all items horizontally by 20 characters.
+
+ #Ctrl+Shift+Left#, #Ctrl+Shift+Right#
+ Scroll the selected item horizontally by 20 characters.
+
+ #Alt+Home#
+ Align all items to the left.
+
+ #Alt+End#
+ Align all items to the right.
+
+ #Alt+Shift+Home#
+ Align the selected item to the left.
+
+ #Alt+Shift+End#
+ Align the selected item to the right.
 
  See also the list of ~macro keys~@KeyMacroMenuList@, available in the menus.
 
@@ -820,7 +847,12 @@ that you will always have them in the history.
  Delete the current item in a dialog edit line history    #Shift+Del#
  (if it is not locked)
 
- Set the dialog focus to the default element                   #PgDn#
+ Set the dialog focus to the first element                     #Home#
+
+ Set the dialog focus to the default element              #PgDn, End#
+
+ The #Home# and #End# keys move the focus if it is currently not
+on a control which handles these keys internally, like edit control.
 
  The following combinations are valid for all edit controls except the
 command line, including dialogs and the ~internal editor~@Editor@.
@@ -2262,6 +2294,7 @@ dialog is on, Far tries to use Windows association to execute this file type.
 allow to configure "smarter" associations - if you have specified several
 associations for a file type, the menu will show only the associations
 for which the conditions are true.
+ 3. ^<wrap>If the specified mask is a regular expression, its capturing groups can be referenced in the commands as %RegexGroup#N# or %RegexGroup{#Name#}.
 
 
 @MetaSymbols
@@ -2818,8 +2851,8 @@ combinations adjust the number of displayed bytes by 16 at a time.
  #Shift+F4#           Select ~view mode~@ViewerMode@: #text#, #hex#, or #dump#
  #F6#                 Switch to ~editor~@Editor@
  #F7#                 ~Search~@ViewerSearch@
- #Shift+F7, Space#    Continue search
- #Alt+F7#             Continue search in reverse direction
+ #Shift+F7, Space#    Continue searching forward
+ #Alt+F7#             Continue searching backwards
  #F8#                 Switch between OEM and ANSI code pages
  #Shift+F8#           Select code page using the ~Code pages~@CodePagesMenu@ menu
  #Alt+F8#             ~Change current position~@ViewerGotoPos@
@@ -3070,13 +3103,6 @@ while searching (so, for example, #Text# will not be found when searching for #t
  #Whole words#
  The given text will be found only if it occurs in the text as a whole word.
 
- #Reverse search#
- Reverse the search direction - search from the end of file towards the beginning.
-
- #Regular expressions#
- Enable the use of ~regular expressions~@RegExp@ in the search string.
-The multiline search is not supported.
-
  #Fuzzy search#
  The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
 ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
@@ -3084,6 +3110,14 @@ fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
 
  Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
 in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
+
+ #Regular expressions#
+ Enable the use of ~regular expressions~@RegExp@ in the search string.
+The multiline search is not supported.
+
+ The #Find next# button starts searching forward.
+
+ The #Find previous# button starts searching backwards.
 
 
 @Editor
@@ -3165,8 +3199,8 @@ behavior can be changed in the ~Editor settings~@EditorSettings@ dialog.
  #F6#                      Switch to ~viewer~@Viewer@
  #F7#                      ~Search~@EditorSearch@
  #Ctrl+F7#                 ~Replace~@EditorSearch@
- #Shift+F7#                Continue search/replace
- #Alt+F7#                  Continue search/replace in "reverse" mode
+ #Shift+F7#                Continue searching or replacing forward
+ #Alt+F7#                  Continue searching or replacing backwards
  #F8#                      Toggle OEM/ANSI code page
  #Shift+F8#                Select code page
  #Alt+F8#                  ~Go to~@EditorGotoPos@ specified line and column
@@ -3214,13 +3248,6 @@ $ #Editor: search/replace#
  #Whole words#
  The given text will be found only if it occurs in the text as a whole word.
 
- #Reverse search#
- Change the direction of search (from the end of file towards the beginning)
-
- #Regular expressions#
- Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
-Each line is processed individually, so multi-line expressions and line break characters will not be found.
-
  #Fuzzy search#
  The search will be diacritical insensitive (for example, #deja# will be found in #déjà vu#),
 ligatures will be equivalent to corresponding multicharacter sequences (#fluffy# matches #ﬂuﬀy#),
@@ -3229,8 +3256,16 @@ fancy numbers to corresponding numbers (#42# matches #④②#), and so on.
  Note that case sensitive fuzzy search sometimes may be useful. For example, #Uber# will be found
 in #Überwald# but not in #überwald#. However, #Æther# will match #AEther#, but not #Aether#.
 
+ #Regular expressions#
+ Treat input as Perl regular expression (~search~@RegExp@ and ~replace~@RegExpRepl@).
+Each line is processed individually, so multi-line expressions and line break characters will not be found.
+
  ~Preserve style~@PreserveStyle@
  Preserve style (case and delimiters in program source code) of the replaced text.
+
+ The #Find next# / #Replace next# buttons start searching / replacing forward.
+
+ The #Find previous# / #Replace previous# buttons start searching / replacing backwards.
 
  The #All# button will show All matching entries ~menu~@FindAllMenu@.
 
@@ -3397,7 +3432,7 @@ $ #Editor: All matching entries menu#
  #Ctrl+Up#, #Ctrl+Down#
  Scroll the text in the editor.
 
- #Ctrl+Enter#, #Ctrl+Left#, #mouse click#
+ #Ctrl+Enter#, #Ctrl+Left mouse click#
  Go to the position of the found text.
 
  #Gray +#
@@ -3408,6 +3443,8 @@ $ #Editor: All matching entries menu#
 
  #LeftCtrl+0…9#
  Go to the bookmark 0…9.
+
+ See also: common ~menu~@MenuCmd@ keyboard commands.
 
 
 @FileOpenCreate
@@ -4364,7 +4401,7 @@ $ #Color Picker#
  - one of the 16 million colors from the RGB color space.
 
  The standard 16-color palette is available in the dialog.
- To access the ~256-color palette~@ColorPicker256@ and the RGB color space use the corresponding buttons.
+ To access the ~256-color palette~@ColorPicker256@ and the ~RGB color space~@ColorPickerRGB@ use the corresponding buttons.
 
  The color value is also represented in the hexadecimal form for convenience, where:
  - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
@@ -4375,6 +4412,18 @@ $ #Color Picker#
 
  The foreground text style can include ANSI/VT100-like attributes listed in the right section.
  When #Inherit# is checked, the previous foreground text style in the logical Z-order is taken into account.
+
+ Default:   \(7:0) Example \-
+ Bold:      \(7:0:bold) Example \-
+ Italic:    \(7:0:italic) Example \-
+ Underline: \(7:0:underline) Example \-
+ Double:    \(7:0:underline2) Example \-
+ Overline:  \(7:0:overline) Example \-
+ Strikeout: \(7:0:strikeout) Example \-
+ Faint:     \(7:0:faint) Example \-
+ Blink:     \(7:0:blink) Example \-
+ Inverse:   \(7:0:inverse) Example \-
+ Invisible: \(7:0:invisible) Example \-
 
  The preview section below displays the final result.
 
@@ -4415,6 +4464,21 @@ $ #256 Color Picker#
  The last 24 colors are usually defined as a grayscale ramp.
 
  \(:E8)  \(:E9)  \(:EA)  \(:EB)  \(:EC)  \(:ED)  \(:EE)  \(:EF)  \(:F0)  \(:F1)  \(:F2)  \(:F3)  \(:F4)  \(:F5)  \(:F6)  \(:F7)  \(:F8)  \(:F9)  \(:FA)  \(:FB)  \(:FC)  \(:FD)  \(:FE)  \(:FF)  \-
+
+
+@ColorPickerRGB
+$ #RGB Color Picker#
+ This dialog allows to pick a color from the RGB color space.
+
+ The 16 777 216 RGB colors are represented as a 16x16x16 hypercube.
+
+ Use the buttons on the right to rotate the cube, access its inner levels or mix the primary colors directly.
+
+ Each of the 4096 cells in the hypercube represents a 16x16x16 cube with RGB colors. To switch between the cubes use the #↔# button.
+
+ The #«# button allows to save the selected color to the custom palette for quick access.
+
+ The #System# button opens the system RGB color picker.
 
 
 @SortGroups
@@ -6399,7 +6463,7 @@ horizontally (Windows Vista and above):
  System.MsHWheelDeltaEdit - in the internal Editor
  System.MsHWheelDelta     - in other areas
 
- Default value: 1 (for all parameters).
+ Default value for all parameters: 0 (use system settings).
 
  Note: Rolling or tilting mouse wheel while holding #Alt# key always
 scrolls one line or character at a time.

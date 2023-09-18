@@ -59,7 +59,7 @@ class Edit;
 class Editor final: public SimpleScreenObject
 {
 public:
-	explicit Editor(window_ptr Owner, uintptr_t Codepage, bool DialogUsed = false);
+	explicit Editor(window_ptr Owner, bool DialogUsed = false);
 	~Editor() override;
 
 	bool ProcessKey(const Manager::Key& Key) override;
@@ -68,13 +68,11 @@ public:
 
 	void SetCacheParams(EditorPosCache &pc, bool count_bom = false);
 	void GetCacheParams(EditorPosCache &pc) const;
-	bool TryCodePage(uintptr_t Codepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, wchar_t& ErrorChar);
-	bool SetCodePage(uintptr_t codepage, bool *BOM=nullptr, bool ShowMe=true); //BUGBUG
-	uintptr_t GetCodePage() const; //BUGBUG
+	bool TryCodePage(uintptr_t CurrentCodepage, uintptr_t NewCodepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, wchar_t& ErrorChar); //BUGBUG does not belong here
+	bool SetCodePage(uintptr_t CurrentCodepage, uintptr_t NewCodepage, bool *BOM=nullptr, bool ShowMe=true); //BUGBUG does not belong here
 	void KeepInitParameters() const;
 	void SetStartPos(int LineNum, int CharNum);
 	bool IsModified() const;
-	bool IsChanged() const;
 	long long GetCurPos(bool file_pos = false, bool add_bom = false) const;
 	int EditorControl(int Command, intptr_t Param1, void *Param2);
 	void SetOptions(const Options::EditorOptions& Options);
@@ -106,8 +104,6 @@ public:
 	bool GetAllowEmptySpaceAfterEof() const { return EdOpt.AllowEmptySpaceAfterEof; }
 	void SetSearchSelFound(bool NewMode) { EdOpt.SearchSelFound = NewMode; }
 	bool GetSearchSelFound() const { return EdOpt.SearchSelFound; }
-	void SetSearchRegexp(bool NewMode) { EdOpt.SearchRegexp = NewMode; }
-	bool GetSearchRegexp() const { return EdOpt.SearchRegexp; }
 	void SetShowWhiteSpace(int NewMode);
 	void GetSavePosMode(int &SavePos, int &SaveShortPos) const;
 	// передавайте в качестве значения параметра "-1" для параметра,
@@ -208,7 +204,6 @@ private:
 	void Down();
 	void ScrollDown();
 	void ScrollUp();
-	bool Search(bool Next);
 	void GoToLine(size_t Line);
 	void GoToLineAndShow(size_t Line);
 	void GoToPosition();
@@ -280,12 +275,18 @@ private:
 	string Block2Text();
 	string VBlock2Text();
 	void Change(EDITOR_CHANGETYPE Type,int StrNum);
-	bool SetLineCodePage(iterator const& Iterator, uintptr_t Codepage, bool Validate);
+	bool SetLineCodePage(iterator const& Iterator, uintptr_t CurrentCodepage, uintptr_t NewCodepage, bool Validate);
 	numbered_iterator InsertString(string_view Str, const numbered_iterator& Where);
 	numbered_iterator PushString(const string_view Str) { return InsertString(Str, EndIterator()); }
 	void TurnOffMarkingBlock();
 	void SwapState(Editor& swap_state);
 	bool ProcessKeyInternal(const Manager::Key& Key, bool& Refresh);
+
+	enum class SearchReplaceDisposition;
+	SearchReplaceDisposition ShowSearchReplaceDialog(bool ReplaceMode);
+	void DoSearchReplace(SearchReplaceDisposition Disposition);
+	int CalculateSearchStartPosition(bool Continue, bool Backward, bool Regex) const;
+	int CalculateSearchNextPositionInTheLine(bool Backward, bool Regex) const;
 
 	template<class F>
 	void UpdateIteratorAndKeepPos(numbered_iterator& Iter, const F& Func);
@@ -312,13 +313,14 @@ private:
 	void BeginStreamMarking(const numbered_iterator& Where);
 	void BeginVBlockMarking(const numbered_iterator& Where);
 
+	uintptr_t GetCodePage() const;
+
 	// Младший байт (маска 0xFF) юзается классом ScreenObject!!!
 	enum editor_flags
 	{
 		FEDITOR_MODIFIED              = 8_bit,
 		FEDITOR_MARKINGBLOCK          = 9_bit,
 		FEDITOR_MARKINGVBLOCK         = 10_bit,
-		FEDITOR_WASCHANGED            = 11_bit,
 		FEDITOR_OVERTYPE              = 12_bit,
 		FEDITOR_NEWUNDO               = 13_bit,
 		FEDITOR_UNDOSAVEPOSLOST       = 14_bit,
@@ -348,7 +350,7 @@ private:
 	int VBlockSizeX{};
 	int VBlockSizeY{};
 	int MacroSelectionStart{ -1 };
-	uintptr_t m_codepage; //BUGBUG
+	uintptr_t m_codepageBUGBUG;
 	int m_StartLine{ -1 };
 	int StartChar{ -1 };
 	//numbered bookmarks (accessible by Ctrl-0..9)
@@ -359,8 +361,8 @@ private:
 	bool NewSessionPos{};
 	std::vector<char> decoded;
 	numbered_iterator m_FoundLine{ EndIterator() };
-	int m_FoundPos{};
-	int m_FoundSize{};
+	int m_FoundPos{ -1 };
+	int m_FoundSize{ -1 };
 	std::unordered_set<Edit*> m_AutoDeletedColors;
 	struct
 	{
@@ -381,8 +383,9 @@ private:
 	int Pasting{};
 	int XX2{}; //scrollbar
 
-	SearchReplaceDlgParams LastSearchDlgParams;
-	bool ReplaceAll{};
+	SearchReplaceDlgParams m_SearchDlgParams;
+	bool IsReplaceMode{};
+	bool IsReplaceAll{};
 
 	int EditorID{};
 	int EditorControlLock{};

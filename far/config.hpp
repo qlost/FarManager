@@ -572,7 +572,6 @@ public:
 		BoolOption EditOpenedForWrite;
 		BoolOption SearchSelFound;
 		BoolOption SearchCursorAtEnd;
-		BoolOption SearchRegexp;
 		Bool3Option ShowWhiteSpace;
 
 		StringOption strWordDiv;
@@ -604,7 +603,6 @@ public:
 		BoolOption SaveShortPos;
 		BoolOption SaveViewMode;
 		BoolOption SaveWrapMode;
-		BoolOption SearchRegexp;
 		Bool3Option SearchWrapStop; // [NonStop] / {Start-End} / [Full Cycle]
 		BoolOption ShowArrows;
 		BoolOption ShowKeyBar;
@@ -933,6 +931,7 @@ public:
 
 	BoolOption ExceptUsed;
 	IntOption CursorSize[4];
+	IntOption GrabberCursorSize;
 
 	CodeXLAT XLat;
 
@@ -940,10 +939,8 @@ public:
 
 	StringOption strHelpLanguage;
 	BoolOption FullScreenHelp;
-	IntOption HelpTabSize;
 
 	IntOption HelpURLRules; // =0 отключить возможность запуска URL-приложений
-	BoolOption HelpSearchRegexp;
 
 	// запоминать логические диски и не опрашивать каждый раз. Для предотвращения "просыпания" "зеленых" винтов.
 	BoolOption RememberLogicalDrives;
@@ -956,6 +953,9 @@ public:
 	IntOption MsHWheelDelta;
 	IntOption MsHWheelDeltaView;
 	IntOption MsHWheelDeltaEdit;
+
+	// How many ticks constitute an event
+	IntOption MsWheelThreshold;
 
 	/*
 	битовая маска:

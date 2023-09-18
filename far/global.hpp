@@ -48,9 +48,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-enum class lng;
-enum class search_case_fold;
-
 class global
 {
 public:
@@ -63,11 +60,7 @@ public:
 	bool IsMainThread() const {return GetCurrentThreadId() == m_MainThreadId;}
 	std::chrono::steady_clock::duration FarUpTime() const;
 
-	const string& GetSearchString() const { return m_SearchString; }
-	bool GetSearchHex() const { return m_SearchHex; }
-	void StoreSearchString(string_view Str, bool Hex);
-	string GetSearchString(uintptr_t Codepage);
-	void StoreSearchString(string_view Str, uintptr_t Codepage, bool Hex);
+	void FolderChanged();
 
 	// BUGBUG
 
@@ -75,13 +68,10 @@ public:
 	string g_strFarINI;
 	string g_strFarPath;
 	string strInitTitle;
-	bool GlobalSearchCaseSensitive{};
-	bool GlobalSearchFuzzy{};
-	bool GlobalSearchWholeWords{}; // значение "Whole words" для поиска
-	bool GlobalSearchReverse{};
+
 	std::atomic_size_t SuppressClock{};
 	std::atomic_size_t SuppressIndicators{};
-	bool CloseFAR{}, CloseFARMenu{}, AllowCancelExit{true};
+	bool CloseFAR{}, AllowCancelExit{true};
 	bool DisablePluginsOutput{};
 	int IsProcessAssignMacroKey{};
 	size_t PluginPanelsCount{};
@@ -111,7 +101,6 @@ public:
 	class SaveScreen *GlobalSaveScrPtr{};
 	bool CriticalInternalError{};
 	int Macro_DskShowPosType{}; // для какой панели вызывали меню выбора дисков (0 - ничерта не вызывали, 1 - левая (AltF1), 2 - правая (AltF2))
-	DWORD ErrorMode;
 #ifndef NO_WRAPPER
 	string strRegUser;
 #endif // NO_WRAPPER
@@ -122,9 +111,6 @@ private:
 	DWORD m_MainThreadId;
 	os::handle m_MainThreadHandle;
 	std::chrono::steady_clock::time_point m_FarStartTime;
-
-	string m_SearchString;
-	bool m_SearchHex{};
 
 public:
 	// TODO: review the order and make private

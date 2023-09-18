@@ -769,8 +769,8 @@ wchar_t* __proc_WhereIs(int outputtofile,wchar_t *pCmd,bool Dir)
 	ptrAllPath+=lstrlen(ptrAllPath);
 
 	// 3. Folders in the system environment variable #PATH#
+	{
 	GetEnvironmentVariable(L"PATH", ptrAllPath, PathLength);
-
 
 	wchar_t *pPathExt=PathExt;
 	wchar_t* tempFind = new wchar_t[lstrlen(temp) + PathExtLength + 1];
@@ -816,6 +816,7 @@ wchar_t* __proc_WhereIs(int outputtofile,wchar_t *pCmd,bool Dir)
 
 	delete[] tempFind;
 	delete[] AllPath;
+	}
 
 	// 7..8 Contents of the registry key
 	if (!DestPath || !*DestPath)
@@ -1054,10 +1055,10 @@ wchar_t* OpenFromCommandLine(const wchar_t *_farcmd)
 	const wchar_t *PrefHlp=L"Contents";
 	BOOL showhelp=TRUE;
 
-	static wchar_t farcmdbuf[MAX_PATH*10]; // BUGBUG!!!
+	static wchar_t farcmdbuf[8192 - MAX_PATH];
 
 	wchar_t *farcmd=farcmdbuf;
-	lstrcpy(farcmdbuf, _farcmd);
+	lstrcpyn(farcmdbuf, _farcmd, ARRAYSIZE(farcmdbuf));
 	FSF.RTrim(farcmdbuf);
 
 	if (lstrlen(farcmd) > 3)

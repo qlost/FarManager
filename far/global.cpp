@@ -42,7 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "config.hpp"
 #include "configdb.hpp"
 #include "manager.hpp"
-#include "strmix.hpp"
 
 // Platform:
 #include "platform.fs.hpp"
@@ -55,7 +54,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 global::global() :
 	g_strFarModuleName(os::fs::get_current_process_file_name()),
-	ErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX),
 	m_MainThreadId(GetCurrentThreadId()),
 	m_MainThreadHandle(os::OpenCurrentThread()),
 	m_FarStartTime(std::chrono::steady_clock::now()),
@@ -76,26 +74,9 @@ std::chrono::steady_clock::duration global::FarUpTime() const
 	return std::chrono::steady_clock::now() - m_FarStartTime;
 }
 
-void global::StoreSearchString(string_view const Str, bool Hex)
+void global::FolderChanged()
 {
-	m_SearchHex = Hex;
-	m_SearchString = Str;
-}
-
-string global::GetSearchString(uintptr_t Codepage)
-{
-	if (GetSearchHex())
-		return ConvertHexString(GetSearchString(), Codepage, true);
-	else
-		return GetSearchString();
-}
-
-void global::StoreSearchString(string_view Str, uintptr_t Codepage, bool Hex)
-{
-	if (Hex)
-		StoreSearchString(ConvertHexString(Str, Codepage, false), true);
-	else
-		StoreSearchString(Str, false);
+	WindowManager->FolderChanged();
 }
 
 global::far_clock::far_clock()

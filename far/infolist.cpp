@@ -113,7 +113,7 @@ InfoList::InfoList(private_tag, window_ptr Owner):
 	OldWrapMode(),
 	OldWrapType(),
 	SectionState(ILSS_SIZE),
-	PowerListener(update_power, [&]{ if (Global->Opt->InfoPanel.ShowPowerStatus && IsVisible() && SectionState[ILSS_POWERSTATUS].Show) { Redraw(); }})
+	PowerListener([&]{ if (Global->Opt->InfoPanel.ShowPowerStatus && IsVisible() && SectionState[ILSS_POWERSTATUS].Show) { Redraw(); }})
 {
 	m_Type = panel_type::INFO_PANEL;
 	if (Global->Opt->InfoPanel.strShowStatusInfo.empty())
@@ -376,8 +376,8 @@ void InfoList::DisplayObject()
 			if (UseAssocPath)
 				append(SectionTitle, L' ', strAssocPath);
 
-			strDiskNumber = format(
-				FSTR(L"{:04X}-{:04X}"sv),
+			strDiskNumber = far::format(
+				L"{:04X}-{:04X}"sv,
 				extract_integer<WORD, 1>(VolumeNumber),
 				extract_integer<WORD, 0>(VolumeNumber)
 			);
@@ -409,7 +409,7 @@ void InfoList::DisplayObject()
 
 	const auto PrintMetricText = [&](lng const Kind, lng const Metric)
 	{
-		PrintText(format(FSTR(L"{}, {}"sv), msg(Kind), msg(Metric)));
+		PrintText(far::format(L"{}, {}"sv, msg(Kind), msg(Metric)));
 	};
 
 	const auto PrintMetric = [&](lng const Kind, unsigned long long const Total, unsigned long long const Available)
@@ -419,7 +419,7 @@ void InfoList::DisplayObject()
 		PrintInfo(size2str(Total));
 		GotoXY(m_Where.left + 2, CurY++);
 		PrintMetricText(Kind, lng::MInfoMetricAvailable);
-		PrintInfo(format(FSTR(L"{}%, {}"sv), ToPercent(Available, Total), size2str(Available)));
+		PrintInfo(far::format(L"{}%, {}"sv, ToPercent(Available, Total), size2str(Available)));
 	};
 
 	if (SectionState[ILSS_DISKINFO].Show)
@@ -721,11 +721,14 @@ bool InfoList::ProcessKey(const Manager::Key& Key)
 			{
 				for (const auto& i: enum_tokens_with_quotes(Global->Opt->InfoPanel.strFolderInfoFiles.Get(), L",;"sv))
 				{
-					if (i.find_first_of(L"*?"sv) == string::npos)
-					{
-						FileEditor::create(i, CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
-						break;
-					}
+					if (i.empty())
+						continue;
+
+					if (i.find_first_of(L"*?"sv) != string::npos)
+						continue;
+
+					FileEditor::create(i, CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
+					break;
 				}
 			}
 
@@ -797,7 +800,7 @@ bool InfoList::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 		{ ILSS_POWERSTATUS,     true },
 	};
 
-	if ((MouseEvent->dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && !(MouseEvent->dwEventFlags & MOUSE_MOVED))
+	if ((MouseEvent->dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) && IsMouseButtonEvent(MouseEvent->dwEventFlags))
 	{
 		for (const auto& [Section, Enabled]: Sections)
 		{
@@ -912,6 +915,9 @@ bool InfoList::ShowDirDescription(int YPos)
 
 	for (const auto& i: enum_tokens_with_quotes(Global->Opt->InfoPanel.strFolderInfoFiles.Get(), L",;"sv))
 	{
+		if (i.empty())
+			continue;
+
 		strFullDizName.resize(DirSize);
 		append(strFullDizName, i);
 
@@ -1071,6 +1077,17 @@ void InfoList::DynamicUpdateKeyBar() const
 	}
 
 	Keybar.SetCustomLabels(KBA_INFO);
+}
+
+InfoList::power_listener::power_listener(std::function<void()> EventHandler):
+	listener(update_power, std::move(EventHandler))
+{
+	message_manager::instance().enable_power_notifications();
+}
+
+InfoList::power_listener::~power_listener()
+{
+	message_manager::instance().disable_power_notifications();
 }
 
 Viewer* InfoList::GetViewer()

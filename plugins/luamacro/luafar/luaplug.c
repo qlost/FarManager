@@ -137,7 +137,7 @@ static void InitLuaState2(lua_State *L, TPluginData* PluginData)
 	lua_setglobal(L, "_luaplug");
 }
 
-__declspec(dllexport) lua_State* GetLuaState()
+__declspec(dllexport) lua_State* GetLuaState(void)
 {
 	if (IS_PLUGIN_READY(G))
 	{
@@ -149,7 +149,7 @@ __declspec(dllexport) lua_State* GetLuaState()
 }
 
 /* for other C-files of the plugin */
-struct PluginStartupInfo *GetPluginStartupInfo()
+struct PluginStartupInfo *GetPluginStartupInfo(void)
 {
 	return G.StartupInfo;
 }
@@ -219,7 +219,7 @@ intptr_t LUAPLUG ProcessSynchroEventW(const struct ProcessSynchroEventInfo *Info
 
 // This is exported in order not to crash when run from under Far 2.0.xxxx
 // Minimal Far version = 3.0.0
-int LUAPLUG GetMinFarVersionW()
+int LUAPLUG GetMinFarVersionW(void)
 {
 	return (3<<8) | 0 | (0<<16);
 }
@@ -314,10 +314,7 @@ void LUAPLUG ExitFARW(const struct ExitInfo *Info)
 {
 	if (IS_PLUGIN_READY(G))
 	{
-		lua_State* oldState = G.LS;
-		G.LS = NULL;
-		LF_ExitFAR(oldState, Info);
-		lua_close(oldState);
+		LF_ExitFAR(G.LS, Info);
 		LEAVE_CS(G);
 	}
 }

@@ -165,7 +165,7 @@ void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
 
 	if (X<0)
 	{
-		Text.pop_front(std::min(static_cast<size_t>(-X), Text.size()));
+		Text = Text.subspan(std::min(static_cast<size_t>(-X), Text.size()));
 		X=0;
 	}
 
@@ -173,7 +173,7 @@ void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
 		return;
 
 	if (X + Text.size() > Buf.width())
-		Text.pop_back(Text.size() - (Buf.width() - X));
+		Text = Text.first(Buf.width() - X);
 
 	for (const auto& i: irange(Text.size()))
 	{
@@ -702,8 +702,8 @@ void ScreenBuf::Flush(flush_type FlushType)
 
 			if (m_CurPos.x > 0)
 			{
-				const auto& Cell = Buf[m_CurPos.y][m_CurPos.x];
-				const auto& PrevCell = Buf[m_CurPos.y][m_CurPos.x - 1];
+				const auto& Cell = Buf.at(m_CurPos.y, m_CurPos.x);
+				const auto& PrevCell = Buf.at(m_CurPos.y, m_CurPos.x - 1);
 
 				if (is_valid_surrogate_pair(PrevCell.Char, Cell.Char) || (char_width::is_enabled() && Cell.Attributes.Flags & COMMON_LVB_TRAILING_BYTE))
 				{

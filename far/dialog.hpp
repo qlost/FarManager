@@ -78,7 +78,6 @@ enum DIALOG_MODES
 	DMODE_NEEDUPDATE            = 24_bit, // необходимо обновить весь диалог?
 	DMODE_VISIBLE               = 25_bit, // отображать диалог на экране (DM_SHOWDIALOG)
 	DMODE_KEEPCONSOLETITLE      = 28_bit, // не изменять заголовок консоли
-	DMODE_CLICKOUTSIDE          = 29_bit, // было нажатие мыши вне диалога?
 	DMODE_OLDSTYLE              = 31_bit, // Диалог в старом (до 1.70) стиле
 };
 
@@ -348,5 +347,9 @@ private:
 
 // BUGBUG
 extern std::chrono::steady_clock::duration WaitUserTime;
+
+// Helper functions to abstract away a bit of Dialog madness
+string_view get_dialog_item_text(Dialog* Dlg, int Id);
+void set_dialog_item_text(Dialog* Dlg, int Id, string_view Text);
 
 #endif // DIALOG_HPP_7A9BE12B_EE5C_441F_84C9_64E9A63ABEFE

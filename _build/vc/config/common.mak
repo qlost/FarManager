@@ -1,10 +1,8 @@
 .SILENT:
 
 !if !defined(VC)
-!if "$(_NMAKE_VER)">"14.20"
-VC = 16
-!elseif "$(_NMAKE_VER)">"14.10"
-VC = 15
+!if "$(_NMAKE_VER)">="14.30"
+VC = 17
 !else
 #default
 VC = 16
@@ -74,6 +72,12 @@ CFLAGS = $(CFLAGS)\
 	/D "PSAPI_VERSION=1"\
 	/D "_CRT_SECURE_NO_WARNINGS"\
 
+!if "$(VC)">="17"
+CFLAGS = $(CFLAGS)\
+	/Zc:__STDC__,enumTypes,templateScope\
+
+!endif
+
 !ifndef ANSI
 CFLAGS = $(CFLAGS)\
 	/D "UNICODE"\
@@ -84,9 +88,8 @@ CFLAGS = $(CFLAGS)\
 CPPFLAGS = $(CPPFLAGS)\
 	$(CFLAGS)\
 	/EHsc\
-	/std:c++latest\
+	/std:c++20\
 	/Zc:__cplusplus,externConstexpr,inline,preprocessor,throwingNew\
-	/D "_HAS_AUTO_PTR_ETC=0"\
 	/D "_ENABLE_EXTENDED_ALIGNED_STORAGE"\
 	/D "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"\
 	/D "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1"\
@@ -121,18 +124,18 @@ ULINKFLAGS = $(ULINKFLAGS) -GM:_RDATA=.rdata
 # Configuration-specific flags
 !ifdef DEBUG
 # Debug mode
-CPPFLAGS = $(CPPFLAGS) /MTd /Od /D "_DEBUG"
+CFLAGS = $(CFLAGS) /MTd /Od /D "_DEBUG"
 RFLAGS = $(RFLAGS) /D "_DEBUG"
 LINKFLAGS = $(LINKFLAGS) /debug
 ULINKFLAGS = $(ULINKFLAGS) -v
 !else # DEBUG
 # Release mode
-CPPFLAGS = $(CPPFLAGS) /MT /O2 /D "NDEBUG"
+CFLAGS = $(CFLAGS) /MT /O2 /D "NDEBUG"
 RFLAGS = $(RFLAGS) /D "NDEBUG"
 LINKFLAGS = $(LINKFLAGS) /incremental:no /OPT:REF /OPT:ICF /pdbaltpath:%_PDB%
 
 !ifndef NO_RELEASE_LTCG
-CPPFLAGS = $(CPPFLAGS) /GL
+CFLAGS = $(CFLAGS) /GL
 LINKFLAGS = $(LINKFLAGS) /ltcg
 !ifdef LTCG_STATUS
 LINKFLAGS = $(LINKFLAGS) /ltcg:status
@@ -141,15 +144,15 @@ LINKFLAGS = $(LINKFLAGS) /ltcg:status
 !endif # DEBUG
 
 !ifdef USE_ANALYZE
-CPPFLAGS = $(CPPFLAGS) /analyze
+CFLAGS = $(CFLAGS) /analyze
 !endif
 # Configuration-specific flags end
 
 # Platform-specific flags
 !if "$(BUILD_PLATFORM)" == "X86"
-CPPFLAGS = $(CPPFLAGS) /arch:IA32
+CFLAGS = $(CFLAGS) /arch:IA32
 !ifndef DEBUG
-CPPFLAGS = $(CPPFLAGS) /Oy-
+CFLAGS = $(CFLAGS) /Oy-
 LINKFLAGS = $(LINKFLAGS) /safeseh
 ULINKFLAGS = $(ULINKFLAGS) -RS
 !endif # DEBUG
@@ -172,17 +175,20 @@ LINKFLAGS = $(LINKFLAGS) /machine:ARM64
 
 # Compiler-specific flags
 !ifdef CLANG
+CC = clang-cl
 CPP = clang-cl
-CPPFLAGS = $(CPPFLAGS)\
+CFLAGS = $(CFLAGS)\
 	-Qunused-arguments\
 	/clang:-fvisibility=hidden\
 	-Weverything\
 	-Werror=array-bounds\
 	-Werror=dangling\
 	-Werror=odr\
+	-Werror=return-type\
+
+CPPFLAGS = $(CPPFLAGS)\
 	-Werror=old-style-cast\
 	-Werror=reorder\
-	-Werror=return-type\
 
 NOBATCH = 1
 NO_RELEASE_LTCG = 1

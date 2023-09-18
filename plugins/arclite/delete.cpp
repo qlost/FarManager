@@ -17,7 +17,7 @@ private:
     if (total == 0)
       percent_done = 0;
     else
-      percent_done = al_round(static_cast<double>(completed) * 100 / total);
+      percent_done = al_round(static_cast<double>(completed) * 100.0 / static_cast<double>(total));
     if (percent_done > 100)
       percent_done = 100;
 
@@ -25,7 +25,7 @@ private:
     if (time_elapsed() == 0)
       speed = 0;
     else
-      speed = al_round(static_cast<double>(completed) / time_elapsed() * ticks_per_sec());
+      speed = al_round(static_cast<double>(completed) / static_cast<double>(time_elapsed()) * static_cast<double>(ticks_per_sec()));
 
     std::wostringstream st;
     st << std::setw(7) << format_data_size(completed, get_size_suffixes()) << L" / " << format_data_size(total, get_size_suffixes()) << L" @ " << std::setw(9) << format_data_size(speed, get_speed_suffixes()) << L'\n';
@@ -96,6 +96,8 @@ public:
     return S_OK;
     COM_ERROR_HANDLER_END
   }
+
+  using File::copy_ctime_from;
 };
 
 class ArchiveFileDeleter: public IArchiveUpdateCallback, public ComBase {
@@ -189,12 +191,13 @@ void Archive::delete_files(const std::vector<UInt32>& src_indices) {
     CHECK_COM(in_arc->QueryInterface(IID_IOutArchive, reinterpret_cast<void**>(&out_arc)));
 
     const auto progress = std::make_shared<ArchiveFileDeleterProgress>();
-    ComObject<IArchiveUpdateCallback> deleter(new ArchiveFileDeleter(new_indices, progress));
-    ComObject<IOutStream> update_stream(new ArchiveFileDeleterStream(temp_arc_name, progress));
+    ComObject deleter(new ArchiveFileDeleter(new_indices, progress));
+    ComObject update_stream(new ArchiveFileDeleterStream(temp_arc_name, progress));
 
     COM_ERROR_CHECK(copy_prologue(update_stream));
-
     COM_ERROR_CHECK(out_arc->UpdateItems(update_stream, static_cast<UInt32>(new_indices.size()), deleter));
+    update_stream->copy_ctime_from(arc_path);
+
     close();
     update_stream.Release();
     File::move_file(temp_arc_name, arc_path, MOVEFILE_REPLACE_EXISTING);

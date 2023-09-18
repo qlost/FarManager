@@ -207,7 +207,7 @@ wchar_t* legacy::truncate_left(wchar_t *Str, int MaxLength)
 {
 	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
-		const auto Iterator = copy_string(CurrentDots, StrParam.begin());
+		const auto Iterator = copy_string(CurrentDots, StrParam.data());
 
 		const auto StrEnd = StrParam.end();
 		const auto StrBegin = StrEnd - MaxLengthParam + CurrentDots.size();
@@ -240,7 +240,7 @@ wchar_t* legacy::truncate_center(wchar_t *Str, int MaxLength)
 {
 	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
-		const auto Iterator = copy_string(CurrentDots, StrParam.data() + (MaxLengthParam - CurrentDots.size()) / 2);
+		const auto Iterator = copy_string(CurrentDots, StrParam.begin() + (MaxLengthParam - CurrentDots.size()) / 2);
 
 		const auto StrEnd = StrParam.end();
 		const auto StrBegin = Iterator + (StrParam.size() - MaxLengthParam);
@@ -282,7 +282,7 @@ wchar_t* legacy::truncate_path(wchar_t*Str, int MaxLength)
 	{
 		const auto Offset = std::min(StartOffset(StrParam.data()), MaxLengthParam - CurrentDots.size());
 
-		const auto Iterator = copy_string(CurrentDots, StrParam.begin() + Offset);
+		const auto Iterator = copy_string(CurrentDots, StrParam.data() + Offset);
 
 		const auto StrEnd = StrParam.end();
 		const auto StrBegin = StrEnd - MaxLengthParam + CurrentDots.size() + Offset;
@@ -356,7 +356,7 @@ static constexpr unsigned long long BytesInUnit[][2]
 	BD_UNIT(P),
 	BD_UNIT(E),
 
-#undef BU_NIT
+#undef BD_UNIT
 };
 
 static constexpr unsigned long long PrecisionMultiplier[]
@@ -928,7 +928,7 @@ bool SearchAndReplaceString(
 	if (WordDiv.empty())
 		WordDiv = Global->Opt->strWordDiv;
 
-	if (!options.Regexp && options.PreserveStyle && PreserveStyleReplaceString(Haystack, Needle, ReplaceStr, CurPos, options, WordDiv, SearchLength))
+	if (!options.Regex && options.PreserveStyle && PreserveStyleReplaceString(Haystack, Needle, ReplaceStr, CurPos, options, WordDiv, SearchLength))
 		return true;
 
 	if (Needle.empty())
@@ -946,7 +946,7 @@ bool SearchAndReplaceString(
 			return false;
 	}
 
-	if (options.Regexp)
+	if (options.Regex)
 	{
 		// Empty Haystack is ok for regex search, e.g. ^$
 		if ((Position || HaystackSize) && Position >= HaystackSize)
@@ -1105,6 +1105,21 @@ string ConvertHexString(string_view const From, uintptr_t Codepage, bool FromHex
 		const auto Blob = encoding::get_bytes(CompatibleCp, From);
 		return BlobToHexString(view_bytes(Blob), 0);
 	}
+}
+
+string BytesToString(bytes_view const Bytes, uintptr_t const Codepage)
+{
+	return encoding::get_chars(IsVirtualCodePage(Codepage)? encoding::codepage::ansi() : Codepage, Bytes);
+}
+
+string HexMask(size_t ByteCount)
+{
+	string Result(ByteCount * 3 - 1, L'H');
+	for (size_t i{ 2 }; i < Result.size(); i += 3)
+	{
+		Result[i] = L' '; // "HH HH ... HH"
+	}
+	return Result;
 }
 
 // dest и src НЕ ДОЛЖНЫ пересекаться

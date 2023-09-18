@@ -212,7 +212,7 @@ bool native_plugin_factory::IsPlugin(const string& FileName) const
 	if (!ends_with_icase(FileName, L".dll"sv))
 		return false;
 
-	const os::fs::file ModuleFile(FileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
+	const os::fs::file ModuleFile(FileName, FILE_READ_DATA, os::fs::file_share_read, nullptr, OPEN_EXISTING);
 	if (!ModuleFile)
 	{
 		LOGDEBUG(L"create_file({}) {}"sv, FileName, os::last_error());
@@ -431,8 +431,8 @@ static void ShowMessageAboutIllegalPluginVersion(const string& plg, const Versio
 		{
 			msg(lng::MPlgBadVers),
 			plg,
-			format(msg(lng::MPlgRequired), version_to_string(required)),
-			format(msg(lng::MPlgRequired2), version_to_string(build::version()))
+			far::vformat(msg(lng::MPlgRequired), version_to_string(required)),
+			far::vformat(msg(lng::MPlgRequired2), version_to_string(build::version()))
 		},
 		{ lng::MOk }
 	);
@@ -724,10 +724,7 @@ bool Plugin::Unload(bool bExitFAR)
 		return true;
 
 	if (bExitFAR)
-	{
-		ExitInfo Info{ sizeof(Info) };
-		ExitFAR(&Info);
-	}
+		NotifyExit();
 
 	bool Result = true;
 
@@ -743,6 +740,15 @@ bool Plugin::Unload(bool bExitFAR)
 	bPendingRemove = true;
 
 	return Result;
+}
+
+void Plugin::NotifyExit()
+{
+	if (WorkFlags.Check(PIWF_LOADED))
+	{
+		ExitInfo Info{sizeof(Info)};
+		ExitFAR(&Info);
+	}
 }
 
 void Plugin::ClearExports()

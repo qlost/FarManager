@@ -154,7 +154,7 @@ TPluginData* (*GetPluginData)(lua_State* L) = GetRealPluginData;
 static lua_CFunction luaopen_bit = NULL;
 static lua_CFunction luaopen_ffi = NULL;
 static lua_CFunction luaopen_jit = NULL;
-int IsLuaJIT() { return luaopen_jit != NULL; }
+int IsLuaJIT(void) { return luaopen_jit != NULL; }
 
 BOOL WINAPI DllMain(HANDLE hDll, DWORD dwReason, LPVOID lpReserved)
 {
@@ -166,9 +166,9 @@ BOOL WINAPI DllMain(HANDLE hDll, DWORD dwReason, LPVOID lpReserved)
 		HMODULE hLib = GetModuleHandleA(LUADLL);
 		if (hLib)
 		{
-			luaopen_bit = (lua_CFunction) GetProcAddress(hLib, "luaopen_bit");
-			luaopen_ffi = (lua_CFunction) GetProcAddress(hLib, "luaopen_ffi");
-			luaopen_jit = (lua_CFunction) GetProcAddress(hLib, "luaopen_jit");
+			luaopen_bit = (lua_CFunction)(intptr_t)GetProcAddress(hLib, "luaopen_bit");
+			luaopen_ffi = (lua_CFunction)(intptr_t)GetProcAddress(hLib, "luaopen_ffi");
+			luaopen_jit = (lua_CFunction)(intptr_t)GetProcAddress(hLib, "luaopen_jit");
 		}
 	}
 	return TRUE;
@@ -284,20 +284,20 @@ static UINT64 check_env_flag(lua_State *L, int pos)
 UINT64 GetFlagCombination(lua_State *L, int pos, int *success)
 {
 	UINT64 ret = 0;
+	UINT64 flag;
+	pos = abs_index(L, pos);
+	if (success)
+		*success = TRUE;
 
 	if(lua_type(L, pos) == LUA_TTABLE)
 	{
-		if(success)
-			*success = TRUE;
-
-		pos = abs_index(L, pos);
 		lua_pushnil(L);
 
 		while(lua_next(L, pos))
 		{
 			if(lua_type(L,-2)==LUA_TSTRING && lua_toboolean(L,-1))
 			{
-				UINT64 flag = get_env_flag(L, -2, success);
+				flag = get_env_flag(L, -2, success);
 
 				if(success == NULL || *success)
 					ret |= flag;
@@ -306,6 +306,24 @@ UINT64 GetFlagCombination(lua_State *L, int pos, int *success)
 			}
 
 			lua_pop(L, 1);
+		}
+	}
+	else if (lua_type(L, pos) == LUA_TSTRING)
+	{
+		const char *p = lua_tostring(L, pos), *q;
+		for (; *p; p=q)
+		{
+			int ok;
+			while (isspace(*p)) p++;
+			if (*p == 0) break;
+			for (q=p+1; *q && !isspace(*q); ) q++;
+			lua_pushlstring(L, p, q-p);
+			flag = get_env_flag(L, -1, &ok);
+			lua_pop(L, 1);
+			if (ok)
+				ret |= flag;
+			else if (success)
+				*success = FALSE;
 		}
 	}
 	else
@@ -589,7 +607,7 @@ void PushPanelItem(lua_State *L, const struct PluginPanelItem *PanelItem, int No
 		{
 			lua_pushlightuserdata(L, PanelItem->UserData.Data);
 			lua_setfield(L, -2, "ExtUserData"); //use field name different from "UserData" to distinguish later
-			lua_pushlightuserdata(L, PanelItem->UserData.FreeData);
+			lua_pushlightuserdata(L, (void*)(intptr_t)PanelItem->UserData.FreeData);
 			lua_setfield(L, -2, "FreeUserData");
 		}
 	}
@@ -1638,7 +1656,7 @@ static int far_Menu(lua_State *L)
 	const wchar_t *Title = L"Menu", *Bottom = NULL, *HelpTopic = NULL;
 	intptr_t SelectIndex = 0, ItemsNumber, ret;
 	int store = 0, i;
-	intptr_t BreakCode, *pBreakCode;
+	intptr_t BreakCode = 0, *pBreakCode;
 	int NumBreakCodes = 0;
 	const GUID* MenuGuid = NULL;
 	struct FarMenuItem *Items, *pItem;
@@ -1831,7 +1849,7 @@ static int far_Menu(lua_State *L)
 			if(strlen(s) >= sizeof(buf)) { lua_pop(L,2); continue; }
 
 			strcpy(buf, s);
-			strupr(buf);
+			_strupr(buf);
 			vk = strchr(buf, '+');  // virtual key
 
 			if(vk)
@@ -3802,7 +3820,10 @@ intptr_t LF_DlgProc(lua_State *L, HANDLE hDlg, intptr_t Msg, intptr_t Param1, vo
 		dd->hDlg = hDlg;
 	}
 
-	L = dd->L; // the dialog may be called from a lua_State other than the main one
+	if (dd)
+	{
+		L = dd->L; // the dialog may be called from a lua_State other than the main one
+	}
 	ret = DoDlgProc(L, Info, dd, hDlg, Msg, Param1, Param2);
 	if (Msg == DN_CLOSE && ret && NonModal(dd))
 	{
@@ -3850,8 +3871,10 @@ static int far_DialogInit(lua_State *L)
 
 		lua_pop(L, 1);
 
-		if(type == LUA_TNIL)
+		if(type == LUA_TNIL) {
+			ItemsNumber = i;
 			break;
+		}
 
 		if(type != LUA_TTABLE)
 			return luaL_error(L, "Items[%d] is not a table", i+1);
@@ -5655,7 +5678,6 @@ typedef struct
 
 static int far_CreateSettings(lua_State *L)
 {
-	static const char FarGuid[sizeof(GUID)] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 	size_t len = 0;
 	const char* strId;
 	const GUID* ParamId;
@@ -5673,14 +5695,14 @@ static int far_CreateSettings(lua_State *L)
 		if(len == 3 && strcmp(strId, "far") == 0)
 			IsFarSettings = 1;
 		else if(len == sizeof(GUID))
-			IsFarSettings = !memcmp(strId, FarGuid, len);
+			IsFarSettings = !memcmp(strId, &FarGuid, len);
 		else
 		{
 			lua_pushnil(L);
 			return 1;
 		}
 
-		ParamId = CAST(const GUID*, (IsFarSettings ? FarGuid : strId));
+		ParamId = IsFarSettings? &FarGuid : CAST(const GUID*, strId);
 	}
 
 	location = CAST(int, OptFlags(L, 2, PSL_ROAMING));
@@ -6142,7 +6164,7 @@ static int far_host_GetFindData(lua_State *L)
 	if (NULL == (dll_handle = GetPluginModuleHandle(psInfo, &panInfo.OwnerGuid)))
 		return 1;
 
-	getfinddata = (T_GetFindDataW)GetProcAddress(dll_handle, "GetFindDataW");
+	getfinddata = (T_GetFindDataW)(intptr_t)GetProcAddress(dll_handle, "GetFindDataW");
 	memset(&gfdInfo, 0, sizeof(gfdInfo));
 	gfdInfo.StructSize = sizeof(gfdInfo);
 	gfdInfo.OpMode = luaL_optinteger(L, 2, (lua_Integer)(OPM_FIND | OPM_SILENT)); //2-nd argument
@@ -6153,7 +6175,7 @@ static int far_host_GetFindData(lua_State *L)
 	PushPanelItems(L, gfdInfo.PanelItem, gfdInfo.ItemsNumber, 1); //this will be returned
 
 	//as the panel items have been copied (internalized) they should be freed
-	freefinddata = (T_FreeFindDataW)GetProcAddress(dll_handle, "FreeFindDataW");
+	freefinddata = (T_FreeFindDataW)(intptr_t)GetProcAddress(dll_handle, "FreeFindDataW");
 	if (freefinddata)
 	{
 		struct FreeFindDataInfo ffdInfo;
@@ -6191,7 +6213,7 @@ static int far_host_FreeUserData(lua_State *L)
 			lua_pop(L, 1);
 
 			lua_getfield(L, -1, "FreeUserData");
-			FreeData = (FARPANELITEMFREECALLBACK) lua_touserdata(L, -1);
+			FreeData = (FARPANELITEMFREECALLBACK)(intptr_t)lua_touserdata(L, -1);
 			lua_pop(L, 1);
 
 			if (UserData && FreeData)

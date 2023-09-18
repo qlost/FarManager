@@ -37,12 +37,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "color_picker.hpp"
 
 // Internal:
+#include "color_picker_common.hpp"
 #include "color_picker_256.hpp"
 #include "color_picker_rgb.hpp"
 #include "farcolor.hpp"
-#include "vmenu.hpp"
 #include "dialog.hpp"
-#include "scrbuf.hpp"
 #include "interf.hpp"
 #include "config.hpp"
 #include "colormix.hpp"
@@ -55,7 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common.hpp"
-#include "common/2d/point.hpp"
+#include "common/2d/algorithm.hpp"
 #include "common/from_string.hpp"
 #include "common/null_iterator.hpp"
 #include "common/scope_exit.hpp"
@@ -65,60 +64,32 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-static constexpr uint8_t distinct(unsigned char const value)
+static constexpr auto IndexColors = []
 {
-	return (~value & 0xf0) >> 4 | value;
-}
+	std::array<uint8_t, colors::index::nt_size> Result;
 
-static constexpr uint8_t IndexColors[]
-{
-	distinct(B_BLACK),
-	distinct(B_BLUE),
-	distinct(B_GREEN),
-	distinct(B_CYAN),
-	distinct(B_RED),
-	distinct(B_MAGENTA),
-	distinct(B_BROWN),
-	distinct(B_LIGHTGRAY),
-	distinct(B_DARKGRAY),
-	distinct(B_LIGHTBLUE),
-	distinct(B_LIGHTGREEN),
-	distinct(B_LIGHTCYAN),
-	distinct(B_LIGHTRED),
-	distinct(B_LIGHTMAGENTA),
-	distinct(B_YELLOW),
-	distinct(B_WHITE)
-};
+	for (uint8_t i = 0; i != Result.size(); ++i)
+		Result[i] = detail::bg(i) | detail::fg(colors::index::nt_last - i);
 
-// Color controls are column-major
+	return Result;
+}();
+static_assert(std::size(IndexColors) == colors::index::nt_size);
 
-static constexpr uint8_t control_by_color[]
-{
-	0, 2, 4, 6, 8, 10, 12, 14,
-	1, 3, 5, 7, 9, 11, 13, 15
-};
+static constexpr auto
+	ColorsWidth = 8,
+	ColorsHeight = colors::index::nt_size / ColorsWidth;
 
+static constexpr auto control_by_color = column_major_iota<uint8_t, ColorsWidth, ColorsHeight>();
 static_assert(std::size(control_by_color) == std::size(IndexColors));
 
-static constexpr uint8_t color_by_control[]
-{
-	0, 8,
-	1, 9,
-	2, 10,
-	3, 11,
-	4, 12,
-	5, 13,
-	6, 14,
-	7, 15
-};
-
+static constexpr auto color_by_control = column_major_iota<uint8_t, ColorsHeight, ColorsWidth>();
 static_assert(std::size(color_by_control) == std::size(IndexColors));
 
 static string color_code(COLORREF const Color, bool const IsIndex)
 {
 	return IsIndex?
-		format(FSTR(L"{:02X}    {:02X}"sv), colors::alpha_value(Color), colors::index_value(Color)) :
-		format(FSTR(L"{:08X}"sv), colors::ARGB2ABGR(Color));
+		far::format(L"{:02X}    {:02X}"sv, colors::alpha_value(Color), colors::index_value(Color)) :
+		far::format(L"{:08X}"sv, colors::ARGB2ABGR(Color));
 }
 
 static std::optional<COLORREF> parse_color(string_view const Str, bool const IsIndex)
@@ -175,7 +146,7 @@ enum color_dialog_items
 	cd_fg_text,
 	cd_fg_active,
 	cd_fg_color_first,
-	cd_fg_color_last = cd_fg_color_first + 15,
+	cd_fg_color_last = cd_fg_color_first + colors::index::nt_last,
 
 	cd_fg_colorcode_title,
 	cd_fg_colorcode,
@@ -185,7 +156,7 @@ enum color_dialog_items
 	cd_bg_text,
 	cd_bg_active,
 	cd_bg_color_first,
-	cd_bg_color_last = cd_bg_color_first + 15,
+	cd_bg_color_last = cd_bg_color_first + colors::index::nt_last,
 
 	cd_bg_colorcode_title,
 	cd_bg_colorcode,
@@ -335,7 +306,7 @@ static intptr_t GetColorDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void
 
 				SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 				const auto Offset = IsFg? cd_fg_color_first : cd_bg_color_first;
-				for (const auto& i: irange(16))
+				for (const auto& i: irange(colors::index::nt_size))
 				{
 					Dlg->SendMessage(DM_ENABLE, i + Offset, Param2);
 				}
@@ -353,10 +324,20 @@ static intptr_t GetColorDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void
 			{
 				const auto IsFg = Param1 == cd_fg_256;
 				const auto& Component = IsFg? CurColor.ForegroundColor : CurColor.BackgroundColor;
-				auto NewColor = colors::color_value(Component);
-				if (pick_color_256(NewColor))
+
+				FarColor const TmpColor
 				{
-					SetComponentColorValue(IsFg, NewColor);
+					FCF_FG_INDEX | (CurColor.Flags & FlagIndex(IsFg)? FCF_BG_INDEX : 0),
+					{ 0 },
+					{ Component }
+				};
+
+				auto Color = colors::index_value(colors::FarColorToConsole256Color(TmpColor).BackgroundIndex);
+
+				if (pick_color_256(Color))
+				{
+					SetComponentColorValue(IsFg, Color);
+
 					CurColor.Flags |= FlagIndex(IsFg);
 
 					Dlg->SendMessage(DM_SETCHECK, IsFg? cd_fg_color_first : cd_bg_color_first, ToPtr(BSTATE_3STATE));
@@ -514,22 +495,21 @@ bool GetColorDialog(FarColor& Color, bool const bCentered, const FarColor* const
 		{ DI_TEXT,        {{Fg4X, Fg4Y}, {0, Fg4Y}}, DIF_NONE, msg(lng::MSetColorForeground), },
 		{ DI_CHECKBOX,    {{Fg4X, Fg4Y}, {0, Fg4Y}}, DIF_NONE, msg(lng::MSetColorForeground), },
 
-		{ DI_RADIOBUTTON, {{Fg4X+3*0, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT | DIF_GROUP,},
-		{ DI_RADIOBUTTON, {{Fg4X+3*0, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*1, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*1, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*2, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*2, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*3, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*3, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*4, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*4, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*5, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*5, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*6, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*6, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*7, Fg4Y+1}, {0, Fg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Fg4X+3*7, Fg4Y+2}, {0, Fg4Y+2}}, DIF_MOVESELECT, },
+#define COLOR_COLUMN(x, y, index) \
+	COLOR_CELL(x + 3 * index, y + 0), \
+	COLOR_CELL(x + 3 * index, y + 1)
+
+#define COLOR_PLANE(column, x, y) \
+		column(x, y,  0), \
+		column(x, y,  1), \
+		column(x, y,  2), \
+		column(x, y,  3), \
+		column(x, y,  4), \
+		column(x, y,  5), \
+		column(x, y,  6), \
+		column(x, y,  7)
+
+		COLOR_PLANE(COLOR_COLUMN, Fg4X, Fg4Y + 1),
 
 		{ DI_TEXT,        {{30, 2 }, {0,  2 }}, DIF_NONE, msg(Color.IsFgIndex()? lng::MSetColorForeIndex : lng::MSetColorForeAARRGGBB) },
 		{ DI_FIXEDIT,     {{30, 3 }, {37, 3 }}, DIF_MASKEDIT, },
@@ -539,22 +519,10 @@ bool GetColorDialog(FarColor& Color, bool const bCentered, const FarColor* const
 		{ DI_TEXT,        {{Bg4X, Bg4Y}, {0, Bg4Y}}, DIF_NONE, msg(lng::MSetColorBackground), },
 		{ DI_CHECKBOX,    {{Bg4X, Bg4Y}, {0, Bg4Y}}, DIF_NONE, msg(lng::MSetColorBackground), },
 
-		{ DI_RADIOBUTTON, {{Bg4X+3*0, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT | DIF_GROUP, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*0, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*1, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*1, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*2, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*2, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*3, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*3, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*4, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*4, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*5, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*5, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*6, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*6, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*7, Bg4Y+1}, {0, Bg4Y+1}}, DIF_MOVESELECT, },
-		{ DI_RADIOBUTTON, {{Bg4X+3*7, Bg4Y+2}, {0, Bg4Y+2}}, DIF_MOVESELECT, },
+		COLOR_PLANE(COLOR_COLUMN, Bg4X, Bg4Y + 1),
+
+#undef COLOR_PLANE
+#undef COLOR_COLUMN
 
 		{ DI_TEXT,        {{30, 7 }, {0,  7 }}, DIF_NONE, msg(Color.IsBgIndex()? lng::MSetColorBackIndex : lng::MSetColorBackAARRGGBB) },
 		{ DI_FIXEDIT,     {{30, 8 }, {37, 8 }}, DIF_MASKEDIT, },
@@ -588,6 +556,9 @@ bool GetColorDialog(FarColor& Color, bool const bCentered, const FarColor* const
 		{ DI_BUTTON,      {{0, ButtonY}, {0, ButtonY}}, DIF_CENTERGROUP, msg(lng::MSetColorCancel), },
 	});
 
+	ColorDlg[cd_fg_color_first].Flags |= DIF_GROUP;
+	ColorDlg[cd_bg_color_first].Flags |= DIF_GROUP;
+
 	ColorDlg[cd_separator_vertical_before_style].strMask = { BoxSymbols[BS_T_H2V1], BoxSymbols[BS_V1], BoxSymbols[BS_B_H1V1] };
 	ColorDlg[cd_separator_after_foreground].strMask = ColorDlg[cd_separator_after_background].strMask = { BoxSymbols[BS_L_H1V2], BoxSymbols[BS_H1], BoxSymbols[BS_R_H1V1] };
 	ColorDlg[cd_separator_style].strMask = { BoxSymbols[BS_H1], BoxSymbols[BS_H1], BoxSymbols[BS_H1] };
@@ -611,7 +582,7 @@ bool GetColorDialog(FarColor& Color, bool const bCentered, const FarColor* const
 	const auto activate_control = [&](COLORREF const ColorPart, int const ControlGroup)
 	{
 		const auto Index = colors::index_value(ColorPart);
-		if (Index >= colors::index::nt_last)
+		if (Index > colors::index::nt_last)
 			return false;
 
 		const auto ControlId = ControlGroup + control_by_color[Index];

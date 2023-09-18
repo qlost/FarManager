@@ -133,13 +133,15 @@ local function GetItems (fcomp, sortmark, onlyactive)
   end
   table.sort(columns, function(a,b) return (a.filemask or "*") < (b.filemask or "*") end)
 
-  for m,mode in mf.EnumScripts("CustomSortModes") do
-    m.mode = mode
-    local source = debug.getinfo(m.Compare,"S").source
-    m.FileName = source:match"^@(.+)"
-    sortmodes[#sortmodes+1] = m
+  if Shared.panelsort then
+    for m,mode in mf.EnumScripts("CustomSortModes") do
+      m.mode = mode
+      local source = debug.getinfo(m.Compare,"S").source
+      m.FileName = source:match"^@(.+)"
+      sortmodes[#sortmodes+1] = m
+    end
+    table.sort(panels, function(a,b) return (a.Description or "") < (b.Description or "") end)
   end
-  table.sort(panels, function(a,b) return (a.Description or "") < (b.Description or "") end)
 
   items[#items+1] = {
     separator=true,
@@ -496,7 +498,7 @@ local function MenuLoop()
             if Shared.MacroCallFar(MCODE_F_CHECKALL, area, m.flags, m.callback, m.callbackId) then
               if not m.keyregex then
                 local key1 = m.key:match("%S+")
-                if (not m.condition or m.condition(key1)) then
+                if (not m.condition or m.condition(key1, m.data)) then
                   Shared.keymacro.PostNewMacro(m, m.flags, key1, true)
                   break
                 else Message("condition() check failed")

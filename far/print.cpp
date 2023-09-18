@@ -153,11 +153,11 @@ void PrintFiles(FileList* SrcPanel)
 				if (!SrcPanel->get_first_selected(Data))
 					return;
 
-				strTitle = format(msg(lng::MPrintTo), quote_unconditional(truncate_left(Data.FileName, 50)));
+				strTitle = far::vformat(msg(lng::MPrintTo), quote_unconditional(truncate_left(Data.FileName, 50)));
 			}
 			else
 			{
-				strTitle = format(msg(lng::MPrintFilesTo), SelCount - DirsCount);
+				strTitle = far::vformat(msg(lng::MPrintFilesTo), SelCount - DirsCount);
 			}
 
 			const auto PrinterList = VMenu2::create(strTitle, {}, ScrY - 4);
@@ -181,7 +181,7 @@ void PrintFiles(FileList* SrcPanel)
 		single_progress const Progress(msg(lng::MPrintTitle), {}, 0);
 		time_check const TimeCheck;
 
-		SetCursorType(false, 0);
+		HideCursor();
 
 		const auto hPlugin = SrcPanel->GetPluginHandle();
 
@@ -206,7 +206,7 @@ void PrintFiles(FileList* SrcPanel)
 				if (CheckForEscAndConfirmAbort())
 					break;
 
-				Progress.update(format(msg(lng::MPrintingFile), i.FileName));
+				Progress.update(far::vformat(msg(lng::MPrintingFile), i.FileName));
 				Progress.update(ToPercent(PrintIndex, SelCount - DirsCount));
 			}
 
@@ -249,7 +249,7 @@ void PrintFiles(FileList* SrcPanel)
 
 			try
 			{
-				const os::fs::file SrcFile(FileName, GENERIC_READ, os::fs::file_share_all, nullptr, OPEN_EXISTING);
+				const os::fs::file SrcFile(FileName, FILE_READ_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING);
 				if (!SrcFile)
 					throw MAKE_FAR_EXCEPTION(L"Cannot open the file"sv);
 

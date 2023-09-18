@@ -721,7 +721,6 @@ intptr_t WINAPI apiAdvControl(const UUID* PluginId, ADVANCED_CONTROL_COMMANDS Co
 		}
 
 		case ACTL_QUIT:
-			Global->CloseFARMenu = true;
 			Global->WindowManager->ExitMainLoop(FALSE);
 			return TRUE;
 
@@ -1245,7 +1244,13 @@ intptr_t WINAPI apiMessageFn(const UUID* PluginId, const UUID* Id, unsigned long
 		if (Flags & FMSG_ALLINONE)
 		{
 			std::vector<string> Strings;
-			for (const auto& i: enum_tokens(view_as<const wchar_t*>(Items), L"\n"sv))
+			string_view StrItems = view_as<const wchar_t*>(Items);
+
+			// Plugins expect that the trailing \n is ignored here, even though it's not promised anywhere.
+			if (StrItems.ends_with(L'\n'))
+				StrItems.remove_suffix(1);
+
+			for (const auto& i: enum_tokens(StrItems, L"\n"sv))
 			{
 				Strings.emplace_back(i);
 			}
@@ -1620,7 +1625,7 @@ intptr_t WINAPI apiGetDirList(const wchar_t *Dir,PluginPanelItem **pPanelItem,si
 
 					if (!MsgOut)
 					{
-						SetCursorType(false, 0);
+						HideCursor();
 						PR_FarGetDirListMsg();
 						MsgOut = true;
 					}
@@ -1904,7 +1909,7 @@ intptr_t WINAPI apiEditor(const wchar_t* FileName, const wchar_t* Title, intptr_
 				{
 					Global->WindowManager->ExecuteNonModal(Editor);
 					if (Global->WindowManager->IndexOf(Editor) != -1)
-						ExitCode = Editor->IsFileChanged() ? EEC_MODIFIED : EEC_NOT_MODIFIED;
+						ExitCode = Editor->WasFileSaved()? EEC_MODIFIED : EEC_NOT_MODIFIED;
 					else
 						ExitCode = EEC_NOT_MODIFIED;//??? editorExitCode
 				}
@@ -1917,7 +1922,7 @@ intptr_t WINAPI apiEditor(const wchar_t* FileName, const wchar_t* Title, intptr_
 
 					if constexpr (features::mantis_2562)
 					{
-						ExitCode = editorExitCode == XC_RELOAD ? EEC_RELOAD : Editor->IsFileChanged() ? EEC_MODIFIED : EEC_NOT_MODIFIED;
+						ExitCode = editorExitCode == XC_RELOAD ? EEC_RELOAD : Editor->WasFileSaved()? EEC_MODIFIED : EEC_NOT_MODIFIED;
 					}
 					else
 					{
@@ -1968,7 +1973,7 @@ intptr_t WINAPI apiEditor(const wchar_t* FileName, const wchar_t* Title, intptr_
 							ExitCode = XC_OPEN_ERROR;
 						else
 #endif
-							ExitCode = Editor->IsFileChanged() ? EEC_MODIFIED : EEC_NOT_MODIFIED;
+							ExitCode = Editor->WasFileSaved()? EEC_MODIFIED : EEC_NOT_MODIFIED;
 					}
 				}
 				break;
@@ -3097,7 +3102,7 @@ size_t WINAPI apiProcessName(const wchar_t *param1, wchar_t *param2, size_t size
 			auto const SrcNamePart = Size? SrcName.substr(0, Size) : SrcName;
 
 			auto strResult = ConvertWildcards(SrcNamePart, NullToEmpty(param2));
-			if (Size)
+			if (Size && Size < SrcName.size())
 				strResult += SrcName.substr(Size);
 
 			xwcsncpy(param2, strResult.c_str(), size);

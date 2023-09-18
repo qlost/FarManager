@@ -1,3 +1,70 @@
+johnd0e 2023-09-15 10:00:00+02:00 - build 781
+
+1. LuaFAR: update luautf8 library to 0.1.5-3-gf736301
+
+   Update to Unicode 15.1
+
+johnd0e 2023-09-14 12:59:00+02:00 - build 780
+
+1. LuaFAR: update luautf8 library to 0.1.5-2-g182575d
+
+   Unicode normalize algorithm implemented.
+
+   New functions:
+   - utf8.isnfc(s) -> boolean
+     check whether s is in Normal Form C or not.
+   - utf8.normalize_nfc(s) -> normal_string, was_nfc
+     convert s to Normal Form C.
+
+   See https://github.com/starwing/luautf8/pull/44/files#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5 for more info.
+
+shmuel 2023-07-15 08:51:10+03:00 - build 779
+
+1. LuaFAR: a flag combination may be specified as a string (space-delimitered).
+
+zg 2023-05-25 09:46:58+03:00 - build 778
+
+1. Dlg.GetValue(...) crashed for non-modal dialog then called from DN_CLOSE & DE_DLGPROCEND.
+
+shmuel 2023-05-21 08:24:55+03:00 - build 777
+
+1. Generic plugin: don't delete lua_State on ExitFARW.
+
+shmuel 2023-04-27 14:58:49+03:00 - build 776
+
+1. Macrobrowser could not run macros that used the extra "data" argument.
+
+shmuel 2023-03-30 22:07:32+03:00 - build 775
+
+1. LuaFAR: add function win.GetLocalTime
+
+johnd0e 2023-03-27 23:40:00+02:00 - build 774
+
+1. LuaFAR: protect from crash in DialogInit
+   (patch from shmuel).
+
+zg 2023-03-12 23:26:44+02:00 - build 773
+
+1. Shmuel: fix for vanilla lua 5.1.
+
+johnd0e 2023-03-07 15:59:00+01:00 - build 772
+
+1. LuaFAR: update luautf8 library to 0.1.5
+
+   New functions:
+   - utf8.isvalid(s) -> boolean
+   - utf8.clean(s[, replacement_string]) -> cleaned_string, was_valid
+   - utf8.invalidoffset(s[, init]) -> offset
+
+   See https://github.com/starwing/luautf8 for more info.
+
+   Note:
+     utf8.utf8valid is rather obsolete now.
+
+zg 2023-02-22 02:04:22+02:00 - build 771
+
+1. experimental "FolderChanged" event.
+
 drkns 2022-10-13 20:13:45+01:00 - build 770
 
 1. Fix opening a module in the editor from the error message box (from Shmuel).
@@ -27,7 +94,7 @@ drkns 2021-12-04 22:32:15+00:00 - build 766
 
 johnd0e 2021-09-06 12:00:00+02:00 - build 765
 
-1. Remove unnecessary metatables access restrictions when creating global 
+1. Remove unnecessary metatables access restrictions when creating global
    MacroAPI tables (Area, Editor, etc.)
    (patch from shmuel).
 

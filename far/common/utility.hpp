@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "preprocessor.hpp"
 #include "type_traits.hpp"
 
+#include <functional>
 #include <optional>
 #include <utility>
 
@@ -66,7 +67,7 @@ inline size_t grow_exp_noshrink(size_t const Current, std::optional<size_t> cons
 
 	// For vector reserve typically allocates exactly the requested amount instead of exponential growth.
 	// This can be really bad if called in a loop.
-	const auto LowerBound = Current + (Current + 2) / 2;
+	const auto LowerBound = Current + std::max(size_t{1}, Current / 2);
 	return Desired? std::max(LowerBound, *Desired) : LowerBound;
 }
 
@@ -117,12 +118,13 @@ auto make_hash(const T& value)
 template<class type>
 void hash_combine(size_t& Seed, const type& Value)
 {
+	// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
 	const auto MagicValue =
 #ifdef _WIN64
-		// (sqrt(5) - 1) * 2^63
+		// 2^64 / phi
 		11400714819323198485ull
 #else
-		// (sqrt(5) - 1) * 2^31
+		// 2^32 / phi
 		2654435769ul
 #endif
 	;
@@ -183,41 +185,66 @@ constexpr auto bit(size_t const Number)
 }
 
 [[nodiscard]]
-constexpr auto operator""_bit(unsigned long long const Number)
+consteval auto operator""_bit(unsigned long long const Number)
 {
 	return bit(Number);
 }
 
 namespace flags
 {
+	namespace detail
+	{
+		template<typename T> requires std::integral<T> || std::is_enum_v<T>
+		constexpr auto reveal(T const Value)
+		{
+			return as_unsigned(sane_to_underlying(Value));
+		}
+
+		template<typename T> requires (!std::integral<T> && !std::is_enum_v<T>)
+		constexpr auto& reveal(T& Value)
+		{
+			return Value;
+		}
+	}
+
 	template<typename value_type, typename flags_type>
 	constexpr bool check_any(const value_type& Value, flags_type Bits)
 	{
-		return (Value & Bits) != 0;
+		return (detail::reveal(Value) & detail::reveal(Bits)) != 0;
 	}
 
 	template<typename value_type, typename flags_type>
 	constexpr bool check_all(const value_type& Value, flags_type Bits)
 	{
-		return static_cast<flags_type>(Value & Bits) == Bits;
+		return (detail::reveal(Value) & detail::reveal(Bits)) == detail::reveal(Bits);
 	}
 
 	template<typename value_type, typename flags_type>
 	constexpr void set(value_type& Value, flags_type Bits)
 	{
-		Value |= Bits;
+		if constexpr (requires { Value |= detail::reveal(Bits); })
+			Value |= detail::reveal(Bits);
+		else
+			Value = static_cast<value_type>(detail::reveal(Value) | detail::reveal(Bits));
 	}
 
 	template<typename value_type, typename flags_type>
 	constexpr void clear(value_type& Value, flags_type Bits)
 	{
-		Value &= ~static_cast<value_type>(Bits);
+		const auto Mask = static_cast<std::remove_reference_t<decltype(detail::reveal(Value))>>(detail::reveal(Bits));
+		if constexpr (requires { Value &= ~Mask; })
+			Value &= ~Mask;
+		else
+			Value = static_cast<value_type>(detail::reveal(Value) & ~Mask);
 	}
 
 	template<typename value_type, typename flags_type>
 	constexpr void invert(value_type& Value, flags_type Bits)
 	{
-		Value ^= Bits;
+		if constexpr (requires { Value ^= detail::reveal(Bits); })
+			Value ^= detail::reveal(Bits);
+		else
+			Value = static_cast<value_type>(detail::reveal(Value) ^ detail::reveal(Bits));
 	}
 
 	template<typename value_type, typename flags_type>
@@ -230,7 +257,7 @@ namespace flags
 	constexpr void copy(value_type& Value, mask_type Mask, flags_type Bits)
 	{
 		clear(Value, Mask);
-		set(Value, Bits & Mask);
+		set(Value, detail::reveal(Bits) & detail::reveal(Mask));
 	}
 }
 
@@ -264,8 +291,25 @@ namespace enum_helpers
 	{
 		return static_cast<std::conditional_t<std::same_as<R, void>, T, R>>(O()(std::to_underlying(a), std::to_underlying(b)));
 	}
+
+	template<typename T>
+	concept enum_is_bit_flags = std::is_enum_v<T> && requires { T::is_bit_flags; };
+
+	template<typename T> requires enum_is_bit_flags<T>
+	constexpr auto operator|(T const a, T const b)
+	{
+		return operation<std::bit_or<>>(a, b);
+	}
+
+	template<typename T> requires enum_is_bit_flags<T>
+	constexpr auto operator&(T const a, T const b)
+	{
+		return operation<std::bit_and<>, std::underlying_type_t<T>>(a, b);
+	}
 }
 
+using enum_helpers::operator|;
+using enum_helpers::operator&;
 
 template<typename... args>
 struct [[nodiscard]] overload: args...
@@ -343,9 +387,17 @@ decltype(auto) edit_as(unsigned long long const Address)
 }
 
 template<typename T> requires std::is_trivially_copyable_v<T>
+auto view_as_opt(void const* const Begin, void const* const End, size_t const Offset = 0)
+{
+	return static_cast<char const*>(Begin) + Offset + sizeof(T) <= static_cast<char const*>(End)?
+		view_as<T const*>(Begin, Offset) :
+		nullptr;
+}
+
+template<typename T> requires std::is_trivially_copyable_v<T>
 auto view_as_opt(void const* const Buffer, size_t const Size, size_t const Offset = 0)
 {
-	return Size >= Offset + sizeof(T)? view_as<T const*>(Buffer, Offset) : nullptr;
+	return view_as_opt<T>(Buffer, static_cast<char const*>(Buffer) + Size, Offset);
 }
 
 template<typename T>

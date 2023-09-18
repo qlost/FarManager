@@ -11,6 +11,9 @@
       <ComponentRef Id="File_id.diz" />
       <ComponentRef Id="RestoreOldPluginSettings.cmd" />
       <ComponentRef Id="SaveOldPluginSettings.cmd" />
+      <ComponentRef Id="Far.VisualElementsManifest.xml" />
+      <ComponentRef Id="VisualElements.large.png" />
+      <ComponentRef Id="VisualElements.small.png" />
       <Feature Id="Addons" Level="1" Title="!(loc.Feature.Title.Addons)" AllowAdvertise="no" Description="!(loc.Feature.Description.Addons)">
         <ComponentRef Id="Descript.ion_1" />
         <ComponentRef Id="README.TXT_1" />
@@ -73,6 +76,7 @@
           <ComponentRef Id="Edit.OpenURL.lua" />
           <ComponentRef Id="Edit.SaveAndExit.lua" />
           <ComponentRef Id="Edit.SaveFile.lua" />
+          <ComponentRef Id="Edit.SelectionStartEnd.lua" />
           <ComponentRef Id="F3.lua" />
           <ComponentRef Id="F9DeactivateMenu.lua" />
           <ComponentRef Id="F9Table.lua" />

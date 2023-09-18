@@ -490,7 +490,7 @@ intptr_t ShellCopy::CopyDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* P
 				const auto& ir = *static_cast<INPUT_RECORD const*>(Param2);
 				if (ir.EventType == MOUSE_EVENT && Dlg->SendMessage(DM_GETDROPDOWNOPENED, ID_SC_COMBO, nullptr))
 				{
-					if (Dlg->SendMessage(DM_LISTGETCURPOS, ID_SC_COMBO, nullptr) == CM_ASKRO && ir.Event.MouseEvent.dwButtonState && !(ir.Event.MouseEvent.dwEventFlags & MOUSE_MOVED))
+					if (Dlg->SendMessage(DM_LISTGETCURPOS, ID_SC_COMBO, nullptr) == CM_ASKRO && ir.Event.MouseEvent.dwButtonState && IsMouseButtonEvent(ir.Event.MouseEvent.dwEventFlags))
 					{
 						Dlg->SendMessage(DM_SWITCHRO, 0, nullptr);
 						return FALSE;
@@ -760,14 +760,14 @@ ShellCopy::ShellCopy(
 			}
 		}
 
-		const auto Format = msg(Move? lng::MMoveFile : Link? lng::MLinkFile : lng::MCopyFile);
+		const auto& Format = msg(Move? lng::MMoveFile : Link? lng::MLinkFile : lng::MCopyFile);
 		const auto& ToOrIn = msg(Link? lng::MCMLTargetIN : lng::MCMLTargetTO);
 		const auto SpaceAvailable = std::max(0, static_cast<int>(CopyDlg[ID_SC_TITLE].X2 - CopyDlg[ID_SC_TITLE].X1 - 1 - 1));
-		if (const auto MaxLength = std::max(0, SpaceAvailable - static_cast<int>(HiStrlen(format(Format, L""sv, ToOrIn)))))
+		if (const auto MaxLength = std::max(0, SpaceAvailable - static_cast<int>(HiStrlen(far::vformat(Format, L""sv, ToOrIn)))))
 		{
 			strCopyStr = truncate_right(SingleSelName, MaxLength);
 		}
-		strCopyStr = format(Format, strCopyStr, ToOrIn);
+		strCopyStr = far::vformat(Format, strCopyStr, ToOrIn);
 
 		// Если копируем одиночный файл, то запрещаем использовать фильтр
 		if (!(SingleSelAttributes & FILE_ATTRIBUTE_DIRECTORY))
@@ -789,7 +789,7 @@ ShellCopy::ShellCopy(
 		else if (StrItems[LenItems-1] == '1')
 			NItems = lng::MCMLItems0;
 
-		strCopyStr = format(msg(Move? lng::MMoveFiles : Link? lng::MLinkFiles : lng::MCopyFiles),
+		strCopyStr = far::vformat(msg(Move? lng::MMoveFiles : Link? lng::MLinkFiles : lng::MCopyFiles),
 			SelCount,
 			msg(NItems),
 			msg(Link? lng::MCMLTargetIN : lng::MCMLTargetTO));
@@ -1019,6 +1019,9 @@ ShellCopy::ShellCopy(
 					{
 						for (const auto& i: enum_tokens_with_quotes_t<with_trim>(strCopyDlgValue, L",;"sv))
 						{
+							if (i.empty())
+								continue;
+
 							m_DestList.emplace_back(i);
 						}
 					}
@@ -1209,7 +1212,7 @@ ShellCopy::ShellCopy(
 		{
 			for (const auto& CreatedFolder: m_CreatedFolders)
 			{
-				if (const auto File = os::fs::file(CreatedFolder.FullName, GENERIC_WRITE, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT))
+				if (const auto File = os::fs::file(CreatedFolder.FullName, FILE_WRITE_ATTRIBUTES, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT))
 				{
 					set_file_time(File, CreatedFolder, true);
 				}
@@ -1385,7 +1388,7 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 	if (Dest.empty() || IsCurrentDirectory(Dest))
 		return;
 
-	SetCursorType(false, 0);
+	HideCursor();
 
 	DWORD Flags0 = Flags;
 
@@ -2492,7 +2495,7 @@ bool ShellCopy::ShellCopyFile(
 		{
 			if (!Global->Opt->CMOpt.CopyOpened)
 			{
-				if (!os::fs::file(SrcName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
+				if (!os::fs::file(SrcName, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
 				{
 					return false;
 				}
@@ -2505,7 +2508,7 @@ bool ShellCopy::ShellCopyFile(
 	const auto sd = GetSecurity(SrcName);
 
 	os::fs::file_walker SrcFile;
-	const auto OpenMode = FILE_SHARE_READ | FILE_SHARE_DELETE | (Global->Opt->CMOpt.CopyOpened? FILE_SHARE_WRITE : 0);
+	const auto OpenMode = os::fs::file_share_read | (Global->Opt->CMOpt.CopyOpened? FILE_SHARE_WRITE : 0);
 	if (!SrcFile.Open(SrcName, GENERIC_READ, OpenMode, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
 		return false;
 
@@ -2558,7 +2561,7 @@ bool ShellCopy::ShellCopyFile(
 		if (!DestFile.Open(
 			strDestName,
 			GENERIC_WRITE,
-			FILE_SHARE_READ,
+			os::fs::file_share_read,
 			sd? &SecAttr : nullptr,
 			Append? OPEN_EXISTING : CREATE_ALWAYS,
 			(attrs & ~(IsSystemEncrypted? FILE_ATTRIBUTE_SYSTEM : 0)) | FILE_FLAG_SEQUENTIAL_SCAN))
@@ -2743,7 +2746,7 @@ bool ShellCopy::ShellCopyFile(
 		{
 			if (os::fs::drive::get_type(GetPathRoot(strDestName)) == DRIVE_REMOTE)
 			{
-				if (DestFile.Open(strDestName, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT))
+				if (DestFile.Open(strDestName, FILE_WRITE_ATTRIBUTES, os::fs::file_share_read, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT))
 				{
 					set_file_time(DestFile, SrcData, Global->Opt->CMOpt.PreserveTimestamps);
 
@@ -2974,7 +2977,7 @@ bool ShellCopy::AskOverwrite(
 	const auto FormatLine = [&](const os::chrono::time_point TimePoint, lng Label, unsigned long long Size)
 	{
 		const auto [Date, Time] = ConvertDate(TimePoint, 8, 1);
-		return format(FSTR(L"{:26} {:20} {} {}"sv), msg(Label), Size, Date, Time);
+		return far::format(L"{:26} {:20} {} {}"sv, msg(Label), Size, Date, Time);
 	};
 
 	string strDestName(DestName);

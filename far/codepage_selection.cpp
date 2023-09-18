@@ -812,12 +812,13 @@ string codepages::FormatName(uintptr_t const CodePage)
 		return Name;
 	};
 
-	return format(FSTR(L"{}: {}"sv), CodePage, get_name());
+	return far::format(L"{}: {}"sv, CodePage, get_name());
 }
 
 string codepages::UnsupportedCharacterMessage(wchar_t const Char)
 {
-	return format(msg(lng::MCharacterIsNotSupportedByTheCodepage), Char);
+	const auto UnicodeNotation = far::format(L"U+{0:04X}"sv, Char);
+	return far::vformat(msg(lng::MCharacterIsNotSupportedByTheCodepage), Char, UnicodeNotation);
 }
 
 long long codepages::GetFavorite(uintptr_t cp)
@@ -851,6 +852,9 @@ F8CP::F8CP(bool viewer):
 		std::unordered_set<uintptr_t> used_cps;
 		for(const auto& i: enum_tokens(cps, L",;"sv))
 		{
+			if (i.empty())
+				continue;
+
 			uintptr_t cp;
 			if (equal_icase(i, L"ansi"sv) || equal_icase(i, L"acp"sv) || equal_icase(i, L"win"sv))
 				cp = encoding::codepage::ansi();

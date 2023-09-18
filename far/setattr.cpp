@@ -562,7 +562,7 @@ public:
 		{
 			{ DI_DOUBLEBOX, {{ 3, 1 }, { DlgW - 4, DlgH - 2 }}, DIF_NONE, msg(lng::MSetAttrTitle), },
 			{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE, msg(lng::MSetAttrSetting) },
-			{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE, {} },
+			{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_SHOWAMPERSAND, {} },
 		});
 
 		init(ProgressDlgItems, { -1, -1, DlgW, DlgH });
@@ -631,11 +631,36 @@ static bool process_single_file(
 		ESetFileOwner(Name, New.Owner, SkipErrors);
 	}
 
+	if (New.FindData.Attributes != Current.FindData.Attributes)
+	{
+		ESetFileCompression(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_COMPRESSED) != 0, Current.FindData.Attributes, SkipErrors);
+
+		ESetFileEncryption(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_ENCRYPTED) != 0, Current.FindData.Attributes, SkipErrors);
+
+		ESetFileSparse(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0, Current.FindData.Attributes, SkipErrors);
+
+		const auto IsChanged = [&](os::fs::attributes const Attributes)
+		{
+			return (New.FindData.Attributes & Attributes) != (Current.FindData.Attributes & Attributes);
+		};
+
+		if (IsChanged(FILE_ATTRIBUTE_REPARSE_POINT))
+		{
+			EDeleteReparsePoint(Name, Current.FindData.Attributes, SkipErrors);
+		}
+
+		const auto OtherAttributes = ~(FILE_ATTRIBUTE_ENCRYPTED | FILE_ATTRIBUTE_COMPRESSED | FILE_ATTRIBUTE_SPARSE_FILE | FILE_ATTRIBUTE_REPARSE_POINT);
+		if (IsChanged(OtherAttributes))
+		{
+			ESetFileAttributes(Name, New.FindData.Attributes & OtherAttributes, SkipErrors);
+		}
+	}
+
 	{
 		os::chrono::time_point WriteTime, CreationTime, AccessTime, ChangeTime;
-		std::array TimePointers{ &WriteTime, &CreationTime, &AccessTime, &ChangeTime };
+		std::array TimePointers{ &WriteTime, & CreationTime, & AccessTime, & ChangeTime };
 
-		for (const auto& [i, TimePointer]: zip(TimeMap, TimePointers))
+		for (const auto& [i, TimePointer] : zip(TimeMap, TimePointers))
 		{
 			const auto OriginalTime = std::invoke(i.Accessor, Current.FindData);
 			if (!construct_time(OriginalTime, *TimePointer, DateTimeAccessor(i.DateId), DateTimeAccessor(i.TimeId))
@@ -646,31 +671,6 @@ static bool process_single_file(
 		}
 
 		ESetFileTime(Name, TimePointers[0], TimePointers[1], TimePointers[2], TimePointers[3], Current.FindData.Attributes, SkipErrors);
-	}
-
-	if (New.FindData.Attributes == Current.FindData.Attributes)
-		return true;
-
-	ESetFileCompression(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_COMPRESSED) != 0, Current.FindData.Attributes, SkipErrors);
-
-	ESetFileEncryption(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_ENCRYPTED) != 0, Current.FindData.Attributes, SkipErrors);
-
-	ESetFileSparse(Name, (New.FindData.Attributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0, Current.FindData.Attributes, SkipErrors);
-
-	const auto IsChanged = [&](os::fs::attributes const Attributes)
-	{
-		return (New.FindData.Attributes & Attributes) != (Current.FindData.Attributes & Attributes);
-	};
-
-	if (IsChanged(FILE_ATTRIBUTE_REPARSE_POINT))
-	{
-		EDeleteReparsePoint(Name, Current.FindData.Attributes, SkipErrors);
-	}
-
-	const auto OtherAttributes = ~(FILE_ATTRIBUTE_ENCRYPTED | FILE_ATTRIBUTE_COMPRESSED | FILE_ATTRIBUTE_SPARSE_FILE | FILE_ATTRIBUTE_REPARSE_POINT);
-	if (IsChanged(OtherAttributes))
-	{
-		ESetFileAttributes(Name, New.FindData.Attributes & OtherAttributes, SkipErrors);
 	}
 
 	return true;
@@ -742,7 +742,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 		return false;
 	}
 
-	if(SelCount==1)
+	if(SelCount==1 && os::is_interactive_user_session())
 	{
 		AttrDlg[SA_BUTTON_SYSTEMDLG].Flags&=~DIF_DISABLE;
 	}
@@ -806,25 +806,25 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 		{
 		default:
 		case date_type::ymd:
-			DateMask = format(FSTR(L"N9999{0}99{0}99"sv), DateSeparator);
-			DateFormat = format(msg(lng::MSetAttrDateTitleYMD), DateSeparator);
+			DateMask = far::format(L"N9999{0}99{0}99"sv, DateSeparator);
+			DateFormat = far::vformat(msg(lng::MSetAttrDateTitleYMD), DateSeparator);
 			break;
 
 		case date_type::dmy:
-			DateMask = format(FSTR(L"99{0}99{0}9999N"sv), DateSeparator);
-			DateFormat = format(msg(lng::MSetAttrDateTitleDMY), DateSeparator);
+			DateMask = far::format(L"99{0}99{0}9999N"sv, DateSeparator);
+			DateFormat = far::vformat(msg(lng::MSetAttrDateTitleDMY), DateSeparator);
 			break;
 
 		case date_type::mdy:
-			DateMask = format(FSTR(L"99{0}99{0}9999N"sv), DateSeparator);
-			DateFormat = format(msg(lng::MSetAttrDateTitleMDY), DateSeparator);
+			DateMask = far::format(L"99{0}99{0}9999N"sv, DateSeparator);
+			DateFormat = far::vformat(msg(lng::MSetAttrDateTitleMDY), DateSeparator);
 			break;
 		}
 
-		const auto TimeMask = format(FSTR(L"99{0}99{0}99{1}9999999"sv), TimeSeparator, DecimalSeparator);
+		const auto TimeMask = far::format(L"99{0}99{0}99{1}9999999"sv, TimeSeparator, DecimalSeparator);
 
 		AttrDlg[SA_TEXT_TITLEDATE].strData = DateFormat;
-		AttrDlg[SA_TEXT_TITLETIME].strData = format(msg(lng::MSetAttrTimeTitle), TimeSeparator);
+		AttrDlg[SA_TEXT_TITLETIME].strData = far::vformat(msg(lng::MSetAttrTimeTitle), TimeSeparator);
 
 		for (const auto& i: TimeMap)
 		{
@@ -1325,6 +1325,9 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			break;
 		case SA_BUTTON_SYSTEMDLG:
 			{
+				if (!os::is_interactive_user_session())
+					return true;
+
 				SHELLEXECUTEINFO seInfo{ sizeof(seInfo) };
 				seInfo.nShow = SW_SHOW;
 				seInfo.fMask = SEE_MASK_INVOKEIDLIST;

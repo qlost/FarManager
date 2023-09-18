@@ -63,7 +63,7 @@ local LoadMacrosDone
 local LoadingInProgress
 local EnumState = {}
 local Events
-local EventGroups = {"dialogevent","editorevent","editorinput","exitfar","viewerevent", "consoleinput"}
+local EventGroups = {"dialogevent","editorevent","editorinput","exitfar","viewerevent", "consoleinput", "folderchanged"}
 local AddedMenuItems
 local AddedPrefixes
 local IdSet
@@ -270,6 +270,12 @@ end
 
 local function export_ProcessConsoleInput (Rec, Flags)
   return EV_Handler(Events.consoleinput, nil, Rec, Flags)
+end
+
+local function export_ProcessSynchroEvent (Event, Data)
+  if Event==F.SE_FOLDERCHANGED then
+    EV_Handler(Events.folderchanged)
+  end
 end
 
 local function export_GetContentFields (colnames)
@@ -864,6 +870,7 @@ local function LoadMacros (unload, paths)
     export.ProcessEditorInput = Events.editorinput[1] and export_ProcessEditorInput
     export.ProcessViewerEvent = Events.viewerevent[1] and export_ProcessViewerEvent
     export.ProcessConsoleInput = Events.consoleinput[1] and export_ProcessConsoleInput
+    export.ProcessSynchroEvent = Events.folderchanged[1] and export_ProcessSynchroEvent
     if ContentColumns[1] then
       export.GetContentFields = export_GetContentFields
       export.GetContentData   = export_GetContentData
@@ -1227,7 +1234,7 @@ end
 
 local function EnumScripts (ScriptType)
   local ScriptOrigin = {
-    CustomSortModes = Shared.panelsort.GetCustomSortModes(),
+    CustomSortModes = Shared.panelsort and Shared.panelsort.GetCustomSortModes(),
     Event = LoadedMacros,
     Macro = LoadedMacros,
     MenuItem = AddedMenuItems,
@@ -1247,8 +1254,8 @@ local function EnumScripts (ScriptType)
   local function copy(source)
     local t={}
     for k,v in pairs(source) do
-      if type(v) == "table" and k ~= "data" then
-        v = copy(v)
+      if type(v) == "table" then
+        v = k=="data" and v or copy(v)
       end
       t[k]=v
     end

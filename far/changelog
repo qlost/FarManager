@@ -1,4 +1,550 @@
 --------------------------------------------------------------------------------
+drkns 2023-09-14 02:49:00+01:00 - build 6192
+
+1. Workaround for gh-727 and related minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-13 20:28:17+01:00 - build 6191
+
+1. In file associations, if the specified mask is a regular expression, its capturing groups can be referenced in the commands as %RegexGroupN or %RegexGroup{Name}.
+
+--------------------------------------------------------------------------------
+yjh 2023-09-12 01:06:13+03:00 - build 6190
+
+1. SQLite v3.43.1
+
+--------------------------------------------------------------------------------
+drkns 2023-09-11 17:35:09+01:00 - build 6189
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-10 16:55:08+01:00 - build 6188
+
+1. Refactoring and minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-09 09:31:11+01:00 - build 6187
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-08 18:07:06+01:00 - build 6186
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-07 19:35:15+01:00 - build 6185
+
+1. gh-700: Unmodified files are overwritten in plugins if code page is changed.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-07 00:13:41+01:00 - build 6184
+
+1. Refactoring:
+   - Simpler logic around saving file in editor and various dialogs related to it.
+     The changes are somewhat massive, expect bugs.
+   - Code page is no longer stored in Editor, only in FileEditor.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-02 17:00:00+01:00 - build 6183
+
+1. gh-726: Wrong buttons in warning message when creating a new file from a plugin panel.
+   M#0000231: ShiftF4 sometimes doesn't work.
+
+   Rework the mess around creating new files with the editor:
+    - Empty names work on plugin panels too. Yay. It took only 17 years to get there.
+    - New name template is now fs-compatible and includes a customizable timestamp.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-01 21:06:39+01:00 - build 6182
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2023-08-25 12:09:02+03:00 - build 6181
+
+1. SQLite v3.43.0
+
+--------------------------------------------------------------------------------
+drkns 2023-08-21 19:39:57+01:00 - build 6180
+
+1. Correction of 6179 & related fixes.
+
+--------------------------------------------------------------------------------
+drkns 2023-08-21 18:21:32+01:00 - build 6179
+
+1. Disable ampersand processing in filenames in progress dialogs.
+
+2. Support text attributes in prompt and help color codes.
+
+--------------------------------------------------------------------------------
+drkns 2023-08-12 21:53:22+01:00 - build 6178
+
+1. fmt v10.1.
+
+2. Catch2 v3.4.
+
+--------------------------------------------------------------------------------
+drkns 2023-08-06 16:21:24+01:00 - build 6177
+
+1. Remove "Notepad++ binary text length" clipboard format support
+   We now have other means to store data lenght, NP++ changed it on their side and we were doing it wrong anyway.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-08-04 22:20:38+01:00 - build 6176
+
+1. 0004000: Crash with "integer divide by zero" searching text Alt+F7 in file KEYPAD.BMP
+
+--------------------------------------------------------------------------------
+drkns 2023-07-27 19:40:17+01:00 - build 6175
+
+1. Try to survive a conhost crash caused by a spawned process.
+
+--------------------------------------------------------------------------------
+drkns 2023-07-21 22:56:56+01:00 - build 6174
+
+1. Preserve user-defined cursor shape if possible.
+
+--------------------------------------------------------------------------------
+drkns 2023-07-15 10:39:13+01:00 - build 6173
+
+1. Fix a crash in prompt format parser.
+
+2. Propagate taskbar state to the terminal.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2023-07-12 22:29:50+03:00 - build 6172
+
+1. far didn't ask to save unsaved data in editor then menu was active and the console window is closed with "X".
+
+--------------------------------------------------------------------------------
+drkns 2023-06-28 22:58:23+01:00 - build 6171
+
+1. Continue 6170 & other highly experimental improvements in mouse processing.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-27 21:47:13+01:00 - build 6170
+
+1. Improve mouse buttons to fake macro keys translation.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-27 19:58:03+01:00 - build 6169
+
+1. Using a foreign format exclusively for the clipboard text size was probably not a good idea.
+   E.g. now copying text between 6167 and 6168 is broken. Oops.
+
+   To avoid repeating the same mistake in the future, we now have our own format ("FAR_Text_Length")
+   and resort to "Notepad++ binary text length" only when our own format is not available.
+
+2. With some magic copying text from pre-6168 should now work.
+   Unfortunately, time travel is not yet discovered, so copying text into pre-6168 remains broken.
+
+--------------------------------------------------------------------------------
+zg 2023-06-26 20:55:27+03:00 - build 6168
+
+1. correction of 4496. notepad++ expects data size in bytes including final '\0'.
+
+--------------------------------------------------------------------------------
+MZK 2023-06-20 19:53:29-07:00 - build 6167
+
+1. More ways to scroll VMenu lists horizontally.
+   - Ctrl+Alt+Arrows scroll all items by 20 characters at a time.
+   - Ctrl+Shift+Arrows scroll the selected item by 20 characters at a time.
+   - Alt+Shift+Home aligns the selected item to the left.
+   - Alt+Shift+End aligns the selected item to the right.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-20 20:01:57+01:00 - build 6166
+
+1. Configurable cursor size in screen grabber.
+
+--------------------------------------------------------------------------------
+johnd0e 2023-06-17 14:55:00+01:00 - build 6165
+
+1. Allow to break directory scan started from a macro (Mantis#0002692).
+   Fix by Shmuel: https://github.com/shmuz/far2m/issues/36
+
+--------------------------------------------------------------------------------
+drkns 2023-06-14 20:01:09+01:00 - build 6164
+
+1. Subscribe to power events only when needed.
+
+2. Support more reparse tags.
+
+3. Static analysis warnings.
+
+4. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-10 10:50:50+01:00 - build 6163
+
+1. gh-704: Multiple log files created and console logs empty in sync mode.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-09 19:49:34+01:00 - build 6162
+
+1. Address gh-702 comments:
+   - System.MsWheelThreshold option to adjust wheel sensitivity.
+   - Discard accumulated events on scrolling direction change.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-08 20:25:38+01:00 - build 6161
+
+1. Continue 6159: finer-resolution wheels/pads should now work more or less as expected.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-08 08:21:33+01:00 - build 6160
+
+1. gh-702: Trackpad scrolling issue in build 6159.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-07 22:32:00+01:00 - build 6159
+
+1. Improve mouse wheel handling:
+   - Take into account that one mouse event can describe more than one wheel detent.
+   - Use OS wheel settings when System.Ms[H]WheelDelta* parameters are set to 0.
+
+--------------------------------------------------------------------------------
+drkns 2023-06-02 20:53:21+01:00 - build 6158
+
+1. NumLeft & NumRight don't work as intended with radiobuttons.
+   An ancient bug, planted 21 years ago.
+
+--------------------------------------------------------------------------------
+w17 2023-05-31 12:18:13+03:00 - build 6157
+
+1. Continue 6155, 6153, 6152
+   Correction for Temporary panel (OPIF_REALNAMES)
+
+--------------------------------------------------------------------------------
+MZK 2023-05-29 11:49:01-07:00 - build 6156
+
+1. gh-697: Fixed disappearing autocomplete list in Search / Replace dialog.
+   The bug was introduced in 6144.
+
+--------------------------------------------------------------------------------
+w17 2023-05-29 13:25:38+03:00 - build 6155
+
+1. Continue 6153, OPIF_DEL.. on close can be used without RECURSIVEPANEL
+
+--------------------------------------------------------------------------------
+drkns 2023-05-29 10:19:46+01:00 - build 6154
+
+1. gh-696: Don't call ProcessConsoleInput on special macro keys.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+w17 2023-05-24 21:10:15+03:00 - build 6153
+
+1. Fix 6152
+
+--------------------------------------------------------------------------------
+w17 2023-05-24 15:05:42+03:00 - build 6152
+
+1. Continue 6134, 6140
+   gh-683: Archive is deleted on close when using prefix to open it from another archive
+   PF_RECURSIVEPANEL -> OPIF_RECURSIVEPANEL
+
+--------------------------------------------------------------------------------
+MZK 2023-05-21 19:01:56-07:00 - build 6151
+
+1. gh-669: Now Home key works in the Search / Replace dialog.
+1.a. Added new FARDIALOGITEMFLAGS: DIF_HOMEITEM.
+     This flag indicates the item which should take focus on Home key press.
+     Note: The first "focusable" item is not always the best target for Home key.
+     It is a good idea to set this flag on the item which initially has DIF_FOCUS.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-21 18:36:11+01:00 - build 6150
+
+1. Adjust CreateFile access & sharing flags in a few places.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-20 19:37:43+01:00 - build 6149
+
+1. gh-692: Change time for read-only or system files cannot be set
+
+2. gh-693: Change time cannot be set simultaneously with other file attributes
+
+3. gh-694: File creation time lost after saving read-only file on secondary disk
+
+--------------------------------------------------------------------------------
+drkns 2023-05-20 17:54:07+01:00 - build 6148
+
+1. More gh-691.
+
+2. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+johnd0e 2023-05-19 21:21:00+02:00 - build 6147
+
+1. gh-691: Macros: fix Panel.Select.
+   (patch by Shmuel)
+
+--------------------------------------------------------------------------------
+skipik 2023-05-16 19:36:39+03:00 - build 6146
+
+1. SQLite v3.42.0
+
+--------------------------------------------------------------------------------
+w17 2023-05-16 15:39:22+03:00 - build 6145
+
+1. Continue 6139 -- missed change
+
+--------------------------------------------------------------------------------
+MZK 2023-05-15 13:39:37-07:00 - build 6144
+
+1. Fallout of 6135: Persist forgotten Find File dialog options.
+1.1. gh-681: Persist empty search pattern.
+1.2. gh-685: Persist "Search in archives" option.
+1.3. gh-681: Find File content search parameters (search pattern, hex,
+     case sensitive, whole words, fuzzy) are not shared with Viewer / Editor.
+     However, if the search pattern is not empty, Find File content search
+     parameters are copied to Viewer / Editor search.
+
+2. gh-681: Do not allow empty search pattern in Viewer and Editor search dialog.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-15 19:38:57+01:00 - build 6143
+
+1. gh-687: Commands history: empty Folder for commands with host-file plugin prefix run via file association.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-13 20:18:31+01:00 - build 6142
+
+1. Improve insanely slow help rendering on large screens.
+   I won't go into details, but we should rewrite the whole thing.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-12 19:31:11+01:00 - build 6141
+
+1. Remove sorting from Task List.
+   Now it's MRU, as before 3451.
+
+--------------------------------------------------------------------------------
+w17 2023-05-12 14:00:05+03:00 - build 6140
+
+1. Continue 6134.
+   gh-680: Enable Recursive Plugin Panels for Plugin.Command Calls
+
+--------------------------------------------------------------------------------
+w17 2023-05-12 12:06:40+03:00 - build 6139
+
+1. https://bugs.farmanager.com/view.php?id=3447
+   Provide alive macro API in ExitFAR event.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-11 19:36:13+01:00 - build 6138
+
+1. fmt 10.0.0.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-08 19:32:14+01:00 - build 6137
+
+1. Enable consteval in fmt.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-05-06 20:55:00+01:00 - build 6136
+
+1. Extend internal RGB color picker (similar to 256).
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+MZK 2023-05-05 22:02:12-07:00 - build 6135
+
+1. gh-612: Help Search parameters are preserved between Help sessions.
+
+2. gh-613: Search patterns and parameters are shared between
+   Viewer, Editor, and Find File.
+
+--------------------------------------------------------------------------------
+w17 2023-05-04 22:01:33+03:00 - build 6134
+
+1. Experimental: Auto plugin panel stack for PF_RECURSIVEPANEL plugins
+   https://forum.farmanager.com/viewtopic.php?t=13202
+
+--------------------------------------------------------------------------------
+drkns 2023-04-29 00:28:52+01:00 - build 6133
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-04-14 00:24:32+01:00 - build 6132
+
+1. Exception handling improvements.
+
+2. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2023-04-13 00:55:13+01:00 - build 6131
+
+1. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+w17 2023-04-12 03:32:44+03:00 - build 6130
+
+1. Continue 6124 -- Don't show Disk/Sort menu if [ ] Show sort mode letter
+
+--------------------------------------------------------------------------------
+drkns 2023-04-08 16:10:54+01:00 - build 6129
+
+1. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+w17 2023-04-02 10:03:32+03:00 - build 6128
+
+1. Avoid far crash when lua script calls far.Host.GetFiles() for passive panel
+   and active panel is not plugin panel.
+   https://sourceforge.net/p/farplugs/tickets/205/
+
+--------------------------------------------------------------------------------
+MZK 2023-03-31 22:22:52-07:00 - build 6127
+
+1. Continuation of 6122. Follow-up on the discussion in gh-662.
+   Swapped buttons on the Search / Replace dialog and removed vertical separator.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-31 21:11:07+01:00 - build 6126
+
+1. Correction of 6101.
+
+--------------------------------------------------------------------------------
+w17 2023-03-31 10:49:36+03:00 - build 6125
+
+1. Correct 6124
+
+--------------------------------------------------------------------------------
+w17 2023-03-31 09:21:17+03:00 - build 6124
+
+1. Forum: Mouse click on Sort order mark letter didn't work if [ ] Show column titles
+   https://forum.farmanager.com/viewtopic.php?t=13178
+
+--------------------------------------------------------------------------------
+drkns 2023-03-28 19:17:03+01:00 - build 6123
+
+1. gh-665: Crash after an unexpected panel update.
+   This is a rather hairy & global problem, see comments in filelist.hpp.
+
+--------------------------------------------------------------------------------
+MZK 2023-03-27 22:03:51-07:00 - build 6122
+
+1. Forum: Search / Replace dialog facelift.
+   On popular demand at https://forum.farmanager.com/viewtopic.php?t=13158.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-27 22:35:19+01:00 - build 6121
+
+1. gh-663: Fix text <-> hex conversions in Viewer and Find File.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-27 18:19:56+01:00 - build 6120
+
+1. New versions of fmt, tinyxml2, Catch2.
+
+2. Refactoring.
+
+3. Make unit tests runnable from IDE.
+
+--------------------------------------------------------------------------------
+MZK 2023-03-26 11:56:52-07:00 - build 6119
+
+1. gh-542: Editor Search (plain text): Shift+F7 / Alt+F7 now finds the nearest match,
+   even if it overlaps with the last found match.
+
+2. gh-660: Editor Search (regex): Shift+F7 in cursor-at-the-end mode now continues
+   from the next character.
+
+--------------------------------------------------------------------------------
+skipik 2023-03-22 17:19:19+03:00 - build 6118
+
+1. SQLite v3.41.2.
+
+--------------------------------------------------------------------------------
+Yegor 2023-03-11 14:11:00-08:00 - build 6117
+
+1. Fixed the rendering of the mark char if its length or visual length exceeds 1 char
+
+--------------------------------------------------------------------------------
+skipik 2023-03-11 00:22:07+03:00 - build 6116
+
+1. SQLite v3.41.1.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-10 15:00:26+00:00 - build 6115
+
+1. Rendering fix.
+
+--------------------------------------------------------------------------------
+MZK 2023-03-07 20:13:03-08:00 - build 6114
+
+1. gh-600: Shift+F7 and Alt+F7 now search in absolute directions (down or up respectfully)
+   instead of reversing the direction defined by the last invocation of the Search / Replace dialog.
+   Also, on the dialog itself, replaced "Reverse" checkbox with "Search Down / Up" buttons.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-07 17:10:01+00:00 - build 6113
+
+1. gh-650: Pressing Ctrl+Enter in the find all menu of the Editor crashes Far if all entries are filtered out.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-07 16:29:53+00:00 - build 6112
+
+1. gh-647: Selection not removed in Editor and edit controls on pressing Ctrl+Num6.
+
+--------------------------------------------------------------------------------
+drkns 2023-03-05 21:10:37+00:00 - build 6111
+
+1. Refactoring: implement span in terms of std::span.
+
+2. Clang warnings: remove unused variables.
+
+--------------------------------------------------------------------------------
+drkns 2023-02-28 21:43:49+00:00 - build 6110
+
+1. Fix crash when window size is too small.
+
+2. Include more data into minidumps.
+
+--------------------------------------------------------------------------------
+drkns 2023-02-25 16:36:54+00:00 - build 6109
+
+1. Include Unicode notation (U+NNNN) into the "character is not supported by the selected code page" warning.
+
+--------------------------------------------------------------------------------
+zg 2023-02-24 00:45:38+02:00 - build 6108
+
+1. correction of 6104: SE_FOLDERCHANGED sends only to LuaMacro temporary.
+
+--------------------------------------------------------------------------------
+skipik 2023-02-23 13:50:41+03:00 - build 6107
+
+1. SQLite v3.41.0.
+
+--------------------------------------------------------------------------------
+drkns 2023-02-22 20:47:28+00:00 - build 6106
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2023-02-22 00:19:12+02:00 - build 6105
+
+1. Correction of 5822.2 for persistent blocks.
+
+--------------------------------------------------------------------------------
+zg 2023-02-21 20:49:15+02:00 - build 6104
+
+1. experimental: new event SE_FOLDERCHANGED, sent when changing the current directory in panels.
+
+--------------------------------------------------------------------------------
 MZK 2023-02-18 12:03:13-08:00
 
 1. gh-614: Restored Viewer type-to-search feature which was removed in 6099.
@@ -1897,7 +2443,6 @@ w17 2021-05-05 17:58:17+03:00 - build 5790
    far:config Descriptions.ValidateConversion=true -- configurable description encoding validation.
 
 --------------------------------------------------------------------------------
-
 drkns 2021-05-04 18:08:14+01:00 - build 5789
 
 1. SQLite exception due to outdated index after collation update.
@@ -52022,9 +52567,9 @@ drkns 2009-08-09 17:21:34+02:00 - build 1080
 
 1. Если на панели был выделен один объект и курсор стоял на "..", то в PanleInfo.SelectedItemsNumber оказывался 0.
 
---------------------------------------------------------------------------------
+----------------------------------------
 Entries 464-1079 are not translated yet.
---------------------------------------------------------------------------------
+----------------------------------------
 
 --------------------------------------------------------------------------------
 chupakabra 2009-08-09 16:10:00+02:00 - build 1079
@@ -60853,11 +61398,9 @@ t-rex 2007-10-26 14:34:01+02:00 - build 300
 
 1. Все готовы? Are you ready? :)
 
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
+---------------------------------------
 Entries 145-300 are not translated yet.
---------------------------------------------------------------------------------
+---------------------------------------
 
 --------------------------------------------------------------------------------
 t-rex 2007-10-26 14:27:32+02:00 - build 300

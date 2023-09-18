@@ -135,7 +135,7 @@ struct subst_data
 	bool PassivePanel{};
 	bool EscapeAmpersands{};
 
-	unordered_string_map<string>* Variables;
+	unordered_string_map<string>* Variables{};
 };
 
 
@@ -351,7 +351,7 @@ static void MakeListFile(panel_ptr const& Panel, string& ListFileName, bool cons
 
 	ListFileName = MakeTemp();
 
-	const os::fs::file ListFile(ListFileName, GENERIC_WRITE, os::fs::file_share_all, nullptr, CREATE_ALWAYS);
+	const os::fs::file ListFile(ListFileName, GENERIC_WRITE, os::fs::file_share_read, nullptr, CREATE_ALWAYS);
 	if (!ListFile)
 		throw MAKE_FAR_EXCEPTION(msg(lng::MCannotCreateListTemp));
 
@@ -701,7 +701,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 
 	const auto GenerateHistoryName = [&](size_t const Index)
 	{
-		return format(FSTR(L"{}{}"sv), HistoryAndVariablePrefix, Index);
+		return far::format(L"{}{}"sv, HistoryAndVariablePrefix, Index);
 	};
 
 	constexpr auto ExpectedTokensCount = 64;
@@ -869,7 +869,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 			continue;
 
 		const auto Index = (&i - DlgData.data() - 1) / 2;
-		const auto VariableName = format(FSTR(L"%{}{}"sv), HistoryAndVariablePrefix, Index + 1);
+		const auto VariableName = far::format(L"%{}{}"sv, HistoryAndVariablePrefix, Index + 1);
 		replace_icase(strTmpStr, VariableName, i.strData);
 
 		if (!i.strHistory.empty() && i.strHistory != GenerateHistoryName(Index))

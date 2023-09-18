@@ -97,6 +97,17 @@
       <Component Id="SaveOldPluginSettings.cmd" Guid="$(var.Guid.SaveOldPluginSettings.cmd)" Win64="$(var.Win64)">
         <File Id="SaveOldPluginSettings.cmd" KeyPath="yes" Source="$(var.SourceDir)\SaveOldPluginSettings.cmd" />
       </Component>
+      <Component Id="Far.VisualElementsManifest.xml" Guid="$(var.Guid.Far.VisualElementsManifest.xml)" Win64="$(var.Win64)">
+        <File Id="Far.VisualElementsManifest.xml" KeyPath="yes" Source="$(var.SourceDir)\Far.VisualElementsManifest.xml" />
+      </Component>
+      <Directory Id="VisualElements" Name="VisualElements">
+        <Component Id="VisualElements.large.png" Guid="$(var.Guid.VisualElements.large.png)" Win64="$(var.Win64)">
+          <File Id="VisualElements.large.png" KeyPath="yes" Source="$(var.SourceDir)\VisualElements\large.png" />
+        </Component>
+        <Component Id="VisualElements.small.png" Guid="$(var.Guid.VisualElements.small.png)" Win64="$(var.Win64)">
+          <File Id="VisualElements.small.png" KeyPath="yes" Source="$(var.SourceDir)\VisualElements\small.png" />
+        </Component>
+      </Directory>
       <Directory Id="Addons" Name="Addons">
         <Component Id="Descript.ion_1" Guid="$(var.Guid.Descript.ion_1)" Win64="$(var.Win64)">
           <File Id="Descript.ion_1" KeyPath="yes" Source="$(var.SourceDir)\Addons\Descript.ion" />
@@ -280,6 +291,9 @@
           </Component>
           <Component Id="Edit.SaveFile.lua" Guid="$(var.Guid.Edit.SaveFile.lua)" Win64="$(var.Win64)">
             <File Id="Edit.SaveFile.lua" KeyPath="yes" Source="$(var.SourceDir)\Addons\Macros\Edit.SaveFile.lua" />
+          </Component>
+          <Component Id="Edit.SelectionStartEnd.lua" Guid="$(var.Guid.Edit.SelectionStartEnd.lua)" Win64="$(var.Win64)">
+            <File Id="Edit.SelectionStartEnd.lua" KeyPath="yes" Source="$(var.SourceDir)\Addons\Macros\Edit.SelectionStartEnd.lua" />
           </Component>
           <Component Id="F3.lua" Guid="$(var.Guid.F3.lua)" Win64="$(var.Win64)">
             <File Id="F3.lua" KeyPath="yes" Source="$(var.SourceDir)\Addons\Macros\F3.lua" />

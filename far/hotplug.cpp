@@ -60,6 +60,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/enum_substrings.hpp"
+#include "common/function_ref.hpp"
 #include "common/keep_alive.hpp"
 #include "common/view/select.hpp"
 
@@ -194,11 +195,10 @@ private:
 	string m_id;
 };
 
-template<typename receiver>
 [[nodiscard]]
-static bool GetDevicePropertyImpl(DEVINST hDevInst, const receiver& Receiver)
+static bool GetDevicePropertyImpl(DEVINST hDevInst, function_ref<bool(dev_info const&, SP_DEVINFO_DATA&)> const Receiver)
 {
-	dev_info Info(hDevInst);
+	dev_info const Info(hDevInst);
 	if (!Info)
 		return false;
 
@@ -347,7 +347,7 @@ static device_paths get_relation_device_paths(DEVINST hDevInst)
 	for (const auto& i: enum_substrings(DeviceIdList))
 	{
 		DEVINST hRelationDevInst;
-		if (CM_Locate_DevNode(&hRelationDevInst, const_cast<DEVINSTID_W>(i.data()), 0) == CR_SUCCESS)
+		if (CM_Locate_DevNode(&hRelationDevInst, const_cast<DEVINSTID>(i.data()), 0) == CR_SUCCESS)
 			DevicePaths.append(get_device_paths_impl(hRelationDevInst));
 	}
 
@@ -440,7 +440,7 @@ static bool RemoveHotplugDriveDevice(const DeviceInfo& Info, bool const Confirm,
 			MessageItems.emplace_back(strFriendlyName);
 
 		if (!DisksStr.empty())
-			MessageItems.emplace_back(format(msg(lng::MHotPlugDisks), DisksStr));
+			MessageItems.emplace_back(far::vformat(msg(lng::MHotPlugDisks), DisksStr));
 
 		MessageResult = Message(MSG_WARNING,
 			msg(lng::MChangeHotPlugDisconnectDriveTitle),

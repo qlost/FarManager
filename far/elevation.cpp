@@ -1041,8 +1041,6 @@ class elevated:noncopyable
 public:
 	int Run(string_view const Uuid, DWORD PID, bool UsePrivileges)
 	{
-		os::set_error_mode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-
 		std::array const Privileges
 		{
 			SE_BACKUP_NAME,
@@ -1052,9 +1050,9 @@ public:
 			SE_CREATE_SYMBOLIC_LINK_NAME
 		};
 
-		const auto OptinalPrivilegesCount = 2; // Backup, restore
+		const auto OptionalPrivilegesCount = 2; // Backup, restore
 
-		SCOPED_ACTION(os::security::privilege)((span(Privileges)).subspan(UsePrivileges? 0 : OptinalPrivilegesCount));
+		SCOPED_ACTION(os::security::privilege)((span(Privileges)).subspan(UsePrivileges? 0 : OptionalPrivilegesCount));
 
 		const auto PipeName = concat(L"\\\\.\\pipe\\"sv, Uuid);
 		WaitNamedPipe(PipeName.c_str(), NMPWAIT_WAIT_FOREVER);
@@ -1107,11 +1105,6 @@ private:
 		void* UserData;
 		std::exception_ptr ExceptionPtr;
 	};
-
-	void Write(const void* Data, size_t DataSize) const
-	{
-		pipe::write(m_Pipe, Data, DataSize);
-	}
 
 	template<typename T>
 	T Read() const
@@ -1356,9 +1349,9 @@ private:
 		return cpp_try(
 		[&]
 		{
-			const auto Context = Param->Owner;
+			const auto& Context = *Param->Owner;
 
-			Context->Write(
+			Context.Write(
 				CallbackMagic,
 				TotalFileSize,
 				TotalBytesTransferred,
@@ -1371,13 +1364,13 @@ private:
 
 			for (;;)
 			{
-				const auto Result = Context->Read<int>();
+				const auto Result = Context.Read<int>();
 				if (Result == CallbackMagic)
 				{
-					return Context->Read<int>();
+					return Context.Read<int>();
 				}
 				// nested call from ProgressRoutine()
-				Context->Process(Result);
+				Context.Process(Result);
 			}
 		},
 		[&]
@@ -1424,7 +1417,7 @@ private:
 		}
 		catch (...)
 		{
-			LOGERROR(L"Unknown exception"sv);
+			LOGERROR(L"{}"sv, unknown_exception);
 			return false;
 		}
 	}

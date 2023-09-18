@@ -534,6 +534,37 @@ bool while_mouse_button_pressed(function_ref<bool(DWORD)> const Action)
 	return true;
 }
 
+bool IsMouseButtonEvent(DWORD const EventFlags)
+{
+	return EventFlags == 0 || EventFlags == DOUBLE_CLICK;
+}
+
+int get_wheel_threshold(int ConfigValue)
+{
+	return ConfigValue? ConfigValue : WHEEL_DELTA;
+}
+
+static int get_wheel_scroll(unsigned const Type, int const ConfigValue)
+{
+	if (ConfigValue)
+		return ConfigValue;
+
+	if (UINT Value; SystemParametersInfo(Type, 0, &Value, 0))
+		return Value;
+
+	return 1;
+}
+
+int get_wheel_scroll_lines(int const ConfigValue)
+{
+	return get_wheel_scroll(SPI_GETWHEELSCROLLLINES, ConfigValue);
+}
+
+int get_wheel_scroll_chars(int const ConfigValue)
+{
+	return get_wheel_scroll(SPI_GETWHEELSCROLLCHARS, ConfigValue);
+}
+
 static auto ButtonStateToKeyMsClick(DWORD ButtonState)
 {
 	switch (ButtonState)
@@ -754,7 +785,7 @@ static const far_key_code WheelKeys[][2] =
 	{ KEY_MSWHEEL_LEFT, KEY_MSWHEEL_RIGHT }
 };
 
-static bool ProcessMouseEvent(const MOUSE_EVENT_RECORD& MouseEvent, bool ExcludeMacro, bool ProcessMouse, DWORD& CalcKey)
+static bool ProcessMouseEvent(MOUSE_EVENT_RECORD& MouseEvent, bool ExcludeMacro, bool ProcessMouse, DWORD& CalcKey)
 {
 	lastMOUSE_EVENT_RECORD = MouseEvent;
 	IntKeyState.PreMouseEventFlags = std::exchange(IntKeyState.MouseEventFlags, MouseEvent.dwEventFlags);
@@ -765,17 +796,10 @@ static bool ProcessMouseEvent(const MOUSE_EVENT_RECORD& MouseEvent, bool Exclude
 
 	UpdateIntKeyState(CtrlState);
 
-	const auto BtnState = MouseEvent.dwButtonState;
 	KeyMacro::SetMacroConst(constMsButton, MouseEvent.dwButtonState);
 
-	if (IntKeyState.MouseEventFlags != MOUSE_MOVED)
-	{
-		IntKeyState.PrevMouseButtonState = IntKeyState.MouseButtonState;
-	}
-
-	IntKeyState.MouseButtonState = BtnState;
-	IntKeyState.MousePrevPos = IntKeyState.MousePos;
-	IntKeyState.MousePos = MouseEvent.dwMousePosition;
+	IntKeyState.PrevMouseButtonState = std::exchange(IntKeyState.MouseButtonState, MouseEvent.dwButtonState);
+	IntKeyState.MousePrevPos = std::exchange(IntKeyState.MousePos, MouseEvent.dwMousePosition);
 	KeyMacro::SetMacroConst(constMsX, IntKeyState.MousePos.x);
 	KeyMacro::SetMacroConst(constMsY, IntKeyState.MousePos.y);
 
@@ -794,17 +818,51 @@ static bool ProcessMouseEvent(const MOUSE_EVENT_RECORD& MouseEvent, bool Exclude
 
 	if (IntKeyState.MouseEventFlags == MOUSE_WHEELED || IntKeyState.MouseEventFlags == MOUSE_HWHEELED)
 	{
+		// https://learn.microsoft.com/en-gb/windows/win32/inputdev/wm-mousewheel
+		// The wheel rotation will be a multiple of WHEEL_DELTA, which is set at 120.
+		// This is the threshold for action to be taken, and one such action
+		// (for example, scrolling one increment) should occur for each delta.
+		// The delta was set to 120 to allow Microsoft or other vendors to build
+		// finer-resolution wheels (a freely-rotating wheel with no notches)
+		// to send more messages per rotation, but with a smaller value in each message.
+		// To use this feature, you can either add the incoming delta values
+		// until WHEEL_DELTA is reached (so for a delta-rotation you get the same response),
+		// or scroll partial lines in response to the more frequent messages.
+		// You can also choose your scroll granularity and accumulate deltas until it is reached.
+		static int StoredTicks = 0;
+		const auto Ticks = static_cast<short>(extract_integer<WORD, 1>(MouseEvent.dwButtonState));
+
+		// Discard stored ticks on scrolling direction change
+		if ((Ticks > 0) == (StoredTicks > 0))
+			StoredTicks += Ticks;
+		else
+			StoredTicks = Ticks;
+
+		const auto Threshold = get_wheel_threshold(Global->Opt->MsWheelThreshold);
+
+		if (std::abs(StoredTicks) < Threshold)
+		{
+			CalcKey = KEY_NONE;
+			return true;
+		}
+
 		const auto& WheelKeysPair = WheelKeys[IntKeyState.MouseEventFlags == MOUSE_HWHEELED? 1 : 0];
-		const auto Key = WheelKeysPair[static_cast<short>(extract_integer<WORD, 1>(MouseEvent.dwButtonState)) > 0? 1 : 0];
+		const auto Key = WheelKeysPair[StoredTicks > 0? 1 : 0];
 		CalcKey = Key | GetModifiers();
+
+		// Move accumulated ticks into the event, so that clients can inspect them via Manager::NumberOfWheelEvents() and act accordingly.
+		const auto Remainder = StoredTicks % Threshold;
+		MouseEvent.dwButtonState = make_integer<DWORD>(extract_integer<WORD, 0>(MouseEvent.dwButtonState), static_cast<WORD>(StoredTicks - Remainder));
+		StoredTicks = Remainder;
 		return false;
 	}
 
 	if ((!ExcludeMacro || ProcessMouse) && Global->CtrlObject && (ProcessMouse || !(Global->CtrlObject->Macro.IsRecording() || Global->CtrlObject->Macro.IsExecuting())))
 	{
-		if (IntKeyState.MouseEventFlags != MOUSE_MOVED)
+		if (!IntKeyState.MouseEventFlags)
 		{
-			const auto MsCalcKey = ButtonStateToKeyMsClick(MouseEvent.dwButtonState);
+			// By clearing the previously pressed buttons we ensure that the newly pressed one will be reported
+			const auto MsCalcKey = ButtonStateToKeyMsClick(MouseEvent.dwButtonState & ~IntKeyState.PrevMouseButtonState);
 			if (MsCalcKey != KEY_NONE)
 			{
 				CalcKey = MsCalcKey | GetModifiers();
@@ -1105,7 +1163,7 @@ DWORD GetInputRecord(INPUT_RECORD *rec, bool ExcludeMacro, bool ProcessMouse)
 
 	DWORD Key = GetInputRecordImpl(rec, ExcludeMacro, ProcessMouse);
 
-	if (Key)
+	if (Key && !in_closed_range(KEY_OP_BASE, Key, KEY_OP_ENDBASE))
 	{
 		if (Global->CtrlObject)
 		{
@@ -1403,7 +1461,7 @@ static string KeyToTextImpl(unsigned int const Key0, tfkey_to_text ToText, add_s
 	if (FKey >= KEY_VK_0xFF_BEGIN && FKey <= KEY_VK_0xFF_END)
 	{
 		AddSeparator(strKeyText);
-		format_to(strKeyText, FSTR(L"Spec{:0>5}"sv), FKey - KEY_VK_0xFF_BEGIN);
+		far::format_to(strKeyText, L"Spec{:0>5}"sv, FKey - KEY_VK_0xFF_BEGIN);
 		return strKeyText;
 
 	}
@@ -1411,7 +1469,7 @@ static string KeyToTextImpl(unsigned int const Key0, tfkey_to_text ToText, add_s
 	if (FKey > KEY_VK_0xFF_END && FKey <= KEY_END_FKEY)
 	{
 		AddSeparator(strKeyText);
-		format_to(strKeyText, FSTR(L"Oem{:0>5}"sv), FKey - KEY_FKEY_BEGIN);
+		far::format_to(strKeyText, L"Oem{:0>5}"sv, FKey - KEY_FKEY_BEGIN);
 		return strKeyText;
 
 	}
@@ -1928,8 +1986,10 @@ static int GetMouseKey(const MOUSE_EVENT_RECORD& MouseEvent)
 	switch (MouseEvent.dwEventFlags)
 	{
 	case 0:
+	case DOUBLE_CLICK:
 	{
-		const auto MsKey = ButtonStateToKeyMsClick(MouseEvent.dwButtonState);
+		// By clearing the previously pressed buttons we ensure that the newly pressed one will be reported
+		const auto MsKey = ButtonStateToKeyMsClick(MouseEvent.dwButtonState & ~IntKeyState.PrevMouseButtonState);
 		if (MsKey != KEY_NONE)
 		{
 			return MsKey;
@@ -2174,7 +2234,7 @@ static unsigned int CalcKeyCode(INPUT_RECORD* rec, bool RealKey, bool* NotMacros
 
 		if (Result == KEY_ESC && console.IsViewportShifted())
 		{
-			console.ResetPosition();
+			console.ResetViewportPosition();
 			return KEY_NONE;
 		}
 		else

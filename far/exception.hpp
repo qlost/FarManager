@@ -95,11 +95,11 @@ namespace detail
 		template<typename... args>
 		explicit far_std_exception(args&&... Args):
 			far_base_exception(FWD(Args)...),
-			std::runtime_error(convert_message())
+			std::runtime_error(convert_message(full_message()))
 		{}
 
 	private:
-		[[nodiscard]] std::string convert_message() const;
+		[[nodiscard]] static std::string convert_message(string_view Message);
 	};
 
 	class break_into_debugger
@@ -152,5 +152,11 @@ struct formattable<std::exception>
 {
 	static string to_string(std::exception const& e);
 };
+
+constexpr inline struct unknown_exception_t
+{
+	static string to_string();
+}
+unknown_exception;
 
 #endif // EXCEPTION_HPP_2CD5B7D1_D39C_4CAF_858A_62496C9221DF

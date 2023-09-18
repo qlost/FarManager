@@ -43,6 +43,10 @@
 <?define Guid.RestoreOldPluginSettings.cmd = "4D9EA960-3B1E-4863-AFE3-546899A7C228" ?>
 <?define Guid.SaveOldPluginSettings.cmd = "35434FDB-2080-4442-895E-450D06A4CF3D" ?>
 
+<?define Guid.Far.VisualElementsManifest.xml = "F225BC93-46F4-4D21-B363-3B16DBC8FD9E" ?>
+<?define Guid.VisualElements.large.png = "C523D276-BC8C-48C8-919B-D59B01CB56C1" ?>
+<?define Guid.VisualElements.small.png = "0FED8C62-FB5A-4C1E-9476-EEBC71E46001" ?>
+
 <?define Guid.Descript.ion_1 = "2DA521F1-F2F6-4C10-A436-AA157172F88D" ?>
 <?define Guid.README.TXT_1 = "AA293D7D-E310-41BD-BDF6-6AEA8E791BF2" ?>
 <?define Guid.Descript.ion_3 = "DB61ACFB-A946-49A2-B120-85D4096F4B01" ?>
@@ -101,6 +105,7 @@
 <?define Guid.Edit.OpenURL.lua = "9BEBFDDF-C337-4752-90BC-5984D9C7E31E" ?>
 <?define Guid.Edit.SaveAndExit.lua = "235043E4-B707-40C0-88A7-E86D7DD231C3" ?>
 <?define Guid.Edit.SaveFile.lua = "09BF9550-1DF8-4228-824A-AD8A9341087C" ?>
+<?define Guid.Edit.SelectionStartEnd.lua = "43BBD6A1-7840-46D0-995E-5D8DC22BD50F" ?>
 <?define Guid.F3.lua = "8446410F-A125-45BD-B791-0AFCB4F69CAB" ?>
 <?define Guid.F9DeactivateMenu.lua = "683BCAC2-01C4-49F5-9E43-F3503EA36823" ?>
 <?define Guid.F9Table.lua = "600732B1-B384-45C8-BDA8-3EC08DB00A83" ?>

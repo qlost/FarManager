@@ -220,7 +220,7 @@ namespace os::process
 		if (!fs::get_module_file_name(Process, {}, ProcessFileName))
 			return image_type::unknown;
 
-		const fs::file ModuleFile(ProcessFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING);
+		const fs::file ModuleFile(ProcessFileName, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING);
 		if (!ModuleFile)
 			return image_type::unknown;
 
@@ -356,7 +356,10 @@ namespace os::process
 	{
 		const fs::file File(Filename, FILE_READ_ATTRIBUTES, fs::file_share_all, nullptr, OPEN_EXISTING);
 		if (!File)
+		{
+			LOGWARNING(L"CreateFile({}): {}"sv, Filename, os::last_error());
 			return 0;
+		}
 
 		const auto ReasonableSize = 1024;
 		block_ptr<FILE_PROCESS_IDS_USING_FILE_INFORMATION, ReasonableSize> Info(ReasonableSize);
@@ -372,7 +375,10 @@ namespace os::process
 		}
 
 		if (!NT_SUCCESS(Result))
+		{
+			LOGWARNING(L"NtQueryInformationFile({}): {}"sv, Filename, format_ntstatus(Result));
 			return 0;
+		}
 
 		for (const auto& i: span(Info->ProcessIdList, Info->NumberOfProcessIdsInList))
 		{

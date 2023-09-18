@@ -290,7 +290,7 @@ void FillPluginPanelItem(lua_State *L, struct PluginPanelItem *pi, int Collector
 		lua_getfield(L, dataPos, "ExtUserData");
 		pi->UserData.Data = lua_touserdata(L, -1);
 		lua_getfield(L, dataPos, "FreeUserData");
-		pi->UserData.FreeData = lua_touserdata(L, -1);
+		pi->UserData.FreeData = (FARPANELITEMFREECALLBACK)(intptr_t)lua_touserdata(L, -1);
 		lua_pop(L, 3);
 	}
 }
@@ -855,7 +855,7 @@ static HANDLE FillFarMacroCall (lua_State* L, int narg)
 		else if (type == LUA_TSTRING)
 		{
 			fmc->Values[i].Type = FMVT_STRING;
-			fmc->Values[i].Value.String = wcsdup(check_utf8_string(L, i-narg, NULL));
+			fmc->Values[i].Value.String = _wcsdup(check_utf8_string(L, i-narg, NULL));
 		}
 		else if (type == LUA_TLIGHTUSERDATA)
 		{
@@ -1528,6 +1528,10 @@ intptr_t LF_ProcessSynchroEvent(lua_State* L, const struct ProcessSynchroEventIn
 		{
 			Common_ProcessSynchroEvent(L, Info->Event, sd.data);
 		}
+	}
+	else if(Info->Event == SE_FOLDERCHANGED)
+	{
+		Common_ProcessSynchroEvent(L, Info->Event, 0);
 	}
 
 	return ret;

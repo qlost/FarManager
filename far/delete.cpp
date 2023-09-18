@@ -119,7 +119,7 @@ public:
 			{ DI_TEXT,      {{ 0, 0 }, { 0,               0 }}, DIF_HIDDEN,    {}, },
 			{ DI_DOUBLEBOX, {{ 3, 1 }, { DlgW - 4, DlgH - 2 }}, DIF_NONE,      msg(Wipe? lng::MDeleteWipeTitle : lng::MDeleteTitle), },
 			{ DI_TEXT,      {{ 5, 2 }, { DlgW - 6,        2 }}, DIF_NONE,      msg(Wipe? lng::MDeletingWiping : lng::MDeleting) },
-			{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_NONE,      {} },
+			{ DI_TEXT,      {{ 5, 3 }, { DlgW - 6,        3 }}, DIF_SHOWAMPERSAND, {} },
 			{ DI_TEXT,      {{ 5, 4 }, { DlgW - 6,        4 }}, DIF_NONE,      {} },
 			{ DI_TEXT,      {{ 5, 5 }, { DlgW - 6,        5 }}, DIF_SEPARATOR, {} },
 			{ DI_TEXT,      {{ 5, 6 }, { DlgW - 6,        6 }}, DIF_NONE,      {} },
@@ -206,7 +206,8 @@ private:
 static bool EraseFileData(string_view const Name, progress Files, delete_progress const& Progress)
 {
 	os::fs::file_walker File;
-	if (!File.Open(Name, FILE_READ_DATA | FILE_WRITE_DATA, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_WRITE_THROUGH | FILE_FLAG_SEQUENTIAL_SCAN))
+	// FILE_READ_DATA is for sparse files
+	if (!File.Open(Name, FILE_READ_DATA | FILE_WRITE_DATA, os::fs::file_share_read, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_WRITE_THROUGH | FILE_FLAG_SEQUENTIAL_SCAN))
 		return false;
 
 	unsigned long long FileSize;
@@ -345,7 +346,7 @@ static void show_confirmation(
 	if (SelCount == 1)
 	{
 		const auto IsFolder = (SingleSelData.Attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-		items.emplace_back(format(msg(MessageId), msg(IsFolder? lng::MAskDeleteFolder : lng::MAskDeleteFile)));
+		items.emplace_back(far::vformat(msg(MessageId), msg(IsFolder? lng::MAskDeleteFolder : lng::MAskDeleteFile)));
 		items.emplace_back(QuoteOuterSpace(SingleSelData.FileName));
 
 		if (SingleSelData.Attributes & FILE_ATTRIBUTE_REPARSE_POINT)
@@ -373,7 +374,7 @@ static void show_confirmation(
 	}
 	else
 	{
-		items.emplace_back(format(msg(MessageId), msg(lng::MAskDeleteObjects)));
+		items.emplace_back(far::vformat(msg(MessageId), msg(lng::MAskDeleteObjects)));
 
 		const auto ItemsToShow = std::min(std::min(std::max(static_cast<size_t>(Global->Opt->DelOpt.ShowSelected), size_t{ 1 }), SelCount), size_t{ScrY / 2u});
 		const auto ItemsMore = SelCount - ItemsToShow;
@@ -385,7 +386,7 @@ static void show_confirmation(
 			if (items.size() - 1 == ItemsToShow)
 			{
 				if (ItemsMore)
-					items.emplace_back(format(msg(lng::MAskDeleteAndMore), ItemsMore));
+					items.emplace_back(far::vformat(msg(lng::MAskDeleteAndMore), ItemsMore));
 
 				break;
 			}
@@ -748,7 +749,7 @@ ShellDelete::ShellDelete(panel_ptr SrcPanel, delete_type const Type):
 	ConsoleTitle::SetFarTitle(msg(lng::MDeletingTitle));
 	SCOPED_ACTION(taskbar::indeterminate);
 	SCOPED_ACTION(wakeful);
-	SetCursorType(false, 0);
+	HideCursor();
 
 	delete_progress const Progress(m_DeleteType == delete_type::erase, Global->Opt->DelOpt.ShowTotal);
 	const auto Total = Global->Opt->DelOpt.ShowTotal? calculate_total(SrcPanel) : total_items{};

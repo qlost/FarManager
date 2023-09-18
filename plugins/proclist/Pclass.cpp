@@ -74,7 +74,7 @@ static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousand
 	if (!UnitIndex)
 		return ValueStr;
 
-	const auto SizeInUnits = value / std::pow(Divider.first, UnitIndex);
+	const auto SizeInUnits = static_cast<double>(value) / std::pow(Divider.first, UnitIndex);
 
 	double Parts[2];
 	Parts[1] = std::modf(SizeInUnits, &Parts[0]);
@@ -85,13 +85,13 @@ static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousand
 		const auto AdjustedParts = [&]
 		{
 			const auto Multiplier = static_cast<unsigned long long>(std::pow(10, NumDigits));
-			const auto Value = Parts[1] * Multiplier;
+			const auto Value = Parts[1] * static_cast<double>(Multiplier);
 			const auto UseRound = true;
 			const auto Fractional = static_cast<unsigned long long>(UseRound? std::round(Value) : Value);
 			return Fractional == Multiplier? std::make_pair(Integral + 1, 0ull) : std::make_pair(Integral, Fractional);
 		}();
 
-		ValueStr = format(FSTR(L"{0}.{1:0{2}}"), AdjustedParts.first, AdjustedParts.second, NumDigits);
+		ValueStr = far::format(L"{0}.{1:0{2}}"sv, AdjustedParts.first, AdjustedParts.second, NumDigits);
 	}
 	else
 	{
@@ -104,7 +104,7 @@ static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousand
 
 static std::wstring PrintTitle(std::wstring_view const Msg)
 {
-	return format(FSTR(L"{0:<21} "), format(FSTR(L"{0}:"), Msg));
+	return far::format(L"{0:<21} "sv, far::format(L"{0}:"sv, Msg));
 }
 
 static std::wstring PrintTitle(int MsgId)
@@ -269,7 +269,7 @@ void Plist::InitializePanelModes()
 		auto& ColsLocal = ModeLocal.panel_columns;
 		auto& ColsRemote = ModeRemote.panel_columns;
 
-		if (const auto Root = settings.OpenSubKey(0, format(FSTR(L"Mode{0}"), i).c_str()))
+		if (const auto Root = settings.OpenSubKey(0, far::format(L"Mode{0}"sv, i).c_str()))
 		{
 			if (settings.Get(Root, L"FullScreenLocal", (ModeLocal.Flags & PMFLAGS_FULLSCREEN) != 0))
 				ModeLocal.Flags |= PMFLAGS_FULLSCREEN;
@@ -317,7 +317,7 @@ void Plist::SavePanelModes()
 
 	for (size_t i = 0; i != NPANELMODES; ++i)
 	{
-		const auto Root = settings.CreateSubKey(0, format(FSTR(L"Mode{0}"), i).c_str());
+		const auto Root = settings.CreateSubKey(0, far::format(L"Mode{0}"sv, i).c_str());
 
 		auto& ModeLocal = m_PanelModesDataLocal[i];
 		auto& ModeRemote = m_PanelModesDataRemote[i];
@@ -444,9 +444,9 @@ void Plist::GetOpenPanelInfo(OpenPanelInfo* Info)
 	static std::wstring Title;
 
 	if (HostName.empty())
-		Title = format(FSTR(L" {0} "), GetMsg(MPlistPanel));
+		Title = far::format(L" {} "sv, GetMsg(MPlistPanel));
 	else
-		Title = format(FSTR(L"{0}: {1} "), HostName, GetMsg(MPlistPanel));
+		Title = far::format(L"{}: {} "sv, HostName, GetMsg(MPlistPanel));
 
 	Info->PanelTitle = Title.c_str();
 	Info->PanelModesArray = PanelModes(Info->PanelModesNumber);
@@ -841,19 +841,19 @@ static void DumpNTCounters(HANDLE InfoFile, PerfThread& Thread, DWORD dwPid, DWO
 		case PERF_COUNTER_RAWCOUNT:
 		case PERF_COUNTER_LARGE_RAWCOUNT:
 			// Display as is.  No Display Suffix.
-			WriteToFile(InfoFile, format(FSTR(L"{0:20}\n"), pdata->qwResults[i]));
+			WriteToFile(InfoFile, far::format(L"{:20}\n"sv, pdata->qwResults[i]));
 			break;
 
 		case PERF_100NSEC_TIMER:
 			// 64-bit Timer in 100 nsec units. Display delta divided by delta time. Display suffix: "%"
-			WriteToFile(InfoFile, format(FSTR(L"{0:>20} {1:7}%\n"), DurationToText(pdata->qwCounters[i]), pdata->qwResults[i]));
+			WriteToFile(InfoFile, far::format(L"{:>20} {:7}%\n"sv, DurationToText(pdata->qwCounters[i]), pdata->qwResults[i]));
 			break;
 
 		case PERF_COUNTER_COUNTER:
 			// 32-bit Counter.  Divide delta by delta time.  Display suffix: " / sec"
 		case PERF_COUNTER_BULK_COUNT:
 			// 64-bit Counter.  Divide delta by delta time. Display Suffix: " / sec"
-			WriteToFile(InfoFile, format(FSTR(L"{0:20}  {1:7}{2}\n"), pdata->qwCounters[i], pdata->qwResults[i], GetMsg(MPerSec)));
+			WriteToFile(InfoFile, far::format(L"{:20}  {:7}{}\n"sv, pdata->qwCounters[i], pdata->qwResults[i], GetMsg(MPerSec)));
 			break;
 
 		default:
@@ -917,15 +917,15 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 
 		WriteToFile(InfoFile.get(), L'\xfeff');
 
-		WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}, {2}{3}\n"), PrintTitle(MTitleModule), CurItem.FileName, pdata->Bitness, GetMsg(MBits)));
+		WriteToFile(InfoFile.get(), far::format(L"{}{}, {}{}\n"sv, PrintTitle(MTitleModule), CurItem.FileName, pdata->Bitness, GetMsg(MBits)));
 
 		if (!pdata->FullPath.empty())
 		{
-			WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleFullPath), pdata->FullPath));
+			WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitleFullPath), pdata->FullPath));
 			PrintVersionInfo(InfoFile.get(), pdata->FullPath.c_str());
 		}
 
-		WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitlePID), pdata->dwPID));
+		WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitlePID), pdata->dwPID));
 		WriteToFile(InfoFile.get(), PrintTitle(MTitleParentPID));
 
 		{
@@ -934,13 +934,13 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 			const auto pName = pdata->dwParentPID && pParentData? pParentData->ProcessName.c_str() : nullptr;
 
 			if (pName)
-				WriteToFile(InfoFile.get(), format(FSTR(L"{0}  ({1})\n"), pdata->dwParentPID, pName));
+				WriteToFile(InfoFile.get(), far::format(L"{}  ({})\n"sv, pdata->dwParentPID, pName));
 			else
-				WriteToFile(InfoFile.get(), format(FSTR(L"{0}\n"), pdata->dwParentPID));
+				WriteToFile(InfoFile.get(), far::format(L"{}\n"sv, pdata->dwParentPID));
 		}
 
-		WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitlePriority), pdata->dwPrBase));
-		WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleThreads), CurItem.NumberOfLinks));
+		WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitlePriority), pdata->dwPrBase));
+		WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitleThreads), CurItem.NumberOfLinks));
 
 		PrintOwnerInfo(InfoFile.get(), pdata->dwPID);
 
@@ -959,21 +959,21 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 
 			if (Current.wYear != Compare.wYear || Current.wMonth != Compare.wMonth || Current.wDay != Compare.wDay)
 			{
-				WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}{1} {2}\n"), PrintTitle(MTitleStarted), DateText, TimeText));
+				WriteToFile(InfoFile.get(), far::format(L"\n{}{} {}\n"sv, PrintTitle(MTitleStarted), DateText, TimeText));
 			}
 			else
 			{
-				WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}{1}\n"), PrintTitle(MTitleStarted), TimeText));
+				WriteToFile(InfoFile.get(), far::format(L"\n{}{}\n"sv, PrintTitle(MTitleStarted), TimeText));
 			}
 
-			WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleUptime), FileTimeDifferenceToText(CurFileTime, CurItem.CreationTime)));
+			WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitleUptime), FileTimeDifferenceToText(CurFileTime, CurItem.CreationTime)));
 		}
 
 		if (HostName.empty()) // local only
 		{
 			if (!pdata->CommandLine.empty())
 			{
-				WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}:\n{1}\n"), GetMsg(MCommandLine), pdata->CommandLine));
+				WriteToFile(InfoFile.get(), far::format(L"\n{}:\n{}\n"sv, GetMsg(MCommandLine), pdata->CommandLine));
 			}
 
 			DebugToken token;
@@ -988,12 +988,12 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 				{
 					if (pd->dwGDIObjects)
 					{
-						WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}{1}\n"), PrintTitle(MTitleGDIObjects), pd->dwGDIObjects));
+						WriteToFile(InfoFile.get(), far::format(L"\n{}{}\n"sv, PrintTitle(MTitleGDIObjects), pd->dwGDIObjects));
 					}
 
 					if (pd->dwUSERObjects)
 					{
-						WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleUSERObjects), pd->dwUSERObjects));
+						WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(MTitleUSERObjects), pd->dwUSERObjects));
 					}
 				}
 			}
@@ -1006,18 +1006,18 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 		{
 			wchar_t Title[MAX_PATH]; *Title = 0;
 			GetWindowText(pdata->hwnd, Title, static_cast<int>(std::size(Title)));
-			WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}{1}\n"), PrintTitle(MTitleWindow), Title));
-			WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1}\n"), PrintTitle(L"HWND"sv), static_cast<const void*>(pdata->hwnd)));
+			WriteToFile(InfoFile.get(), far::format(L"\n{}{}\n"sv, PrintTitle(MTitleWindow), Title));
+			WriteToFile(InfoFile.get(), far::format(L"{}{}\n"sv, PrintTitle(L"HWND"sv), static_cast<const void*>(pdata->hwnd)));
 
 			const auto& [Style, StyleStr] = window_style(pdata->hwnd);
-			WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1:08X} {2}\n"), PrintTitle(MTitleStyle), Style, StyleStr));
+			WriteToFile(InfoFile.get(), far::format(L"{}{:08X} {}\n"sv, PrintTitle(MTitleStyle), Style, StyleStr));
 			const auto& [ExStyle, ExStyleStr] = window_ex_style(pdata->hwnd);
-			WriteToFile(InfoFile.get(), format(FSTR(L"{0}{1:08X} {2}\n"), PrintTitle(MTitleExtStyle), ExStyle, ExStyleStr));
+			WriteToFile(InfoFile.get(), far::format(L"{}{:08X} {}\n"sv, PrintTitle(MTitleExtStyle), ExStyle, ExStyleStr));
 		}
 
 		if (HostName.empty() && LocalOpt.ExportModuleInfo && pdata->dwPID != 8)
 		{
-			WriteToFile(InfoFile.get(), format(FSTR(L"\n{0}:\n{1:<{2}} {3:<8} {4}\n"),
+			WriteToFile(InfoFile.get(), far::format(L"\n{}:\n{:<{}} {:<8} {}\n"sv,
 				GetMsg(MTitleModules),
 				GetMsg(MColBase),
 #ifdef _WIN64
@@ -1069,7 +1069,7 @@ int Plist::DeleteFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, OPERATION
 
 		if (ItemsNumber == 1)
 		{
-			Msg = format(GetMsg(MDeleteProcess), PanelItem[0].FileName);
+			Msg = far::vformat(GetMsg(MDeleteProcess), PanelItem[0].FileName);
 			MsgItems[1] = Msg.c_str();
 		}
 
@@ -1078,7 +1078,7 @@ int Plist::DeleteFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, OPERATION
 
 		if (ItemsNumber > 1)
 		{
-			Msg = format(GetMsg(MDeleteNumberOfProcesses), ItemsNumber);
+			Msg = far::vformat(GetMsg(MDeleteNumberOfProcesses), ItemsNumber);
 			MsgItems[1] = Msg.c_str();
 
 			if (Message(FMSG_WARNING, {}, MsgItems, std::size(MsgItems), 2) != 0)
@@ -1123,7 +1123,7 @@ int Plist::DeleteFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, OPERATION
 
 		if (!Success)
 		{
-			const auto Msg = format(GetMsg(MCannotDelete), CurItem.FileName);
+			const auto Msg = far::vformat(GetMsg(MCannotDelete), CurItem.FileName);
 			const wchar_t* MsgItems[]
 			{
 				GetMsg(MDeleteTitle),
@@ -1296,6 +1296,32 @@ static bool is_alttab_window(HWND const Window)
 	return true;
 }
 
+static constexpr auto
+	none_pressed = 0,
+	any_ctrl_pressed = LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED,
+	any_alt_pressed = LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED,
+	any_shift_pressed = SHIFT_PRESSED;
+
+constexpr auto check_control(unsigned const ControlState, unsigned const Mask)
+{
+	constexpr auto ValidMask = any_ctrl_pressed | any_alt_pressed | any_shift_pressed;
+
+	const auto FilteredControlState = ControlState & ValidMask;
+	const auto OtherKeys = ValidMask & ~Mask;
+
+	return ((FilteredControlState & Mask) || !Mask) && !(FilteredControlState & OtherKeys);
+};
+
+static_assert(check_control(0, 0));
+static_assert(check_control(NUMLOCK_ON, 0));
+static_assert(check_control(NUMLOCK_ON | SHIFT_PRESSED, any_shift_pressed));
+static_assert(check_control(NUMLOCK_ON | SHIFT_PRESSED | LEFT_ALT_PRESSED, any_shift_pressed | any_alt_pressed));
+static_assert(!check_control(NUMLOCK_ON | SHIFT_PRESSED | LEFT_ALT_PRESSED, any_shift_pressed));
+static_assert(!check_control(0, SHIFT_PRESSED));
+static_assert(!check_control(NUMLOCK_ON, SHIFT_PRESSED));
+static_assert(!check_control(NUMLOCK_ON | SHIFT_PRESSED, 0));
+
+
 int Plist::ProcessKey(const INPUT_RECORD* Rec)
 {
 	const std::scoped_lock b(m_RefreshLock);
@@ -1306,26 +1332,19 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 	const auto Key = Rec->Event.KeyEvent.wVirtualKeyCode;
 	const auto ControlState = Rec->Event.KeyEvent.dwControlKeyState;
 
-	const auto check_control = [ControlState](unsigned const Mask)
-	{
-		constexpr auto ValidMask =
-			RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED |
-			RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED |
-			SHIFT_PRESSED;
+	const auto
+		NonePressed = check_control(ControlState, none_pressed),
+		OnlyAnyCtrlPressed = check_control(ControlState, any_ctrl_pressed),
+		//OnlyAnyAltPressed = check_control(ControlState, any_alt_pressed),
+		OnlyAnyShiftPressed = check_control(ControlState, any_shift_pressed);
 
-		const auto FilteredControlState = ControlState & ValidMask;
-		const auto OtherKeys = ValidMask & ~Mask;
-
-		return (FilteredControlState & Mask) && !(FilteredControlState & OtherKeys);
-	};
-
-	if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && Key == L'R')
+	if (OnlyAnyCtrlPressed && Key == L'R')
 	{
 		pPerfThread->SmartReread();
 		return FALSE;
 	}
 
-	if (ControlState == 0 && Key == VK_RETURN)
+	if (NonePressed && Key == VK_RETURN)
 	{
 		//check for the command line; if it's not empty, don't process Enter
 		if (PsInfo.PanelControl(this, FCTL_GETCMDLINE, 0, {}) > 1)
@@ -1358,7 +1377,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if (check_control(SHIFT_PRESSED) && Key == VK_F3)
+
+	if (OnlyAnyShiftPressed && Key == VK_F3)
 	{
 		PanelInfo pi{ sizeof(PanelInfo) };
 		PsInfo.PanelControl(this, FCTL_GETPANELINFO, 0, &pi);
@@ -1413,7 +1433,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if (check_control(0) && Key == VK_F6)
+
+	if (NonePressed && Key == VK_F6)
 	{
 		{
 			wchar_t Host[1024] = {};
@@ -1466,7 +1487,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		Reread();
 		return TRUE;
 	}
-	else if (check_control(SHIFT_PRESSED) && Key == VK_F6)
+
+	if (OnlyAnyShiftPressed && Key == VK_F6)
 	{
 		// go to local host
 		pPerfThread = {};
@@ -1478,7 +1500,7 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 	}
 
 #if 0
-	else if ((ControlState & (RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED)) && Key == VK_F6)
+	if (OnlyAnyAltPressed && Key == VK_F6)
 	{
 		if (!Opt.EnableWMI)
 			return TRUE;
@@ -1520,7 +1542,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 	}
 
 #endif
-	else if (check_control(SHIFT_PRESSED) && (Key == VK_F1 || Key == VK_F2) && (HostName.empty() || Opt.EnableWMI))
+
+	if (OnlyAnyShiftPressed && (Key == VK_F1 || Key == VK_F2) && (HostName.empty() || Opt.EnableWMI))
 	{
 		//lower/raise priority class
 		PanelInfo PInfo = { sizeof(PanelInfo) };
@@ -1664,7 +1687,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		Config();
 		return TRUE;*/
 	}
-	else if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && Key == L'F')
+
+	if (OnlyAnyCtrlPressed && Key == L'F')
 	{
 		PanelInfo pi = { sizeof(PanelInfo) };
 		PsInfo.PanelControl(this, FCTL_GETPANELINFO, 0, &pi);
@@ -1688,7 +1712,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 		return TRUE;
 	}
-	else if (check_control(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) && (Key >= VK_F3 && Key <= VK_F12))
+
+	if (OnlyAnyCtrlPressed && (Key >= VK_F3 && Key <= VK_F12))
 	{
 		if (
 			Key == VK_F5 || // Write time
@@ -1782,8 +1807,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 				continue;
 
 			PerSecMessages.emplace_back(i < 3?
-				format(FSTR(L"% {0}"), GetMsg(Counters[i].idName)) :
-				format(FSTR(L"{0}{1}"), GetMsg(Counters[i].idName), GetMsg(MPerSec))
+				far::format(L"% {}"sv, GetMsg(Counters[i].idName)) :
+				far::format(L"{}{}"sv, GetMsg(Counters[i].idName), GetMsg(MPerSec))
 			);
 
 			Items.push_back({ CheckFlag(SM_PROCLIST_PERSEC | (SM_PROCLIST_PERFCOUNTER + i)), PerSecMessages.back().c_str() });
@@ -1849,9 +1874,9 @@ std::wstring DurationToText(uint64_t Duration)
 		Ticks   = Duration % TicksPerD % TicksPerH % TicksPerM % TicksPerS / 1;
 
 	if (Days > 0)
-		return format(FSTR(L"{0} {1:02}:{2:02}:{3:02}.{4:07}"), Days, Hours, Minutes, Seconds, Ticks);
+		return far::format(L"{} {:02}:{:02}:{:02}.{:07}"sv, Days, Hours, Minutes, Seconds, Ticks);
 	else
-		return format(FSTR(L"{0:02}:{1:02}:{2:02}.{3:07}"), Hours, Minutes, Seconds, Ticks);
+		return far::format(L"{:02}:{:02}:{:02}.{:07}"sv, Hours, Minutes, Seconds, Ticks);
 }
 
 std::wstring FileTimeDifferenceToText(const FILETIME& CurFileTime, const FILETIME& SrcTime)
@@ -1891,7 +1916,7 @@ bool Plist::GetVersionInfo(const wchar_t* pFullPath, std::unique_ptr<char[]>& Bu
 	if (!Translation)
 		return false;
 
-	const auto BlockPath = format(FSTR(L"\\StringFileInfo\\{0:04X}{1:04X}\\"), LOWORD(*Translation), HIWORD(*Translation));
+	const auto BlockPath = far::format(L"\\StringFileInfo\\{:04X}{:04X}\\"sv, LOWORD(*Translation), HIWORD(*Translation));
 
 	pVersion = GetValue<wchar_t>(Buffer.get(), (BlockPath + L"FileVersion"s).c_str());
 	pDesc = GetValue<wchar_t>(Buffer.get(), (BlockPath + L"FileDescription"s).c_str());
@@ -1909,12 +1934,12 @@ void Plist::PrintVersionInfo(HANDLE InfoFile, const wchar_t* pFullPath)
 
 	if (pVersion)
 	{
-		WriteToFile(InfoFile, format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleFileVersion), pVersion));
+		WriteToFile(InfoFile, far::format(L"{}{}\n"sv, PrintTitle(MTitleFileVersion), pVersion));
 	}
 
 	if (pDesc)
 	{
-		WriteToFile(InfoFile, format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleFileDesc), pDesc));
+		WriteToFile(InfoFile, far::format(L"{}{}\n"sv, PrintTitle(MTitleFileDesc), pDesc));
 	}
 }
 
@@ -1958,18 +1983,18 @@ void Plist::PrintOwnerInfo(HANDLE InfoFile, DWORD dwPid)
 		WriteToFile(InfoFile, PrintTitle(MTitleUsername));
 
 		if (!Domain.empty())
-			WriteToFile(InfoFile, format(FSTR(L"{0}\\"), Domain));
+			WriteToFile(InfoFile, far::format(L"{}\\"sv, Domain));
 
 		if (!User.empty())
 			WriteToFile(InfoFile, User);
 
 		if (!Sid.empty())
-			WriteToFile(InfoFile, format(FSTR(L" ({0})"), Sid));
+			WriteToFile(InfoFile, far::format(L" ({})"sv, Sid));
 
 		WriteToFile(InfoFile, L'\n');
 	}
 
-	WriteToFile(InfoFile, format(FSTR(L"{0}{1}\n"), PrintTitle(MTitleSessionId), pWMI->GetProcessSessionId(dwPid)));
+	WriteToFile(InfoFile, far::format(L"{}{}\n"sv, PrintTitle(MTitleSessionId), pWMI->GetProcessSessionId(dwPid)));
 }
 
 template<typename T>

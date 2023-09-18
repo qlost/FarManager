@@ -71,7 +71,7 @@ namespace logging
 	[[nodiscard]]
 	bool filter(level Level);
 
-	void log(string_view Str, level Level, std::string_view Function, std::string_view File, int Line);
+	void log(string&& Str, level Level, std::string_view Function, std::string_view File, int Line);
 
 	void show();
 
@@ -99,7 +99,7 @@ namespace logging
 		if (logging::filter(log_level)) \
 		{ \
 			logging::log( \
-				format(FSTR(Format), ##__VA_ARGS__), \
+				far::format(Format, ##__VA_ARGS__), \
 				log_level, \
 				CURRENT_FUNCTION_NAME, \
 				CURRENT_FILE_NAME, \

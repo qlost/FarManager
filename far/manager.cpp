@@ -114,6 +114,14 @@ Manager::Key& Manager::Key::operator&=(unsigned int Key)
 	return *this;
 }
 
+size_t Manager::Key::NumberOfWheelEvents() const
+{
+	if (!m_EventFilled || m_Event.EventType != MOUSE_EVENT || !(m_Event.Event.MouseEvent.dwEventFlags & (MOUSE_WHEELED | MOUSE_HWHEELED)))
+		return 1;
+
+	return std::abs(static_cast<short>(extract_integer<WORD, 1>(m_Event.Event.MouseEvent.dwButtonState)) / get_wheel_threshold(Global->Opt->MsWheelThreshold));
+}
+
 static bool CASHook(const Manager::Key& key)
 {
 	if (!key.IsEvent())
@@ -443,8 +451,8 @@ window_ptr Manager::WindowMenu()
 			const auto Hotkey = static_cast<wchar_t>(i < 10? L'0' + i : i < 36? L'A' + i - 10 : L' ');
 			inplace::escape_ampersands(Name);
 			/*  добавляется "*" если файл изменен */
-			MenuItemEx ModalMenuItem(format(
-				FSTR(L"{}{}  {:<{}} {} {}"sv),
+			MenuItemEx ModalMenuItem(far::format(
+				L"{}{}  {:<{}} {} {}"sv,
 				Hotkey == L' '? L""sv : L"&"sv,
 				Hotkey,
 				Type,
@@ -639,11 +647,6 @@ void Manager::ProcessMainLoop()
 
 void Manager::ExitMainLoop(int Ask)
 {
-	if (Global->CloseFAR)
-	{
-		Global->CloseFARMenu = true;
-	}
-
 	if (!Ask || !Global->Opt->Confirm.Exit || Message(0,
 		msg(lng::MQuit),
 		{
@@ -658,13 +661,11 @@ void Manager::ExitMainLoop(int Ask)
 		*/
 		if (ExitAll() || Global->CloseFAR)
 		{
+			Global->CtrlObject->Plugins->NotifyExit();
+
 			const auto cp = Global->CtrlObject->Cp();
 			if (!cp || (!cp->LeftPanel()->ProcessPluginEvent(FE_CLOSE, nullptr) && !cp->RightPanel()->ProcessPluginEvent(FE_CLOSE, nullptr)))
 				EndLoop=true;
-		}
-		else
-		{
-			Global->CloseFARMenu = false;
 		}
 	}
 }
@@ -1221,4 +1222,9 @@ FileEditor* Manager::GetCurrentEditor() const
 Manager::windows::const_iterator Manager::IsSpecialWindow() const
 {
 	return std::find_if(CONST_RANGE(m_windows, i) { return i->IsSpecial(); });
+}
+
+void Manager::FolderChanged()
+{
+	CallbackWindow([](){ Global->CtrlObject->Plugins->ProcessSynchroEvent(SE_FOLDERCHANGED, nullptr); });
 }
