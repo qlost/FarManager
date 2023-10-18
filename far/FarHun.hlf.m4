@@ -47,9 +47,9 @@
 
 @Contents
 $^#Fájl- és archívumkezelő program#
-`$^#'FULLVERSION`#'
+$^#M4_MACRO_GET(FULLVERSION)#
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
+$^#Copyright © 2000-M4_MACRO_GET(COPYRIGHTYEAR) Far Group#
  ~A súgó betűrendes tartalomjegyzéke~@Index@
  ~A súgó használata~@Help@
 
@@ -241,7 +241,7 @@ user profile folder (#%APPDATA%\\Far Manager\\Profile# by default).
 a <felhasználónév> értéket adja.
 
  #-v <fájlnév>#
- Megnézi a megadott fájlt. Ha a <fájlnév> #-#, akkor az
+ Megnézi a megadott fájlt. Ha a <fájlnév> `#-#', akkor az
 stdin adatát olvassa ki.
 
  Például a "dir|far -v -" a dir parancs kimenetét fogja
@@ -4506,6 +4506,9 @@ $ #Color Picker#
 
  The standard 16-color palette is available in the dialog.
  To access the ~256-color palette~@ColorPicker256@ and the ~RGB color space~@ColorPickerRGB@ use the corresponding buttons.
+
+ #Default# is the color used by your terminal when no colors are specified explicitly, e.g. \(800000:800000) C:\> \-.
+ Usually it is one of the palette colors, e.g. \(7:0)silver on black\-, but not necessarily: some terminals could handle it differently, e.g. render as translucent.
 
  The color value is also represented in the hexadecimal form for convenience, where:
  - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).

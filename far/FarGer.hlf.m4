@@ -47,9 +47,9 @@
 
 @Contents
 $^#Datei- und Archiv-Manager.#
-`$^#'FULLVERSION`#'
+$^#M4_MACRO_GET(FULLVERSION)#
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#
+$^#Copyright © 2000-M4_MACRO_GET(COPYRIGHTYEAR) Far Group#
  ~Help file index~@Index@
  ~Hilfe über Hilfe~@Help@
 
@@ -240,7 +240,7 @@ user profile folder (#%APPDATA%\\Far Manager\\Profile# by default).
  Far Manager will set the ~environment variable~@FAREnv@ "FARUSER" to the value <username>.
 
  -v <Dateiname>
- Zeigt die angegebene Datei im Betrachter an. Gibt man als Dateiname - an, wird vom Standardeingabegerät (stdin) eingelesen.
+ Zeigt die angegebene Datei im Betrachter an. Gibt man als Dateiname `#-#' an, wird vom Standardeingabegerät (stdin) eingelesen.
 
  Beispiel, "dir|far -v -" zeigt z.B. die Ausgabe des dir-Befehls an.
 
@@ -4487,6 +4487,9 @@ $ #Color Picker#
 
  The standard 16-color palette is available in the dialog.
  To access the ~256-color palette~@ColorPicker256@ and the ~RGB color space~@ColorPickerRGB@ use the corresponding buttons.
+
+ #Default# is the color used by your terminal when no colors are specified explicitly, e.g. \(800000:800000) C:\> \-.
+ Usually it is one of the palette colors, e.g. \(7:0)silver on black\-, but not necessarily: some terminals could handle it differently, e.g. render as translucent.
 
  The color value is also represented in the hexadecimal form for convenience, where:
  - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
