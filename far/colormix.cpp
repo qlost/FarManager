@@ -61,6 +61,26 @@ enum
 
 namespace colors
 {
+	single_color single_color::foreground(FarColor const& Color)
+	{
+		return { Color.ForegroundColor, Color.IsFgIndex() };
+	}
+
+	single_color single_color::background(FarColor const& Color)
+	{
+		return { Color.BackgroundColor, Color.IsBgIndex() };
+	}
+
+	single_color single_color::underline(FarColor const& Color)
+	{
+		return { Color.UnderlineColor, Color.IsUnderlineIndex() };
+	}
+
+	single_color single_color::default_color()
+	{
+		return { default_colorref(), true };
+	}
+
 	uint8_t index_bits(COLORREF const Colour)
 	{
 		return Colour & INDEXMASK;
@@ -205,20 +225,17 @@ namespace colors
 		return hash_combine_all(
 			Value.Flags,
 			Value.BackgroundColor,
-			Value.ForegroundColor);
+			Value.ForegroundColor,
+			Value.UnderlineColor);
 	}
 
 	FarColor merge(FarColor Bottom, FarColor Top)
 	{
 		static FarColor LastResult, LastBottom, LastTop;
 
-		Top = resolve_defaults(Top);
-		Bottom = resolve_defaults(Bottom);
-
 		if (Bottom == LastBottom && Top == LastTop)
 		{
-			LastResult.Reserved[0] = Bottom.Reserved[0];
-			LastResult.Reserved[1] = Bottom.Reserved[1];
+			LastResult.Reserved = Bottom.Reserved;
 			return LastResult;
 		}
 
@@ -260,8 +277,11 @@ namespace colors
 				return colors::to_rgba(IsIndex? ConsoleIndexToTrueColor(Color) : Color);
 			};
 
-			const auto TopRGBA = to_rgba(TopValue, (Top.Flags & Flag) != 0);
-			const auto BottomRGBA = to_rgba(BottomValue, (Bottom.Flags & Flag) != 0);
+			const auto ResolvedTopValue = resolve_default(TopValue, Flag == FCF_FG_INDEX);
+			const auto ResolvedBottomValue = resolve_default(BottomValue, Flag == FCF_FG_INDEX);
+
+			const auto TopRGBA = to_rgba(ResolvedTopValue, (Top.Flags & Flag) != 0);
+			const auto BottomRGBA = to_rgba(ResolvedBottomValue, (Bottom.Flags & Flag) != 0);
 
 			const auto calc_channel = [&](unsigned char rgba::*Accessor)
 			{
@@ -283,9 +303,21 @@ namespace colors
 		merge_part(&FarColor::BackgroundColor, FCF_BG_INDEX);
 		merge_part(&FarColor::ForegroundColor, FCF_FG_INDEX);
 
+		if (colors::is_transparent(Bottom.UnderlineColor))
+		{
+			Bottom.SetUnderlineIndex(Bottom.IsFgIndex());
+			Bottom.UnderlineColor = Bottom.ForegroundColor;
+		}
+
+		merge_part(&FarColor::UnderlineColor, FCF_FG_UNDERLINE_INDEX);
+
 		if (Top.Flags & FCF_INHERIT_STYLE)
 		{
-			flags::set(Result.Flags, Top.Flags & FCF_STYLEMASK);
+			constexpr auto StyleMaskWithoutUnderline = FCF_STYLEMASK & ~FCF_FG_UNDERLINE_MASK;
+			flags::set(Result.Flags, Top.Flags & StyleMaskWithoutUnderline);
+
+			if (const auto TopUnderline = Top.GetUnderline(); TopUnderline != UNDERLINE_NONE)
+				Result.SetUnderline(TopUnderline);
 		}
 		else
 		{
@@ -472,7 +504,7 @@ namespace colors
 		if (Flags & FCF_FG_FAINT)
 			Color &= ~FOREGROUND_INTENSITY;
 
-		if (Flags & (FCF_FG_UNDERLINE | FCF_FG_UNDERLINE2))
+		if (Flags & (FCF_FG_UNDERLINE_MASK))
 			Color |= COMMON_LVB_UNDERSCORE;
 
 		if (Flags & FCF_FG_OVERLINE)
@@ -526,16 +558,24 @@ static index_color_256 FarColorToConsoleColor(FarColor Color, FarColor& LastColo
 	return Index;
 }
 
+static bool not_the_same_index(const FarColor& a, const FarColor& b)
+{
+	// No need to check underline here
+	return
+		a.ForegroundColor != b.ForegroundColor ||
+		a.BackgroundColor != b.BackgroundColor ||
+		(
+			flags::check_all(a.Flags, FCF_FG_INDEX | FCF_BG_INDEX) !=
+			flags::check_all(b.Flags, FCF_FG_INDEX | FCF_BG_INDEX)
+		);
+}
+
 WORD FarColorToConsoleColor(const FarColor& Color)
 {
 	static FarColor LastColor{};
 	static index_color_256 Result{};
 
-	if (
-		Color.BackgroundColor != LastColor.BackgroundColor ||
-		Color.ForegroundColor != LastColor.ForegroundColor ||
-		(Color.Flags & FCF_INDEXMASK) != (LastColor.Flags & FCF_INDEXMASK)
-	)
+	if (not_the_same_index(Color, LastColor))
 	{
 		static const auto Palette = console_palette();
 		Result = FarColorToConsoleColor(Color, LastColor, Palette);
@@ -559,11 +599,7 @@ index_color_256 FarColorToConsole256Color(const FarColor& Color)
 	static FarColor LastColor{};
 	static index_color_256 Result{};
 
-	if (!(
-		Color.BackgroundColor == LastColor.BackgroundColor &&
-		Color.ForegroundColor == LastColor.ForegroundColor &&
-		(Color.Flags & FCF_INDEXMASK) == (LastColor.Flags & FCF_INDEXMASK)
-	))
+	if (not_the_same_index(Color, LastColor))
 		Result = FarColorToConsoleColor(Color, LastColor, Index8ToRGB);
 
 	return Result;
@@ -645,6 +681,9 @@ static bool ExtractColor(string_view const Str, COLORREF& Target, FARCOLORFLAGS&
 		TargetFlags |= SetFlag;
 	}
 
+	if (is_transparent(Target))
+		make_opaque(Target);
+
 	return true;
 }
 
@@ -673,7 +712,7 @@ string_view ExtractColorInNewFormat(string_view const Str, FarColor& Color, bool
 		return Str;
 	}
 
-	std::array<string_view, 4> Parts;
+	std::array<string_view, 5> Parts;
 
 	for (const auto& [t, p]: zip(enum_tokens(Token, L":"sv), Parts))
 	{
@@ -683,13 +722,14 @@ string_view ExtractColorInNewFormat(string_view const Str, FarColor& Color, bool
 		p = t;
 	}
 
-	const auto& [FgColor, BgColor, Style, _] = Parts;
+	const auto& [FgColor, BgColor, Style, UlColor, _] = Parts;
 
 	auto NewColor = Color;
 
 	if (
 		(FgColor.empty() || ExtractColor(FgColor, NewColor.ForegroundColor, NewColor.Flags, FCF_FG_INDEX)) &&
 		(BgColor.empty() || ExtractColor(BgColor, NewColor.BackgroundColor, NewColor.Flags, FCF_BG_INDEX)) &&
+		(UlColor.empty() || ExtractColor(UlColor, NewColor.UnderlineColor, NewColor.Flags, FCF_FG_UNDERLINE_INDEX)) &&
 		(Style.empty() || ExtractStyle(Style, NewColor.Flags))
 	)
 	{
@@ -700,39 +740,81 @@ string_view ExtractColorInNewFormat(string_view const Str, FarColor& Color, bool
 	return Str;
 }
 
+static auto UnderlineToString(FARCOLORFLAGS const Flags)
+{
+	switch (Flags & FCF_FG_UNDERLINE_MASK)
+	{
+	default:
+	case FCF_NONE:                        return L""sv;
+	case FCF_FG_U_DATA0:                  return L"underline"sv;
+	case FCF_FG_U_DATA1:                  return L"underline_double"sv;
+	case FCF_FG_U_DATA1 | FCF_FG_U_DATA0: return L"underline_curly"sv;
+	case FCF_FG_U_DATA2:                  return L"underline_dot"sv;
+	case FCF_FG_U_DATA2 | FCF_FG_U_DATA0: return L"underline_dash"sv;
+	}
+}
+
+static auto StringToUnderline(string_view const UnderlineStyle)
+{
+	constexpr std::pair<FARCOLORFLAGS, string_view> UnderlineNames[]
+	{
+		{ FCF_FG_U_DATA0,                  L"underline"sv        },
+		{ FCF_FG_U_DATA1,                  L"underline_double"sv },
+		{ FCF_FG_U_DATA1 | FCF_FG_U_DATA0, L"underline_curly"sv  },
+		{ FCF_FG_U_DATA2,                  L"underline_dot"sv    },
+		{ FCF_FG_U_DATA2 | FCF_FG_U_DATA0, L"underline_dash"sv   },
+	};
+
+	return StringToFlags(UnderlineStyle, UnderlineNames);
+}
+
 const std::pair<FARCOLORFLAGS, string_view> ColorFlagNames[]
 {
-	{ FCF_FG_INDEX,        L"fgindex"sv      },
-	{ FCF_BG_INDEX,        L"bgindex"sv      },
-	{ FCF_INHERIT_STYLE,   L"inherit"sv      },
-	{ FCF_FG_BOLD,         L"bold"sv         },
-	{ FCF_FG_ITALIC,       L"italic"sv       },
-	{ FCF_FG_UNDERLINE,    L"underline"sv    },
-	{ FCF_FG_UNDERLINE2,   L"underline2"sv   },
-	{ FCF_FG_OVERLINE,     L"overline"sv     },
-	{ FCF_FG_STRIKEOUT,    L"strikeout"sv    },
-	{ FCF_FG_FAINT,        L"faint"sv        },
-	{ FCF_FG_BLINK,        L"blink"sv        },
-	{ FCF_FG_INVERSE,      L"inverse"sv      },
-	{ FCF_FG_INVISIBLE,    L"invisible"sv    },
+	{ FCF_FG_INDEX,           L"fgindex"sv      },
+	{ FCF_BG_INDEX,           L"bgindex"sv      },
+	{ FCF_FG_UNDERLINE_INDEX, L"ulindex"sv      },
+	{ FCF_INHERIT_STYLE,      L"inherit"sv      },
+	{ FCF_FG_BOLD,            L"bold"sv         },
+	{ FCF_FG_ITALIC,          L"italic"sv       },
+	{ FCF_FG_OVERLINE,        L"overline"sv     },
+	{ FCF_FG_STRIKEOUT,       L"strikeout"sv    },
+	{ FCF_FG_FAINT,           L"faint"sv        },
+	{ FCF_FG_BLINK,           L"blink"sv        },
+	{ FCF_FG_INVERSE,         L"inverse"sv      },
+	{ FCF_FG_INVISIBLE,       L"invisible"sv    },
 };
 
 string ColorFlagsToString(unsigned long long const Flags)
 {
-	return FlagsToString(Flags, ColorFlagNames);
+	const auto StrFlags = FlagsToString(Flags, ColorFlagNames);
+	const auto StrUnderline = UnderlineToString(Flags);
+	const auto Separator = !StrFlags.empty() && !StrUnderline.empty()? L" "sv : L""sv;
+	return concat(StrFlags, Separator, StrUnderline);
 }
 
 unsigned long long ColorStringToFlags(string_view const Flags)
 {
-	return StringToFlags(Flags, ColorFlagNames);
+	return StringToFlags(Flags, ColorFlagNames) | StringToUnderline(Flags);
 }
 
-static FarColor s_ResolvedIndexColor
+static FarColor s_ResolvedDefaultColor
 {
 	FCF_INDEXMASK,
-	colors::opaque(F_LIGHTGRAY),
-	colors::opaque(F_BLACK),
+	{ opaque(F_LIGHTGRAY) },
+	{ opaque(F_BLACK) },
 };
+
+COLORREF resolve_default(COLORREF Color, bool IsForeground)
+{
+	if (!is_default(Color))
+		return Color;
+
+	const auto ResolvedColor = IsForeground?
+		s_ResolvedDefaultColor.ForegroundColor:
+		s_ResolvedDefaultColor.BackgroundColor;
+
+	return alpha_bits(Color) | color_bits(ResolvedColor);
+}
 
 FarColor resolve_defaults(FarColor const& Color)
 {
@@ -740,14 +822,18 @@ FarColor resolve_defaults(FarColor const& Color)
 
 	if (Result.IsFgDefault())
 	{
-		Result.ForegroundIndex.i = s_ResolvedIndexColor.ForegroundIndex.i;
-		Result.ForegroundIndex.reserved1 = 0;
+		Result.ForegroundColor = alpha_bits(Result.ForegroundColor) | color_bits(s_ResolvedDefaultColor.ForegroundColor);
 	}
 
 	if (Result.IsBgDefault())
 	{
-		Result.BackgroundIndex.i = s_ResolvedIndexColor.BackgroundIndex.i;
-		Result.BackgroundIndex.reserved1 = 0;
+		Result.BackgroundColor = alpha_bits(Result.BackgroundColor) | color_bits(s_ResolvedDefaultColor.BackgroundColor);
+	}
+
+	if (Result.IsUnderlineDefault())
+	{
+		// Use foreground bits
+		Result.UnderlineColor = alpha_bits(Result.UnderlineColor) | color_bits(s_ResolvedDefaultColor.ForegroundColor);
 	}
 
 	return Result;
@@ -757,24 +843,32 @@ FarColor unresolve_defaults(FarColor const& Color)
 {
 	auto Result = Color;
 
-	if (Result.IsFgIndex() && Result.ForegroundIndex.i == s_ResolvedIndexColor.ForegroundIndex.i)
+	if (single_color::foreground(Result) == single_color::foreground(s_ResolvedDefaultColor))
 		Result.SetFgDefault();
 
-	if (Result.IsBgIndex() && Result.BackgroundIndex.i == s_ResolvedIndexColor.BackgroundIndex.i)
+	if (single_color::background(Result) == single_color::background(s_ResolvedDefaultColor))
 		Result.SetBgDefault();
+
+	// We can't read underline color from the console, so no need to worry about it
 
 	return Result;
 }
 
-constexpr auto default_color_bit = bit(23);
+constexpr auto default_color_bit = 23_bit;
+
+COLORREF default_colorref()
+{
+	return opaque(default_color_bit);
+}
 
 FarColor default_color()
 {
 	return
 	{
 		FCF_INDEXMASK | FCF_INHERIT_STYLE,
-		opaque(default_color_bit),
-		opaque(default_color_bit),
+		{ default_colorref() },
+		{ default_colorref() },
+		{ default_colorref() },
 	};
 }
 
@@ -785,8 +879,7 @@ bool is_default(COLORREF const Color)
 
 void store_default_color(FarColor const& Color)
 {
-	assert(flags::check_all(Color.Flags, FCF_INDEXMASK));
-	s_ResolvedIndexColor = Color;
+	s_ResolvedDefaultColor = Color;
 }
 }
 
@@ -838,24 +931,26 @@ TEST_CASE("colors.default")
 	FarColor Color
 	{
 		0,
-		0xFFFFFFFF,
-		0xFFFFFFFF,
+		{ 0xFFFFFFFF },
+		{ 0xFFFFFFFF },
+		{ 0xFFFFFFFF },
 	};
 
 	REQUIRE(!Color.IsFgDefault());
 	REQUIRE(!Color.IsBgDefault());
+	REQUIRE(!Color.IsUnderlineDefault());
 
 	Color.SetFgDefault();
 	Color.SetBgDefault();
+	Color.SetUnderlineDefault();
 
 	REQUIRE(Color.IsFgDefault());
 	REQUIRE(Color.IsBgDefault());
+	REQUIRE(Color.IsUnderlineDefault());
 
-	REQUIRE(Color.ForegroundColor == 0xFF800000);
-	REQUIRE(Color.ForegroundColor == 0xFF800000);
-
-	REQUIRE((Color.Flags & FCF_INDEXMASK) == FCF_INDEXMASK);
-
+	REQUIRE(Color.ForegroundColor == colors::default_colorref());
+	REQUIRE(Color.ForegroundColor == colors::default_colorref());
+	REQUIRE(Color.UnderlineColor == colors::default_colorref());
 }
 
 TEST_CASE("colors.merge")
@@ -889,18 +984,21 @@ TEST_CASE("colors.parser")
 	}
 	ValidTests[]
 	{
-		{ L"()"sv,                { } },
-		{ L"(:)"sv,               { } },
-		{ L"(::)"sv,              { } },
-		{ L"(E)"sv,               { FCF_FG_INDEX, {0xE}, {0} } },
-		{ L"(E)"sv,               { FCF_FG_INDEX, {0xE}, {0} } },
-		{ L"(:F)"sv,              { FCF_BG_INDEX, {0}, {0xF} } },
-		{ L"(B:C)"sv,             { FCF_FG_INDEX | FCF_BG_INDEX, {0xB}, {0xC} } },
-		{ L"(AE)"sv,              { FCF_FG_INDEX, { 0xAE }, { 0 } } },
-		{ L"(:AF)"sv,             { FCF_BG_INDEX, { 0 }, { 0xAF } } },
-		{ L"(AB:AC:blink)"sv,     { FCF_FG_INDEX | FCF_BG_INDEX | FCF_FG_BLINK, {0xAB}, {0xAC} } },
-		{ L"(T00CCCC:TE34234)"sv, { 0, {0x00CCCC00}, {0x003442E3} } },
-		{ L"(::bold italic)"sv,   { FCF_FG_BOLD | FCF_FG_ITALIC, {0}, {0} } },
+		{ L"()"sv,    },
+		{ L"(:)"sv,   },
+		{ L"(::)"sv,  },
+		{ L"(:::)"sv, },
+		{ L"(E)"sv,               { FCF_FG_INDEX, { 0xFF00000E } } },
+		{ L"(:F)"sv,              { FCF_BG_INDEX, {}, { 0xFF00000F } } },
+		{ L"(B:C)"sv,             { FCF_FG_INDEX | FCF_BG_INDEX, { 0xFF00000B }, { 0xFF00000C } } },
+		{ L"(AE)"sv,              { FCF_FG_INDEX, { 0xFF0000AE } } },
+		{ L"(:AF)"sv,             { FCF_BG_INDEX, {}, { 0xFF0000AF } } },
+		{ L"(AB:AC:blink)"sv,     { FCF_FG_INDEX | FCF_BG_INDEX | FCF_FG_BLINK, { 0xFF0000AB }, { 0xFF0000AC } } },
+		{ L"(T00CCCC:TE34234)"sv, { FCF_NONE, { 0xFFCCCC00 }, { 0xFF3442E3 } } },
+		{ L"(::bold italic)"sv,   { FCF_FG_BOLD | FCF_FG_ITALIC } },
+		{ L"(::bold:T223344)"sv,  { FCF_FG_BOLD, {}, {}, {0xFF443322} } },
+		{ L"(::bold:T11223344)"sv,{ FCF_FG_BOLD, {}, {}, {0x11443322} } },
+		{ L"(::underline_dash)"sv,{ FCF_FG_U_DATA2 | FCF_FG_U_DATA0 } },
 	};
 
 	for (const auto& i: ValidTests)
@@ -932,8 +1030,8 @@ TEST_CASE("colors.parser")
 		{ L"( -0)"sv,    false },
 		{ L"( +0)"sv,    false },
 		{ L"(::meow)"sv, false },
-		{ L"(:::)"sv,    false },
-		{ L"(:::1)"sv,   false },
+		{ L"(::::)"sv,   false },
+		{ L"(::::1)"sv,  false },
 	};
 
 	for (const auto& i: InvalidTests)

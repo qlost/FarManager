@@ -1507,19 +1507,9 @@ id=109
 lv=2
 dt=Text
 nm=export.Open
-mtime=3610442975
+mtime=3910412951
 <article>
 #_ret = export.Open (OpenFrom, Guid, Item)
-#_
-#_**Definitions:**
-#_  **"int64"**
-#_    Type of userdata, produced by `bit64` library.
-#_  **"binary"**
-#_    By convention, it is a string enclosed in a table as its first element.
-#_    The string is intended to be passed to and from without conversions UTF-8 <-> UTF-16LE.
-#_  **"panel"**
-#_    By convention, it is a panel handle (any non-false Lua value) enclosed in a table
-#_    as its first element. The table must contain the field ["type"]="panel".
 #_
 #_**Parameters:**
 #_  OpenFrom: integer
@@ -1564,6 +1554,16 @@ mtime=3610442975
 #_  Return value of -1 can be used with *OpenFrom* == OPEN_ANALYSE,
 #_  when the plugin does actions other than opening a panel, to tell
 #_  Far that the file has already been processed.
+#_
+#_**Definitions:**
+#_  **"int64"**
+#_    Type of userdata, produced by `bit64` library.
+#_  **"binary"**
+#_    By convention, it is a string enclosed in a table as its first element.
+#_    The string is intended to be passed to and from without conversions UTF-8 <-> UTF-16LE.
+#_  **"panel"**
+#_    By convention, it is a panel handle (any non-false Lua value) enclosed in a table
+#_    as its first element. The table must contain the field ["type"]="panel".
 #_
 #_**Far API used:**
 #_  OpenW, OpenInfo
@@ -2833,7 +2833,7 @@ lv=2
 dt=Text
 nm=far.ColorDialog
 ctime=3511465011
-mtime=3602277807
+mtime=3909242213
 <article>
 #_OutColor = far.ColorDialog (InColor, Flags)
 #_
@@ -2842,10 +2842,7 @@ mtime=3602277807
 #_  Flags:    flags (optional)
 #_
 #_**Returns:**
-#_  OutColor: table `tFarColor`, integer, or nil
-#_
-#_**Note:**
-#_  Type of *OutColor* is the same as that of *InColor*.
+#_  OutColor: table `tFarColor`, or nil
 #_
 #_**Far API used:**
 #_  ColorDialog
@@ -7640,6 +7637,82 @@ nm=Far Standard Functions
 </article>
 </node>
 <node>
+id=560
+lv=2
+dt=Text
+nm=far.CheckMask
+ctime=3909321682
+mtime=3909321895
+<article>
+#_Result = far.CheckMask (Mask, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Flags: flags  (PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
+id=561
+lv=2
+dt=Text
+nm=far.CmpName
+ctime=3909321696
+mtime=3909321862
+<article>
+#_Result = far.CmpName (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags  (combination of PN_SKIPPATH, PN_CASEINSENSITIVE
+#_                 and PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
+id=562
+lv=2
+dt=Text
+nm=far.CmpNameList
+ctime=3909321707
+mtime=3909321923
+<article>
+#_Result = far.CmpNameList (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags  (combination of PN_SKIPPATH, PN_CASEINSENSITIVE
+#_                 and PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
 id=284
 lv=2
 dt=Text
@@ -7741,6 +7814,31 @@ mtime=3602447969
 #_@@@
 #_{fffs_minsizeindex}: http://api.farmanager.com/ru/fsf/formatfilesize.html#FFFS_MINSIZEINDEX
 #_{formatfilesize}: http://api.farmanager.com/ru/fsf/formatfilesize.html
+#_
+</article>
+</node>
+<node>
+id=563
+lv=2
+dt=Text
+nm=far.GenerateName
+ctime=3909321759
+mtime=3909321979
+<article>
+#_Result = far.GenerateName (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags (default=0)
+#_
+#_**Returns:**
+#_  Result: string, or false
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
 #_
 </article>
 </node>

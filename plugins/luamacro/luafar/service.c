@@ -9,7 +9,6 @@
 #include "luafar.h"
 #include "util.h"
 #include "ustring.h"
-#include "compat52.h"
 
 #ifndef LUADLL
 # if LUA_VERSION_NUM == 501
@@ -776,7 +775,7 @@ static int _EditorGetString(lua_State *L, int is_wide)
 	intptr_t line_num = luaL_optinteger(L, 2, 0) - 1;
 	intptr_t mode = luaL_optinteger(L, 3, 0);
 	BOOL res = 0;
-	struct EditorGetString egs;
+	struct EditorGetString egs = {0,0,0,NULL,NULL,0,0};
 	egs.StructSize = sizeof(egs);
 
 	if(mode == 0 || mode == 3)
@@ -1394,8 +1393,8 @@ int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
 		Color->Flags = CheckFlagsFromTable(L, -1, "Flags");
 		Color->Foreground.ForegroundColor = CAST(COLORREF, GetOptNumFromTable(L, "ForegroundColor", 0));
 		Color->Background.BackgroundColor = CAST(COLORREF, GetOptNumFromTable(L, "BackgroundColor", 0));
-		Color->Reserved[0] = 0;
-		Color->Reserved[1] = 0;
+		Color->Underline.UnderlineColor = 0;
+		Color->Reserved = 0;
 		lua_pop(L, 1);
 		return 1;
 	}
@@ -1405,8 +1404,8 @@ int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
 		Color->Flags = FCF_4BITMASK;
 		Color->Foreground.ForegroundColor = (num & 0x0F) | ALPHAMASK;
 		Color->Background.BackgroundColor = ((num>>4) & 0x0F) | ALPHAMASK;
-		Color->Reserved[0] = 0;
-		Color->Reserved[1] = 0;
+		Color->Underline.UnderlineColor = 0;
+		Color->Reserved = 0;
 		return 1;
 	}
 	return 0;
@@ -4381,39 +4380,50 @@ static int far_LStrnicmp(lua_State *L)
 //   @Flags: PN_SKIPPATH, PN_SHOWERRORMESSAGE
 //   @Size: integer 0...0xFFFF
 //   @Result: boolean
-static int far_ProcessName(lua_State *L)
+static int _ProcessName (lua_State *L, UINT64 Op)
 {
-	UINT64 Op = CheckFlags(L,1);
-	const wchar_t* Mask = check_utf8_string(L,2,NULL);
-	const wchar_t* Name = (Op==PN_CHECKMASK) ? L"" : check_utf8_string(L,3,NULL);
-	UINT64 Flags = OptFlags(L,4,0);
+  struct FarStandardFunctions *FSF = GetPluginData(L)->FSF;
 
-	if(Op == PN_CMPNAME || Op == PN_CMPNAMELIST || Op == PN_CHECKMASK)
-	{
-		size_t result = GetPluginData(L)->FSF->ProcessName(Mask, (wchar_t*)Name, 0, Op|Flags);
-		lua_pushboolean(L, result != 0);
+	int pos2=2, pos3=3, pos4=4;
+	if (Op == 0xFFFFFFFF)
+		Op = CheckFlags(L, 1);
+	else {
+		--pos2, --pos3, --pos4;
+		if (Op == PN_CHECKMASK)
+			--pos4;
 	}
-	else if(Op == PN_GENERATENAME)
-	{
-		UINT64 Size = luaL_optinteger(L,5,0) & 0xFFFF;
-		size_t result;
-		wchar_t* buf;
-		size_t len = wcslen(Mask), len2 = wcslen(Name), bufsize;
+	const wchar_t* Mask = check_utf8_string(L, pos2, NULL);
+	const wchar_t* Name = (Op == PN_CHECKMASK) ? L"" : check_utf8_string(L, pos3, NULL);
+	int Flags = Op | OptFlags(L, pos4, 0);
 
-		if(len < len2) len = len2;
+	if(Op == PN_CMPNAME || Op == PN_CMPNAMELIST || Op == PN_CHECKMASK) {
+		size_t result = FSF->ProcessName(Mask, (wchar_t*)Name, 0, Flags);
+		lua_pushboolean(L, (int)result);
+	}
+	else if (Op == PN_GENERATENAME) {
+		UINT64 Size = luaL_optinteger(L, pos4+1, 0) & 0xFFFF;
+		const int BUFSIZE = 1024;
+		wchar_t* buf = (wchar_t*)lua_newuserdata(L, BUFSIZE * sizeof(wchar_t));
+		wcsncpy(buf, Mask, BUFSIZE-1);
+		buf[BUFSIZE-1] = 0;
 
-		bufsize = len < 1024 ? 1024 : len+1;
-		buf = (wchar_t*)lua_newuserdata(L, bufsize * sizeof(wchar_t));
-		wcsncpy(buf, Mask, bufsize-1);
-		buf[bufsize-1] = 0;
-		result = GetPluginData(L)->FSF->ProcessName(Name, buf, bufsize, Op|Flags|Size);
-		result ? (void)push_utf8_string(L, buf, -1) : lua_pushboolean(L, 0);
+		size_t result = FSF->ProcessName(Name, buf, BUFSIZE, Flags|Size);
+		if (result)
+			push_utf8_string(L, buf, -1);
+		else
+			lua_pushboolean(L, (int)result);
 	}
 	else
-		lua_pushboolean(L, 0);
+		luaL_argerror(L, 1, "command not supported");
 
 	return 1;
 }
+
+static int far_ProcessName  (lua_State *L) { return _ProcessName(L, 0xFFFFFFFF);      }
+static int far_CmpName      (lua_State *L) { return _ProcessName(L, PN_CMPNAME);      }
+static int far_CmpNameList  (lua_State *L) { return _ProcessName(L, PN_CMPNAMELIST);  }
+static int far_CheckMask    (lua_State *L) { return _ProcessName(L, PN_CHECKMASK);    }
+static int far_GenerateName (lua_State *L) { return _ProcessName(L, PN_GENERATENAME); }
 
 static int far_GetReparsePointInfo(lua_State *L)
 {
@@ -5490,15 +5500,19 @@ static int far_XLat(lua_State *L)
 
 static int far_FormatFileSize(lua_State *L)
 {
-	wchar_t buf[256];
-	UINT64 Size = CAST(UINT64, luaL_checknumber(L, 1));
+	uint64_t Size = (uint64_t) luaL_checknumber(L, 1);
 	intptr_t Width = luaL_checkinteger(L, 2);
-	UINT64 Flags = OptFlags(L, 3, 0);
+	if (abs(Width) > 10000)
+		return luaL_error(L, "the 'Width' argument exceeds 10000");
 
-	if(Flags & FFFS_MINSIZEINDEX)
-		Flags |= (luaL_optinteger(L, 4, 0) & FFFS_MINSIZEINDEX_MASK);
+	UINT64 Flags = OptFlags(L, 3, 0) & ~FFFS_MINSIZEINDEX_MASK;
+	Flags |= luaL_optinteger(L, 4, 0) & FFFS_MINSIZEINDEX_MASK;
 
-	GetPluginData(L)->FSF->FormatFileSize(Size, Width, Flags, buf, ARRSIZE(buf));
+	TPluginData *pd = GetPluginData(L);
+	size_t bufsize = pd->FSF->FormatFileSize(Size, Width, Flags, NULL, 0);
+	wchar_t *buf = (wchar_t*) lua_newuserdata(L, bufsize*sizeof(wchar_t));
+
+	pd->FSF->FormatFileSize(Size, Width, Flags, buf, bufsize);
 	push_utf8_string(L, buf, -1);
 	return 1;
 }
@@ -5986,7 +6000,6 @@ static int far_ColorDialog(lua_State *L)
 	UINT64 Flags;
 	struct FarColor Color;
 	TPluginData *pd = GetPluginData(L);
-	int istable = lua_istable(L, 1);
 
 	if(!GetFarColor(L, 1, &Color))
 	{
@@ -5998,10 +6011,7 @@ static int far_ColorDialog(lua_State *L)
 	Flags = OptFlags(L, 2, 0);
 
 	if(pd->Info->ColorDialog(pd->PluginId, Flags, &Color))
-	{
-		if(istable) PushFarColor(L, &Color);
-		else lua_pushnumber(L, Color.Foreground.ForegroundColor | (Color.Background.BackgroundColor << 4));
-	}
+		PushFarColor(L, &Color);
 	else
 		lua_pushnil(L);
 
@@ -6475,6 +6485,10 @@ const luaL_Reg far_funcs[] =
 	{"LStricmp",            far_LStricmp},
 	{"LStrnicmp",           far_LStrnicmp},
 	{"ProcessName",         far_ProcessName},
+	{"CmpName",             far_CmpName},
+	{"CmpNameList",         far_CmpNameList},
+	{"CheckMask",           far_CheckMask},
+	{"GenerateName",        far_GenerateName},
 	{"GetPathRoot",         far_GetPathRoot},
 	{"GetReparsePointInfo", far_GetReparsePointInfo},
 	{"LIsAlpha",            far_LIsAlpha},

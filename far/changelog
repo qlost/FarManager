@@ -1,4 +1,102 @@
 --------------------------------------------------------------------------------
+drkns 2023-11-30 17:25:47+00:00 - build 6221
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-28 17:30:27+00:00 - build 6220
+
+1. gh-754: Far crash on opening small file from network in Editor.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-27 20:38:00+00:00 - build 6219
+
+1. Reduce memory consumption in editor with a few tricks. Could be up to 30%.
+
+2. gh-752: Editor Undo Glitch.
+   Primordial bug from v1.50 beta (6 Oct 1997).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-26 15:22:17+00:00 - build 6218
+
+1. Fix flags processing in mf.size2str, broken in 5418.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2023-11-25 00:35:07+03:00 - build 6217
+
+1. SQLite v3.44.2
+
+--------------------------------------------------------------------------------
+yjh 2023-11-23 02:00:07+03:00 - build 6216
+
+1. SQLite v3.44.1
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-22 20:50:01+02:00 - build 6215
+
+1. Warnings.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-21 20:32:53+02:00 - build 6214
+
+1. Far.GetConfig() is implemented entirely in Far.exe (was: Far + LuaMacro).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-19 21:55:10+00:00 - build 6213
+
+1. Support underline style and color.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-14 23:04:38+02:00 - build 6212
+
+1. Fix Macro Settings dialog.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-13 20:19:31+02:00 - build 6211
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-11 23:43:42+00:00 - build 6210
+
+1. M#4019: restore elevation requests for network paths
+
+2. gh-747: Build 6209 crashes on start with the profile from build 5629.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-07 01:48:43+00:00 - build 6209
+
+1. Correction of 6204.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-06 18:35:45+00:00 - build 6208
+
+1. Refactoring.
+
+2. Clang:
+   - Fix build
+   - Fix warnings
+   - Remove outdated workarounds
+   - Bump version
+
+3. Clarification of "black on black - default color" logic in Files highlighting:
+   black on black is now considered "default" (or "transparent") only when both
+   foreground and background are fully opaque.
+   If you noticed a sudden black color somewhere where it shouldn't be - make sure
+   that both foreground and background are either fully opaque or fully transparent,
+   either via the UI or:
+   1. export the config
+   2. search for:   background="00000000" foreground="FF000000"
+      replace with: background="00000000" foreground="00000000"
+   3. save and import.
+
+--------------------------------------------------------------------------------
 yjh 2023-11-02 09:24:30+03:00 - build 6207
 
 1. SQLite v3.44.0
