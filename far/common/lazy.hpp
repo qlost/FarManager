@@ -33,25 +33,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <functional>
-#include <optional>
+#include <variant>
 
 //----------------------------------------------------------------------------
 
 template<typename T>
 class lazy
 {
+	using initializer_type = std::function<T()>;
 
 public:
-	explicit lazy(std::function<T()> Initialiser):
-		m_Initialiser(std::move(Initialiser))
+	explicit lazy(initializer_type Initialiser):
+		m_Data(std::move(Initialiser))
 	{
 	}
 
 	T& operator*()
 	{
-		return m_Data?
-			*m_Data :
-			*(m_Data = m_Initialiser());
+		if (auto* compute = std::get_if<initializer_type>(&m_Data))
+			m_Data = (*compute)();
+
+		return std::get<T>(m_Data);
 	}
 
 	T const& operator*() const
@@ -61,30 +63,22 @@ public:
 
 	T const* operator->() const
 	{
-		return &*this;
+		return &**this;
 	}
 
 	T* operator->()
 	{
-		return &*this;
+		return &**this;
 	}
 
-	auto& operator=(const T& rhs)
+	auto& operator=(auto&& rhs)
 	{
-		m_Data = rhs;
-		return *this;
-	}
-
-	template<class U = T>
-	auto& operator=(U&& rhs)
-	{
-		m_Data = FWD(rhs);
+		m_Data.template emplace<T>(FWD(rhs));
 		return *this;
 	}
 
 private:
-	std::function<T()> m_Initialiser;
-	std::optional<T> mutable m_Data;
+	std::variant<T, initializer_type> mutable m_Data;
 };
 
 #endif // LAZY_HPP_37F8CBE9_FC5C_491B_B3CD_8024E5B7CB5D

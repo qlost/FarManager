@@ -123,7 +123,7 @@ public:
 		return !size;
 	}
 
-	constexpr operator span<color_item const>() const;
+	constexpr operator std::span<color_item const>() const;
 
 private:
 	color_item const* data{};
@@ -139,12 +139,12 @@ struct color_item
 	PaletteColors const* BottomColor;
 };
 
-constexpr color_item_span::operator span<color_item const>() const
+constexpr color_item_span::operator std::span<color_item const>() const
 {
 	return { data, data + size };
 }
 
-static void SetItemColors(span<const color_item> const Items, point Position = {})
+static void SetItemColors(std::span<const color_item> const Items, point Position = {})
 {
 	const auto ItemsMenu = VMenu2::create(msg(lng::MSetColorItemsTitle), {});
 
@@ -157,7 +157,7 @@ static void SetItemColors(span<const color_item> const Items, point Position = {
 	ItemsMenu->SetMenuFlags(VMENU_WRAPMODE);
 	ItemsMenu->RunEx([&](int Msg, void *param)
 	{
-		const auto ItemsCode = reinterpret_cast<intptr_t>(param);
+		const auto ItemsCode = std::bit_cast<intptr_t>(param);
 		if (Msg != DN_CLOSE || ItemsCode < 0)
 			return 0;
 
@@ -399,7 +399,7 @@ void SetColors()
 		static constexpr struct
 		{
 			lng MenuId;
-			span<const color_item> Subitems;
+			std::span<const color_item> Subitems;
 		}
 		Groups[]
 		{
@@ -448,7 +448,7 @@ void SetColors()
 		GroupsMenu->SetMenuFlags(VMENU_WRAPMODE);
 		const auto GroupsCode=GroupsMenu->RunEx([&](int Msg, void *param)
 		{
-			const auto ItemsCode = reinterpret_cast<intptr_t>(param);
+			const auto ItemsCode = std::bit_cast<intptr_t>(param);
 			if (Msg != DN_CLOSE || ItemsCode < 0 || static_cast<size_t>(ItemsCode) >= std::size(Groups))
 				return 0;
 			SetItemColors(Groups[ItemsCode].Subitems);

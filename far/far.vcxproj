@@ -255,9 +255,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\2d\point.hpp" />
     <ClInclude Include="common\2d\rectangle.hpp" />
     <ClInclude Include="common\view\enumerate.hpp" />
-    <ClInclude Include="common\view\reverse.hpp" />
-    <ClInclude Include="common\view\select.hpp" />
-    <ClInclude Include="common\view\where.hpp" />
     <ClInclude Include="common\view\zip.hpp" />
     <ClInclude Include="common\algorithm.hpp" />
     <ClInclude Include="common\base64.hpp" />
@@ -283,10 +280,11 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\null_iterator.hpp" />
     <ClInclude Include="common\placement.hpp" />
     <ClInclude Include="common\preprocessor.hpp" />
-    <ClInclude Include="common\range.hpp" />
     <ClInclude Include="common\scope_exit.hpp" />
     <ClInclude Include="common\singleton.hpp" />
     <ClInclude Include="common\smart_ptr.hpp" />
+    <ClInclude Include="common\source_location.hpp" />
+    <ClInclude Include="common\span.hpp" />
     <ClInclude Include="common\string_utils.hpp" />
     <ClInclude Include="common\type_traits.hpp" />
     <ClInclude Include="common\utility.hpp" />

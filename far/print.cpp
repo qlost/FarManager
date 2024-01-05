@@ -63,7 +63,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/io.hpp"
-#include "common/range.hpp"
 #include "common/scope_exit.hpp"
 
 // External:
@@ -71,7 +70,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-static void AddToPrintersMenu(VMenu2 *PrinterList, span<PRINTER_INFO_4W const> const Printers)
+static void AddToPrintersMenu(VMenu2 *PrinterList, std::span<PRINTER_INFO_4W const> const Printers)
 {
 	string strDefaultPrinter;
 	// BUGBUG check result
@@ -109,9 +108,9 @@ void PrintFiles(FileList* SrcPanel)
 			return;
 
 		const auto Enumerator = SrcPanel->enum_selected();
-		const auto DirsCount = std::accumulate(ALL_CONST_RANGE(Enumerator), size_t{}, [](size_t Count, const os::fs::find_data& i)
+		const auto DirsCount = std::ranges::fold_left(Enumerator, size_t{}, [](size_t Count, const os::fs::find_data& i)
 		{
-			return Count + (i.Attributes & FILE_ATTRIBUTE_DIRECTORY? 1 : 0);
+			return Count + os::fs::is_directory(i);
 		});
 
 		if (DirsCount == SelCount)
@@ -125,7 +124,7 @@ void PrintFiles(FileList* SrcPanel)
 			PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
 			nullptr,
 			4,
-			edit_as<BYTE*>(pi.data()),
+			std::bit_cast<BYTE*>(pi.data()),
 			static_cast<DWORD>(pi.size()),
 			&Needed,
 			&PrintersCount
@@ -259,7 +258,7 @@ void PrintFiles(FileList* SrcPanel)
 
 				DOC_INFO_1 di1{ UNSAFE_CSTR(FileName) };
 
-				if (!StartDocPrinter(Printer.native_handle(), 1, edit_as<BYTE*>(&di1)))
+				if (!StartDocPrinter(Printer.native_handle(), 1, std::bit_cast<BYTE*>(&di1)))
 					throw MAKE_FAR_EXCEPTION(L"StartDocPrinter error"sv);
 
 				SCOPE_EXIT{ EndDocPrinter(Printer.native_handle()); };

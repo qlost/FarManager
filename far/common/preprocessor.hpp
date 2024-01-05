@@ -43,34 +43,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ANONYMOUS_VARIABLE(str) CONCATENATE(str, __LINE__)
 
-#define DETAIL_STD_DEFAULT_MUTATOR(Function) std::Function
-#define DETAIL_STD_CONST_MUTATOR(Function) std::c##Function
-#define DETAIL_STD_REVERSE_MUTATOR(Function) std::r##Function
-#define DETAIL_STD_CONST_REVERSE_MUTATOR(Function) std::cr##Function
-
-
-#define DETAIL_REFERENCE_IMPL(Object, MUTATOR_PARAM) decltype(*MUTATOR_PARAM(begin)(Object))
-
-#define REFERENCE(Object) DETAIL_REFERENCE_IMPL(Object, DETAIL_STD_DEFAULT_MUTATOR)
-#define CONST_REFERENCE(Object) DETAIL_REFERENCE_IMPL(Object, DETAIL_STD_CONST_MUTATOR)
-
-
-#define VALUE_TYPE(Object) value_type<decltype(Object)>
-#define CONST_VALUE_TYPE(Object) std::add_const_t<value_type<decltype(Object)>>
-
-
-#define DETAIL_ITERATOR_IMPL(Object, MUTATOR_PARAM) decltype(MUTATOR_PARAM(begin)(Object))
-
-#define ITERATOR(Object) DETAIL_ITERATOR_IMPL(Object, DETAIL_STD_DEFAULT_MUTATOR)
-#define CONST_ITERATOR(Object) DETAIL_ITERATOR_IMPL(Object, DETAIL_STD_CONST_MUTATOR)
-#define REVERSE_ITERATOR(Object) DETAIL_ITERATOR_IMPL(Object, DETAIL_STD_REVERSE_MUTATOR)
-#define CONST_REVERSE_ITERATOR(Object) DETAIL_ITERATOR_IMPL(Object, DETAIL_STD_CONST_REVERSE_MUTATOR)
-
-
-#define DETAIL_LAMBDA_PREDICATE_IMPL(Object, i, REFERENCE_PARAM, ...) [&](REFERENCE_PARAM(Object) i, ##__VA_ARGS__)
-
-#define LAMBDA_PREDICATE(Object, i, ...) DETAIL_LAMBDA_PREDICATE_IMPL(Object, i, REFERENCE, ##__VA_ARGS__)
-#define CONST_LAMBDA_PREDICATE(Object, i, ...) DETAIL_LAMBDA_PREDICATE_IMPL(Object, i, CONST_REFERENCE, ##__VA_ARGS__)
+#define DETAIL_STD_DEFAULT_MUTATOR(Function) std::ranges::Function
+#define DETAIL_STD_CONST_MUTATOR(Function) std::ranges::c##Function
+#define DETAIL_STD_REVERSE_MUTATOR(Function) std::ranges::r##Function
+#define DETAIL_STD_CONST_REVERSE_MUTATOR(Function) std::ranges::cr##Function
 
 
 #define DETAIL_ALL_RANGE_IMPL(Object, MUTATOR_PARAM) MUTATOR_PARAM(begin)(Object), MUTATOR_PARAM(end)(Object)
@@ -79,12 +55,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ALL_CONST_RANGE(Object) DETAIL_ALL_RANGE_IMPL(Object, DETAIL_STD_CONST_MUTATOR)
 #define ALL_REVERSE_RANGE(Object) DETAIL_ALL_RANGE_IMPL(Object, DETAIL_STD_REVERSE_MUTATOR)
 #define ALL_CONST_REVERSE_RANGE(Object) DETAIL_ALL_RANGE_IMPL(Object, DETAIL_STD_CONST_REVERSE_MUTATOR)
-
-
-#define RANGE(Object, i, ...) ALL_RANGE(Object), LAMBDA_PREDICATE(Object, i, ##__VA_ARGS__)
-#define CONST_RANGE(Object, i, ...) ALL_CONST_RANGE(Object), CONST_LAMBDA_PREDICATE(Object, i, ##__VA_ARGS__)
-#define REVERSE_RANGE(Object, i, ...) ALL_REVERSE_RANGE(Object), LAMBDA_PREDICATE(Object, i, ##__VA_ARGS__)
-#define CONST_REVERSE_RANGE(Object, i, ...) ALL_CONST_REVERSE_RANGE(Object), CONST_LAMBDA_PREDICATE(Object, i, ##__VA_ARGS__)
 
 
 #define DETAIL_FOR_RANGE_IMPL(Object, i, MUTATOR_PARAM) for(auto i = MUTATOR_PARAM(begin)(Object), CONCATENATE(end, __LINE__) = MUTATOR_PARAM(end)(Object); i != CONCATENATE(end, __LINE__); ++i)
@@ -142,6 +112,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	NOT_MOVE_CONSTRUCTIBLE(Type); \
 	NOT_MOVE_ASSIGNABLE(Type)
 
+#define POSTFIX_INCREMENT() \
+	auto operator++(int) { auto Copy = *this; ++*this; return Copy; }
+
+#define POSTFIX_DECREMENT() \
+	auto operator--(int) { auto Copy = *this; --*this; return Copy; }
+
+#define POSTFIX_OPS() \
+	POSTFIX_INCREMENT() \
+	POSTFIX_DECREMENT()
 
 #define SCOPED_ACTION(RAII_type) \
 const RAII_type ANONYMOUS_VARIABLE(scoped_object_)
@@ -162,9 +141,6 @@ const RAII_type ANONYMOUS_VARIABLE(scoped_object_)
 #define EXPAND_TO_LITERAL(x) LITERAL(x)
 #define EXPAND_TO_WIDE_LITERAL(x) WIDE(LITERAL(x))
 #define EXPAND_TO_WIDE_SV_LITERAL(x) WIDE_SV(LITERAL(x))
-
-#define CURRENT_FUNCTION_NAME std::string_view{ __func__, std::size(__func__) - 1 }
-#define CURRENT_FILE_NAME CHAR_SV(__FILE__)
 
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 

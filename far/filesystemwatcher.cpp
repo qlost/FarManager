@@ -60,6 +60,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class background_watcher: public singleton<background_watcher>
 {
+	IMPLEMENTS_SINGLETON;
+
 public:
 	void add(const FileSystemWatcher* Client)
 	{
@@ -109,14 +111,19 @@ private:
 					}
 
 					m_Handles.resize(1);
-					std::transform(ALL_CONST_RANGE(m_Clients), std::back_inserter(m_Handles), [](const FileSystemWatcher* const Client) { return Client->m_Event.native_handle(); });
+					std::ranges::transform(m_Clients, std::back_inserter(m_Handles), [](const FileSystemWatcher* const Client) { return Client->m_Event.native_handle(); });
 				}
 			}
 
 			const auto Result = os::handle::wait_any(m_Handles);
 
 			if (Result == 0)
+			{
+				if (m_Exit)
+					return;
+
 				continue;
+			}
 
 			{
 				SCOPED_ACTION(std::scoped_lock)(m_CS);
@@ -136,12 +143,19 @@ private:
 		}
 	}
 
+	~background_watcher()
+	{
+		m_Exit = true;
+		m_Update.set();
+	}
+
 	os::critical_section m_CS;
 	os::event
 		m_Update{ os::event::type::automatic, os::event::state::nonsignaled },
 		m_UpdateDone{ os::event::type::automatic, os::event::state::nonsignaled };
 	std::vector<const FileSystemWatcher*> m_Clients;
 	std::vector<HANDLE> m_Handles{ m_Update.native_handle() };
+	std::atomic_bool m_Exit{};
 	os::thread m_Thread;
 };
 

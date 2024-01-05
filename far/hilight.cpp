@@ -403,7 +403,7 @@ const highlight::element* highlight::configuration::GetHiColor(const FileListIte
 	if (item.Mark.Inherit)
 		item.Mark.Mark.clear();
 
-	return &*m_Colors.emplace(item).first;
+	return std::to_address(m_Colors.emplace(item).first);
 }
 
 int highlight::configuration::GetGroup(const FileListItem& Object, const FileList* Owner)
@@ -433,7 +433,7 @@ void highlight::configuration::FillMenu(VMenu2 *HiMenu,int MenuPos) const
 
 	for (const auto& i: Data)
 	{
-		for (const auto& Item: range(HiData.cbegin() + i.from, HiData.cbegin() + i.to))
+		for (const auto& Item: std::ranges::subrange(HiData.cbegin() + i.from, HiData.cbegin() + i.to))
 		{
 			HiMenu->AddItem(MenuString(&Item, true));
 		}
@@ -453,16 +453,16 @@ void highlight::configuration::FillMenu(VMenu2 *HiMenu,int MenuPos) const
 
 void highlight::configuration::ProcessGroups()
 {
-	for (const auto& i: irange(FirstCount))
+	for (const auto i: std::views::iota(0, FirstCount))
 		HiData[i].SetSortGroup(DEFAULT_SORT_GROUP);
 
-	for (const auto& i: irange(FirstCount, FirstCount + UpperCount))
+	for (const auto i: std::views::iota(FirstCount, FirstCount + UpperCount))
 		HiData[i].SetSortGroup(i-FirstCount);
 
-	for (const auto& i: irange(FirstCount + UpperCount, FirstCount + UpperCount + LowerCount))
+	for (const auto i: std::views::iota(FirstCount + UpperCount, FirstCount + UpperCount + LowerCount))
 		HiData[i].SetSortGroup(DEFAULT_SORT_GROUP+1+i-FirstCount-UpperCount);
 
-	for (const auto& i: irange(FirstCount + UpperCount + LowerCount, FirstCount + UpperCount + LowerCount + LastCount))
+	for (const auto i: std::views::iota(FirstCount + UpperCount + LowerCount, FirstCount + UpperCount + LowerCount + LastCount))
 		HiData[i].SetSortGroup(DEFAULT_SORT_GROUP);
 }
 
@@ -555,7 +555,7 @@ void HighlightDlgUpdateUserControl(matrix_view<FAR_CHAR_INFO> const& VBufColorEx
 			++Iterator;
 		}
 
-		const span FileArea(Iterator, Row.end() - 1);
+		const std::span FileArea(Iterator, Row.end() - 1);
 		const auto Str = fit_to_left(msg(lng::MHighlightExample), FileArea.size());
 
 		for (const auto& [Cell, Char]: zip(FileArea, Str))
@@ -680,7 +680,7 @@ void highlight::configuration::HiEdit(int MenuPos)
 						{
 							(*Count)++;
 							const auto Iterator = HiData.emplace(HiData.begin()+RealSelectPos, std::move(NewHData));
-							HiMenu->AddItem(MenuItemEx(MenuString(&*Iterator, true)), SelectPos);
+							HiMenu->AddItem(MenuItemEx(MenuString(std::to_address(Iterator), true)), SelectPos);
 							HiMenu->SetSelectPos(SelectPos, 1);
 							NeedUpdate = true;
 						}
@@ -697,7 +697,7 @@ void highlight::configuration::HiEdit(int MenuPos)
 
 					if (Count && SelectPos > 0)
 					{
-						using std::swap;
+						using std::ranges::swap;
 						swap(HiMenu->at(SelectPos), HiMenu->at(SelectPos - 1));
 						if (UpperCount && RealSelectPos==FirstCount && RealSelectPos<FirstCount+UpperCount)
 						{
@@ -858,7 +858,7 @@ void highlight::configuration::Save(bool Always)
 	{
 		const auto root = cfg->CreateKey(cfg->root_key, i.KeyName);
 
-		for (const auto& j: irange(i.from, i.to))
+		for (const auto j: std::views::iota(i.from, i.to))
 		{
 			SaveHighlight(*cfg, cfg->CreateKey(root, i.GroupName + str(j - i.from)), HiData[j]);
 		}

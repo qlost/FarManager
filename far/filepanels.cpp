@@ -369,8 +369,7 @@ int FilePanels::SwapPanels()
 	if (!LeftPanel()->IsVisible() && !RightPanel()->IsVisible())
 		return false;
 
-	using std::swap;
-	swap(m_Panels[panel_left], m_Panels[panel_right]);
+	std::ranges::swap(m_Panels[panel_left], m_Panels[panel_right]);
 	m_Panels[panel_left].m_Panel->on_swap();
 	m_Panels[panel_right].m_Panel->on_swap();
 	filters::SwapPanelFilters();
@@ -1009,7 +1008,8 @@ panel_ptr FilePanels::ChangePanel(panel_ptr Current, panel_type NewType, int Cre
 	}
 	else
 	{
-		NewPanel=CreatePanel(NewType);
+		NewPanel->dispose();
+		NewPanel = CreatePanel(NewType);
 	}
 
 	if (!UsedLastPanel)

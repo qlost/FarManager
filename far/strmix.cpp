@@ -81,7 +81,7 @@ string GroupDigits(unsigned long long Value)
 
 	auto Src = str(Value);
 
-	if (string Result; os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Result, [&](span<wchar_t> Buffer)
+	if (string Result; os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Result, [&](std::span<wchar_t> Buffer)
 	{
 		const size_t Size = GetNumberFormat(LOCALE_USER_DEFAULT, 0, Src.c_str(), &Fmt, Buffer.data(), static_cast<int>(Buffer.size()));
 		return Size? Size - 1 : 0;
@@ -155,7 +155,7 @@ void inplace::QuoteOuterSpace(string& Str)
 // TODO: "…" is displayed as "." in raster fonts. Make it lng-customisable?
 static const auto Dots = L"…"sv;
 
-static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(span<wchar_t>, size_t, string_view)> const Handler)
+static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(std::span<wchar_t>, size_t, string_view)> const Handler)
 {
 	assert(MaxLength >= 0);
 	const size_t Max = std::max(0, MaxLength);
@@ -174,7 +174,7 @@ static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(span
 
 wchar_t* legacy::truncate_right(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		*copy_string(CurrentDots, StrParam.data() + MaxLengthParam - CurrentDots.size()) = {};
 	});
@@ -202,7 +202,7 @@ string truncate_right(string_view const Str, size_t const MaxLength)
 
 wchar_t* legacy::truncate_left(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Iterator = copy_string(CurrentDots, StrParam.data());
 
@@ -235,7 +235,7 @@ string truncate_left(string_view const Str, size_t const MaxLength)
 
 wchar_t* legacy::truncate_center(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Iterator = copy_string(CurrentDots, StrParam.begin() + (MaxLengthParam - CurrentDots.size()) / 2);
 
@@ -275,7 +275,7 @@ static auto StartOffset(string_view const Str)
 
 wchar_t* legacy::truncate_path(wchar_t*Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Offset = std::min(StartOffset(StrParam.data()), MaxLengthParam - CurrentDots.size());
 
@@ -311,7 +311,7 @@ string truncate_path(string_view const Str, size_t const MaxLength)
 
 bool IsCaseMixed(const string_view Str)
 {
-	const auto AlphaBegin = std::find_if(ALL_CONST_RANGE(Str), is_alpha);
+	const auto AlphaBegin = std::ranges::find_if(Str, is_alpha);
 	if (AlphaBegin == Str.cend())
 		return false;
 
@@ -368,7 +368,7 @@ static string& UnitStr(size_t Unit, bool Binary)
 
 void PrepareUnitStr()
 {
-	for (const auto& i: irange(std::size(BytesInUnit)))
+	for (const auto i: std::views::iota(size_t{}, std::size(BytesInUnit)))
 	{
 		UnitStr(i, true) = upper(msg(lng::MListBytes + i));
 		UnitStr(i, false) = lower(msg(lng::MListBytes + i));
@@ -546,11 +546,11 @@ bool ReplaceStrings(string& strStr, string_view FindStr, string_view ReplStr, co
 
 void remove_duplicates(string& Str, wchar_t const Char, bool const IgnoreCase)
 {
-	const auto NewEnd = IgnoreCase?
-		std::unique(ALL_RANGE(Str), [Char, Eq = string_comparer_icase{}](wchar_t const First, wchar_t const Second){ return Eq(First, Char) && Eq(Second, Char); }) :
-		std::unique(ALL_RANGE(Str), [Char](wchar_t const First, wchar_t const Second){ return First == Char && Second == Char; });
+	const auto Removed = IgnoreCase?
+		std::ranges::unique(Str, [Char, Eq = string_comparer_icase{}](wchar_t const First, wchar_t const Second){ return Eq(First, Char) && Eq(Second, Char); }) :
+		std::ranges::unique(Str, [Char](wchar_t const First, wchar_t const Second){ return First == Char && Second == Char; });
 
-	Str.resize(NewEnd - Str.begin());
+	Str.resize(Str.size() - Removed.size());
 }
 
 bool wrapped_text::get(bool Reset, string_view& Value) const
@@ -703,7 +703,7 @@ unsigned long long ConvertFileSizeString(string_view const FileSizeStr)
 string ReplaceBrackets(
 		const string_view SearchStr,
 		const string_view ReplaceStr,
-		span<RegExpMatch const> Match,
+		std::span<RegExpMatch const> Match,
 		const named_regex_match* NamedMatch
 )
 {
@@ -749,7 +749,7 @@ string ReplaceBrackets(
 			if (const auto Part = ReplaceStr.substr(TokenStart); std::regex_search(ALL_CONST_RANGE(Part), CMatch, re))
 			{
 				TokenSize = CMatch[0].length();
-				if (const auto Iterator = NamedMatch->Matches.find(string_comparer::generic_key{ CMatch[1].first, CMatch[1].second }); Iterator != NamedMatch->Matches.cend())
+				if (const auto Iterator = NamedMatch->Matches.find(string_view{ CMatch[1].first, CMatch[1].second }); Iterator != NamedMatch->Matches.cend())
 				{
 					Replacement = get_match(SearchStr, Match[Iterator->second]);
 				}
@@ -1067,7 +1067,7 @@ string ExtractHexString(string_view const HexString)
 	string Result;
 	Result.reserve((Trimmed.size() + 2) / 3 * 2);
 	// TODO: Fix these and trailing spaces in Dialog class?
-	std::remove_copy(ALL_CONST_RANGE(Trimmed), std::back_inserter(Result), L' ');
+	std::ranges::remove_copy(Trimmed, std::back_inserter(Result), L' ');
 	if (Result.size() & 1)
 	{
 		// Odd length - hex string is not valid.
@@ -1628,9 +1628,9 @@ TEST_CASE("xwcsncpy")
 		{ L"12345"sv, },
 	};
 
-	const auto MaxBufferSize = std::max_element(ALL_CONST_RANGE(Tests), [](const auto& a, const auto& b){ return a.Src.size() < b.Src.size(); })->Src.size() + 1;
+	const auto MaxBufferSize = std::ranges::fold_left(Tests, size_t{}, [](size_t const Value, auto const& Item){ return std::max(Value, Item.Src.size()); }) + 1;
 
-	for (const auto& BufferSize: irange(MaxBufferSize + 1))
+	for (const auto BufferSize: std::views::iota(size_t{}, MaxBufferSize + 1))
 	{
 		for (const auto& i: Tests)
 		{

@@ -72,7 +72,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/algorithm.hpp"
 #include "common/from_string.hpp"
-#include "common/view/select.hpp"
 
 // External:
 #include "format.hpp"
@@ -121,9 +120,9 @@ public:
 		return equal_icase(HelpStr, rhs.HelpStr);
 	}
 
-	bool operator<(const HelpRecord& rhs) const
+	auto operator<=>(const HelpRecord& rhs) const
 	{
-		return string_sort::less(HelpStr, rhs.HelpStr);
+		return string_sort::compare(HelpStr, rhs.HelpStr);
 	}
 };
 
@@ -494,7 +493,7 @@ bool Help::ReadHelp(string_view const Mask)
 
 			size_t LastKeySize = 0;
 
-			strReadStr = join(L"\n"sv, select(enum_tokens(strKeyName, L" "sv),
+			strReadStr = join(L"\n"sv, enum_tokens(strKeyName, L" "sv) | std::views::transform(
 				[&](const auto& i)
 				{
 					LastKeySize = i.size();
@@ -818,7 +817,7 @@ void Help::AddTitle(const string_view Title)
 
 void Help::HighlightsCorrection(string &strStr)
 {
-	if ((std::count(ALL_CONST_RANGE(strStr), L'#') & 1) && strStr.front() != L'$')
+	if ((std::ranges::count(strStr, L'#') & 1) && strStr.front() != L'$')
 		strStr.insert(0, 1, L'#');
 }
 
@@ -885,7 +884,7 @@ void Help::FastShow()
 	*/
 	CurColor = colors::PaletteColorToFarColor(COL_HELPTEXT);
 
-	for (const auto& i: irange(CanvasHeight()))
+	for (const auto i: std::views::iota(0, CanvasHeight()))
 	{
 		int StrPos;
 
@@ -2095,7 +2094,7 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 	}
 
 	// сортируем по алфавиту
-	std::sort(HelpList.begin()+1, HelpList.end());
+	std::ranges::sort(HelpList | std::views::drop(1));
 }
 
 void Help::SetScreenPosition()

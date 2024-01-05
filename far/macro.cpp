@@ -80,6 +80,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.env.hpp"
+#include "platform.memory.hpp"
 
 // Common:
 #include "common/from_string.hpp"
@@ -936,7 +937,7 @@ bool KeyMacro::AddMacro(const UUID& PluginId, const MacroAddMacroV1* Data)
 
 	intptr_t Priority = 50;
 	if (Data->StructSize >= sizeof(MacroAddMacro))
-		Priority = view_as<const MacroAddMacro*>(Data)->Priority;
+		Priority = std::bit_cast<const MacroAddMacro*>(Data)->Priority;
 
 	FarMacroValue values[]
 	{
@@ -947,7 +948,7 @@ bool KeyMacro::AddMacro(const UUID& PluginId, const MacroAddMacroV1* Data)
 		Flags,
 		Data->Description,
 		PluginId,
-		{reinterpret_cast<void*>(Data->Callback)},
+		{std::bit_cast<void*>(Data->Callback)},
 		Data->Id,
 		Priority
 	};
@@ -1153,7 +1154,7 @@ intptr_t KeyMacro::ParamMacroDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,vo
 
 			if (Param1==MS_CHECKBOX_A_PANEL || Param1==MS_CHECKBOX_P_PANEL)
 			{
-				for (const auto& i: irange(1, 4))
+				for (const auto i: std::views::iota(1, 4))
 					Dlg->SendMessage(DM_ENABLE,Param1+i,Param2);
 			}
 			break;
@@ -1161,13 +1162,13 @@ intptr_t KeyMacro::ParamMacroDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,vo
 
 			if (Param1==MS_BUTTON_OK)
 			{
-				const auto Sequence = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, MS_EDIT_SEQUENCE, nullptr));
+				const auto Sequence = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, MS_EDIT_SEQUENCE, nullptr));
 				if (*Sequence)
 				{
 					if (ParseMacroString(Sequence,KMFLAGS_LUA,true))
 					{
 						m_RecCode=Sequence;
-						m_RecDescription = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, MS_EDIT_DESCR, nullptr));
+						m_RecDescription = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, MS_EDIT_DESCR, nullptr));
 						return TRUE;
 					}
 				}
@@ -1279,7 +1280,7 @@ bool KeyMacro::GetMacroSettings(int Key, unsigned long long& Flags, string_view 
 	MacroSettingsDlg[MS_EDIT_DESCR].strData = Descr.empty()? m_RecDescription : Descr;
 
 	DlgParam Param{ 0, 0, MACROAREA_OTHER };
-	const auto Dlg = Dialog::create(MacroSettingsDlg, &KeyMacro::ParamMacroDlgProc, this, &Param);
+	const auto Dlg = Dialog::create(MacroSettingsDlg, std::bind_front(&KeyMacro::ParamMacroDlgProc, this), &Param);
 	Dlg->SetPosition({ -1, -1, 73, 21 });
 	Dlg->SetHelp(L"KeyMacroSetting"sv);
 	Dlg->Process();
@@ -1389,6 +1390,7 @@ public:
 	std::vector<TVar> parseParams(size_t Count) const;
 	void PassBoolean(bool b) const;
 	void PassError(const wchar_t* str) const;
+	void PassPointer(void* ptr) const;
 	void PassValue(long long Int) const;
 	void PassValue(double dbl) const;
 	void PassValue(const wchar_t* str) const;
@@ -1467,14 +1469,20 @@ public:
 
 private:
 	void fattrFuncImpl(int Type) const;
+	void SendValue(FarMacroValue &val) const;
 
 	FarMacroCall* mData;
 };
 
+void FarMacroApi::SendValue(FarMacroValue &val) const
+{
+	mData->Callback(mData->CallbackData, &val, 1);
+}
+
 void FarMacroApi::PassValue(const wchar_t *str) const
 {
 	FarMacroValue val = NullToEmpty(str);
-	mData->Callback(mData->CallbackData, &val, 1);
+	SendValue(val);
 }
 
 void FarMacroApi::PassValue(const string& str) const
@@ -1486,13 +1494,13 @@ void FarMacroApi::PassError(const wchar_t *str) const
 {
 	FarMacroValue val = NullToEmpty(str);
 	val.Type = FMVT_ERROR;
-	mData->Callback(mData->CallbackData, &val, 1);
+	SendValue(val);
 }
 
 void FarMacroApi::PassValue(double dbl) const
 {
 	FarMacroValue val = dbl;
-	mData->Callback(mData->CallbackData, &val, 1);
+	SendValue(val);
 }
 
 void FarMacroApi::PassValue(long long Int) const
@@ -1502,13 +1510,19 @@ void FarMacroApi::PassValue(long long Int) const
 		return PassValue(Double);
 
 	FarMacroValue val = Int;
-	mData->Callback(mData->CallbackData, &val, 1);
+	SendValue(val);
 }
 
 void FarMacroApi::PassBoolean(bool const b) const
 {
 	FarMacroValue val = b;
-	mData->Callback(mData->CallbackData, &val, 1);
+	SendValue(val);
+}
+
+void FarMacroApi::PassPointer(void *ptr) const
+{
+	FarMacroValue val = ptr;
+	SendValue(val);
 }
 
 void FarMacroApi::PassValue(const TVar& Var) const
@@ -1526,7 +1540,7 @@ std::vector<TVar> FarMacroApi::parseParams(size_t Count) const
 	const auto argNum = std::min(mData->Count, Count);
 	std::vector<TVar> Params;
 	Params.reserve(Count);
-	std::transform(mData->Values, mData->Values + argNum, std::back_inserter(Params), [](const auto& i)
+	std::ranges::transform(mData->Values, mData->Values + argNum, std::back_inserter(Params), [](const auto& i)
 	{
 		switch (i.Type)
 		{
@@ -2196,13 +2210,8 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 			if (SyncCall)
 				--m_InternalInput;
 
-			//в windows гарантируется, что не бывает указателей меньше 0x10000
-			if (reinterpret_cast<uintptr_t>(ResultCallPlugin) >= 0x10000 && ResultCallPlugin != INVALID_HANDLE_VALUE)
-			{
-				FarMacroValue Result(ResultCallPlugin);
-				Data->Callback(Data->CallbackData, &Result, 1);
-				return;
-			}
+			if (os::memory::is_pointer(ResultCallPlugin) && ResultCallPlugin != INVALID_HANDLE_VALUE)
+				return api.PassPointer(ResultCallPlugin);
 
 			return api.PassBoolean(ResultCallPlugin != nullptr);
 		}
@@ -2218,7 +2227,7 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 
 			const auto Area = static_cast<FARMACROAREA>(static_cast<int>(Data->Values[0].Double));
 			const auto Flags = static_cast<MACROFLAGS_MFLAGS>(static_cast<int>(Data->Values[1].Double));
-			const auto Callback = (Data->Count >= 3 && Data->Values[2].Type == FMVT_POINTER)? reinterpret_cast<FARMACROCALLBACK>(Data->Values[2].Pointer) : nullptr;
+			const auto Callback = (Data->Count >= 3 && Data->Values[2].Type == FMVT_POINTER)? std::bit_cast<FARMACROCALLBACK>(Data->Values[2].Pointer) : nullptr;
 			const auto CallbackId = (Data->Count >= 4 && Data->Values[3].Type == FMVT_POINTER)? Data->Values[3].Pointer : nullptr;
 			return api.PassBoolean(CheckAll(Area, Flags) && (!Callback || Callback(CallbackId, AKMFLAGS_NONE)));
 		}
@@ -2429,7 +2438,7 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 					{
 						if (tmpVar.isUnknown())
 							tmpVar = -1;
-						tmpVar = CurrentWindow->VMProcess(CheckCode, reinterpret_cast<void*>(tmpVar.toInteger()), tmpAction.toInteger());
+						tmpVar = CurrentWindow->VMProcess(CheckCode, std::bit_cast<void*>(static_cast<intptr_t>(tmpVar.toInteger())), tmpAction.toInteger());
 						success=true;
 					}
 					else
@@ -2790,11 +2799,11 @@ void FarMacroApi::indexFunc() const
 	const auto& s = Params[0].toString();
 	const auto& p = Params[1].toString();
 
-	const auto StrStr = [](const string& Str1, const string& Str2) { return std::search(ALL_CONST_RANGE(Str1), ALL_CONST_RANGE(Str2)); };
-	const auto StrStrI = [](const string& Str1, const string& Str2) { return std::search(ALL_CONST_RANGE(Str1), ALL_CONST_RANGE(Str2), string_comparer_icase{}); };
+	const auto StrStr = [](const string& Str1, const string& Str2) { return std::ranges::search(Str1, Str2); };
+	const auto StrStrI = [](const string& Str1, const string& Str2) { return std::ranges::search(Str1, Str2, string_comparer_icase{}); };
 
-	const auto i = Params[2].asInteger()? StrStr(s, p) : StrStrI(s, p);
-	const auto Position = i != s.cend() ? i - s.cbegin() : -1;
+	const auto Result = Params[2].asInteger()? StrStr(s, p) : StrStrI(s, p);
+	const auto Position = Result.empty()? -1 : Result.begin() - s.cbegin();
 	PassValue(Position);
 }
 
@@ -2805,11 +2814,11 @@ void FarMacroApi::rindexFunc() const
 	const auto& s = Params[0].toString();
 	const auto& p = Params[1].toString();
 
-	const auto RevStrStr = [](const string& Str1, const string& Str2) { return std::find_end(ALL_CONST_RANGE(Str1), ALL_CONST_RANGE(Str2)); };
-	const auto RevStrStrI = [](const string& Str1, const string& Str2) { return std::find_end(ALL_CONST_RANGE(Str1), ALL_CONST_RANGE(Str2), string_comparer_icase{}); };
+	const auto RevStrStr = [](const string& Str1, const string& Str2) { return std::ranges::find_end(Str1, Str2); };
+	const auto RevStrStrI = [](const string& Str1, const string& Str2) { return std::ranges::find_end(Str1, Str2, string_comparer_icase{}); };
 
-	const auto i = Params[2].asInteger()? RevStrStr(s, p) : RevStrStrI(s, p);
-	const auto Position = i != s.cend()? i - s.cbegin() : -1;
+	const auto Result = Params[2].asInteger()? RevStrStr(s, p) : RevStrStrI(s, p);
+	const auto Position = Result.empty()? -1 : Result.begin() - s.cbegin();
 	PassValue(Position);
 }
 
@@ -2930,13 +2939,13 @@ void FarMacroApi::kbdLayoutFunc() const
 		else
 		{
 			WParam = 0;
-			LParam = reinterpret_cast<LPARAM>(os::make_hkl(dwLayout));
+			LParam = std::bit_cast<LPARAM>(os::make_hkl(dwLayout));
 		}
 
 		Ret = PostMessage(hWnd, WM_INPUTLANGCHANGEREQUEST, WParam, LParam) != FALSE;
 	}
 
-	PassValue(Ret? reinterpret_cast<intptr_t>(RetLayout) : 0);
+	PassValue(Ret? std::bit_cast<intptr_t>(RetLayout) : 0);
 }
 
 // S=prompt(["Title"[,"Prompt"[,flags[, "Src"[, "History"]]]]])
@@ -3003,7 +3012,7 @@ void FarMacroApi::msgBoxFunc() const
 		Flags|=FMSG_MB_OK;
 
 	const auto TempBuf = concat(title, L'\n', text);
-	const auto Result = pluginapi::apiMessageFn(&FarUuid, &FarUuid, Flags, nullptr, view_as<const wchar_t* const*>(TempBuf.c_str()), 0, 0) + 1;
+	const auto Result = pluginapi::apiMessageFn(&FarUuid, &FarUuid, Flags, nullptr, std::bit_cast<const wchar_t* const*>(TempBuf.c_str()), 0, 0) + 1;
 	PassValue(Result);
 }
 
@@ -3059,7 +3068,7 @@ void FarMacroApi::menushowFunc() const
 	int nLeftShift=0;
 	if (bAutoNumbering)
 	{
-		for (int numlines = std::count(ALL_CONST_RANGE(strItems), L'\n'); numlines; numlines/=10)
+		for (int numlines = std::ranges::count(strItems, L'\n'); numlines; numlines/=10)
 		{
 			nLeftShift++;
 		}
@@ -3120,7 +3129,7 @@ void FarMacroApi::menushowFunc() const
 				}
 			};
 
-			const auto NewBegin = std::find_if(ALL_CONST_RANGE(NewItem.Name), [&](wchar_t i)
+			const auto NewBegin = std::ranges::find_if(NewItem.Name, [&](wchar_t i)
 			{
 				const auto Flag = CharToFlag(i);
 				NewItem.Flags |= Flag;
@@ -3164,7 +3173,7 @@ void FarMacroApi::menushowFunc() const
 
 	if ((bAutoNumbering) && (bSorting || bPacking))
 	{
-		for (const auto& i: irange(Menu->GetShowItemCount()))
+		for (const auto i: std::views::iota(0, Menu->GetShowItemCount()))
 		{
 			auto& Item = Menu->at(i);
 			if (!(Item.Flags & LIF_SEPARATOR))
@@ -3224,7 +3233,7 @@ void FarMacroApi::menushowFunc() const
 			case KEY_RCTRLMULTIPLY:
 				if (bMultiSelect)
 				{
-					for (const auto& i: irange(Menu->size()))
+					for (const auto i: std::views::iota(size_t{}, Menu->size()))
 					{
 						if (Menu->at(i).Flags & MIF_HIDDEN)
 							continue;
@@ -3276,7 +3285,7 @@ void FarMacroApi::menushowFunc() const
 		{
 			string StrResult;
 
-			for (const auto& i: irange(Menu->size()))
+			for (const auto i: std::views::iota(size_t{}, Menu->size()))
 			{
 				if (Menu->GetCheck(static_cast<int>(i)))
 				{
@@ -4310,7 +4319,7 @@ void FarMacroApi::panelsetposidxFunc() const
 				else
 				{
 					const auto CurPos = SelPanel->GetCurrentPos();
-					for (const auto& I: irange(EndPos))
+					for (const auto I: std::views::iota(size_t{}, EndPos))
 					{
 						if ( SelPanel->IsSelected(I) && SelPanel->FileInFilter(I) )
 						{
@@ -4552,7 +4561,7 @@ void FarMacroApi::strpadFunc() const
 
 			const auto& pFill = Fill.asString();
 
-			for (const auto& i: irange(FineLength))
+			for (const auto i: std::views::iota(size_t{}, static_cast<size_t>(FineLength)))
 			{
 				NewFill.push_back(pFill[i % LengthFill]);
 			}
@@ -5119,7 +5128,7 @@ int KeyMacro::AssignMacroKey(DWORD &MacroKey, unsigned long long& Flags)
 
 	DlgParam Param{ Flags, 0, m_StartMode };
 	Global->IsProcessAssignMacroKey++;
-	const auto Dlg = Dialog::create(MacroAssignDlg, &KeyMacro::AssignMacroDlgProc, this, &Param);
+	const auto Dlg = Dialog::create(MacroAssignDlg, std::bind_front(&KeyMacro::AssignMacroDlgProc, this), &Param);
 	Dlg->SetPosition({ -1, -1, 34, 6 });
 	Dlg->SetHelp(L"KeyMacro"sv);
 	Dlg->Process();
@@ -5224,7 +5233,7 @@ TEST_CASE("macro.splitpath")
 
 	for (const auto& i: Tests)
 	{
-		for (const auto& Flags: irange(1, 0b1111))
+		for (const auto Flags: std::views::iota(1, 0b1111))
 		{
 			string Expected;
 

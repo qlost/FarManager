@@ -72,7 +72,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/from_string.hpp"
-#include "common/range.hpp"
 #include "common/scope_exit.hpp"
 
 // External:
@@ -199,7 +198,7 @@ static string SerializeMenu(const UserMenu::menu_container& Menu)
 	return Result;
 }
 
-static void ParseMenu(UserMenu::menu_container& Menu, range<enum_lines::iterator> const FileStrings, bool OldFormat)
+static void ParseMenu(UserMenu::menu_container& Menu, std::ranges::subrange<enum_lines::iterator> const FileStrings, bool OldFormat)
 {
 	UserMenu::menu_container::value_type *MenuItem = nullptr;
 
@@ -598,7 +597,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 			// CurrentMenuItem can be nullptr if:
 			// - menu is empty
 			// - menu is not empty, but insidiously consists only of separators
-			const auto CurrentMenuItem = UserMenu->GetComplexUserDataPtr<ITERATOR(Menu)>(MenuPos);
+			const auto CurrentMenuItem = UserMenu->GetComplexUserDataPtr<std::ranges::iterator_t<decltype(Menu)>>(MenuPos);
 			if (Key==KEY_SHIFTF1)
 			{
 				UserMenu->Key(KEY_F1);
@@ -762,7 +761,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 			return EC_CLOSE_LEVEL; //  вверх на один уровень
 
 		// This time CurrentMenuItem shall never be nullptr - for all weird cases ExitCode must be -1
-		const auto CurrentMenuItem = UserMenu->GetComplexUserDataPtr<ITERATOR(Menu)>(UserMenu->GetSelectPos());
+		const auto CurrentMenuItem = UserMenu->GetComplexUserDataPtr<std::ranges::iterator_t<decltype(Menu)>>(UserMenu->GetSelectPos());
 
 		auto CurrentLabel = (*CurrentMenuItem)->strLabel;
 		SubstFileName(CurrentLabel, Context, {}, true, {}, true);
@@ -903,8 +902,8 @@ intptr_t UserMenu::EditMenuDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 			if (Param1==EM_BUTTON_OK)
 			{
 				bool Result = true;
-				const string_view HotKey = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_HOTKEY_EDIT, nullptr));
-				const string_view Label = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_LABEL_EDIT, nullptr));
+				const string_view HotKey = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_HOTKEY_EDIT, nullptr));
+				const string_view Label = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EM_LABEL_EDIT, nullptr));
 				int FocusPos=-1;
 
 				if (HotKey != L"--"sv)
@@ -1066,7 +1065,7 @@ bool UserMenu::EditMenu(std::list<UserMenuItem>& Menu, std::list<UserMenuItem>::
 #endif
 	}
 
-	const auto Dlg = Dialog::create(EditDlg, &UserMenu::EditMenuDlgProc, this);
+	const auto Dlg = Dialog::create(EditDlg, std::bind_front(&UserMenu::EditMenuDlgProc, this));
 	Dlg->SetHelp(L"UserMenu"sv);
 	Dlg->SetId(EditUserMenuId);
 	Dlg->SetPosition({ -1, -1, DLG_X, DLG_Y });
@@ -1099,7 +1098,7 @@ bool UserMenu::EditMenu(std::list<UserMenuItem>& Menu, std::list<UserMenuItem>::
 #else
 		size_t CommandNumber = 0;
 
-		for (const auto& i: irange(DI_EDIT_COUNT))
+		for (const auto i: std::views::iota(size_t{}, static_cast<size_t>(DI_EDIT_COUNT)))
 		{
 			if (!EditDlg[i + EM_EDITLINE_0].strData.empty())
 				CommandNumber = i + 1;
@@ -1107,7 +1106,7 @@ bool UserMenu::EditMenu(std::list<UserMenuItem>& Menu, std::list<UserMenuItem>::
 
 		(*MenuItem)->Commands.clear();
 
-		for (const auto& i: irange(DI_EDIT_COUNT))
+		for (const auto i: std::views::iota(size_t{}, static_cast<size_t>(DI_EDIT_COUNT)))
 		{
 			if (static_cast<size_t>(i) >= CommandNumber)
 				break;

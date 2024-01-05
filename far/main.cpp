@@ -420,7 +420,7 @@ static bool is_arg(string_view const Str)
 	return !Str.empty() && any_of(Str.front(), L'-', L'/');
 }
 
-static std::optional<int> ProcessServiceModes(span<const wchar_t* const> const Args)
+static std::optional<int> ProcessServiceModes(std::span<const wchar_t* const> const Args)
 {
 	const auto isArg = [&](string_view const Name)
 	{
@@ -495,7 +495,7 @@ static void log_hook_wow64_status()
 		{
 			if (const auto LdrLoadDll = GetProcAddress(NtDll, "LdrLoadDll"))
 			{
-				const auto FunctionData = view_as<std::byte const*>(reinterpret_cast<void const*>(LdrLoadDll));
+				const auto FunctionData = std::bit_cast<std::byte const*>(LdrLoadDll);
 				LOGWARNING(L"LdrLoadDll: {}"sv, BlobToHexString({ FunctionData, 32 }));
 			}
 		}
@@ -539,7 +539,7 @@ namespace args
 		parameter_expected = L"a parameter is expected"sv;
 }
 
-static void parse_argument(span<const wchar_t* const>::const_iterator& Iterator, span<const wchar_t* const>::const_iterator End, args_context const& Context)
+static void parse_argument(std::span<const wchar_t* const>::iterator& Iterator, std::span<const wchar_t* const>::iterator End, args_context const& Context)
 {
 	if (Iterator == End)
 		return;
@@ -763,15 +763,15 @@ static void parse_argument(span<const wchar_t* const>::const_iterator& Iterator,
 	}
 }
 
-static void parse_command_line(span<const wchar_t* const> const Args, span<string> const SimpleArgs, args_context const& Context)
+static void parse_command_line(std::span<const wchar_t* const> const Args, std::span<string> const SimpleArgs, args_context const& Context)
 {
 	size_t SimpleArgsCount{};
 
-	for (auto Iter = Args.cbegin(); Iter != Args.cend();)
+	for (auto Iter = Args.begin(); Iter != Args.end();)
 	{
 		if (is_arg(*Iter))
 		{
-			parse_argument(Iter, Args.cend(), Context);
+			parse_argument(Iter, Args.end(), Context);
 			continue;
 		}
 
@@ -788,7 +788,7 @@ static void parse_command_line(span<const wchar_t* const> const Args, span<strin
 	}
 }
 
-static int mainImpl(span<const wchar_t* const> const Args)
+static int mainImpl(std::span<const wchar_t* const> const Args)
 {
 	setlocale(LC_ALL, "");
 
@@ -919,20 +919,18 @@ static int mainImpl(span<const wchar_t* const> const Args)
 
 	NoElevationDuringBoot.reset();
 
-	const auto CurrentFunctionName = CURRENT_FUNCTION_NAME;
-
 	return cpp_try(
 	[&]
 	{
 		return MainProcess(strEditName, strViewName, DestNames[0], DestNames[1], StartLine, StartChar);
 	},
-	[&]() -> int
+	[&](source_location const& Location) -> int
 	{
-		handle_exception([&]{ return handle_unknown_exception(CurrentFunctionName); });
+		handle_exception([&]{ return handle_unknown_exception({}, Location); });
 	},
-	[&](std::exception const& e) -> int
+	[&](std::exception const& e, source_location const& Location) -> int
 	{
-		handle_exception([&]{ return handle_std_exception(e, CurrentFunctionName); });
+		handle_exception([&]{ return handle_std_exception(e, {}, Location); });
 	});
 }
 
@@ -997,8 +995,6 @@ static int wmain_seh()
 	os::env::set(L"ASAN_VCASAN_DEBUGGING"sv, L"1"sv);
 #endif
 
-	const auto CurrentFunctionName = CURRENT_FUNCTION_NAME;
-
 	return cpp_try(
 	[&]
 	{
@@ -1013,13 +1009,13 @@ static int wmain_seh()
 			return EXIT_FAILURE;
 		}
 	},
-	[&]() -> int
+	[&](source_location const& Location) -> int
 	{
-		handle_exception_final([&]{ return handle_unknown_exception(CurrentFunctionName); });
+		handle_exception_final([&]{ return handle_unknown_exception({}, Location); });
 	},
-	[&](std::exception const& e) -> int
+	[&](std::exception const& e, source_location const& Location) -> int
 	{
-		handle_exception_final([&]{ return handle_std_exception(e, CurrentFunctionName); });
+		handle_exception_final([&]{ return handle_std_exception(e, {}, Location); });
 	});
 }
 
@@ -1034,8 +1030,7 @@ int main()
 	[](DWORD const ExceptionCode) -> int
 	{
 		os::process::terminate_by_user(ExceptionCode);
-	},
-	CURRENT_FUNCTION_NAME);
+	});
 }
 
 #ifdef ENABLE_TESTS
@@ -1152,7 +1147,7 @@ TEST_CASE("Args")
 
 	for (const auto& i: Tests)
 	{
-		span const Args = i.Args;
+		std::span const Args = i.Args;
 		auto Iterator = Args.begin();
 
 		std::visit(overload

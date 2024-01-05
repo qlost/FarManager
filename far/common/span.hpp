@@ -1,12 +1,12 @@
-﻿#ifndef REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
-#define REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
+﻿#ifndef SPAN_HPP_3B87674F_96D1_487D_B83E_43E43EFBA4D3
+#define SPAN_HPP_3B87674F_96D1_487D_B83E_43E43EFBA4D3
 #pragma once
 
 /*
-reverse.hpp
+span.hpp
 */
 /*
-Copyright © 2019 Far Group
+Copyright © 2014 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,42 +32,38 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "../keep_alive.hpp"
-
-#include <iterator>
+#include <span>
 
 //----------------------------------------------------------------------------
 
-template<typename container, typename container_ref>
-class reverse
+template<class span_value_type>
+class [[nodiscard]] span: public std::span<span_value_type>
 {
+	using base_span = std::span<span_value_type>;
+	// Can't use base_span alias here, Clang isn't smart enough.
+	using std::span<span_value_type>::span;
+
 public:
-	explicit reverse(container_ref Container):
-		m_Container(FWD(Container))
+	template<std::ranges::contiguous_range SpanLike> requires requires { base_span(std::declval<SpanLike&>()); }
+	constexpr explicit(false) span(SpanLike&& Span) noexcept:
+		base_span(Span)
 	{
 	}
 
-	[[nodiscard]] auto begin()        { return std::rbegin(m_Container); }
-	[[nodiscard]] auto end()          { return std::rend(m_Container); }
-	[[nodiscard]] auto begin()  const { return std::rbegin(m_Container); }
-	[[nodiscard]] auto end()    const { return std::rend(m_Container); }
-	[[nodiscard]] auto cbegin() const { return std::crbegin(m_Container); }
-	[[nodiscard]] auto cend()   const { return std::crend(m_Container); }
-	[[nodiscard]] auto rbegin()        { return std::begin(m_Container); }
-	[[nodiscard]] auto rend()          { return std::end(m_Container); }
-	[[nodiscard]] auto rbegin()  const { return std::begin(m_Container); }
-	[[nodiscard]] auto rend()    const { return std::end(m_Container); }
-	[[nodiscard]] auto crbegin() const { return std::cbegin(m_Container); }
-	[[nodiscard]] auto crend()   const { return std::cend(m_Container); }
-
-private:
-	container m_Container;
+	// Design by committee
+	constexpr span(const std::initializer_list<span_value_type>& List) noexcept:
+		base_span(List)
+	{
+	}
 };
 
-template<typename container>
-reverse(container&& Container) ->
-	reverse<
-		keep_alive_type<decltype(Container)>, decltype(Container)
-	>;
+template<std::contiguous_iterator Iterator>
+span(Iterator Begin, size_t Size) -> span<std::remove_reference_t<decltype(*Begin)>>;
 
-#endif // REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
+template<std::ranges::contiguous_range container>
+span(container&& c) -> span<std::remove_reference_t<decltype(*std::begin(c))>>;
+
+template<typename value_type>
+span(const std::initializer_list<value_type>&) -> span<const value_type>;
+
+#endif // SPAN_HPP_3B87674F_96D1_487D_B83E_43E43EFBA4D3

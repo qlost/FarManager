@@ -53,9 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/algorithm.hpp"
 #include "common/from_string.hpp"
-#include "common/range.hpp"
 #include "common/string_utils.hpp"
-#include "common/view/where.hpp"
 
 // External:
 #include "format.hpp"
@@ -68,7 +66,7 @@ namespace os
 	{
 		static bool ApiDynamicStringReceiverImpl(
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable,
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable,
 			function_ref<bool(size_t ReturnedSize, size_t AllocatedSize)> const Condition
 		)
 		{
@@ -76,7 +74,7 @@ namespace os
 				buffer<wchar_t>(),
 				Callable,
 				Condition,
-				[&](span<wchar_t const> const Buffer)
+				[&](std::span<wchar_t const> const Buffer)
 				{
 					Destination.assign(Buffer.data(), Buffer.size());
 				}
@@ -85,7 +83,7 @@ namespace os
 
 		bool ApiDynamicStringReceiver(
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable
 		)
 		{
 			return ApiDynamicStringReceiverImpl(
@@ -106,7 +104,7 @@ namespace os
 		bool ApiDynamicErrorBasedStringReceiver(
 			DWORD const ExpectedErrorCode,
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable)
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable)
 		{
 			return ApiDynamicStringReceiverImpl(
 				Destination,
@@ -136,7 +134,7 @@ namespace os
 		}
 
 		[[nodiscard]]
-		static std::optional<size_t> multi_wait(span<HANDLE const> const Handles, bool const WaitAll, std::optional<std::chrono::milliseconds> Timeout = {})
+		static std::optional<size_t> multi_wait(std::span<HANDLE const> const Handles, bool const WaitAll, std::optional<std::chrono::milliseconds> Timeout = {})
 		{
 			assert(!Handles.empty());
 			assert(Handles.size() <= MAXIMUM_WAIT_OBJECTS);
@@ -284,7 +282,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 		(Nt? GetModuleHandle(L"ntdll.dll") : nullptr),
 		ErrorCode,
 		0,
-		edit_as<wchar_t*>(&ptr_setter(Buffer)),
+		std::bit_cast<wchar_t*>(&ptr_setter(Buffer)),
 		0,
 		nullptr);
 
@@ -295,7 +293,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 	}
 
 	string Result(Buffer.get(), Size);
-	std::replace_if(ALL_RANGE(Result), IsEol, L' ');
+	std::ranges::replace_if(Result, IsEol, L' ');
 	inplace::trim_right(Result);
 
 	return Result;
@@ -303,7 +301,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 
 static string postprocess_error_string(unsigned const ErrorCode, string&& Str)
 {
-	std::replace_if(ALL_RANGE(Str), IsEol, L' ');
+	std::ranges::replace_if(Str, IsEol, L' ');
 	inplace::trim_right(Str);
 	return far::format(L"0x{:0>8X} - {}"sv, ErrorCode, Str.empty() ? L"Unknown error"sv : Str);
 }
@@ -364,7 +362,7 @@ string error_state::to_string() const
 		StrNtError,
 	};
 
-	return join(L", "sv, where(Errors, [](string_view const Str){ return !Str.empty(); }));
+	return join(L", "sv, Errors | std::views::filter([](string_view const Str){ return !Str.empty(); }));
 }
 
 error_state last_error()
@@ -384,7 +382,7 @@ bool WNetGetConnection(const string_view LocalName, string &RemoteName)
 	// is running in a different logon session than the application that made the connection.
 	// However, it may fail with ERROR_NOT_CONNECTED for non-network too, in this case Buffer will not be initialised.
 	// Deliberately initialised with an empty string to fix that.
-	Buffer.front() = {};
+	Buffer[0] = {};
 	auto Size = static_cast<DWORD>(Buffer.size());
 	const null_terminated C_LocalName(LocalName);
 	auto Result = ::WNetGetConnection(C_LocalName.c_str(), Buffer.data(), &Size);
@@ -412,7 +410,7 @@ bool get_locale_value(LCID const LcId, LCTYPE const Id, string& Value)
 	last_error_guard ErrorGuard;
 	SetLastError(ERROR_SUCCESS);
 
-	if (detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](span<wchar_t> Buffer)
+	if (detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](std::span<wchar_t> Buffer)
 	{
 		const auto ReturnedSize = GetLocaleInfo(LcId, Id, Buffer.data(), static_cast<int>(Buffer.size()));
 		return ReturnedSize? ReturnedSize - 1 : 0;
@@ -435,14 +433,14 @@ bool get_locale_value(LCID const LcId, LCTYPE const Id, string& Value)
 
 bool get_locale_value(LCID const LcId, LCTYPE const Id, int& Value)
 {
-	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, edit_as<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
+	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, std::bit_cast<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
 }
 
 string GetPrivateProfileString(string_view const AppName, string_view const KeyName, string_view const Default, string_view const FileName)
 {
 	string Value;
 
-	if (!detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> const Buffer)
+	if (!detail::ApiDynamicStringReceiver(Value, [&](std::span<wchar_t> const Buffer)
 	{
 		const auto Size = ::GetPrivateProfileString(null_terminated(AppName).c_str(), null_terminated(KeyName).c_str(), null_terminated(Default).c_str(), Buffer.data(), static_cast<DWORD>(Buffer.size()), null_terminated(FileName).c_str());
 		return Size == Buffer.size() - 1? Buffer.size() * 2 : Size;
@@ -472,7 +470,7 @@ bool GetWindowText(HWND Hwnd, string& Text)
 	last_error_guard ErrorGuard;
 	SetLastError(ERROR_SUCCESS);
 
-	if (detail::ApiDynamicStringReceiver(Text, [&](span<wchar_t> Buffer)
+	if (detail::ApiDynamicStringReceiver(Text, [&](std::span<wchar_t> Buffer)
 	{
 		const size_t Length = ::GetWindowTextLength(Hwnd);
 
@@ -540,7 +538,7 @@ DWORD GetAppPathsRedirectionFlag()
 
 bool GetDefaultPrinter(string& Printer)
 {
-	return detail::ApiDynamicStringReceiver(Printer, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Printer, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (::GetDefaultPrinter(Buffer.data(), &Size))
@@ -563,7 +561,7 @@ bool GetComputerName(string& Name)
 
 bool GetComputerNameEx(COMPUTER_NAME_FORMAT NameFormat, string& Name)
 {
-	return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (!::GetComputerNameEx(NameFormat, Buffer.data(), &Size) && GetLastError() != ERROR_MORE_DATA)
@@ -585,7 +583,7 @@ bool GetUserName(string& Name)
 
 bool GetUserNameEx(EXTENDED_NAME_FORMAT NameFormat, string& Name)
 {
-	return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (!::GetUserNameEx(NameFormat, Buffer.data(), &Size) && GetLastError() != ERROR_MORE_DATA)
@@ -615,7 +613,7 @@ HKL make_hkl(int32_t const Layout)
 	// For an unknown reason HKLs must be promoted as signed integers on x64:
 	// 0x1NNNNNNN -> 0x000000001NNNNNNN
 	// 0xFNNNNNNN -> 0xFFFFFFFFFNNNNNNN
-	return reinterpret_cast<HKL>(static_cast<intptr_t>(extract_integer<WORD, 1>(Layout)? Layout : make_integer<int32_t, uint16_t>(Layout, Layout)));
+	return std::bit_cast<HKL>(static_cast<intptr_t>(extract_integer<WORD, 1>(Layout)? Layout : make_integer<int32_t, uint16_t>(Layout, Layout)));
 }
 
 HKL make_hkl(string_view const LayoutStr)
@@ -761,10 +759,10 @@ namespace rtdl
 			return m_module->get();
 		}
 
-		void* module::get_proc_address(const char* const Name) const
+		FARPROC module::get_proc_address(const char* const Name) const
 		{
 			const auto& Module = get_module(true);
-			return reinterpret_cast<void*>(::GetProcAddress(Module, Name));
+			return ::GetProcAddress(Module, Name);
 		}
 
 		opaque_function_pointer::opaque_function_pointer(const module& Module, const char* Name):
@@ -808,21 +806,16 @@ TEST_CASE("platform.string.receiver")
 {
 	const auto api_function = [](size_t const EmulatedSize, wchar_t* const Buffer, size_t const BufferSize)
 	{
-		string Data;
-		Data.resize(EmulatedSize);
-		std::iota(ALL_RANGE(Data), L'\1');
+		if (BufferSize < EmulatedSize + 1)
+			return EmulatedSize + 1;
 
-		if (BufferSize < Data.size() + 1)
-			return Data.size() + 1;
-
-		*copy_string(Data, Buffer) = {};
-
-		return Data.size();
+		*std::ranges::transform(std::views::iota(size_t{}, EmulatedSize), Buffer, [](int const Value) { return static_cast<wchar_t>(Value + 1); }).out = {};
+		return EmulatedSize;
 	};
 
 	const auto validate = [](string const& Data)
 	{
-		for (const auto& i: irange(Data.size()))
+		for (const auto i: std::views::iota(size_t{}, Data.size()))
 		{
 			if (Data[i] != i + 1)
 				return false;
@@ -845,7 +838,7 @@ TEST_CASE("platform.string.receiver")
 	for (const auto& i: Tests)
 	{
 		string Data;
-		REQUIRE((i != 0) == os::detail::ApiDynamicStringReceiver(Data, [&](span<wchar_t> const Buffer)
+		REQUIRE((i != 0) == os::detail::ApiDynamicStringReceiver(Data, [&](std::span<wchar_t> const Buffer)
 		{
 			return api_function(i, Buffer.data(), Buffer.size());
 		}));

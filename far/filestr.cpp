@@ -143,7 +143,7 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) 
 	for (;;)
 	{
 		const auto Char = !m_BufferView.empty() || fill()?
-			std::optional<T>{ std::basic_string_view<T>{ view_as<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
+			std::optional<T>{ std::basic_string_view<T>{ std::bit_cast<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
 			std::optional<T>{};
 
 		if (Char == EolLf)
@@ -352,11 +352,11 @@ static bool GetCpUsingML(std::string_view Str, uintptr_t& Codepage, function_ref
 	if (const auto Result = ML->DetectInputCodepage(MLDETECTCP_NONE, 0, const_cast<char*>(Str.data()), &Size, Info, &InfoCount); FAILED(Result))
 		return false;
 
-	const auto Scores = span(Info, InfoCount);
-	std::sort(ALL_CONST_RANGE(Scores), [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
+	const auto Scores = std::span(Info, InfoCount);
+	std::ranges::sort(Scores, [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
 
-	const auto It = std::find_if(ALL_CONST_RANGE(Scores), [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
-	if (It == Scores.cend())
+	const auto It = std::ranges::find_if(Scores, [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
+	if (It == Scores.end())
 		return false;
 
 	Codepage = It->nCodePage;

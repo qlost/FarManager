@@ -284,7 +284,7 @@ static void set_dates_and_times(Dialog* const Dlg, const time_map& TimeMapEntry,
 	set_date_or_time(Dlg, TimeMapEntry.TimeId, Time, MakeUnchanged);
 }
 
-static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
+static void AdvancedAttributesDialog(SetAttrDlgParam& DlgParam)
 {
 	DialogBuilder Builder(lng::MSetAttrTitle, {}, [](Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2) -> intptr_t
 	{
@@ -292,7 +292,7 @@ static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
 		{
 		case DN_BTNCLICK:
 			// only remove or keep, not set
-			if (Param1 == SA_CHECKBOX_REPARSEPOINT && reinterpret_cast<intptr_t>(Param2) == BSTATE_CHECKED)
+			if (Param1 == SA_CHECKBOX_REPARSEPOINT && std::bit_cast<intptr_t>(Param2) == BSTATE_CHECKED)
 				return false;
 
 			break;
@@ -302,10 +302,10 @@ static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
 
 	int SavedState[advanced_attributes_count];
 
-	for (const auto& i: irange(advanced_attributes_count))
+	for (const auto i: std::views::iota(size_t{}, advanced_attributes_count))
 	{
 		const auto AbsoluteIndex = main_attributes_count + i;
-		auto& Attr = DlgParam->Attributes[main_attributes_count + i];
+		auto& Attr = DlgParam.Attributes[main_attributes_count + i];
 		SavedState[i] = Attr.CurrentValue;
 		Builder.AddCheckbox(AttributeMap[AbsoluteIndex].LngId, Attr.CurrentValue, 0, flags::check_any(Attr.Flags, DIF_3STATE));
 	}
@@ -315,9 +315,9 @@ static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
 	if (!Builder.ShowDialog())
 		return;
 
-	for (const auto& i: irange(advanced_attributes_count))
+	for (const auto i: std::views::iota(size_t{}, advanced_attributes_count))
 	{
-		auto& Attr = DlgParam->Attributes[main_attributes_count + i];
+		auto& Attr = DlgParam.Attributes[main_attributes_count + i];
 
 		if (Attr.CurrentValue != SavedState[i])
 			Attr.ChangedManually = true;
@@ -326,25 +326,25 @@ static void AdvancedAttributesDialog(SetAttrDlgParam* const DlgParam)
 
 static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Param2)
 {
-	const auto DlgParam = edit_as<SetAttrDlgParam*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
+	auto& DlgParam = edit_as<SetAttrDlgParam>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
 
 	switch (Msg)
 	{
 	case DN_BTNCLICK:
 		if (Param1 >= SA_ATTR_FIRST && Param1 <= SA_ATTR_LAST)
 		{
-			DlgParam->Attributes[Param1 - SA_ATTR_FIRST].CurrentValue = static_cast<FARCHECKEDSTATE>(reinterpret_cast<intptr_t>(Param2));
-			DlgParam->Attributes[Param1 - SA_ATTR_FIRST].ChangedManually = true;
+			DlgParam.Attributes[Param1 - SA_ATTR_FIRST].CurrentValue = static_cast<FARCHECKEDSTATE>(std::bit_cast<intptr_t>(Param2));
+			DlgParam.Attributes[Param1 - SA_ATTR_FIRST].ChangedManually = true;
 
 			// Compressed / Encrypted are mutually exclusive
 			if ((Param1 == SA_CHECKBOX_COMPRESSED || Param1 == SA_CHECKBOX_ENCRYPTED) &&
-				static_cast<FARCHECKEDSTATE>(reinterpret_cast<intptr_t>(Param2)) == BSTATE_CHECKED)
+				static_cast<FARCHECKEDSTATE>(std::bit_cast<intptr_t>(Param2)) == BSTATE_CHECKED)
 			{
 				const auto OtherId = Param1 == SA_CHECKBOX_COMPRESSED? SA_CHECKBOX_ENCRYPTED : SA_CHECKBOX_COMPRESSED;
 
 				if (static_cast<FARCHECKEDSTATE>(Dlg->SendMessage(DM_GETCHECK, OtherId, nullptr)) != BSTATE_UNCHECKED)
 				{
-					DlgParam->Attributes[OtherId - SA_ATTR_FIRST].CurrentValue = BSTATE_UNCHECKED;
+					DlgParam.Attributes[OtherId - SA_ATTR_FIRST].CurrentValue = BSTATE_UNCHECKED;
 					Dlg->SendMessage(DM_SETCHECK, OtherId, ToPtr(BSTATE_UNCHECKED));
 				}
 			}
@@ -358,16 +358,16 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 		{
 			// этот кусок всегда работает если есть хотя бы одна папка
 			// иначе SA_CHECKBOX_SUBFOLDERS недоступен и всегда снят.
-			const auto SubfoldersState = static_cast<FARCHECKEDSTATE>(reinterpret_cast<intptr_t>(Param2));
+			const auto SubfoldersState = static_cast<FARCHECKEDSTATE>(std::bit_cast<intptr_t>(Param2));
 
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
 			// Works in 2 modes: single directory or multiple selection
-			for(auto& i: DlgParam->Attributes)
+			for(auto& i: DlgParam.Attributes)
 			{
 				if (SubfoldersState == BSTATE_UNCHECKED)
 				{
-					if (DlgParam->DialogMode == MODE_FOLDER)
+					if (DlgParam.DialogMode == MODE_FOLDER)
 						i.Flags &= ~DIF_3STATE;
 
 					if (!i.ChangedManually)
@@ -382,16 +382,16 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 				}
 			}
 
-			for (const auto& i: irange(SA_ATTR_FIRST, SA_ATTR_LAST + 1))
+			for (const auto i: std::views::iota(SA_ATTR_FIRST + 0, SA_ATTR_LAST + 1))
 			{
-				const auto& Attr = DlgParam->Attributes[i - SA_ATTR_FIRST];
+				const auto& Attr = DlgParam.Attributes[i - SA_ATTR_FIRST];
 				Dlg->SendMessage(DM_SET3STATE, i, ToPtr((Attr.Flags & DIF_3STATE) != 0));
 				Dlg->SendMessage(DM_SETCHECK, i, ToPtr(Attr.CurrentValue));
 			}
 
-			if (DlgParam->DialogMode == MODE_FOLDER)
+			if (DlgParam.DialogMode == MODE_FOLDER)
 			{
-				for (const auto& [i, State]: zip(TimeMap, DlgParam->Times))
+				for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
 				{
 					const auto process = [&](int const Id, auto& Component)
 					{
@@ -407,10 +407,10 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 				}
 			}
 
-			if (!DlgParam->Owner.ChangedManually)
+			if (!DlgParam.Owner.ChangedManually)
 			{
-				Dlg->SendMessage(DM_SETTEXTPTR, SA_EDIT_OWNER, SubfoldersState == BSTATE_UNCHECKED? UNSAFE_CSTR(DlgParam->Owner.InitialValue) : nullptr);
-				DlgParam->Owner.ChangedManually = false;
+				Dlg->SendMessage(DM_SETTEXTPTR, SA_EDIT_OWNER, SubfoldersState == BSTATE_UNCHECKED? UNSAFE_CSTR(DlgParam.Owner.InitialValue) : nullptr);
+				DlgParam.Owner.ChangedManually = false;
 			}
 		}
 		// Set Original? / Set All? / Clear All?
@@ -418,7 +418,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 		{
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-			for (const auto& [i, State]: zip(TimeMap, DlgParam->Times))
+			for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
 			{
 				const auto process = [&](int const Id, auto& Component)
 				{
@@ -488,21 +488,21 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 				break;
 
 			case SA_EDIT_OWNER:
-				DlgParam->Owner.ChangedManually = true;
+				DlgParam.Owner.ChangedManually = true;
 				break;
 
 			case SA_EDIT_WDATE:
 			case SA_EDIT_CDATE:
 			case SA_EDIT_ADATE:
 			case SA_EDIT_XDATE:
-				DlgParam->Times[label_to_time_map_index(Param1 - 1)].Date.ChangedManually = true;
+				DlgParam.Times[label_to_time_map_index(Param1 - 1)].Date.ChangedManually = true;
 				break;
 
 			case SA_EDIT_WTIME:
 			case SA_EDIT_CTIME:
 			case SA_EDIT_ATIME:
 			case SA_EDIT_XTIME:
-				DlgParam->Times[label_to_time_map_index(Param1 - 2)].Time.ChangedManually = true;
+				DlgParam.Times[label_to_time_map_index(Param1 - 2)].Time.ChangedManually = true;
 				break;
 			}
 		}
@@ -510,13 +510,13 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 
 	case DN_GOTFOCUS:
 		{
-			if (!std::any_of(ALL_CONST_RANGE(TimeMap), [&](const auto& i) { return i.DateId == Param1; }))
+			if (!std::ranges::any_of(TimeMap, [&](const auto& i) { return i.DateId == Param1; }))
 				break;
 
 			if (locale.date_format() != date_type::ymd)
 				break;
 
-			if (view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, Param1, nullptr))[0] != L' ')
+			if (std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, Param1, nullptr))[0] != L' ')
 				break;
 
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
@@ -842,7 +842,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			AttrDlg[SA_CHECKBOX_SUBFOLDERS].Flags &= ~(DIF_DISABLE | DIF_HIDDEN);
 			AttrDlg[SA_DOUBLEBOX].Y2 += 2;
 
-			for (const auto& i: irange(SA_SEPARATOR5, SA_BUTTON_CANCEL + 1))
+			for (const auto i: std::views::iota(SA_SEPARATOR5 + 0, SA_BUTTON_CANCEL + 1))
 			{
 				AttrDlg[i].Y1 += 2;
 				AttrDlg[i].Y2 += 2;
@@ -891,28 +891,56 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 			if ((SingleSelFindData.Attributes != INVALID_FILE_ATTRIBUTES && (SingleSelFindData.Attributes & FILE_ATTRIBUTE_REPARSE_POINT)) || IsMountPoint)
 			{
+				LinkPresent = true;
+
 				auto ID_Msg = IsMountPoint? lng::MSetAttrVolMount : lng::MSetAttrSymlink;
 				DWORD ReparseTag = SingleSelFindData.ReparseTag;
-				bool KnownReparsePoint = false;
+				bool KnownReparseTag = false;
+
 				if (!DlgParam.Plugin)
 				{
 					if (IsMountPoint)
 					{
 						// BUGBUG, cheating
 						ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
-						KnownReparsePoint = os::fs::GetVolumeNameForVolumeMountPoint(SingleSelFileName, strLinkName);
+						KnownReparseTag = true;
+						(void)os::fs::GetVolumeNameForVolumeMountPoint(SingleSelFileName, strLinkName);
 					}
 					else
 					{
 						DWORD ReparseTagAlternative = 0;
-						KnownReparsePoint = GetReparsePointInfo(SingleSelFileName, strLinkName, &ReparseTagAlternative);
+						KnownReparseTag = GetReparsePointInfo(SingleSelFileName, strLinkName, &ReparseTagAlternative);
 						if (ReparseTagAlternative && !ReparseTag)
 						{
 							ReparseTag = ReparseTagAlternative;
 						}
+					}
 
-						if (!KnownReparsePoint)
+					if (KnownReparseTag)
+					{
+						NormalizeSymlinkName(strLinkName);
+
+						switch (ReparseTag)
 						{
+						case IO_REPARSE_TAG_MOUNT_POINT:
+							ID_Msg = lng::MSetAttrJunction;
+
+							if (bool Root; !IsMountPoint && ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root)
+								ID_Msg = lng::MSetAttrVolMount;
+
+							break;
+
+						case IO_REPARSE_TAG_SYMLINK:
+							ID_Msg = lng::MSetAttrSymlink;
+							break;
+
+						case IO_REPARSE_TAG_APPEXECLINK:
+							ID_Msg = lng::MSetAttrAppExecLink;
+							break;
+						}
+					}
+					else
+					{
 							if (ReparseTag == IO_REPARSE_TAG_DFS)
 							{
 								const auto path = path::join(SrcPanel->GetCurDir(), SingleSelFileName);
@@ -922,9 +950,9 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 									Result = imports.NetDfsGetClientInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
 								if (Result == NERR_Success)
 								{
-									KnownReparsePoint = true;
+									KnownReparseTag = true;
 
-									const span DfsStorages(DfsInfo->Storage, DfsInfo->NumberOfStorages);
+									const std::span DfsStorages(DfsInfo->Storage, DfsInfo->NumberOfStorages);
 									ListItems.resize(DfsStorages.size());
 									Links.resize(DfsStorages.size());
 
@@ -939,19 +967,21 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 									NameList.Items = ListItems.data();
 									NameList.ItemsNumber = DfsInfo->NumberOfStorages;
-
-									AttrDlg[SA_EDIT_REPARSE_POINT].Flags |= DIF_HIDDEN;
-									AttrDlg[SA_COMBO_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
-									AttrDlg[SA_COMBO_REPARSE_POINT].ListItems = &NameList;
-									AttrDlg[SA_COMBO_REPARSE_POINT].strData = concat(msg(lng::MSetAttrDfsTargets), L" ("sv, str(NameList.ItemsNumber), L')');
 								}
 							}
+
+						if (!KnownReparseTag)
+						{
+							if (reparse_tag_to_string(ReparseTag, strLinkName, Global->Opt->ShowUnknownReparsePoint) || !strLinkName.empty())
+								strLinkName = far::format(L"{} {}"sv, replace(msg(lng::MSetAttrReparsePoint), L"&"sv, L""sv), strLinkName);
+							else
+								strLinkName = msg(lng::MSetAttrUnknownReparsePoint);
 						}
 					}
 				}
 				AttrDlg[SA_DOUBLEBOX].Y2++;
 
-				for (auto& i: range(AttrDlg.begin() + SA_TEXT_REPARSE_POINT, AttrDlg.end()))
+				for (auto& i: AttrDlg | std::views::drop(SA_TEXT_REPARSE_POINT))
 				{
 					i.Y1++;
 
@@ -961,40 +991,34 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					}
 				}
 
-				LinkPresent=true;
-				NormalizeSymlinkName(strLinkName);
+				AttrDlg[SA_TEXT_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
 
-				if (!IsMountPoint && ReparseTag==IO_REPARSE_TAG_MOUNT_POINT)
+				if (KnownReparseTag)
 				{
-					bool Root;
-					if(ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root)
+					AttrDlg[SA_TEXT_REPARSE_POINT].strData = msg(ID_Msg);
+
+					if (ReparseTag == IO_REPARSE_TAG_DFS)
 					{
-						ID_Msg = lng::MSetAttrVolMount;
+						AttrDlg[SA_EDIT_REPARSE_POINT].Flags |= DIF_HIDDEN;
+						AttrDlg[SA_COMBO_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
+						AttrDlg[SA_COMBO_REPARSE_POINT].ListItems = &NameList;
+						AttrDlg[SA_COMBO_REPARSE_POINT].strData = concat(msg(lng::MSetAttrDfsTargets), L" ("sv, str(NameList.ItemsNumber), L')');
 					}
 					else
 					{
-						ID_Msg = lng::MSetAttrJunction;
+						AttrDlg[SA_EDIT_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
+						AttrDlg[SA_EDIT_REPARSE_POINT].strData = strLinkName;
 					}
+
+					if (IsMountPoint || none_of(ReparseTag, IO_REPARSE_TAG_MOUNT_POINT, IO_REPARSE_TAG_SYMLINK))
+						AttrDlg[SA_EDIT_REPARSE_POINT].Flags |= DIF_READONLY;
 				}
-				else if (ReparseTag == IO_REPARSE_TAG_APPEXECLINK)
+				else
 				{
-					ID_Msg = lng::MSetAttrAppExecLink;
+					AttrDlg[SA_TEXT_REPARSE_POINT].X2 = AttrDlg[SA_EDIT_REPARSE_POINT].X2;
+					AttrDlg[SA_TEXT_REPARSE_POINT].Flags |= DIF_CENTERTEXT;
+					AttrDlg[SA_TEXT_REPARSE_POINT].strData = strLinkName;
 				}
-
-				if (!KnownReparsePoint)
-					strLinkName=msg(lng::MSetAttrUnknownReparsePoint);
-
-				AttrDlg[SA_TEXT_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
-				AttrDlg[SA_TEXT_REPARSE_POINT].strData = msg(ID_Msg);
-
-				if (ReparseTag != IO_REPARSE_TAG_DFS)
-				{
-					AttrDlg[SA_EDIT_REPARSE_POINT].Flags &= ~DIF_HIDDEN;
-					AttrDlg[SA_EDIT_REPARSE_POINT].strData = strLinkName;
-				}
-
-				if (IsMountPoint || none_of(ReparseTag, IO_REPARSE_TAG_MOUNT_POINT, IO_REPARSE_TAG_SYMLINK))
-					AttrDlg[SA_EDIT_REPARSE_POINT].Flags |= DIF_READONLY;
 			}
 
 			// обработка случая "несколько хардлинков"
@@ -1018,7 +1042,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					if (!Links.empty())
 					{
 						ListItems.reserve(Links.size());
-						std::transform(ALL_CONST_RANGE(Links), std::back_inserter(ListItems), [&](const string& i) { return FarListItem{ 0, i.c_str() }; });
+						std::ranges::transform(Links, std::back_inserter(ListItems), [&](const string& i) { return FarListItem{ 0, i.c_str() }; });
 
 						NameList.Items = ListItems.data();
 						AttrDlg[SA_COMBO_HARDLINK].ListItems = &NameList;
@@ -1154,7 +1178,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 			}
 		}
 
-		for (const auto& i: irange(SA_ATTR_FIRST, SA_ATTR_LAST + 1))
+		for (const auto i: std::views::iota(SA_ATTR_FIRST + 0, SA_ATTR_LAST + 1))
 		{
 			auto& DlgItem = AttrDlg[i];
 			const auto& State = DlgParam.Attributes[i - SA_ATTR_FIRST];

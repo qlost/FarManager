@@ -106,14 +106,14 @@ intptr_t VMenu2::VMenu2DlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void*
 			};
 
 			const auto& colors = *static_cast<FarDialogItemColors const*>(Param2);
-			std::transform(MenuColors, MenuColors + std::min(colors.ColorsCount, std::size(MenuColors)), colors.Colors, &colors::PaletteColorToFarColor);
+			std::ranges::transform(MenuColors | std::views::take(std::min(colors.ColorsCount, std::size(MenuColors))), colors.Colors, &colors::PaletteColorToFarColor);
 			return true;
 		}
 
 	case DN_CLOSE:
 		if(!ForceClosing && !Param1 && GetItemFlags() & (LIF_GRAYED|LIF_DISABLE))
 			return false;
-		if(Call(Msg, reinterpret_cast<void*>(Param1 < 0? Param1 : GetSelectPos())))
+		if(Call(Msg, std::bit_cast<void*>(Param1 < 0? Param1 : GetSelectPos())))
 			return false;
 		break;
 
@@ -243,7 +243,7 @@ void VMenu2::Resize(bool force)
 		ScrX + 1,
 		m_X2 > 0?
 			m_X2 - X1 + 1 :
-			static_cast<int>(ListBox().MaxItemLength() + ListBox().GetServiceAreaSize() + (m_BoxType == box_type::full? 4 : 0))
+			static_cast<int>(ListBox().GetNaturalMenuWidth() + (m_BoxType == box_type::full? 4 : 0))
 	);
 
 	int height=GetShowItemCount();
@@ -350,7 +350,7 @@ VMenu2::VMenu2(private_tag, int MaxHeight):
 {
 }
 
-vmenu2_ptr VMenu2::create(const string& Title, span<const menu_item> const Data, int MaxHeight, DWORD Flags)
+vmenu2_ptr VMenu2::create(const string& Title, std::span<const menu_item> const Data, int MaxHeight, DWORD Flags)
 {
 	auto VMenu2Ptr = std::make_shared<VMenu2>(private_tag(), MaxHeight);
 
@@ -364,7 +364,7 @@ vmenu2_ptr VMenu2::create(const string& Title, span<const menu_item> const Data,
 
 	std::vector<FarListItem> fli;
 	fli.reserve(Data.size());
-	std::transform(ALL_CONST_RANGE(Data), std::back_inserter(fli), [](const auto& i) { return FarListItem{ i.Flags, i.Name.c_str() }; });
+	std::ranges::transform(Data, std::back_inserter(fli), [](const auto& i) { return FarListItem{ i.Flags, i.Name.c_str() }; });
 
 	FarList fl{ sizeof(fl), fli.size(), fli.data() };
 

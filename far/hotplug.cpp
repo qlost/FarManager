@@ -62,7 +62,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/enum_substrings.hpp"
 #include "common/function_ref.hpp"
 #include "common/keep_alive.hpp"
-#include "common/view/select.hpp"
 
 // External:
 #include "format.hpp"
@@ -162,7 +161,7 @@ public:
 	auto DeviceInterfacesEnumerator(UUID const& InterfaceClassUuid) const
 	{
 		using value_type = SP_DEVICE_INTERFACE_DATA;
-		return make_inline_enumerator<value_type>([this, InterfaceClassUuid = keep_alive(FWD(InterfaceClassUuid)), Index = size_t{}](const bool Reset, value_type& Value) mutable
+		return inline_enumerator<value_type>([this, InterfaceClassUuid = keep_alive(FWD(InterfaceClassUuid)), Index = size_t{}](const bool Reset, value_type& Value) mutable
 		{
 			if (Reset)
 				Index = 0;
@@ -214,7 +213,7 @@ static bool GetDeviceProperty(DEVINST hDevInst, DWORD Property, DWORD& Value)
 {
 	return GetDevicePropertyImpl(hDevInst, [&](const dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
 	{
-		return Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, edit_as<BYTE*>(&Value), sizeof(Value), nullptr);
+		return Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, std::bit_cast<BYTE*>(&Value), sizeof(Value), nullptr);
 	});
 }
 
@@ -223,10 +222,10 @@ static bool GetDeviceProperty(DEVINST hDevInst, DWORD Property, string& Value)
 {
 	return GetDevicePropertyImpl(hDevInst, [&](const dev_info& Info, SP_DEVINFO_DATA& DeviceInfoData)
 	{
-		return os::detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> Buffer)
+		return os::detail::ApiDynamicStringReceiver(Value, [&](std::span<wchar_t> Buffer)
 		{
 			DWORD RequiredSize = 0;
-			if (Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, edit_as<BYTE*>(Buffer.data()), static_cast<DWORD>(Buffer.size()), &RequiredSize))
+			if (Info.GetDeviceRegistryProperty(DeviceInfoData, Property, nullptr, std::bit_cast<BYTE*>(Buffer.data()), static_cast<DWORD>(Buffer.size()), &RequiredSize))
 				return RequiredSize / sizeof(wchar_t) - 1;
 			return RequiredSize / sizeof(wchar_t);
 		});
@@ -278,7 +277,7 @@ static DWORD DriveMaskFromVolumeName(string_view const VolumeName)
 	DWORD Result = 0;
 	string strCurrentVolumeName;
 	const os::fs::enum_drives Enumerator(os::fs::get_logical_drives());
-	const auto ItemIterator = std::find_if(ALL_CONST_RANGE(Enumerator), [&](const auto& i)
+	const auto ItemIterator = std::ranges::find_if(Enumerator, [&](const auto& i)
 	{
 		return os::fs::GetVolumeNameForVolumeMountPoint(os::fs::drive::get_win32nt_root_directory(i), strCurrentVolumeName) && starts_with_icase(strCurrentVolumeName, VolumeName);
 	});
@@ -425,7 +424,7 @@ static bool RemoveHotplugDriveDevice(const DeviceInfo& Info, bool const Confirm,
 	{
 		const auto Separator = L", "sv;
 
-		auto DisksStr = join(Separator, select(os::fs::enum_drives(Info.DevicePaths.Disks), [](wchar_t const Drive){ return os::fs::drive::get_device_path(Drive); }));
+		auto DisksStr = join(Separator, os::fs::enum_drives(Info.DevicePaths.Disks) | std::views::transform([](wchar_t const Drive){ return os::fs::drive::get_device_path(Drive); }));
 
 		if (DisksStr.empty())
 			DisksStr = join(Separator, Info.DevicePaths.Volumes);
@@ -507,12 +506,12 @@ bool RemoveHotplugDrive(string_view const Path, bool const Confirm, bool& Cancel
 		if (PathType == root_type::win32nt_drive_letter)
 		{
 			const auto DiskNumber = os::fs::drive::get_number(Path[L"\\\\?\\"sv.size()]);
-			return std::find_if(CONST_RANGE(Info, i) { return i.DevicePaths.Disks[DiskNumber]; });
+			return std::ranges::find_if(Info, [&](DeviceInfo const& i){ return i.DevicePaths.Disks[DiskNumber]; });
 		}
 
-		return std::find_if(CONST_RANGE(Info, i)
+		return std::ranges::find_if(Info, [&](DeviceInfo const& i)
 		{
-			return std::any_of(ALL_CONST_RANGE(i.DevicePaths.Volumes), [&](string const& VolumeName)
+			return std::ranges::any_of(i.DevicePaths.Volumes, [&](string const& VolumeName)
 			{
 				return equal_icase(VolumeName, Path);
 			});

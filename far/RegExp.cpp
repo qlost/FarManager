@@ -47,7 +47,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/algorithm.hpp"
 #include "common/function_ref.hpp"
-#include "common/movable.hpp"
 #include "common/scope_exit.hpp"
 #include "common/string_utils.hpp"
 
@@ -402,7 +401,7 @@ enum REOp
 
 struct REOpCode_data
 {
-	movable<int> op;
+	int op;
 #ifdef RE_DEBUG
 	int    srcpos;
 #endif
@@ -1733,9 +1732,9 @@ public:
 };
 
 
-static const RegExp::StateStackItem& FindStateByPos(span<RegExp::StateStackItem const> const stack, RegExp::REOpCode* pos, int op)
+static const RegExp::StateStackItem& FindStateByPos(std::span<RegExp::StateStackItem const> const stack, RegExp::REOpCode* pos, int op)
 {
-	return *std::find_if(ALL_CONST_REVERSE_RANGE(stack), [&](const auto& i){ return i.pos == pos && i.op == op; });
+	return *std::ranges::find_if(stack | std::views::reverse, [&](const auto& i){ return i.pos == pos && i.op == op; });
 }
 
 int RegExp::StrCmp(const wchar_t*& str, const wchar_t* start, const wchar_t* end) const
@@ -3794,9 +3793,9 @@ static bool operator==(RegExpMatch const& a, RegExpMatch const& b)
 	return a.start == b.start && a.end == b.end;
 }
 
-static bool operator==(span<RegExpMatch const> const a, span<RegExpMatch const> const b)
+static bool operator==(std::span<RegExpMatch const> const a, std::span<RegExpMatch const> const b)
 {
-	return std::equal(ALL_CONST_RANGE(a), ALL_CONST_RANGE(b));
+	return std::ranges::equal(a, b);
 }
 
 TEST_CASE("regex.corner.empty_needle")
@@ -4014,7 +4013,7 @@ TEST_CASE("regex.named_groups")
 
 			for (const auto& [k, v]: i.NamedMatch)
 			{
-				const auto It = NamedMatch.Matches.find(string_comparer::generic_key{ k });
+				const auto It = NamedMatch.Matches.find(k);
 				REQUIRE(It != NamedMatch.Matches.cend());
 				REQUIRE(It->second == v);
 			}

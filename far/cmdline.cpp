@@ -637,7 +637,7 @@ std::list<CommandLine::segment> CommandLine::GetPrompt()
 		{
 			bool Stop;
 			auto NewColor = PrefixColor;
-			const auto Str = make_string_view(Iterator, Format.cend());
+			string_view const Str{ Iterator, Format.cend() };
 			const auto Tail = colors::ExtractColorInNewFormat(Str, NewColor, Stop);
 			if (Tail.size() == Str.size())
 			{
@@ -951,7 +951,7 @@ static bool ProcessFarCommands(string_view Command, function_ref<void(bool)> con
 			}
 		}
 
-		if (const auto& Factories = Global->CtrlObject->Plugins->Factories(); std::any_of(ALL_CONST_RANGE(Factories), [](const auto& i) { return i->IsExternal(); }))
+		if (const auto& Factories = Global->CtrlObject->Plugins->Factories(); std::ranges::any_of(Factories, [](const auto& i) { return i->IsExternal(); }))
 		{
 			std::wcout << L"\nPlugin adapters:\n"sv;
 			for (const auto& i: Factories)
@@ -1015,7 +1015,7 @@ void CommandLine::ExecString(execute_info& Info)
 	SCOPE_EXIT
 	{
 		if (ExecutionContext)
-			ExecutionContext->DoEpilogue(Info.Echo && !Info.Command.empty());
+			ExecutionContext->DoEpilogue(Info.Echo && !Info.Command.empty(), true);
 
 		if (!IsUpdateNeeded)
 			return;

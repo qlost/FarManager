@@ -695,13 +695,9 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	{
 	default: return {};
 
-	// Localised
-	case IO_REPARSE_TAG_MOUNT_POINT:                 return msg(lng::MListJunction);
-	case IO_REPARSE_TAG_SYMLINK:                     return msg(lng::MListSymlink);
-
-	// Generated
 #define TAG_STR(name) case IO_REPARSE_TAG_##name: return WIDE_SV(#name);
 	// MS tags:
+	TAG_STR(MOUNT_POINT)
 	TAG_STR(HSM)
 	TAG_STR(DRIVE_EXTENDER)
 	TAG_STR(HSM2)
@@ -710,6 +706,7 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	TAG_STR(CSV)
 	TAG_STR(DFS)
 	TAG_STR(FILTER_MANAGER)
+	TAG_STR(SYMLINK)
 	TAG_STR(IIS_CACHE)
 	TAG_STR(DFSR)
 	TAG_STR(DEDUP)
@@ -853,14 +850,16 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	}
 }
 
-bool reparse_tag_to_string(DWORD ReparseTag, string& Str)
+bool reparse_tag_to_string(DWORD ReparseTag, string& Str, bool const ShowUnknown)
 {
 	Str = reparse_tag_to_string(ReparseTag);
 
 	if (!Str.empty())
 		return true;
 
-	Str = far::format(L":{:0>8X}"sv, ReparseTag);
+	if (ShowUnknown)
+		Str = far::format(L":{:0>8X}"sv, ReparseTag);
+
 	return false;
 }
 
@@ -874,7 +873,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 	block_ptr<REPARSE_DATA_BUFFER> const Buffer(BufferSize);
 
 	{
-		char const ExpectedData[]
+		unsigned char const ExpectedData[]
 		{
 			// ReparseTag
 			0x03, 0x00, 0x00, 0xa0,
@@ -893,7 +892,6 @@ TEST_CASE("flink.fill.reparse.buffer")
 			// PathBuffer
 			0x5c, 0x00, 0x3f, 0x00, 0x3f, 0x00, 0x5c, 0x00, 0x63, 0x00, 0x3a, 0x00, 0x5c, 0x00, 0x77, 0x00, 0x69, 0x00, 0x6e, 0x00, 0x64, 0x00, 0x6f, 0x00, 0x77, 0x00, 0x73, 0x00, 0x00, 0x00,
 			0x63, 0x00, 0x3a, 0x00, 0x5c, 0x00, 0x77, 0x00, 0x69, 0x00, 0x6e, 0x00, 0x64, 0x00, 0x6f, 0x00, 0x77, 0x00, 0x73, 0x00, 0x00, 0x00,
-
 		};
 
 		static_assert(BufferSize >= std::size(ExpectedData));
@@ -909,11 +907,11 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameOffset == 30);
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameLength == 20);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
+		REQUIRE(std::ranges::equal(ExpectedData, std::span(std::bit_cast<unsigned char const*>(Buffer.data()), std::size(ExpectedData))));
 	}
 
 	{
-		char const ExpectedData[]
+		unsigned char const ExpectedData[]
 		{
 			// ReparseTag
 			0x0c, 0x00, 0x00, 0xa0,
@@ -951,7 +949,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.PrintNameLength == 20);
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.Flags == 0);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
+		REQUIRE(std::ranges::equal(ExpectedData, std::span(std::bit_cast<unsigned char const*>(Buffer.data()), std::size(ExpectedData))));
 	}
 }
 
@@ -980,7 +978,7 @@ TEST_CASE("reparse_tag_to_string")
 	string Str;
 	for (const auto& i: Tests)
 	{
-		REQUIRE(reparse_tag_to_string(i.Tag, Str) == i.Known);
+		REQUIRE(reparse_tag_to_string(i.Tag, Str, true) == i.Known);
 		REQUIRE(Str == i.Str);
 	}
 }

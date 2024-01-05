@@ -588,7 +588,7 @@ bool GetString(
 		StrDlg[gs_edit].strData = SrcText;
 
 	{
-		const auto Dlg = Dialog::create(span(StrDlg.data(), StrDlg.size() - Substract));
+		const auto Dlg = Dialog::create(std::span(StrDlg.data(), StrDlg.size() - Substract));
 		Dlg->SetPosition({ -1, -1, 76, offset + (Flags & FIB_BUTTONS? 8 : 6) });
 		if(Id) Dlg->SetId(*Id);
 
@@ -725,7 +725,7 @@ static std::vector<string> get_locking_processes(const string& FullName, size_t 
 		if (!Enum)
 		{
 			Enum.emplace();
-			std::transform(ALL_CONST_RANGE(*Enum), std::inserter(ActiveProcesses, ActiveProcesses.end()), [](os::process::enum_process_entry const& Entry)
+			std::ranges::transform(*Enum, std::inserter(ActiveProcesses, ActiveProcesses.end()), [](os::process::enum_process_entry const& Entry)
 			{
 				return std::pair(Entry.Pid, Entry.Name);
 			});
@@ -876,7 +876,7 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 	if(!Msg.empty())
 	{
 		Msgs.emplace_back(far::vformat(msg(lng::MObjectLockedReason), msg(Reason)));
-		std::move(ALL_RANGE(Msg), std::back_inserter(Msgs));
+		std::ranges::move(Msg, std::back_inserter(Msgs));
 		Msg.clear();
 	}
 
@@ -1228,8 +1228,8 @@ void regex_playground()
 	{
 		const auto update_substitution = [&]
 		{
-			const auto TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
-			const auto ReplaceStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
+			const auto TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+			const auto ReplaceStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
 
 			const auto Str = ReplaceBrackets(TestStr, ReplaceStr, Match.Matches, &NamedMatch);
 			Status = status::normal;
@@ -1264,7 +1264,7 @@ void regex_playground()
 
 		const auto update_test = [&]
 		{
-			string_view const TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+			string_view const TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
 
 			bool IsMatch;
 
@@ -1292,8 +1292,8 @@ void regex_playground()
 			ListItems.clear();
 			ListStrings.clear();
 
-			reserve_exp_noshrink(ListItems, Match.Matches.size());
-			reserve_exp_noshrink(ListStrings, Match.Matches.size());
+			reserve_exp(ListItems, Match.Matches.size());
+			reserve_exp(ListStrings, Match.Matches.size());
 
 			const auto match_str = [&](RegExpMatch const& m)
 			{
@@ -1322,7 +1322,7 @@ void regex_playground()
 		{
 			try
 			{
-				const string_view RegexStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_regex, {}));
+				const string_view RegexStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_regex, {}));
 				Regex.Compile(RegexStr, RegexStr.starts_with(L'/')? OP_PERLSTYLE : 0);
 			}
 			catch (regex_exception const& e)
@@ -1388,7 +1388,7 @@ progress_impl::~progress_impl()
 		m_Dialog->CloseDialog();
 }
 
-void progress_impl::init(span<DialogItemEx> const Items, rectangle const Position)
+void progress_impl::init(std::span<DialogItemEx> const Items, rectangle const Position)
 {
 	m_Dialog = Dialog::create(Items, [](Dialog* const Dlg, intptr_t const Msg, intptr_t const Param1, void* const Param2)
 	{
@@ -1459,7 +1459,7 @@ void single_progress::update(size_t const Percent) const
 {
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_progress, UNSAFE_CSTR(make_progressbar(single_progress_detail::DlgW - 10, Percent, true, true)));
 
-	const auto Title = view_as<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
+	const auto Title = std::bit_cast<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_console_title, UNSAFE_CSTR(concat(L'{', str(Percent), L"%} "sv, Title)));
 }
 

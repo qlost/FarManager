@@ -398,10 +398,10 @@ string MkStrFTime(string_view const Format)
 	return StrFTime(Format.empty()? Global->Opt->Macro.strDateFormat : Format, *std::localtime(&Time));
 }
 
-static void ParseTimeComponents(string_view const Src, span<const std::pair<size_t, size_t>> const Ranges, span<time_component> const Dst, time_component const Default)
+static void ParseTimeComponents(string_view const Src, std::span<const std::pair<size_t, size_t>> const Ranges, std::span<time_component> const Dst, time_component const Default)
 {
 	assert(Dst.size() == Ranges.size());
-	std::transform(ALL_CONST_RANGE(Ranges), Dst.begin(), [Src, Default](const auto& i)
+	std::ranges::transform(Ranges, Dst.begin(), [Src, Default](const auto& i)
 	{
 		const auto Part = trim(Src.substr(i.first, i.second));
 		return Part.empty()? Default : from_string<time_component>(Part);
@@ -612,8 +612,7 @@ std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int c
 		case date_type::ymd:
 			p1 = Year;
 			w1 = FullYear == 2? 5 : 2;
-			using std::swap;
-			swap(f1, f3);
+			std::ranges::swap(f1, f3);
 			p2 = st.wMonth;
 			p3 = st.wDay;
 			break;
@@ -839,10 +838,7 @@ TEST_CASE("datetime.ConvertDuration")
 	const auto check_digits = [](string_view const Expected, string_view const Actual)
 	{
 		// Time & decimal separators are locale-specific, so let's compare digits only
-		REQUIRE(std::equal(ALL_CONST_RANGE(Expected), ALL_CONST_RANGE(Actual), [](wchar_t const a, wchar_t const b)
-		{
-			return a == b || !std::iswdigit(a);
-		}));
+		REQUIRE(std::ranges::equal(Expected | std::views::filter(std::iswdigit), Actual | std::views::filter(std::iswdigit)));
 	};
 
 	for (const auto& i: Tests)

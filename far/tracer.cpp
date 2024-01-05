@@ -104,7 +104,7 @@ tracer_detail::tracer::tracer():
 
 tracer_detail::tracer::~tracer() = default;
 
-void tracer_detail::tracer::get_symbols(string_view const Module, span<os::debug::stack_frame const> const Trace, function_ref<void(string&& Line)> const Consumer) const
+void tracer_detail::tracer::get_symbols(string_view const Module, std::span<os::debug::stack_frame const> const Trace, function_ref<void(string&& Line)> const Consumer) const
 {
 	SCOPED_ACTION(with_symbols)(Module);
 
@@ -129,7 +129,7 @@ void tracer_detail::tracer::get_symbol(string_view const Module, const void* Ptr
 {
 	SCOPED_ACTION(with_symbols)(Module);
 
-	os::debug::stack_frame const Stack[]{ { reinterpret_cast<uintptr_t>(Ptr), INLINE_FRAME_CONTEXT_INIT } };
+	os::debug::stack_frame const Stack[]{ { std::bit_cast<uintptr_t>(Ptr), INLINE_FRAME_CONTEXT_INIT } };
 
 	os::debug::symbols::get(Module, Stack, *m_MapFiles, [&](uintptr_t const Address, string_view const ImageName, bool const InlineFrame, os::debug::symbols::symbol const Symbol, os::debug::symbols::location const Location)
 	{

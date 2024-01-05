@@ -108,14 +108,12 @@ static os::security::privilege CreateBackupRestorePrivilege()
 	return { SE_BACKUP_NAME, SE_RESTORE_NAME };
 }
 
-template<typename T>
-static void WritePipe(const os::handle& Pipe, const T& Data)
+static void WritePipe(const os::handle& Pipe, const auto& Data)
 {
 	return pipe::write(Pipe, Data);
 }
 
-template<typename T>
-static void ReadPipe(const os::handle& Pipe, T& Data)
+static void ReadPipe(const os::handle& Pipe, auto& Data)
 {
 	pipe::read(Pipe, Data);
 }
@@ -266,8 +264,7 @@ T elevation::Read() const
 	return Data;
 }
 
-template<typename... args>
-void elevation::Write(const args&... Args) const
+void elevation::Write(const auto&... Args) const
 {
 	(..., WritePipe(m_Pipe, Args));
 }
@@ -286,8 +283,7 @@ T elevation::RetrieveLastErrorAndResult() const
 	return Read<T>();
 }
 
-template<typename T, typename F1, typename F2>
-auto elevation::execute(lng Why, string_view const Object, T Fallback, const F1& PrivilegedHander, const F2& ElevatedHandler)
+auto elevation::execute(lng Why, string_view const Object, auto Fallback, const auto& PrivilegedHander, const auto& ElevatedHandler)
 {
 	SCOPED_ACTION(std::scoped_lock)(m_CS);
 	if (!ElevationApproveDlg(Why, Object))
@@ -725,7 +721,7 @@ void elevation::progress_routine(LPPROGRESS_ROUTINE ProgressRoutine) const
 	const auto Data = Read<intptr_t>();
 	// BUGBUG: SourceFile, DestinationFile ignored
 
-	const auto Result = ProgressRoutine(TotalFileSize, TotalBytesTransferred, StreamSize, StreamBytesTransferred, StreamNumber, CallbackReason, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE, reinterpret_cast<void*>(Data));
+	const auto Result = ProgressRoutine(TotalFileSize, TotalBytesTransferred, StreamSize, StreamBytesTransferred, StreamNumber, CallbackReason, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE, ToPtr(Data));
 
 	Write(CallbackMagic, Result);
 }
@@ -740,7 +736,7 @@ bool elevation::copy_file(const string& From, const string& To, LPPROGRESS_ROUTI
 		},
 		[&]
 		{
-			Write(C_FUNCTION_COPYFILE, From, To, reinterpret_cast<intptr_t>(ProgressRoutine), reinterpret_cast<intptr_t>(Data), Flags);
+			Write(C_FUNCTION_COPYFILE, From, To, std::bit_cast<intptr_t>(ProgressRoutine), std::bit_cast<intptr_t>(Data), Flags);
 			// BUGBUG: Cancel ignored
 
 			while (Read<int>() == CallbackMagic)
@@ -1052,7 +1048,7 @@ public:
 
 		const auto OptionalPrivilegesCount = 2; // Backup, restore
 
-		SCOPED_ACTION(os::security::privilege)((span(Privileges)).subspan(UsePrivileges? 0 : OptionalPrivilegesCount));
+		SCOPED_ACTION(os::security::privilege)(std::span{Privileges}.subspan(UsePrivileges? 0 : OptionalPrivilegesCount));
 
 		const auto PipeName = concat(L"\\\\.\\pipe\\"sv, Uuid);
 		WaitNamedPipe(PipeName.c_str(), NMPWAIT_WAIT_FOREVER);
@@ -1114,8 +1110,7 @@ private:
 		return Data;
 	}
 
-	template<typename... args>
-	void Write(const args&... Args) const
+	void Write(const auto&... Args) const
 	{
 		(..., WritePipe(m_Pipe, Args));
 	}
@@ -1162,7 +1157,7 @@ private:
 		const auto Flags = Read<DWORD>();
 		// BUGBUG: Cancel ignored
 
-		callback_param Param{ this, reinterpret_cast<void*>(Data) };
+		callback_param Param{ this, ToPtr(Data) };
 		const auto Result = os::fs::low::copy_file(From.c_str(), To.c_str(), UserCopyProgressRoutine? CopyProgressRoutineWrapper : nullptr, &Param, nullptr, Flags);
 
 		Write(0 /* not CallbackMagic */, os::last_error(), Result);
@@ -1272,7 +1267,7 @@ private:
 			}
 		}
 
-		Write(os::last_error(), reinterpret_cast<intptr_t>(Duplicate));
+		Write(os::last_error(), std::bit_cast<intptr_t>(Duplicate));
 	}
 
 	void SetEncryptionHandler() const
@@ -1359,7 +1354,7 @@ private:
 				StreamBytesTransferred,
 				StreamNumber,
 				CallbackReason,
-				reinterpret_cast<intptr_t>(Param->UserData));
+				std::bit_cast<intptr_t>(Param->UserData));
 			// BUGBUG: SourceFile, DestinationFile ignored
 
 			for (;;)
@@ -1373,11 +1368,8 @@ private:
 				Context.Process(Result);
 			}
 		},
-		[&]
-		{
-			SAVE_EXCEPTION_TO(Param->ExceptionPtr);
-			return PROGRESS_CANCEL;
-		});
+		save_exception_and_return<PROGRESS_CANCEL>(Param->ExceptionPtr)
+		);
 	}
 
 	bool Process(int Command) const

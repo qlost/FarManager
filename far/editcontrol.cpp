@@ -142,7 +142,7 @@ void EditControl::SetMenuPos(VMenu2& menu)
 static void AddSeparatorOrSetTitle(VMenu2& Menu, lng TitleId)
 {
 	bool Separator = false;
-	for (const auto& i: irange(Menu.size()))
+	for (const auto i: std::views::iota(size_t{}, Menu.size()))
 	{
 		if (Menu.at(i).Flags & LIF_SEPARATOR)
 		{
@@ -166,7 +166,7 @@ static void AddSeparatorOrSetTitle(VMenu2& Menu, lng TitleId)
 static bool ParseStringWithQuotes(string_view const Str, string& Start, string& Token, bool& StartQuote)
 {
 	size_t Pos;
-	if (std::count(ALL_CONST_RANGE(Str), L'"') & 1) // odd quotes count
+	if (std::ranges::count(Str, L'"') & 1) // odd quotes count
 	{
 		Pos = Str.rfind(L'"');
 	}
@@ -449,7 +449,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			}
 			else if (pList)
 			{
-				for (const auto& i: span(pList->Items, pList->ItemsNumber))
+				for (const auto& i: std::span(pList->Items, pList->ItemsNumber))
 				{
 					if (!starts_with_icase(i.Text, Str))
 						continue;

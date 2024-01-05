@@ -1,3 +1,29 @@
+zg 2024-01-05 08:42:29+02:00 - build 800
+
+1. LuaFAR: crash when there is an error in the dialog procedure.
+
+shmuel 2023-12-24 20:24:12+02:00 - build 799
+
+1. Fix autostarting macros in Viewer area (when Far was run with /v switch)
+   - were broken since some Far build in the range [4034-4040].
+
+shmuel 2023-12-23 21:37:06+02:00 - build 798
+
+1. mf.serialize, mf.msave:
+   fix "chunk has more than 65476 local variables" error.
+
+shmuel 2023-12-12 00:45:20+02:00 - build 797
+
+1. LuaFAR: add _methods_ gmatch and gmatchW.
+
+shmuel 2023-12-07 00:45:57+02:00 - build 796
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-12-06 10:03:44+02:00 - build 795
+
+1. LuaFAR: refactoring.
+
 shmuel 2023-11-29 13:32:22+02:00 - build 794
 
 1. LuaFAR: refactoring.

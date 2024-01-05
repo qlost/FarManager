@@ -130,7 +130,7 @@ public:
 		{
 			ProgressDlgItems[items::pr_wipe_progress].Flags |= DIF_HIDDEN;
 
-			for (const auto& i: irange(pr_separator, pr_total_progress + 1))
+			for (const auto i: std::views::iota(pr_separator + 0, pr_total_progress + 1))
 			{
 				--ProgressDlgItems[i].Y1;
 				--ProgressDlgItems[i].Y2;
@@ -163,7 +163,7 @@ public:
 		if (Files.Total)
 		{
 			const auto Percent = ToPercent(Files.Value, Files.Total);
-			const auto Title = view_as<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, items::pr_doublebox, {}));
+			const auto Title = std::bit_cast<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, items::pr_doublebox, {}));
 			m_Dialog->SendMessage(DM_SETTEXTPTR, items::pr_console_title, UNSAFE_CSTR(concat(L'{', str(Percent), L"%} "sv, Title)));
 			m_Dialog->SendMessage(DM_SETTEXTPTR, items::pr_total_progress, UNSAFE_CSTR(make_progressbar(DlgW - 10, Percent, true, true)));
 		}
@@ -235,7 +235,7 @@ static bool EraseFileData(string_view const Name, progress Files, delete_progres
 		{
 			if (Global->Opt->WipeSymbol == -1)
 			{
-				std::generate(ALL_RANGE(Buf), [&]{ return CharDist(mt); });
+				std::ranges::generate(Buf, [&]{ return CharDist(mt); });
 			}
 			else
 			{

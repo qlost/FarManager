@@ -247,7 +247,7 @@ void palette::Reset(bool const RGB)
 		function_ref(rgb_color) :
 		function_ref(index_color);
 
-	std::transform(ALL_CONST_RANGE(Init), CurrentPalette.begin(), set_color);
+	std::ranges::transform(Init, CurrentPalette.begin(), set_color);
 
 	PaletteChanged = true;
 }
@@ -269,15 +269,15 @@ FarColor palette::Default(size_t const Index) const
 	return index_color(Init[Index]);
 }
 
-void palette::Set(size_t StartOffset, span<FarColor> Values)
+void palette::Set(size_t StartOffset, std::span<FarColor const> Values)
 {
 	assert(Values.size() + StartOffset <= CurrentPalette.size());
 
-	std::copy(ALL_CONST_RANGE(Values), CurrentPalette.begin() + StartOffset);
+	std::ranges::copy(Values, CurrentPalette.begin() + StartOffset);
 	PaletteChanged = true;
 }
 
-void palette::CopyTo(span<FarColor> const Destination) const
+void palette::CopyTo(std::span<FarColor> const Destination) const
 {
 	const auto Size = std::min(CurrentPalette.size(), Destination.size());
 	std::copy_n(CurrentPalette.begin(), Size, Destination.begin());

@@ -344,7 +344,7 @@ intptr_t single_color_state::GetSingleColorDlgProc(Dialog* Dlg, intptr_t Msg, in
 			RefreshColor();
 
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
-			for (const auto& i: irange(colors::index::nt_size + 2))
+			for (const auto i: std::views::iota(0, colors::index::nt_size + 2))
 			{
 				Dlg->SendMessage(DM_ENABLE, Offset + cb::color_first_radio + i, Param2);
 			}
@@ -361,7 +361,7 @@ intptr_t single_color_state::GetSingleColorDlgProc(Dialog* Dlg, intptr_t Msg, in
 
 		if (Param1 - Offset == cb::button_256)
 		{
-			const auto ResolvedColor = colors::resolve_default(CurColor.Value, Offset != cd::bg_first);
+			const auto ResolvedColor = CurColor.IsIndex? colors::resolve_default(CurColor.Value, Offset != cd::bg_first) : CurColor.Value;
 
 			FarColor FakeColor{ .BackgroundColor = ResolvedColor };
 			FakeColor.SetBgIndex(CurColor.IsIndex);
@@ -381,7 +381,7 @@ intptr_t single_color_state::GetSingleColorDlgProc(Dialog* Dlg, intptr_t Msg, in
 
 		if (Param1 - Offset == cb::button_rgb)
 		{
-			const auto ResolvedColor = colors::resolve_default(CurColor.Value, Offset != cd::bg_first);
+			const auto ResolvedColor = CurColor.IsIndex? colors::resolve_default(CurColor.Value, Offset != cd::bg_first) : CurColor.Value;
 
 			auto Color = colors::color_value(
 				CurColor.IsIndex?
@@ -499,7 +499,7 @@ namespace single_color_dialog
 		separator_before_buttons,
 
 		color_first,
-		color_last = color_first + cb::count - 1,
+		color_last = color_first + std::to_underlying(cb::count) - 1,
 
 		button_ok,
 		button_cancel,
@@ -527,7 +527,7 @@ static std::optional<size_t> get_control_id(COLORREF const ColorPart, size_t con
 	return Offset + cb::color_first_radio + control_by_color[Index];
 }
 
-static auto activate_control(COLORREF const Color, span<DialogItemEx> ColorDlgItems, size_t const Offset)
+static auto activate_control(COLORREF const Color, std::span<DialogItemEx> ColorDlgItems, size_t const Offset)
 {
 	const auto ControlId = get_control_id(Color, Offset);
 	if (!ControlId)
@@ -538,11 +538,11 @@ static auto activate_control(COLORREF const Color, span<DialogItemEx> ColorDlgIt
 	return true;
 }
 
-static void disable_if_needed(COLORREF const Color, span<DialogItemEx> ColorDlgItems, size_t const Offset)
+static void disable_if_needed(COLORREF const Color, std::span<DialogItemEx> ColorDlgItems, size_t const Offset)
 {
 	if (colors::is_transparent(Color))
 	{
-		for (const auto& i: irange(cb::color_first_radio, cb::color_last_radio + 2))
+		for (const auto i: std::views::iota(cb::color_first_radio + 0, cb::color_last_radio + 2))
 		{
 			ColorDlgItems[Offset + i].Flags |= DIF_DISABLE;
 		}
@@ -556,7 +556,7 @@ static void disable_if_needed(COLORREF const Color, span<DialogItemEx> ColorDlgI
 	{
 		ColorDlgItems[Offset + cb::color_active_checkbox].Selected = BSTATE_CHECKED;
 	}
-};
+}
 
 static bool pick_color_single(colors::single_color& Color, colors::single_color const BaseColor, std::array<COLORREF, 16>& CustomColors)
 {
@@ -615,7 +615,7 @@ static bool pick_color_single(colors::single_color& Color, colors::single_color 
 		ColorDlg[scd_item(cb::color_active_checkbox)].Flags |= DIF_HIDDEN | DIF_DISABLE;
 	}
 
-	const auto Dlg = Dialog::create(ColorDlg, &single_color_state::GetSingleColorDlgProc, &ColorState);
+	const auto Dlg = Dialog::create(ColorDlg, std::bind_front(&single_color_state::GetSingleColorDlgProc, &ColorState));
 
 	const auto
 		DlgWidth = static_cast<int>(ColorDlg[scd::border].X2) + 4,
@@ -704,7 +704,7 @@ intptr_t color_state::GetColorDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1
 	case DM_UPDATEPREVIEW:
 		{
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
-			for (const auto& i : irange(cd::sample_text_first, cd::sample_text_last + 1))
+			for (const auto i: std::views::iota(cd::sample_text_first + 0, cd::sample_text_last + 1))
 			{
 				Dlg->SendMessage(DM_SHOWITEM, i, ToPtr(1));
 			}
@@ -896,7 +896,7 @@ bool GetColorDialog(FarColor& Color, bool const bCentered, const FarColor* const
 		ColorDlg[bg_item(cb::color_active_checkbox)].Flags |= DIF_HIDDEN | DIF_DISABLE;
 	}
 
-	const auto Dlg = Dialog::create(ColorDlg, &color_state::GetColorDlgProc, &ColorState);
+	const auto Dlg = Dialog::create(ColorDlg, std::bind_front(&color_state::GetColorDlgProc, &ColorState));
 
 	const auto
 		DlgWidth = static_cast<int>(ColorDlg[cd::border].X2) + 4,

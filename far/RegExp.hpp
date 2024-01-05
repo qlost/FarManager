@@ -135,8 +135,7 @@ public:
 class regex_exception: public far_exception
 {
 public:
-	template<typename... args>
-	explicit regex_exception(REError const Code, size_t const Position, args&&... Args):
+	explicit regex_exception(REError const Code, size_t const Position, auto&&... Args):
 		far_exception(false, to_string(Code), FWD(Args)...),
 		m_Code(Code),
 		m_Position(Position)
@@ -261,7 +260,9 @@ private:
 
 constexpr string_view get_match(string_view const Str, RegExpMatch const& Match)
 {
-	assert(Match.start >= 0);
+	if (Match.start < 0)
+		return Str.substr(Str.size());
+
 	assert(Match.end >= Match.start);
 	return Str.substr(Match.start, Match.end - Match.start);
 }

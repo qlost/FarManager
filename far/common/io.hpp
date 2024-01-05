@@ -33,11 +33,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "range.hpp"
-#include "type_traits.hpp"
 #include "utility.hpp"
 
+#include <bit>
 #include <istream>
+#include <span>
 #include <streambuf>
 
 //----------------------------------------------------------------------------
@@ -70,11 +70,11 @@ namespace io
 	using wstreambuf_override = basic_streambuf_override<wchar_t>;
 
 	[[nodiscard]]
-	inline size_t read(std::istream& Stream, span<std::byte> const Buffer)
+	inline size_t read(std::istream& Stream, std::span<std::byte> const Buffer)
 	{
 		try
 		{
-			Stream.read(edit_as<char*>(Buffer.data()), Buffer.size());
+			Stream.read(std::bit_cast<char*>(Buffer.data()), Buffer.size());
 		}
 		catch (std::ios::failure const&)
 		{
@@ -91,7 +91,7 @@ namespace io
 	namespace detail
 	{
 		template<typename T>
-		void write(std::ostream& Stream, span<T const> const Container)
+		void write(std::ostream& Stream, std::span<T const> const Container)
 		{
 			static_assert(std::is_trivially_copyable_v<T>);
 
@@ -104,9 +104,9 @@ namespace io
 		}
 	}
 
-	void write(std::ostream& Stream, span_like auto const& Container)
+	void write(std::ostream& Stream, std::ranges::contiguous_range auto const& Container)
 	{
-		return detail::write(Stream, span(Container));
+		return detail::write(Stream, std::span(Container));
 	}
 }
 

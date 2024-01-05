@@ -103,7 +103,7 @@ private:
 void ColorItem::SetOwner(const UUID& Value)
 {
 	static std::unordered_set<UUID> UuidSet;
-	Owner = &*UuidSet.emplace(Value).first;
+	Owner = std::to_address(UuidSet.emplace(Value).first);
 }
 
 void ColorItem::SetColor(const FarColor& Value)
@@ -211,7 +211,7 @@ int Edit::GetNextCursorPos(int Position,int Where) const
 
 		if (!PosChanged)
 		{
-			const auto It = std::find_if(ALL_CONST_RANGE(Mask), CheckCharMask);
+			const auto It = std::ranges::find_if(Mask, CheckCharMask);
 			if (It != Mask.cend())
 			{
 				Result = It - Mask.cbegin();
@@ -488,7 +488,7 @@ long long Edit::VMProcess(int OpCode, void* vParam, long long iParam)
 			return GetLineCursorPos()+1;
 		case MCODE_F_EDITOR_SEL:
 		{
-			const auto Action = static_cast<int>(reinterpret_cast<intptr_t>(vParam));
+			const auto Action = static_cast<int>(std::bit_cast<intptr_t>(vParam));
 			if (Action) m_Flags.Clear(FEDITLINE_CLEARFLAG);
 
 			switch (Action)
@@ -1193,7 +1193,7 @@ bool Edit::ProcessKey(const Manager::Key& Key)
 				{
 					const auto MaskLen = Mask.size();
 					size_t j = m_CurPos;
-					for (const auto& i: irange(m_CurPos, MaskLen))
+					for (const auto i: std::views::iota(static_cast<size_t>(m_CurPos), MaskLen))
 					{
 						if (i + 1 < MaskLen && CheckCharMask(Mask[i + 1]))
 						{
@@ -2023,7 +2023,7 @@ void Edit::DeleteBlock()
 	const auto Mask = GetInputMask();
 	if (!Mask.empty())
 	{
-		for (const auto& i: irange(m_SelStart, m_SelEnd))
+		for (const auto i: std::views::iota(m_SelStart, m_SelEnd))
 		{
 			if (CheckCharMask(Mask[i]))
 			{
@@ -2075,7 +2075,7 @@ void Edit::ApplyColor(std::multiset<ColorItem> const& Colors, int XPos, int Focu
 		const auto LastFirst = RealToVisual.get(CurItem.EndPos);
 		int LastLast = LastFirst;
 
-		for (const auto& i: irange(2))
+		for (const auto i: std::views::iota(0, 2))
 		{
 			LastLast = RealToVisual.get(CurItem.EndPos + 1 + i);
 			if (LastLast > LastFirst)
