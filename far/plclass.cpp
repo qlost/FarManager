@@ -288,7 +288,7 @@ bool native_plugin_factory::IsPlugin(string_view const FileName, std::istream& S
 	IMAGE_SECTION_HEADER Section;
 	bool Found{};
 
-	for ([[maybe_unused]] const auto i: std::views::iota(size_t{}, NtHeaders.FileHeader.NumberOfSections))
+	for ([[maybe_unused]] const auto i: std::views::iota(0uz, NtHeaders.FileHeader.NumberOfSections))
 	{
 		if (io::read(Stream, edit_bytes(Section)) != sizeof(Section))
 		{
@@ -327,7 +327,7 @@ bool native_plugin_factory::IsPlugin(string_view const FileName, std::istream& S
 	}
 
 	std::string Name;
-	for (const auto i: std::views::iota(size_t{}, ExportDirectory.NumberOfNames))
+	for (const auto i: std::views::iota(0uz, ExportDirectory.NumberOfNames))
 	{
 		Stream.seekg(section_address_to_real(ExportDirectory.AddressOfNames) + sizeof(DWORD) * i);
 
@@ -476,7 +476,7 @@ bool Plugin::SaveToCache()
 
 	const auto SaveItems = [&PlCache, &id](const auto& Setter, const PluginMenuItem& Item)
 	{
-		for (const auto i: std::views::iota(size_t{}, Item.Count))
+		for (const auto i: std::views::iota(0uz, Item.Count))
 		{
 			std::invoke(Setter, PlCache, id, i, Item.Strings[i], Item.Guids[i]);
 		}
@@ -620,7 +620,7 @@ bool Plugin::LoadData()
 			return true;
 		}
 	}
-	Unload();
+	Unload(false);
 	//чтоб не пытаться загрузить опять а то ошибка будет постоянно показываться.
 	WorkFlags.Set(PIWF_DONTLOADAGAIN);
 	return false;
@@ -653,7 +653,7 @@ bool Plugin::Load()
 	{
 		if (!bPendingRemove)
 		{
-			Unload();
+			Unload(false);
 		}
 
 		//чтоб не пытаться загрузить опять а то ошибка будет постоянно показываться.
@@ -1374,7 +1374,7 @@ public:
 			return;
 
 		std::vector<string> MessageLines;
-		const string Summary = concat(Info.Summary, L" ("sv, encoding::utf8::get_chars(Function), L')');
+		const string Summary = concat(Info.Summary, L" ("sv, encoding::ansi::get_chars(Function), L')');
 		const auto Enumerator = enum_tokens(Info.Description, L"\n"sv);
 		std::ranges::transform(Enumerator, std::back_inserter(MessageLines), [](const string_view View) { return string(View); });
 		Message(MSG_WARNING | MSG_LEFTALIGN,

@@ -441,7 +441,7 @@ window_ptr Manager::WindowMenu()
 			}
 		}
 
-		const auto TypesWidth = std::ranges::fold_left(Data, size_t{}, [](size_t const Value, auto const& i){ return std::max(Value, std::get<0>(i).size()); });
+		const auto TypesWidth = std::ranges::fold_left(Data, 0uz, [](size_t const Value, auto const& i){ return std::max(Value, std::get<0>(i).size()); });
 
 		const auto ModalMenu = VMenu2::create(msg(lng::MScreensTitle), {}, ScrY - 4);
 		ModalMenu->SetHelp(L"ScrSwitch"sv);
@@ -449,7 +449,7 @@ window_ptr Manager::WindowMenu()
 		ModalMenu->SetPosition({ -1, -1, 0, 0 });
 		ModalMenu->SetId(ScreensSwitchId);
 
-		for (const auto i: std::views::iota(size_t{}, Data.size()))
+		for (const auto i: std::views::iota(0uz, Data.size()))
 		{
 			auto& [Type, Name, Window] = Data[i];
 
@@ -666,7 +666,7 @@ void Manager::ExitMainLoop(int Ask)
 		*/
 		if (ExitAll() || Global->CloseFAR)
 		{
-			Global->CtrlObject->Plugins->NotifyExit();
+			Global->CtrlObject->Plugins->NotifyExitLuaMacro();
 
 			const auto cp = Global->CtrlObject->Cp();
 			if (!cp || (!cp->LeftPanel()->ProcessPluginEvent(FE_CLOSE, nullptr) && !cp->RightPanel()->ProcessPluginEvent(FE_CLOSE, nullptr)))

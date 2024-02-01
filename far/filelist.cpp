@@ -2716,7 +2716,24 @@ void FileList::ProcessEnter(bool EnableExec,bool SeparateWindow,bool EnableAssoc
 		bool OpenedPlugin = false;
 		const auto PluginMode = m_PanelMode == panel_mode::PLUGIN_PANEL && !PluginManager::UseInternalCommand(GetPluginHandle(), PLUGIN_FARGETFILE, m_CachedOpenPanelInfo);
 		string FileNameToDelete;
-		SCOPE_EXIT{ if (PluginMode && !OpenedPlugin && !FileNameToDelete.empty()) GetPluginHandle()->delayed_delete(FileNameToDelete); };
+
+		SCOPE_EXIT
+		{
+			if (PluginMode && !OpenedPlugin && !FileNameToDelete.empty())
+			{
+				if (const auto PluginHandle = GetPluginHandle())
+				{
+					PluginHandle->delayed_delete(FileNameToDelete);
+				}
+				else
+				{
+					// gh-783: in some cases the panel could be gone before we get here
+					delayed_deleter Deleter(true);
+					Deleter.add(FileNameToDelete);
+				}
+			}
+		};
+
 		file_state SavedState;
 
 		string strTempDir;
@@ -3589,7 +3606,7 @@ long FileList::FindFile(const string_view Name, const bool OnlyPartName)
 	const auto& m_ListData = *DataLock;
 
 	long II = -1;
-	for (const auto I: std::views::iota(size_t{}, m_ListData.size()))
+	for (const auto I: std::views::iota(0uz, m_ListData.size()))
 	{
 		const auto CurPtrName = OnlyPartName? PointToName(m_ListData[I].FileName) : m_ListData[I].FileName;
 
@@ -5829,9 +5846,9 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 	const auto
 		StaticSize      = sizeof(PluginPanelItem),
 		FilenameSize    = StringSizeInBytes(fi.FileName),
-		AltNameSize     = StringSizeInBytes(fi.AlternateFileName()),
+		AltNameSize     = fi.HasAlternateFileName() ? StringSizeInBytes(fi.AlternateFileName()) : 0,
 		ColumnsSize     = fi.CustomColumns.size() * sizeof(wchar_t*),
-		ColumnsDataSize = std::ranges::fold_left(fi.CustomColumns, size_t{}, [&](size_t s, const wchar_t* i) { return s + (i? StringSizeInBytes(i) : 0); }),
+		ColumnsDataSize = std::ranges::fold_left(fi.CustomColumns, 0uz, [&](size_t s, const wchar_t* i) { return s + (i? StringSizeInBytes(i) : 0); }),
 		DescriptionSize = fi.DizText? StringSizeInBytes(fi.DizText) : 0,
 		OwnerSize       = fi.IsOwnerRead() && !fi.Owner(this).empty()? StringSizeInBytes(fi.Owner(this)) : 0;
 
@@ -5887,9 +5904,12 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 		return size;
 	gpi->Item->FileName = CopyToBuffer(FilenameOffset, fi.FileName);
 
-	if (not_enough_for(AltNameOffset, AltNameSize))
-		return size;
-	gpi->Item->AlternateFileName = CopyToBuffer(AltNameOffset, fi.AlternateFileName());
+	if (AltNameSize)
+	{
+		if (not_enough_for(AltNameOffset, AltNameSize))
+			return size;
+		gpi->Item->AlternateFileName = CopyToBuffer(AltNameOffset, fi.AlternateFileName());
+	}
 
 	if (ColumnsSize)
 	{
@@ -8267,7 +8287,7 @@ bool FileList::ConvertName(const string_view SrcName, string& strDest, const siz
 
 		const auto VisualNameLength = visual_string_length(Name);
 		const auto VisualExtensionLength = visual_string_length(Extension);
-		const auto AlignedVisualExtensionLength = std::max(size_t{ 3 }, VisualExtensionLength);
+		const auto AlignedVisualExtensionLength = std::max(3uz, VisualExtensionLength);
 
 		auto SpacesBetween =
 			VisualNameLength + AlignedVisualExtensionLength <= MaxLength?
@@ -8585,7 +8605,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 		int StatusLine=FALSE;
 		int Level = 1;
 
-		for (const auto K: std::views::iota(size_t{}, ColumnCount))
+		for (const auto K: std::views::iota(0uz, ColumnCount))
 		{
 			int ListPos=J+CurColumn*m_Height;
 

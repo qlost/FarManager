@@ -212,7 +212,7 @@ static size_t ConvertItemEx2(const DialogItemEx& ItemEx, FarGetDialogItem *Item,
 			offsetListItems=size;
 			ListBoxSize=ListBox->size();
 			size+=ListBoxSize*sizeof(FarListItem);
-			for (const auto i: std::views::iota(size_t{}, ListBoxSize))
+			for (const auto i: std::views::iota(0uz, ListBoxSize))
 			{
 				size += (ListBox->at(i).Name.size() + 1) * sizeof(wchar_t);
 			}
@@ -241,7 +241,7 @@ static size_t ConvertItemEx2(const DialogItemEx& ItemEx, FarGetDialogItem *Item,
 					auto text = std::bit_cast<wchar_t*>(listItems + ListBoxSize);
 					assert(is_aligned(*text));
 
-					for (const auto ii: std::views::iota(size_t{}, ListBoxSize))
+					for (const auto ii: std::views::iota(0uz, ListBoxSize))
 					{
 						auto& item = ListBox->at(ii);
 						listItems[ii].Flags = item.Flags;
@@ -637,7 +637,7 @@ std::any* Dialog::GetListItemComplexUserData(size_t ListId, size_t ItemId) const
   TODO: Необходимо применить ProcessRadioButton для исправления
         кривых рук некоторых плагинописателей (а надо?)
 */
-void Dialog::InitDialogObjects(size_t ID)
+void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 {
 	size_t InitItemCount;
 	bool AllElements = false;
@@ -801,6 +801,10 @@ void Dialog::InitDialogObjects(size_t ID)
 					Item.ListPtr = VMenu::create({}, {}, Global->Opt->Dialogs.CBoxMaxHeight, VMENU_ALWAYSSCROLLBAR, std::static_pointer_cast<Dialog>(shared_from_this()));
 					Item.ListPtr->SetVDialogItemID(I);
 				}
+			}
+			else if (ReInit)
+			{
+				static_cast<DlgEdit*>(Item.ObjPtr)->Init();
 			}
 
 			const auto DialogEdit = static_cast<DlgEdit*>(Item.ObjPtr);
@@ -4467,6 +4471,9 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 			[[fallthrough]];
 		case DM_MOVEDIALOG:
 		{
+			// CheckDialogCoord will put it back if needed
+			m_Centered = centered::none;
+
 			auto W1 = m_Where.width();
 			auto H1 = m_Where.height();
 			m_Drag.OldRect = m_Where;
@@ -5767,7 +5774,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 				CurItem.ListPtr->ChangeFlags(VMENU_DISABLED, (CurItem.Flags&DIF_DISABLE)!=0);
 
 			// еще разок, т.к. данные могли быть изменены
-			InitDialogObjects(Param1);
+			InitDialogObjects(Param1, true);
 			ShowConsoleTitle();
 			if (DialogMode.Check(DMODE_SHOW))
 			{

@@ -455,8 +455,7 @@ string GetPrivateProfileString(string_view const AppName, string_view const KeyN
 	if (encoding::ansi::get_chars(AnsiBytes) != Value)
 		return Value;
 
-	bool PureAscii{};
-	if (!encoding::is_valid_utf8(AnsiBytes, false, PureAscii) || PureAscii)
+	if (const auto IsUtf8 = encoding::is_valid_utf8(AnsiBytes, false); IsUtf8 != encoding::is_utf8::yes)
 		return Value;
 
 	return encoding::utf8::get_chars(AnsiBytes);
@@ -809,13 +808,13 @@ TEST_CASE("platform.string.receiver")
 		if (BufferSize < EmulatedSize + 1)
 			return EmulatedSize + 1;
 
-		*std::ranges::transform(std::views::iota(size_t{}, EmulatedSize), Buffer, [](int const Value) { return static_cast<wchar_t>(Value + 1); }).out = {};
+		*std::ranges::transform(std::views::iota(0uz, EmulatedSize), Buffer, [](int const Value) { return static_cast<wchar_t>(Value + 1); }).out = {};
 		return EmulatedSize;
 	};
 
 	const auto validate = [](string const& Data)
 	{
-		for (const auto i: std::views::iota(size_t{}, Data.size()))
+		for (const auto i: std::views::iota(0uz, Data.size()))
 		{
 			if (Data[i] != i + 1)
 				return false;
