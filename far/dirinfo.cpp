@@ -55,7 +55,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mix.hpp"
 #include "string_utils.hpp"
 #include "cvtname.hpp"
-#include "copy_progress.hpp"
 #include "global.hpp"
 
 // Platform:
@@ -242,7 +241,7 @@ static void PushPluginDirItem(std::vector<PluginPanelItem>& PluginDirList, const
 	if (NewItem.CustomColumnNumber>0)
 	{
 		auto CustomColumnData = std::make_unique<wchar_t*[]>(NewItem.CustomColumnNumber);
-		for (const auto& [Column, ColData]: zip(span(CurPanelItem->CustomColumnData, NewItem.CustomColumnNumber), span(CustomColumnData.get(), NewItem.CustomColumnNumber)))
+		for (const auto& [Column, ColData]: zip(std::span(CurPanelItem->CustomColumnData, NewItem.CustomColumnNumber), std::span(CustomColumnData.get(), NewItem.CustomColumnNumber)))
 		{
 			if (Column)
 				ColData = MakeCopy(Column);
@@ -277,7 +276,7 @@ static void ScanPluginDir(plugin_panel* hDirListPlugin, OPERATION_MODES OpMode, 
 {
 	Callback(BaseDir, Data.DirCount + Data.FileCount, Data.FileSize);
 
-	span<PluginPanelItem> PanelData;
+	std::span<PluginPanelItem> PanelData;
 
 	if (CheckForEscAndConfirmAbort())
 	{
@@ -386,7 +385,7 @@ static bool GetPluginDirListImpl(Plugin* PluginNumber, HANDLE hPlugin, string_vi
 
 	if (!equal_icase(strPrevDir, NullToEmpty(NewInfo.CurDir)))
 	{
-		span<PluginPanelItem> PanelData;
+		std::span<PluginPanelItem> PanelData;
 
 		if (Global->CtrlObject->Plugins->GetFindData(hDirListPlugin, PanelData, OpMode))
 		{

@@ -944,7 +944,9 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			if (!m_Flags.Check(FFILEEDIT_ENABLEF6))
 				break; // отдадим F6 плагинам, если есть запрет на переключение
 
-			bool ConfirmSave = true;
+			// If the file is "new", there is nothing to view yet, so we have to save it first.
+			const auto NeedSave = m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED) || m_Flags.Check(FFILEEDIT_NEW);
+			bool ConfirmSave = !m_Flags.Check(FFILEEDIT_NEW);
 
 			if (!m_Flags.Check(FFILEEDIT_NEW) && !os::fs::is_file(strFullFileName))
 			{
@@ -968,7 +970,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 				}
 			}
 
-			if (!ProcessQuitKey(true, ConfirmSave, false))
+			if (!ProcessQuitKey(NeedSave, ConfirmSave, false))
 				return false;
 
 			const auto delete_on_close =
@@ -1144,7 +1146,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			case KEY_ESC:
 			case KEY_F10:
 			{
-				bool ConfirmSave = true, NeedSave = true;
+				bool ConfirmSave = true, NeedSave = m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED);
 
 				if (!m_Flags.Check(FFILEEDIT_NEW) && !os::fs::is_file(strFullFileName))
 				{
@@ -1333,7 +1335,7 @@ static std::optional<bool> confirm_save()
 
 bool FileEditor::ProcessQuitKey(bool const NeedSave, bool ConfirmSave, bool const DeleteWindow)
 {
-	if (NeedSave && m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED))
+	if (NeedSave)
 	{
 		bool TrySave = true;
 
@@ -1915,6 +1917,9 @@ bool FileEditor::SaveAction(bool const SaveAsIntention)
 				strFileName :
 				strFullFileName;
 
+			if (strSaveAsName.empty())
+				strSaveAsName = PointToName(strFullFileName);
+
 			if (!dlgSaveFileAs(strSaveAsName, Eol, Codepage, AddSignature))
 				return false;
 
@@ -2395,7 +2400,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 		}
 		case ECTL_DELETESESSIONBOOKMARK:
 		{
-			return m_editor->DeleteSessionBookmark(m_editor->PointerToSessionBookmark(static_cast<int>(reinterpret_cast<intptr_t>(Param2))));
+			return m_editor->DeleteSessionBookmark(m_editor->PointerToSessionBookmark(static_cast<int>(std::bit_cast<intptr_t>(Param2))));
 		}
 		case ECTL_GETSESSIONBOOKMARKS:
 		{
@@ -2441,7 +2446,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 				InitKeyBar();
 			else
 			{
-				if (reinterpret_cast<intptr_t>(Param2) != -1) // не только перерисовать?
+				if (std::bit_cast<intptr_t>(Param2) != -1) // не только перерисовать?
 				{
 					if(CheckStructSize(Kbt))
 						m_windowKeyBar->Change(Kbt->Titles);

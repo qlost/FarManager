@@ -349,7 +349,7 @@ void Options::InterfaceSettings()
 	std::vector<DialogBuilderListItem> IconIndices;
 	IconIndices.reserve(consoleicons::instance().size());
 
-	for (const auto& i: irange(consoleicons::instance().size()))
+	for (const auto i: std::views::iota(0uz, consoleicons::instance().size()))
 	{
 		IconIndices.emplace_back(str(i), static_cast<int>(i));
 	}
@@ -502,7 +502,7 @@ void Options::MaskGroupsSettings()
 			if(Filter && any_of(Key, KEY_ESC, KEY_F10, KEY_ENTER, KEY_NUMENTER))
 			{
 				Filter = false;
-				for (const auto& i: irange(MasksMenu->size()))
+				for (const auto i: std::views::iota(0uz, MasksMenu->size()))
 				{
 					MasksMenu->UpdateItemFlags(static_cast<int>(i), MasksMenu->at(i).Flags & ~MIF_HIDDEN);
 				}
@@ -593,7 +593,7 @@ void Options::MaskGroupsSettings()
 					Builder.AddOKCancel();
 					if(Builder.ShowDialog())
 					{
-						for (const auto& i: irange(MasksMenu->size()))
+						for (const auto i: std::views::iota(0uz, MasksMenu->size()))
 						{
 							filemasks Masks;
 							Masks.assign(ConfigProvider().GeneralCfg()->GetValue<string>(L"Masks"sv, *MasksMenu->GetComplexUserDataPtr<string>(i)));
@@ -931,7 +931,7 @@ void Options::SetFolderInfoFiles()
 	}
 }
 
-static void ResetViewModes(span<PanelViewSettings> const Modes, int const Index = -1)
+static void ResetViewModes(std::span<PanelViewSettings> const Modes, int const Index = -1)
 {
 	static const struct
 	{
@@ -1102,8 +1102,8 @@ static void ResetViewModes(span<PanelViewSettings> const Modes, int const Index 
 
 	if (Index < 0)
 	{
-		for (const auto& i: zip(InitialModes, Modes))
-			std::apply(InitMode, i);
+		for (const auto& [Src, Dst]: zip(InitialModes, Modes))
+			InitMode(Src, Dst);
 	}
 	else
 	{
@@ -1142,12 +1142,12 @@ void Options::SetFilePanelModes()
 		// +1 for separator
 		std::vector<menu_item> ModeListMenu(MenuCount > predefined_panel_modes_count? MenuCount + 1: MenuCount);
 
-		for (const auto& i: irange(ViewSettings.size()))
+		for (const auto i: std::views::iota(0uz, ViewSettings.size()))
 		{
 			ModeListMenu[RealModeToDisplay(i)].Name = ViewSettings[i].Name;
 		}
 
-		for (const auto& i: irange(predefined_panel_modes_count))
+		for (const auto i: std::views::iota(0uz, predefined_panel_modes_count))
 		{
 			if (ModeListMenu[i].Name.empty())
 				ModeListMenu[i].Name = msg(PredefinedNames[i]);
@@ -1392,8 +1392,8 @@ void Options::SetFilePanelModes()
 
 struct FARConfigItem
 {
-	template<typename option_type, typename default_type>
-	FARConfigItem(size_t Root, string_view KeyName, string_view ValueName, option_type& Value, const default_type& Default):
+	template<typename option_type>
+	FARConfigItem(size_t Root, string_view KeyName, string_view ValueName, option_type& Value, const auto& Default):
 		ApiRoot(Root),
 		KeyName(KeyName),
 		ValName(ValueName),
@@ -1421,7 +1421,7 @@ struct FARConfigItem
 			Item.Flags = LIF_CHECKED|L'*';
 		}
 		Item.Text = ListItemString.c_str();
-		Item.UserData = reinterpret_cast<intptr_t>(this);
+		Item.UserData = std::bit_cast<intptr_t>(this);
 		return Item;
 	}
 
@@ -1433,7 +1433,7 @@ struct FARConfigItem
 		if (!Value->Edit(Builder, Mode))
 		{
 			Builder.AddSeparator();
-			Builder.AddButtons({ lng::MOk, lng::MReset, lng::MCancel });
+			Builder.AddButtons({{ lng::MOk, lng::MReset, lng::MCancel }});
 			Result = Builder.ShowDialogEx();
 		}
 		if(Result == 0 || Result == 1)
@@ -1595,7 +1595,7 @@ bool IntOption::Edit(DialogBuilder& Builder, int const Param)
 			High.reserve(BitCount);
 			Low.reserve(BitCount);
 
-			for (const auto& i: irange(BitCount))
+			for (const auto i: std::views::iota(0, BitCount))
 			{
 				const auto Num = BitCount - 1 - i;
 				High.push_back(static_cast<wchar_t>(L'0' + Num / 10));
@@ -1650,7 +1650,7 @@ public:
 	using const_iterator = iterator;
 	using value_type = FARConfigItem;
 
-	farconfig(span<const FARConfigItem> Items, GeneralConfig* cfg):
+	farconfig(std::span<const FARConfigItem> Items, GeneralConfig* cfg):
 		m_items(Items),
 		m_cfg(cfg)
 	{
@@ -1673,7 +1673,7 @@ public:
 	GeneralConfig* GetConfig() const { return m_cfg; }
 
 private:
-	span<const FARConfigItem> m_items;
+	std::span<const FARConfigItem> m_items;
 	GeneralConfig* m_cfg;
 };
 
@@ -2146,7 +2146,7 @@ const Options::farconfig& Options::GetConfig(config_type Type) const
 template<class container, class pred>
 static const Option* GetConfigValuePtr(const container& Config, const pred& Pred)
 {
-	const auto ItemIterator = std::find_if(ALL_CONST_RANGE(Config), Pred);
+	const auto ItemIterator = std::ranges::find_if(Config, Pred);
 	return ItemIterator == Config.cend()? nullptr : ItemIterator->Value;
 }
 
@@ -2254,9 +2254,9 @@ static auto serialise_sort_layer(std::pair<panel_sort, sort_order> const& Layer)
 	return far::format(L"S{}:O{}"sv, Layer.first, Layer.second);
 }
 
-static auto serialise_sort_layers(span<std::pair<panel_sort, sort_order> const> const Layers)
+static auto serialise_sort_layers(std::span<std::pair<panel_sort, sort_order> const> const Layers)
 {
-	return join(L" "sv, select(Layers, serialise_sort_layer));
+	return join(L" "sv, Layers | std::views::transform(serialise_sort_layer));
 }
 
 void Options::ReadSortLayers()
@@ -2266,7 +2266,7 @@ void Options::ReadSortLayers()
 	for (auto& [Layers, i]: enumerate(PanelSortLayers))
 	{
 		string LayersStr;
-		if (ConfigProvider().GeneralCfg()->GetValue(NKeyPanelSortLayers, str(i), LayersStr))
+		if (ConfigProvider().GeneralCfg()->GetValue(NKeyPanelSortLayers, str(i), LayersStr) && !LayersStr.empty())
 			Layers = deserialise_sort_layers(LayersStr);
 
 		if (Layers.empty())
@@ -2284,7 +2284,7 @@ void Options::SaveSortLayers(bool const Always)
 	for (const auto& [Layers, i]: enumerate(PanelSortLayers))
 	{
 		const auto DefaultLayers = default_sort_layers(static_cast<panel_sort>(i));
-		if (std::equal(ALL_CONST_RANGE(Layers), ALL_CONST_RANGE(DefaultLayers)))
+		if (std::ranges::equal(Layers, DefaultLayers))
 		{
 			Cfg.DeleteValue(NKeyPanelSortLayers, str(i));
 			continue;
@@ -2487,7 +2487,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 	{
 		return Index == -1 ?
 			nullptr : // Everything is filtered out
-			view_as<const FARConfigItem*>(Dlg->GetListItemSimpleUserData(0, Index));
+			std::bit_cast<const FARConfigItem*>(Dlg->GetListItemSimpleUserData(0, Index));
 	};
 
 	const auto EditItem = [&](edit_mode const EditMode)
@@ -2513,7 +2513,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 
 		SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-		auto& ConfigStrings = *reinterpret_cast<std::vector<string>*>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
+		auto& ConfigStrings = edit_as<std::vector<string>>(Dlg->SendMessage(DM_GETDLGDATA, 0, nullptr));
 		FarListUpdate flu{ sizeof(flu), ListInfo.SelectPos, CurrentItem->MakeListItem(ConfigStrings[ListInfo.SelectPos]) };
 		Dlg->SendMessage(DM_LISTUPDATE, ac_item_listbox, &flu);
 
@@ -2597,7 +2597,7 @@ intptr_t Options::AdvancedConfigDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Para
 
 						FarListInfo ListInfo{ sizeof(ListInfo) };
 						Dlg->SendMessage(DM_LISTINFO, Param1, &ListInfo);
-						for (const auto& i: irange(ListInfo.ItemsNumber))
+						for (const auto i: std::views::iota(0uz, ListInfo.ItemsNumber))
 						{
 							FarListGetItem Item{ sizeof(Item), static_cast<intptr_t>(i) };
 
@@ -2665,7 +2665,7 @@ bool Options::AdvancedConfig(config_type Mode)
 	items.reserve(CurrentConfig.size());
 	std::vector<string> Strings(CurrentConfig.size());
 	const auto ConfigData = zip(CurrentConfig, Strings);
-	std::transform(ALL_CONST_RANGE(ConfigData), std::back_inserter(items), [](const auto& i) { return std::get<0>(i).MakeListItem(std::get<1>(i)); });
+	std::ranges::transform(ConfigData, std::back_inserter(items), [](const auto& i) { return std::get<0>(i).MakeListItem(std::get<1>(i)); });
 
 	FarList Items{ sizeof(Items), items.size(), items.data() };
 
@@ -2735,7 +2735,7 @@ void Options::ReadPanelModes()
 		}
 	};
 
-	for (auto& [Item, Index]: enumerate(span(m_ViewSettings).subspan(0, predefined_panel_modes_count)))
+	for (auto& [Item, Index]: enumerate(std::span(m_ViewSettings).subspan(0, predefined_panel_modes_count)))
 	{
 		if (const auto Key = cfg->FindByName(cfg->root_key, str(Index)))
 			ReadMode(Key, Item);
@@ -2779,7 +2779,7 @@ void Options::SavePanelModes(bool always)
 		cfg->SetValue(Key, ModesFlagsName, Item.Flags);
 	};
 
-	for (const auto& [Value, Index]: enumerate(span(ViewSettings).subspan(0, predefined_panel_modes_count)))
+	for (const auto& [Value, Index]: enumerate(std::span(ViewSettings).subspan(0, predefined_panel_modes_count)))
 	{
 		SaveMode(cfg->root_key, Value, Index);
 	}
@@ -2791,7 +2791,7 @@ void Options::SavePanelModes(bool always)
 
 	const auto ModesKey = cfg->CreateKey(cfg->root_key, CustomModesKeyName);
 
-	for (const auto& [Value, Index]: enumerate(span(ViewSettings).subspan(predefined_panel_modes_count)))
+	for (const auto& [Value, Index]: enumerate(std::span(ViewSettings).subspan(predefined_panel_modes_count)))
 	{
 		SaveMode(ModesKey, Value, Index);
 	}
@@ -2944,7 +2944,7 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 {
 	const auto ApplyViewModesNames = [this](menu_item* Menu)
 	{
-		for (const auto& i: irange(predefined_panel_modes_count))
+		for (const auto i: std::views::iota(0uz, predefined_panel_modes_count))
 		{
 			if (!ViewSettings[i].Name.empty())
 				Menu[RealModeToDisplay(i)].Name = ViewSettings[i].Name;

@@ -55,7 +55,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common.hpp"
 #include "common/enum_tokens.hpp"
-#include "common/range.hpp"
 
 // External:
 #include "format.hpp"
@@ -107,7 +106,7 @@ void KeyBar::DisplayObject()
 
 	static_assert(std::size(Mapping) == KBL_GROUP_COUNT);
 
-	for (const auto& i: irange(KEY_COUNT))
+	for (const auto i: std::views::iota(0uz, KEY_COUNT))
 	{
 		if (WhereX() + LabelWidth >= m_Where.right)
 			break;
@@ -116,7 +115,7 @@ void KeyBar::DisplayObject()
 		Text(str(i + 1));
 		SetColor(COL_KEYBARTEXT);
 
-		const auto State = std::find_if(ALL_CONST_RANGE(Mapping), [&](const auto& Item) { return std::invoke(Item.first, IntKeyState); });
+		const auto State = std::ranges::find_if(Mapping, [&](const auto& Item) { return std::invoke(Item.first, IntKeyState); });
 		// State should always be valid so check is excessive, but style is style
 		auto Label = Items[(State != std::cend(Mapping)? State : std::cbegin(Mapping))->second][i].first;
 
@@ -208,7 +207,7 @@ static int FnGroup(unsigned ControlState)
 	};
 	static_assert(std::size(Area) == KBL_GROUP_COUNT);
 
-	const auto ItemIterator = std::find_if(CONST_RANGE(Area, i)
+	const auto ItemIterator = std::ranges::find_if(Area, [&](auto const& i)
 	{
 		return i.ControlState == ControlState;
 	});
@@ -371,7 +370,7 @@ size_t KeyBar::Change(const KeyBarTitles *Kbt)
 
 	size_t Result = 0;
 
-	for (const auto& i: span(Kbt->Labels, Kbt->CountLabels))
+	for (const auto& i: std::span(Kbt->Labels, Kbt->CountLabels))
 	{
 		if (i.Key.VirtualKeyCode < VK_F1 || i.Key.VirtualKeyCode >= VK_F1 + KEY_COUNT)
 			continue;

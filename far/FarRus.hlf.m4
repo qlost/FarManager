@@ -47,9 +47,9 @@
 
 @Contents
 $^#Программа управления файлами и архивами#
-`$^#'FULLVERSION`#'
+$^#M4_MACRO_GET(FULLVERSION)#
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
+$^#Copyright © 2000-M4_MACRO_GET(COPYRIGHTYEAR) Far Group#
  ~Индекс файла помощи~@Index@
  ~Как пользоваться помощью~@Help@
 
@@ -2836,7 +2836,7 @@ $ #Формат командной строки#
  Элементы приглашения можно выделять #цветом#.
 
  Формат:
- #([[T]FFFFFFFF][:[T]BBBBBBBB])#, где:
+ #([[T]FFFFFFFF][:[T]BBBBBBBB][:style[:[T]UUUUUUUU]])#, где:
 
   #FFFFFFFF#
   Цвет текста в формате aarrggbb или индекс в 16-цветной палитре.
@@ -2844,13 +2844,32 @@ $ #Формат командной строки#
   #BBBBBBBB#
   Цвет фона в формате aarrggbb или индекс в 16-цветной палитре.
 
+  #style#
+  One or more text styles, separated by spaces:
+  #bold#
+  #italic#
+  #overline#
+  #strikeout#
+  #faint#
+  #blink#
+  #inverse#
+  #invisible#
+  #underline#
+  #underline_double#
+  #underline_curly#
+  #underline_dot#
+  #underline_dash#
+
+  #UUUUUUUU#
+  Цвет фона в формате aarrggbb или индекс в 16-цветной палитре.
+
   #T#
-  Признак "труколорности", если он отсутствует - цвет считается индексом в стандартной палитре (0-F):
+  Признак "труколорности", если он отсутствует - цвет считается индексом в стандартной палитре (00-FF):
 
   \00 \11 \22 \33 \44 \55 \66 \77 \88 \99 \AA \BB \CC \DD \EE \FF \-
   0123456789ABCDEF
 
- Если цвет текста или фона не указан, используется значение по умолчанию.
+ Если цвет не указан, используется значение по умолчанию.
 
  Примеры:
 
@@ -4465,6 +4484,9 @@ $ #Color Picker#
  The standard 16-color palette is available in the dialog.
  To access the ~256-color palette~@ColorPicker256@ and the ~RGB color space~@ColorPickerRGB@ use the corresponding buttons.
 
+ #Default# is the color used by your terminal when no colors are specified explicitly, e.g. \(800000:800000) C:\> \-.
+ Usually it is one of the palette colors, e.g. \(7:0)silver on black\-, but not necessarily: some terminals could handle it differently, e.g. render as translucent.
+
  The color value is also represented in the hexadecimal form for convenience, where:
  - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
  - #______##### - the palette index from 00 to FF.
@@ -4478,14 +4500,18 @@ $ #Color Picker#
  Default:   \(7:0) Example \-
  Bold:      \(7:0:bold) Example \-
  Italic:    \(7:0:italic) Example \-
- Underline: \(7:0:underline) Example \-
- Double:    \(7:0:underline2) Example \-
  Overline:  \(7:0:overline) Example \-
  Strikeout: \(7:0:strikeout) Example \-
  Faint:     \(7:0:faint) Example \-
  Blink:     \(7:0:blink) Example \-
  Inverse:   \(7:0:inverse) Example \-
  Invisible: \(7:0:invisible) Example \-
+ Underline:
+   Single:  \(7:0:underline) Example \-
+   Double:  \(7:0:underline_double) Example \-
+   Curly:   \(7:0:underline_curly) Example \-
+   Dotted:  \(7:0:underline_dot) Example \-
+   Dashed:  \(7:0:underline_dash) Example \-
 
  The preview section below displays the final result.
 

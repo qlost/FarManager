@@ -77,8 +77,7 @@ namespace color_picker_common
 		else
 			A = Size - 1 - A;
 
-		using std::swap;
-		swap(A, B);
+		std::ranges::swap(A, B);
 	}
 
 	template<typename cube>
@@ -133,8 +132,7 @@ namespace color_picker_common
 			}
 		}
 
-		using std::swap;
-		swap(Cube, NewCube);
+		std::ranges::swap(Cube, NewCube);
 	}
 
 	template<typename plane>
@@ -220,7 +218,7 @@ namespace color_picker_common
 
 			Dlg->SendMessage(DM_SETCHECK, dialog_items::cd_cube_first, ToPtr(BSTATE_3STATE));
 
-			for (const auto& i: irange(0, Cube.Cube.size()))
+			for (const auto i: std::views::iota(0uz, Cube.Cube.size()))
 			{
 				move_plane(NewPlane, Plane, Button, Cube.Slice, i);
 				Dlg->SendMessage(DM_REDRAW, 0, {});

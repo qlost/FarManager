@@ -79,10 +79,10 @@ namespace os::com
 		CoTaskMemFree(const_cast<void*>(Object));
 	}
 
-	void invoke(function_ref<HRESULT()> const Callable, string_view CallableName, std::string_view const Function, std::string_view const File, int const Line)
+	void invoke(function_ref<HRESULT()> const Callable, string_view CallableName, source_location const& Location)
 	{
 		if (const auto Result = Callable(); FAILED(Result))
-			throw exception(Result, CallableName, Function, File, Line);
+			throw exception(Result, CallableName, Location);
 	}
 
 	string get_shell_name(string_view Path)
@@ -142,10 +142,7 @@ namespace os::com
 				COM_INVOKE(imports.SHCreateAssociationRegistration, (IID_IApplicationAssociationRegistration, IID_PPV_ARGS_Helper(&ptr_setter(AAR))));
 
 				memory<wchar_t*> Association;
-				// https://github.com/llvm/llvm-project/issues/54300
-				// TODO: remove once we have it.
-				const auto& ExtRef = Ext;
-				COM_INVOKE(AAR->QueryCurrentDefault, (null_terminated(ExtRef).c_str(), AT_FILEEXTENSION, AL_EFFECTIVE, &ptr_setter(Association)));
+				COM_INVOKE(AAR->QueryCurrentDefault, (null_terminated(Ext).c_str(), AT_FILEEXTENSION, AL_EFFECTIVE, &ptr_setter(Association)));
 
 				return Association.get();
 			}

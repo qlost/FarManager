@@ -59,7 +59,7 @@ enum:class lng:int
 
 
 MYes
-`l://Version: 'FULLVERSION`
+l:// Version: M4_MACRO_GET(FULLVERSION)
 l:
 "Да"
 "Yes"
@@ -1278,7 +1278,7 @@ MAltShiftF12
 
 MCtrlShiftF1
 l:
-l://Main CtrlShift
+l:// Main CtrlShift
 ""
 ""
 ""
@@ -7591,7 +7591,7 @@ MEditF12
 
 MEditShiftF1
 l:
-l://Editor: Shift
+l:// Editor: Shift
 ""
 ""
 ""
@@ -7761,7 +7761,7 @@ MEditShiftF12
 
 MEditAltF1
 l:
-l://Editor: Alt
+l:// Editor: Alt
 ""
 ""
 ""
@@ -7931,7 +7931,7 @@ MEditAltF12
 
 MEditCtrlF1
 l:
-l://Editor: Ctrl
+l:// Editor: Ctrl
 ""
 ""
 ""
@@ -8101,7 +8101,7 @@ MEditCtrlF12
 
 MEditAltShiftF1
 l:
-l://Editor: AltShift
+l:// Editor: AltShift
 ""
 ""
 ""
@@ -8271,7 +8271,7 @@ MEditAltShiftF12
 
 MEditCtrlShiftF1
 l:
-l://Editor: CtrlShift
+l:// Editor: CtrlShift
 ""
 ""
 ""
@@ -9597,7 +9597,7 @@ MListEb
 "E"
 
 MListFileSize
-l:{3} replacement field can receive a sum of files & folders
+l:// {3} replacement field can receive a sum of files & folders
 "Байт: {0}, файлов: {1}, папок: {2}"
 "Bytes: {0}, files: {1}, folders: {2}"
 "Bajty: {0}, soubory: {1}, složky: {2}"
@@ -10125,7 +10125,7 @@ MViewF12
 
 MViewShiftF1
 l:
-l://Viewer: Shift
+l:// Viewer: Shift
 ""
 ""
 ""
@@ -10295,7 +10295,7 @@ MViewShiftF12
 
 MViewAltF1
 l:
-l://Viewer: Alt
+l:// Viewer: Alt
 ""
 ""
 ""
@@ -10465,7 +10465,7 @@ MViewAltF12
 
 MViewCtrlF1
 l:
-l://Viewer: Ctrl
+l:// Viewer: Ctrl
 ""
 ""
 ""
@@ -10635,7 +10635,7 @@ MViewCtrlF12
 
 MViewAltShiftF1
 l:
-l://Viewer: AltShift
+l:// Viewer: AltShift
 ""
 ""
 ""
@@ -10805,7 +10805,7 @@ MViewAltShiftF12
 
 MViewCtrlShiftF1
 l:
-l://Viewer: CtrlShift
+l:// Viewer: CtrlShift
 ""
 ""
 ""
@@ -10975,7 +10975,7 @@ MViewCtrlShiftF12
 
 MViewCtrlAltF1
 l:
-l://Viewer: CtrlAlt
+l:// Viewer: CtrlAlt
 ""
 ""
 ""
@@ -11145,7 +11145,7 @@ MViewCtrlAltF12
 
 MViewCtrlAltShiftF1
 l:
-l://Viewer: CtrlAltShift
+l:// Viewer: CtrlAltShift
 ""
 ""
 ""
@@ -13287,33 +13287,19 @@ upd:"Unknown"
 "Ня вызначана"
 upd:"Unknown"
 
-MInfoPowerStatusBCLifePercent
-"Заряд батареи"
-"Battery life percent"
-"Stav baterie v procentech"
-"Status der Batteriedauer"
-upd:"Battery life percent"
-"Procent naładowania baterii"
-"Porcentaje carga de batería"
-"Stav akumulátora v percentách"
-"Percentuale Batterie"
-"Заряд батареї"
-"Зарад батарэи"
-upd:"Battery life percent"
-
 MInfoPowerStatusBCLifePercentUnknown
-"Не определено"
-"Unknown"
-"Neznámý"
-"Unbekannt"
-upd:"Unknown"
-"Nieznany"
-"Desconocido"
-"Neznámy"
-"Sconosciuto"
-"Не визначено"
-"Ня вызначана"
-upd:"Unknown"
+"не определено"
+"unknown"
+"neznámý"
+"unbekannt"
+upd:"unknown"
+"nieznany"
+"desconocido"
+"neznámy"
+"sconosciuto"
+"не визначено"
+"ня вызначана"
+upd:"unknown"
 
 MInfoPowerStatusBC
 "Статус заряда батареи"
@@ -13342,6 +13328,20 @@ upd:"High"
 "Високий"
 "Высокі"
 upd:"High"
+
+MInfoPowerStatusBCMedium
+"Средний"
+"Medium"
+"Střední"
+"Mittel"
+"Közepes"
+"Średni"
+"Medio"
+"Stredná"
+"Medio"
+"Середній"
+"Сярэдні"
+"Vidutinis"
 
 MInfoPowerStatusBCLow
 "Низкий"
@@ -13372,18 +13372,18 @@ upd:"Critical"
 upd:"Critical"
 
 MInfoPowerStatusBCCharging
-"Зарядка"
-"Charging"
-"Nabíjení"
-"Wird geladen"
-upd:"Charging"
-"Ładowanie"
-"Cargando"
-"Nabíjanie"
-"In Carica"
-"Заряджання"
-"Зарадка"
-upd:"Charging"
+"зарядка"
+"charging"
+"nabíjení"
+"wird geladen"
+upd:"charging"
+"ładowanie"
+"cargando"
+"nabíjanie"
+"in carica"
+"заряджання"
+"зарадка"
+upd:"charging"
 
 MInfoPowerStatusBCNoSysBat
 "Батареи нет"
@@ -16259,6 +16259,20 @@ l:
 "Хуткі прагляд"
 "Vaizdas"
 
+MQuickViewReparsePoint
+"Точка повторного анализа"
+"&Reparse point"
+"Reparse point"
+"Analysepunkt"
+upd:"Reparse point"
+"Punkt &analizy"
+"Punto de análisis"
+"Reparse point"
+"P&unto Di Reparse"
+"Точка повторного аналізу"
+"Кропка паўторнай апрацоўкі"
+upd:"&Reparse point"
+
 MQuickViewUnknownReparsePoint
 "Неизвестная точка повторного анализа"
 "Unknown reparse point"
@@ -16272,20 +16286,6 @@ upd:"Unknown reparse point"
 "Невідома точка повторного аналізу"
 "Невядомая кропка паўторнага аналізу"
 upd:"Unknown reparse point"
-
-MQuickViewNoData
-"(нет данных)"
-"(data not available)"
-"(data nejsou k dispozici)"
-"(nicht verfügbar)"
-"(adat nem elérhető)"
-"(dane niedostępne)"
-"(dato no disponible)"
-"(dáta nie sú k dispozícii)"
-"(dati sconosciuti)"
-"(нема даних)"
-"(няма дадзеных)"
-upd:"(data not available)"
 
 MQuickViewFolders
 "Папок:"
@@ -16513,18 +16513,18 @@ MSetAttrAppExecLink
 "Programos slapyvardis :"
 
 MSetAttrUnknownReparsePoint
-"(нет данных)"
-"(data not available)"
-"(data nejsou k dispozici)"
-"(nicht verfügbar)"
-"(adat nem elérhető)"
-"(dane niedostępne)"
-"(datos no disponibles)"
-"(dáta nie sú k dispozícii)"
-"(dati sconosciuti)"
-"(нема даних)"
-"(няма дадзеных)"
-upd:"(data not available)"
+"Неизвестная точка повторного анализа"
+"Unknown reparse point"
+upd:"Unknown reparse point"
+"Unbekannter Analysepunkt"
+upd:"Unknown reparse point"
+"Nieznany punkt powiązania"
+"Punto de análisis desconocido"
+"Neznáme rozšírené informácie (ReparsePoint)"
+"Punto Reparse Ignoto"
+"Невідома точка повторного аналізу"
+"Невядомая кропка паўторнага аналізу"
+upd:"Unknown reparse point"
 
 MSetAttrReadOnly
 "&Только для чтения"
@@ -18684,6 +18684,34 @@ MSetColorBackground
 "&Фон:"
 "&Fonas:"
 
+MSetColorForegroundDefault
+"По умолчанию"
+"Default"
+"Výchozí"
+"Default"
+"Alapértelmezett"
+"Domyślny"
+"Por defecto"
+"Predvolená"
+"Predefinito"
+"За замовчуванням"
+"Па змаўчанні"
+"Numatytas"
+
+MSetColorBackgroundDefault
+"По умолчанию"
+"Default"
+"Výchozí"
+"Default"
+"Alapértelmezett"
+"Domyślny"
+"Por defecto"
+"Predvolená"
+"Predefinito"
+"За замовчуванням"
+"Па змаўчанні"
+"Numatytas"
+
 MSetColorForeIndex
 l:
 l:// 8 characters max
@@ -18715,6 +18743,22 @@ l:// 8 characters max
 "AARRGGBB"
 "AARRGGBB"
 "AARRGGBB"
+
+MSetColorForeDefault
+l:
+l:// 8 characters max
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
 
 MSetColorFore256
 l:
@@ -18779,6 +18823,22 @@ l:// 8 characters max
 "AARRGGBB"
 "AARRGGBB"
 "AARRGGBB"
+
+MSetColorBackDefault
+l:
+l:// 8 characters max
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
 
 MSetColorBack256
 l:
@@ -18868,34 +18928,6 @@ MSetColorStyleItalic
 "Курсіў"
 "Kursyvas"
 
-MSetColorStyleUnderline
-"Подчёркнутый"
-"&Underline"
-"Podtržené"
-"Unterstrichen"
-"Aláhúzott"
-"Podkr&eślenie"
-"Subrayado"
-"Podčiarknuté"
-"Sottolineato"
-"Підкреслений"
-"Падкрэслены"
-"Pabrauktasis"
-
-MSetColorStyleUnderline2
-"Двойное"
-"&Double"
-"Dvojitě"
-"Doppelt"
-"Dupla"
-"Pod&wójne"
-"Doble"
-"Dvojité"
-"Doppia"
-"Подвійне"
-"Падвойнае"
-"Dvigubas"
-
 MSetColorStyleOverline
 "Надчёркивание"
 "O&verline"
@@ -18944,7 +18976,7 @@ MSetColorStyleBlink
 "Blikající"
 "Blinkend"
 "Villogás"
-"&Miganie"
+"&Migotanie"
 "Intermitente"
 "Blikanie"
 "Intermittente"
@@ -18953,7 +18985,7 @@ MSetColorStyleBlink
 "Mirksėjimas"
 
 MSetColorStyleInverse
-"Мерцающий"
+"Обратный"
 "Inverse"
 "Inverzní"
 "Umgekehrt"
@@ -18972,13 +19004,111 @@ MSetColorStyleInvisible
 "Neviditelný"
 "Unsichtbar"
 "Láthatatlan"
-"Niewidzialny"
+"Niewidzialność"
 "Invisible"
 "Neviditeľný"
 "Invisibile"
 "Невидимий"
 "Нябачны"
 "Nematomas"
+
+MSetColorStyleUnderline
+"Подчёркивание:"
+"&Underline:"
+"Podtržené:"
+"Unterstrichen:"
+"Aláhúzás:"
+"Podkr&eślenie:"
+"Subrayado:"
+"Podčiarknutie:"
+"Sottolineato:"
+"Підкреслення:"
+"Падкрэсліце:"
+"Pabraukimas:"
+
+MSetColorStyleUnderlineNone
+"Нет"
+"No"
+"Ne"
+"Nein"
+"Nem"
+"Nie"
+"No"
+"Nie"
+"No"
+"Ні"
+"Не"
+"Ne"
+
+MSetColorStyleUnderlineSingle
+"Одинарное"
+"Single"
+"Jedno"
+"Einzelner"
+"Egyetlen"
+"Pojedyncze"
+"Único"
+"Jedno"
+"Singola"
+"Одинарне"
+"Адзінарнае"
+"Одинарное"
+
+MSetColorStyleUnderlineDouble
+"Двойное"
+"Double"
+"Dvojitě"
+"Doppelt"
+"Dupla"
+"Podwójne"
+"Doble"
+"Dvojité"
+"Doppia"
+"Подвійне"
+"Падвойнае"
+"Dvigubas"
+
+MSetColorStyleUnderlineCurly
+"Фигурное"
+"Curly"
+"Kudrnaté"
+"Lockige"
+"Göndör"
+"Kręcone"
+"Rizado"
+"Kučeravé"
+"Riccia"
+"Фігурне"
+"Фігурнае"
+"Garbanotas"
+
+MSetColorStyleUnderlineDotted
+"Точечное"
+"Dotted"
+"Tečkované"
+"Gepunkteter"
+"Pontozott"
+"Kropkowane"
+"Punteado"
+"Bodkované"
+"Tratteggiata"
+"Крапкове"
+"Кропкавае"
+"Taškinis"
+
+MSetColorStyleUnderlineDashed
+"Пунктирное"
+"Dashed"
+"Čárkované"
+"Gestrichelter"
+"Szaggatott"
+"Przerywane"
+"Discontinuo"
+"Čiarkované"
+"Punteggiata"
+"Пунктирне"
+"Пункцірнае"
+"Brūkšninis"
 
 MSetColorSample
 "Текст Текст Текст Текст Текст Текст"
@@ -19042,7 +19172,7 @@ upd:"System"
 upd:"System"
 upd:"System"
 upd:"System"
-"System"
+"&System"
 "Sistema"
 upd:"System"
 upd:"System"

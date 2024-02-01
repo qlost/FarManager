@@ -75,7 +75,7 @@ static void ChangeColor(PaletteColors PaletteIndex, PaletteColors const* const B
 		return;
 
 	if (Reset)
-		NewColor = colors::NtColorToFarColor(Global->Opt->Palette.Default(PaletteIndex));
+		NewColor = Global->Opt->Palette.Default(PaletteIndex);
 
 	Global->Opt->Palette.Set(PaletteIndex, { &NewColor, 1 });
 
@@ -104,15 +104,47 @@ enum list_mode
 	list_modes_count
 };
 
+struct color_item;
+
+class color_item_span
+{
+public:
+	constexpr color_item_span() = default;
+
+	template<size_t N>
+	explicit(false) constexpr color_item_span(color_item const (&Items)[N]):
+		data(Items),
+		size(N)
+	{
+	}
+
+	constexpr bool empty() const
+	{
+		return !size;
+	}
+
+	constexpr operator std::span<color_item const>() const;
+
+private:
+	color_item const* data{};
+	size_t size{};
+};
+
 struct color_item
 {
 	lng LngId;
 	PaletteColors Color;
-	span<const color_item> SubColor;
+	// libc++ decided to follow the standard literally and prohibit incomplete types in spans :(
+	color_item_span SubColor;
 	PaletteColors const* BottomColor;
 };
 
-static void SetItemColors(span<const color_item> const Items, point Position = {})
+constexpr color_item_span::operator std::span<color_item const>() const
+{
+	return { data, data + size };
+}
+
+static void SetItemColors(std::span<const color_item> const Items, point Position = {})
 {
 	const auto ItemsMenu = VMenu2::create(msg(lng::MSetColorItemsTitle), {});
 
@@ -125,7 +157,7 @@ static void SetItemColors(span<const color_item> const Items, point Position = {
 	ItemsMenu->SetMenuFlags(VMENU_WRAPMODE);
 	ItemsMenu->RunEx([&](int Msg, void *param)
 	{
-		const auto ItemsCode = reinterpret_cast<intptr_t>(param);
+		const auto ItemsCode = std::bit_cast<intptr_t>(param);
 		if (Msg != DN_CLOSE || ItemsCode < 0)
 			return 0;
 
@@ -367,7 +399,7 @@ void SetColors()
 		static constexpr struct
 		{
 			lng MenuId;
-			span<const color_item> Subitems;
+			std::span<const color_item> Subitems;
 		}
 		Groups[]
 		{
@@ -416,7 +448,7 @@ void SetColors()
 		GroupsMenu->SetMenuFlags(VMENU_WRAPMODE);
 		const auto GroupsCode=GroupsMenu->RunEx([&](int Msg, void *param)
 		{
-			const auto ItemsCode = reinterpret_cast<intptr_t>(param);
+			const auto ItemsCode = std::bit_cast<intptr_t>(param);
 			if (Msg != DN_CLOSE || ItemsCode < 0 || static_cast<size_t>(ItemsCode) >= std::size(Groups))
 				return 0;
 			SetItemColors(Groups[ItemsCode].Subitems);

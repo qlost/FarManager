@@ -330,7 +330,7 @@ void filters::EditFilters(filter_area const Area, Panel* const HostPanel)
 			}
 			case KEY_SHIFTBS:
 			{
-				for (const auto& i: irange(FilterList->size()))
+				for (const auto i: std::views::iota(0uz, FilterList->size()))
 				{
 					FilterList->ClearCheck(static_cast<int>(i));
 				}
@@ -420,7 +420,7 @@ void filters::EditFilters(filter_area const Area, Panel* const HostPanel)
 				{
 					const auto NewPos = std::min(FilterData().size(), static_cast<size_t>(pos));
 					const auto FilterIterator = FilterData().emplace(FilterData().begin() + NewPos, std::move(NewFilter));
-					FilterList->AddItem(MenuItemEx(MenuString(&*FilterIterator)), static_cast<int>(NewPos));
+					FilterList->AddItem(MenuItemEx(MenuString(std::to_address(FilterIterator))), static_cast<int>(NewPos));
 					FilterList->SetSelectPos(static_cast<int>(NewPos),1);
 					NeedUpdate = true;
 				}
@@ -474,7 +474,7 @@ void filters::EditFilters(filter_area const Area, Panel* const HostPanel)
 					!(any_of(Key, KEY_CTRLDOWN, KEY_RCTRLDOWN) && static_cast<size_t>(SelPos) == FilterData().size() - 1))
 				{
 					const auto NewPos = SelPos + (any_of(Key, KEY_CTRLDOWN, KEY_RCTRLDOWN)? 1 : -1);
-					using std::swap;
+					using std::ranges::swap;
 					swap(FilterList->at(SelPos), FilterList->at(NewPos));
 					swap(FilterData()[NewPos], FilterData()[SelPos]);
 					FilterList->SetSelectPos(NewPos,1);
@@ -509,7 +509,7 @@ void filters::EditFilters(filter_area const Area, Panel* const HostPanel)
 
 static void ProcessSelection(VMenu2* const FilterList, filter_area const Area)
 {
-	for (const auto& i: irange(FilterList->size()))
+	for (const auto i: std::views::iota(0uz, FilterList->size()))
 	{
 		const auto Check = FilterList->GetCheck(static_cast<int>(i));
 		FileFilterParams* CurFilterData = nullptr;
@@ -531,7 +531,7 @@ static void ProcessSelection(VMenu2* const FilterList, filter_area const Area)
 				{
 					bool bCheckedNowhere = true;
 
-					for (const auto& n: irange(filter_area::count))
+					for (const auto n: std::views::iota(0uz, static_cast<size_t>(filter_area::count)))
 					{
 						if (static_cast<filter_area>(n) != Area && Iterator->second.GetFlags(static_cast<filter_area>(n)))
 						{
@@ -632,7 +632,7 @@ filter_result multifilter::FileInFilterEx(const os::fs::find_data& fde, string_v
 	const auto ProcessFilters = [&]
 	{
 		const auto& Filters = FilterData();
-		return std::all_of(ALL_CONST_RANGE(Filters), [&](FileFilterParams const& Filter)
+		return std::ranges::all_of(Filters, [&](FileFilterParams const& Filter)
 		{
 			return Process(Filter, false);
 		});
@@ -646,7 +646,7 @@ filter_result multifilter::FileInFilterEx(const os::fs::find_data& fde, string_v
 	const auto ProcessAutoFilters = [&]
 	{
 		const auto& Filters = TempFilterData();
-		return std::all_of(ALL_CONST_RANGE(Filters), [&](std::pair<string, FileFilterParams const&> const& Filter)
+		return std::ranges::all_of(Filters, [&](std::pair<string, FileFilterParams const&> const& Filter)
 		{
 			return Process(Filter.second, IsFolder);
 		});
@@ -711,13 +711,13 @@ bool multifilter::IsEnabledOnPanel() const
 	if (m_Area != filter_area::panel_left && m_Area != filter_area::panel_right)
 		return false;
 
-	if (std::any_of(CONST_RANGE(FilterData(), i) { return i.GetFlags(m_Area); }))
+	if (std::ranges::any_of(FilterData(), [&](FileFilterParams const& i){ return i.GetFlags(m_Area); }))
 		return true;
 
 	if (FoldersFilter->GetFlags(m_Area))
 		return true;
 
-	return std::any_of(CONST_RANGE(TempFilterData(), i) { return i.second.GetFlags(m_Area); });
+	return std::ranges::any_of(TempFilterData(), [&](auto const& i){ return i.second.GetFlags(m_Area); });
 }
 
 filter_area multifilter::area() const
@@ -867,7 +867,7 @@ static bool LoadAreaFlags(const HierarchicalConfig& Cfg, HierarchicalConfig::key
 
 	auto AnyLoaded = false;
 
-	for (const auto& i: irange(std::size(FilterFlagNames)))
+	for (const auto i: std::views::iota(0uz, std::size(FilterFlagNames)))
 	{
 		unsigned long long Value;
 		if (Cfg.GetValue(FlagsKey, FilterFlagNames[i], Value))
@@ -891,7 +891,7 @@ static bool LoadLegacyAreaFlags(HierarchicalConfig const& Cfg, HierarchicalConfi
 	if (bytes Blob; !Cfg.GetValue(Key, Name, Blob) || !deserialise(Blob, LegacyFlags))
 		return false;
 
-	for (const auto& i: irange(LegacyCount))
+	for (const auto i: std::views::iota(0uz, LegacyCount))
 		Item.SetFlags(static_cast<filter_area>(i), LegacyFlags[i]);
 
 	return true;
@@ -1026,7 +1026,7 @@ void filters::Save(bool always)
 
 	const auto root = cfg->CreateKey(cfg->root_key, names::Filters);
 
-	for (const auto& i: irange(FilterData().size()))
+	for (const auto i: std::views::iota(0uz, FilterData().size()))
 	{
 		const auto Key = cfg->CreateKey(root, names::Filter + str(i));
 		const auto& CurFilterData = FilterData()[i];

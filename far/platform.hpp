@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/function_ref.hpp"
 #include "common/smart_ptr.hpp"
+#include "common/span.hpp"
 #include "common/utility.hpp"
 
 // External:
@@ -72,9 +73,9 @@ namespace os
 		[[nodiscard]]
 		bool ApiDynamicReceiver(
 			buffer_type&& Buffer,
-			function_ref<size_t(span<value_type<buffer_type>> WritableBuffer)> const Receiver,
+			function_ref<size_t(std::span<std::ranges::range_value_t<buffer_type>> WritableBuffer)> const Receiver,
 			function_ref<bool(size_t ReturnedSize, size_t AllocatedSize)> const Condition,
-			function_ref<void(span<value_type<buffer_type> const> ReadableBuffer)> const Assigner
+			function_ref<void(std::span<std::ranges::range_value_t<buffer_type> const> ReadableBuffer)> const Assigner
 		)
 		{
 			size_t Size = Receiver({ Buffer.data(), Buffer.size() });
@@ -93,10 +94,10 @@ namespace os
 		}
 
 		[[nodiscard]]
-		bool ApiDynamicStringReceiver(string& Destination, function_ref<size_t(span<wchar_t> WritableBuffer)> Callable);
+		bool ApiDynamicStringReceiver(string& Destination, function_ref<size_t(std::span<wchar_t> WritableBuffer)> Callable);
 
 		[[nodiscard]]
-		bool ApiDynamicErrorBasedStringReceiver(DWORD ExpectedErrorCode, string& Destination, function_ref<size_t(span<wchar_t> WritableBuffer)> Callable);
+		bool ApiDynamicErrorBasedStringReceiver(DWORD ExpectedErrorCode, string& Destination, function_ref<size_t(std::span<wchar_t> WritableBuffer)> Callable);
 
 		class handle_implementation
 		{
@@ -305,7 +306,7 @@ namespace os
 			[[nodiscard]]
 			T GetProcAddress(const char* name) const
 			{
-				return reinterpret_cast<T>(get_proc_address(name));
+				return std::bit_cast<T>(get_proc_address(name));
 			}
 
 			[[nodiscard]]
@@ -318,7 +319,7 @@ namespace os
 			[[nodiscard]]
 			HMODULE get_module(bool Mandatory) const;
 
-			void* get_proc_address(const char* Name) const;
+			FARPROC get_proc_address(const char* Name) const;
 
 			struct module_deleter
 			{
@@ -364,7 +365,7 @@ namespace os
 			using opaque_function_pointer::opaque_function_pointer;
 
 			[[nodiscard]]
-			explicit(false) operator raw_function_pointer() const { return reinterpret_cast<raw_function_pointer>(get_pointer(true)); }
+			explicit(false) operator raw_function_pointer() const { return std::bit_cast<raw_function_pointer>(get_pointer(true)); }
 		};
 	}
 

@@ -116,7 +116,7 @@ namespace os::reg
 
 	bool key::enum_keys_impl(size_t Index, string& Name) const
 	{
-		return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> const Buffer)
+		return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> const Buffer)
 		{
 			auto RetSize = static_cast<DWORD>(Buffer.size());
 			switch (RegEnumKeyEx(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, {}, {}, {}))
@@ -136,7 +136,7 @@ namespace os::reg
 
 	bool key::enum_values_impl(size_t Index, value& Value) const
 	{
-		if (!detail::ApiDynamicStringReceiver(Value.m_Name, [&](span<wchar_t> const Buffer)
+		if (!detail::ApiDynamicStringReceiver(Value.m_Name, [&](std::span<wchar_t> const Buffer)
 		{
 			auto RetSize = static_cast<DWORD>(Buffer.size());
 			switch (RegEnumValue(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, &Value.m_Type, {}, {}))
@@ -170,7 +170,7 @@ namespace os::reg
 		if (!query_value(native_handle(), Name, Type, Buffer) || !is_string_type(Type))
 			return false;
 
-		const auto Data = view_as<const wchar_t*>(Buffer.data());
+		const auto Data = std::bit_cast<const wchar_t*>(Buffer.data());
 		const auto Size = Buffer.size() / sizeof(wchar_t);
 		const auto IsNullTerminated = Data[Size - 1] == L'\0';
 		Value.assign(Data, Size - IsNullTerminated);

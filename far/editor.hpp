@@ -55,6 +55,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class FileEditor;
 class KeyBar;
 class Edit;
+struct ColorItem;
 
 class Editor final: public SimpleScreenObject
 {
@@ -143,6 +144,7 @@ public:
 	struct EditorUndoData;
 
 private:
+	friend class Edit;
 	friend class DlgEdit;
 	friend class FileEditor;
 	friend class undo_block;
@@ -275,7 +277,7 @@ private:
 	string Block2Text();
 	string VBlock2Text();
 	void Change(EDITOR_CHANGETYPE Type,int StrNum);
-	bool SetLineCodePage(iterator const& Iterator, uintptr_t CurrentCodepage, uintptr_t NewCodepage, bool Validate);
+	bool SetLineCodePage(Edit& Line, uintptr_t CurrentCodepage, uintptr_t NewCodepage, bool Validate);
 	numbered_iterator InsertString(string_view Str, const numbered_iterator& Where);
 	numbered_iterator PushString(const string_view Str) { return InsertString(Str, EndIterator()); }
 	void TurnOffMarkingBlock();
@@ -288,8 +290,7 @@ private:
 	int CalculateSearchStartPosition(bool Continue, bool Backward, bool Regex) const;
 	int CalculateSearchNextPositionInTheLine(bool Backward, bool Regex) const;
 
-	template<class F>
-	void UpdateIteratorAndKeepPos(numbered_iterator& Iter, const F& Func);
+	void UpdateIteratorAndKeepPos(numbered_iterator& Iter, const auto& Func);
 
 	numbered_iterator EndIterator();
 	numbered_const_iterator EndIterator() const;
@@ -315,6 +316,12 @@ private:
 
 	uintptr_t GetCodePage() const;
 
+	void AddColor(numbered_iterator const& It, ColorItem const& Item);
+	using delete_color_condition = function_ref<bool(ColorItem const&)>;
+	void DeleteColor(Edit const* It, delete_color_condition Condition);
+	void DeleteColor(numbered_iterator const& It, delete_color_condition Condition);
+	bool GetColor(numbered_iterator const& It, ColorItem& Item, size_t Index) const;
+	std::multiset<ColorItem> const* GetColors(Edit* It) const;
 	// Младший байт (маска 0xFF) юзается классом ScreenObject!!!
 	enum editor_flags
 	{
@@ -363,6 +370,7 @@ private:
 	numbered_iterator m_FoundLine{ EndIterator() };
 	int m_FoundPos{ -1 };
 	int m_FoundSize{ -1 };
+	std::unordered_map<Edit const*, std::multiset<ColorItem>> m_ColorList;
 	std::unordered_set<Edit*> m_AutoDeletedColors;
 	struct
 	{

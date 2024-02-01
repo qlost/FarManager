@@ -208,7 +208,7 @@ static string MakeName(const Shortcuts::shortcut& Item)
 
 	if (!Item.PluginData.empty())
 	{
-		const string PrintablePluginData(Item.PluginData.cbegin(), std::find_if(ALL_CONST_RANGE(Item.PluginData), [](const auto i) { return i < L' '; }));
+		const string PrintablePluginData(Item.PluginData.cbegin(), std::ranges::find_if(Item.PluginData, [](const auto i) { return i < L' '; }));
 		if (!PrintablePluginData.empty())
 			append(TechInfo, msg(lng::MFSShortcutPluginData), L' ', PrintablePluginData, L", "sv);
 	}
@@ -376,7 +376,7 @@ std::list<Shortcuts::shortcut>::const_iterator Shortcuts::Select(bool Raw)
 	{
 		const auto Key = RawKey();
 		const auto ItemPos = FolderList->GetSelectPos();
-		const auto Iterator = FolderList->GetComplexUserDataPtr<ITERATOR(m_Items)>(ItemPos);
+		const auto Iterator = FolderList->GetComplexUserDataPtr<std::ranges::iterator_t<decltype(m_Items)>>(ItemPos);
 
 		switch (Key)
 		{
@@ -439,7 +439,7 @@ std::list<Shortcuts::shortcut>::const_iterator Shortcuts::Select(bool Raw)
 		}
 	});
 
-	return ExitCode < 0? m_Items.end() : *FolderList->GetComplexUserDataPtr<ITERATOR(m_Items)>(ExitCode);
+	return ExitCode < 0? m_Items.end() : *FolderList->GetComplexUserDataPtr<std::ranges::iterator_t<decltype(m_Items)>>(ExitCode);
 }
 
 bool Shortcuts::GetOne(size_t Index, data& Data) const

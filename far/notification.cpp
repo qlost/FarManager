@@ -180,13 +180,10 @@ bool message_manager::dispatch()
 
 		const auto& [EventId, Payload] = EventData;
 
-		// https://github.com/llvm/llvm-project/issues/54300
-		// TODO: remove once we have it.
-		const auto& EventIdRef = EventId;
-
 		const auto find_eligible_from = [&](handlers_map const& Handlers)
 		{
-			for (const auto& [Key, Value]: range(Handlers.equal_range(EventIdRef)))
+			const auto [Begin, End] = Handlers.equal_range(EventId);
+			for (const auto& [Key, Value]: std::ranges::subrange(Begin, End))
 			{
 				EligibleHandlers.emplace(Value, false);
 			}

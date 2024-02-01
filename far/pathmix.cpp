@@ -101,7 +101,10 @@ string KernelPath(string NtPath)
 
 root_type ParsePath(const string_view Path, size_t* const RootSize, bool* const RootOnly)
 {
-	const auto re = [](const wchar_t* const Str) { return std::wregex(Str, std::regex::icase | std::regex::optimize); };
+	// Do not use regex::icase here.
+	// The case-insensitive data is minimal here ("unc" / "volume{hex}" / "pipe") and ASCII by definition.
+	// Doing it manually should be way faster than letting wregex delegate it to OS locale facilities.
+	const auto re = [](const wchar_t* const Str) { return std::wregex(Str, std::regex::optimize); };
 
 	static const struct
 	{
@@ -130,17 +133,17 @@ root_type ParsePath(const string_view Path, size_t* const RootSize, bool* const 
 		{
 			// \\?\unc\server\share(\...)
 			root_type::unc_remote,
-			re(RE_PATH_PREFIX(L"unc" RE_BACKSLASH RE_NONE_OF(RE_DOT RE_SPACE RE_SLASHES RE_Q_MARK) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ZERO_OR_MORE_LAZY RE_BACKSLASH RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
+			re(RE_PATH_PREFIX(L"[Uu][Nn][Cc]" RE_BACKSLASH RE_NONE_OF(RE_DOT RE_SPACE RE_SLASHES RE_Q_MARK) RE_NONE_OF(RE_SPACE RE_SLASHES RE_Q_MARK) RE_ZERO_OR_MORE_LAZY RE_BACKSLASH RE_NONE_OF(RE_SLASHES) RE_ONE_OR_MORE_GREEDY) RE_ANY_SLASH_OR_NONE),
 		},
 		{
 			// \\?\Volume{UUID}(\...)
 			root_type::volume,
-			re(RE_PATH_PREFIX(L"volume" RE_ESCAPE(L"{") RE_ANY_UUID RE_ESCAPE(L"}")) RE_ANY_SLASH_OR_NONE),
+			re(RE_PATH_PREFIX(L"[Vv][Oo][Ll][Uu][Mm][Ee]" RE_ESCAPE(L"{") RE_ANY_UUID RE_ESCAPE(L"}")) RE_ANY_SLASH_OR_NONE),
 		},
 		{
 			// \\?\pipe(\...)
 			root_type::pipe,
-			re(RE_PATH_PREFIX(L"pipe") RE_ANY_SLASH_OR_NONE),
+			re(RE_PATH_PREFIX(L"[Pp][Ii][Pp][Ee]") RE_ANY_SLASH_OR_NONE),
 		},
 		{
 			// \\?\<anything_else>(\...)
@@ -153,7 +156,7 @@ root_type ParsePath(const string_view Path, size_t* const RootSize, bool* const 
 
 	std::wcmatch Match;
 
-	const auto ItemIterator = std::find_if(CONST_RANGE(PathTypes, i)
+	const auto ItemIterator = std::ranges::find_if(PathTypes, [&](auto const& i)
 	{
 		return std::regex_search(Path.data(), Path.data() + Path.size(), Match, i.re);
 	});
@@ -259,7 +262,7 @@ bool IsCurrentDirectory(string_view const Str)
 
 string_view PointToName(string_view const Path)
 {
-	const auto NameStart = std::find_if(ALL_CONST_REVERSE_RANGE(Path), path::is_separator);
+	const auto NameStart = std::ranges::find_if(Path | std::views::reverse, path::is_separator);
 	return Path.substr(Path.crend() - NameStart);
 }
 
@@ -276,7 +279,7 @@ string_view PointToFolderNameIfFolder(string_view Path)
 
 std::pair<string_view, string_view> name_ext(string_view const Path)
 {
-	auto ExtensionStart = std::find_if(ALL_CONST_REVERSE_RANGE(Path), [](wchar_t const Char){ return Char == L'.' || path::is_separator(Char); });
+	auto ExtensionStart = std::ranges::find_if(Path | std::views::reverse, [](wchar_t const Char){ return Char == L'.' || path::is_separator(Char); });
 	if (ExtensionStart != Path.crend() && *ExtensionStart != L'.')
 		ExtensionStart = Path.crend();
 
@@ -439,13 +442,13 @@ bool ContainsSlash(const string_view Str)
 
 size_t FindSlash(const string_view Str)
 {
-	const auto SlashPos = std::find_if(ALL_CONST_RANGE(Str), path::is_separator);
+	const auto SlashPos = std::ranges::find_if(Str, path::is_separator);
 	return SlashPos == Str.cend()? string::npos : SlashPos - Str.cbegin();
 }
 
 size_t FindLastSlash(const string_view Str)
 {
-	const auto SlashPos = std::find_if(ALL_CONST_REVERSE_RANGE(Str), path::is_separator);
+	const auto SlashPos = std::ranges::find_if(Str | std::views::reverse, path::is_separator);
 	return SlashPos == Str.crend()? string::npos : Str.crend() - SlashPos - 1;
 }
 
@@ -755,11 +758,14 @@ TEST_CASE("path.ParsePath")
 		{ L"\\"sv,                                                         root_type::unknown,                 0,   false, },
 		{ L"path\\file"sv,                                                 root_type::unknown,                 0,   false, },
 		{ L"A:"sv,                                                         root_type::drive_letter,            2,   true,  },
+		{ L"a:"sv,                                                         root_type::drive_letter,            2,   true,  },
+		{ L"1:"sv,                                                         root_type::drive_letter,            2,   true,  },
 		{ L"A:path"sv,                                                     root_type::drive_letter,            2,   false, },
 		{ L"B:\\"sv,                                                       root_type::drive_letter,            3,   true,  },
 		{ L"C:\\path"sv,                                                   root_type::drive_letter,            3,   false, },
 		{ L"CC:\\path"sv,                                                  root_type::unknown,                 0,   false, },
 		{ L"\\\\?\\A:"sv,                                                  root_type::win32nt_drive_letter,    6,   true,  },
+		{ L"\\\\?\\a:"sv,                                                  root_type::win32nt_drive_letter,    6,   true,  },
 		{ L"\\\\?\\B:\\"sv,                                                root_type::win32nt_drive_letter,    7,   true,  },
 		{ L"\\\\?\\C:\\path"sv,                                            root_type::win32nt_drive_letter,    7,   false, },
 		{ L"\\\\?\\CC:\\path"sv,                                           root_type::unknown_rootlike,        8,   false, },
@@ -781,6 +787,7 @@ TEST_CASE("path.ParsePath")
 		{ L"\\\\server"sv,                                                 root_type::unknown,                 0,   false, },
 		{ L"\\\\s"sv,                                                      root_type::unknown,                 0,   false, },
 		{ L"\\\\?\\UNC\\server\\share"sv,                                  root_type::unc_remote,             20,   true,  },
+		{ L"\\\\?\\uNc\\server\\share"sv,                                  root_type::unc_remote,             20,   true,  },
 		{ L"\\\\?\\UNC\\server\\share\\"sv,                                root_type::unc_remote,             21,   true,  },
 		{ L"\\\\?\\UNC\\server\\share\\path"sv,                            root_type::unc_remote,             21,   false, },
 		{ L"\\\\?\\UNC\\s\\s"sv,                                           root_type::unc_remote,             11,   true,  },
@@ -788,12 +795,14 @@ TEST_CASE("path.ParsePath")
 		{ L"\\\\?\\UNC\\s\\s\\p"sv,                                        root_type::unc_remote,             12,   false, },
 		{ L"\\\\?\\UNC\\s"sv,                                              root_type::unknown_rootlike,        8,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}"sv,        root_type::volume,                 48,   true,  },
+		{ L"\\\\?\\VoLuMe{01234567-89aB-CdEf-0123-456789aBcDeF}"sv,        root_type::volume,                 48,   true,  },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\"sv,      root_type::volume,                 49,   true,  },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\path"sv,  root_type::volume,                 49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\p"sv,     root_type::volume,                 49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEZ}\\path"sv,  root_type::unknown_rootlike,       49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}_\\"sv,     root_type::unknown_rootlike,       50,   true,  },
 		{ L"\\\\?\\pipe"sv,                                                root_type::pipe,                    8,   true,  },
+		{ L"\\\\?\\PiPe"sv,                                                root_type::pipe,                    8,   true,  },
 		{ L"\\\\?\\pipe\\"sv,                                              root_type::pipe,                    9,   true,  },
 		{ L"\\\\?\\pipe\\path"sv,                                          root_type::pipe,                    9,   false, },
 		{ L"\\\\?\\pipe\\p"sv,                                             root_type::pipe,                    9,   false, },

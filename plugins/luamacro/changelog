@@ -1,3 +1,94 @@
+shmuel 2024-01-29 05:51:18+02:00 - build 803
+
+1. LuaFAR: add function win.ReplaceFile.
+
+shmuel 2024-01-23 15:09:07+02:00 - build 802
+
+1. Regular macros: make the field 'action' optional.
+
+shmuel 2024-01-14 15:42:47+02:00 - build 801
+
+1. LuaFAR: extend win.Uuid function.
+
+zg 2024-01-05 08:42:29+02:00 - build 800
+
+1. LuaFAR: crash when there is an error in the dialog procedure.
+
+shmuel 2023-12-24 20:24:12+02:00 - build 799
+
+1. Fix autostarting macros in Viewer area (when Far was run with /v switch)
+   - were broken since some Far build in the range [4034-4040].
+
+shmuel 2023-12-23 21:37:06+02:00 - build 798
+
+1. mf.serialize, mf.msave:
+   fix "chunk has more than 65476 local variables" error.
+
+shmuel 2023-12-12 00:45:20+02:00 - build 797
+
+1. LuaFAR: add _methods_ gmatch and gmatchW.
+
+shmuel 2023-12-07 00:45:57+02:00 - build 796
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-12-06 10:03:44+02:00 - build 795
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-11-29 13:32:22+02:00 - build 794
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-11-29 09:55:46+02:00 - build 793
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-11-26 22:20:14+02:00 - build 792
+
+1. LuaFAR: refactoring.
+
+shmuel 2023-11-23 00:10:29+02:00 - build 791
+
+1. LuaFAR: warnings.
+
+shmuel 2023-11-22 23:56:58+02:00 - build 790
+
+1. LuaFAR: warnings.
+
+shmuel 2023-11-21 20:39:31+02:00 - build 789
+
+1. Far.GetConfig() is implemented entirely in Far.exe (was: Far + LuaMacro).
+
+shmuel 2023-11-16 19:03:27+02:00 - build 788
+
+1. LuaFAR: add functions far.CheckMask, far.CmpName, far.CmpNameList, far.GenerateName.
+
+shmuel 2023-11-15 20:40:58+02:00 - build 787
+
+1. LuaFAR: far.ColorDialog() always returns a table --> an API change.
+   (Previously it returned a table or an integer depending on its argument).
+
+shmuel 2023-10-28 01:13:50+03:00 - build 786
+
+1. Fix build 784
+
+shmuel 2023-10-28 01:00:44+03:00 - build 785
+
+1. Fix build 784
+
+shmuel 2023-10-28 00:33:46+03:00 - build 784
+
+1. LuaFAR: DM_GETDLGDATA and DM_SETDLGDATA made available to scripts.
+
+shmuel 2023-10-27 18:55:57+03:00 - build 783
+
+1. LuaFAR: make far.GetPluginDirList more straightforward.
+
+shmuel 2023-10-21 01:02:22+03:00 - build 782
+
+1. Fix lm:about for new LPeg versions
+
 johnd0e 2023-09-15 10:00:00+02:00 - build 781
 
 1. LuaFAR: update luautf8 library to 0.1.5-3-gf736301

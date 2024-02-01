@@ -154,12 +154,12 @@ Viewer::Viewer(window_ptr Owner, bool bQuickView, uintptr_t aCodePage):
 	m_DisplayMode(VMT_TEXT),
 	ViewerID(::ViewerID++),
 	m_bQuickView(bQuickView),
-	vread_buffer(std::max(MaxViewLineBufferSize(), size_t{ 8192 })),
+	vread_buffer(std::max(MaxViewLineBufferSize(), 8192uz)),
 	lcache_lines(16*1000),
 	// dirty magic numbers, fix them!
 	max_backward_size(std::min(Options::ViewerOptions::eMaxLineSize*3ll, std::max(Global->Opt->ViOpt.MaxLineSize*2, 1024ll) * 32)),
 	llengths(max_backward_size / 40),
-	Search_buffer(3 * std::max(MaxViewLineBufferSize(), size_t{ 8192 })),
+	Search_buffer(3 * std::max(MaxViewLineBufferSize(), 8192uz)),
 	ReadBuffer(MaxViewLineBufferSize())
 {
 	if (m_DefCodepage != CP_DEFAULT)
@@ -445,11 +445,11 @@ bool Viewer::isBinaryFile(uintptr_t cp) // very approximate: looks for '\0' in f
 
 	if (IsUnicodeCodePage(cp))
 	{
-		return contains(span(view_as<const wchar_t*>(Buffer), BytesRead / sizeof(wchar_t)), L'\0');
+		return contains(std::span(std::bit_cast<const wchar_t*>(&Buffer), BytesRead / sizeof(wchar_t)), L'\0');
 	}
 	else
 	{
-		return contains(span(Buffer, BytesRead), '\0');
+		return contains(std::span(Buffer, BytesRead), '\0');
 	}
 }
 
@@ -541,7 +541,7 @@ void Viewer::ShowPage(int nMode)
 
 				Strings.clear();
 
-				for (const auto& Y: irange(m_Where.top, m_Where.bottom + 1))
+				for (const auto Y: std::views::iota(m_Where.top, m_Where.bottom + 1))
 				{
 					ViewerString NewString;
 					NewString.nFilePos = vtell();
@@ -714,7 +714,7 @@ int Viewer::txt_dump(std::string_view const Str, size_t ClientWidth, string& Out
 
 	if (IsUnicodeCodePage(m_Codepage))
 	{
-		OutStr.assign(view_as<const wchar_t*>(Str.data()), Str.size() / sizeof(wchar_t));
+		OutStr.assign(std::bit_cast<const wchar_t*>(Str.data()), Str.size() / sizeof(wchar_t));
 		if (m_Codepage == CP_REVERSEBOM)
 		{
 			swap_bytes(OutStr.data(), OutStr.data(), OutStr.size() * sizeof(wchar_t));
@@ -779,7 +779,7 @@ int Viewer::txt_dump(std::string_view const Str, size_t ClientWidth, string& Out
 	}
 
 	OutStr.resize(ClientWidth, L' ');
-	std::replace(ALL_RANGE(OutStr), L'\0', ZeroChar);
+	std::ranges::replace(OutStr, L'\0', ZeroChar);
 
 	return tail;
 }
@@ -799,7 +799,7 @@ void Viewer::ShowDump()
 	int tail = 0;
 	string OutStr;
 
-	for (const auto& Y: irange(m_Where.top + 0, m_Where.bottom + 1))
+	for (const auto Y: std::views::iota(m_Where.top, m_Where.bottom + 1))
 	{
 		SetColor(COL_VIEWERTEXT);
 		GotoXY(m_Where.left, Y);
@@ -854,7 +854,7 @@ void Viewer::ShowHex()
 		}
 	}
 
-	for (const auto& Y: irange(m_Where.top + 0, m_Where.bottom + 1))
+	for (const auto Y: std::views::iota(m_Where.top, m_Where.bottom + 1))
 	{
 		bool bSelStartFound = false;
 		bool bSelEndFound = false;
@@ -924,7 +924,7 @@ void Viewer::ShowHex()
 				}
 			}
 
-			for (const auto& X: irange(m_BytesPerLine))
+			for (const auto X: std::views::iota(0uz, m_BytesPerLine))
 			{
 				if (X < BytesRead)
 					far::format_to(OutStr, L"{:02X} "sv, static_cast<int>(RawBuffer[X]));
@@ -1908,7 +1908,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 			// Перейти на конец строк
 			if (ViewFile)
 			{
-				const size_t MaxLen = std::accumulate(ALL_CONST_RANGE(Strings), size_t{}, [](size_t Value, const ViewerString& i)
+				const size_t MaxLen = std::ranges::fold_left(Strings, 0uz, [](size_t Value, const ViewerString& i)
 				{
 					return std::max(Value, i.Data.size());
 				});
@@ -2079,8 +2079,7 @@ bool Viewer::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 			ManualSelectPos = mpos = filepos;
 		else if (filepos < ManualSelectPos)
 		{
-			using std::swap;
-			swap(filepos, ManualSelectPos);
+			std::ranges::swap(filepos, ManualSelectPos);
 		}
 
 		vseek(filepos, FILE_BEGIN);
@@ -2220,8 +2219,8 @@ int Viewer::CacheFindUp( long long start )
 
 static const int portion_size = 250;
 
-template<typename T, typename F>
-static int process_back(int BufferSize, int pos, long long& fpos, const F& Reader, const raw_eol& eol)
+template<typename T>
+static int process_back(int BufferSize, int pos, long long& fpos, const auto& Reader, const raw_eol& eol)
 {
 	T Buffer[portion_size/sizeof(T)];
 	int nr = Reader({ Buffer, static_cast<size_t>(BufferSize) });
@@ -2314,7 +2313,7 @@ void Viewer::Up(int nlines, bool adjust)
 
 		// backward CR-LF search
 		//
-		for (const auto& j: irange(max_backward_size / portion_size))
+		for (const auto j: std::views::iota(0, max_backward_size / portion_size))
 		{
 			int buff_size = (fpos > static_cast<long long>(portion_size)? portion_size : static_cast<int>(fpos));
 			if ( buff_size <= 0 )
@@ -2324,7 +2323,7 @@ void Viewer::Up(int nlines, bool adjust)
 
 			if ( ch_size <= 1 )
 			{
-				const auto BufferReader = [&](span<char> Buffer)
+				const auto BufferReader = [&](std::span<char> Buffer)
 				{
 					size_t nread = 0;
 					Reader.Read(Buffer.data(), buff_size, &nread);
@@ -2342,7 +2341,7 @@ void Viewer::Up(int nlines, bool adjust)
 			}
 			else
 			{
-				const auto BufferReader = [&](span<wchar_t> Buffer)
+				const auto BufferReader = [&](std::span<wchar_t> Buffer)
 				{
 					return vread(Buffer.data(), static_cast<int>(Buffer.size()));
 				};
@@ -2449,7 +2448,7 @@ struct Viewer::search_data
 	string word_div; // IN: Word delimiter characters if Text; empty otherwise
 	bool first_Rex{true};
 	RegExp Rex; // IN: Compiled regex if Regex
-	std::vector<RegExpMatch> RexMatch;
+	regex_match RexMatch;
 };
 
 enum SEARCHER_RESULT: int
@@ -2875,10 +2874,10 @@ SEARCHER_RESULT Viewer::search_regex_forward(search_data* sd)
 		if (!sd->Rex.SearchEx({ line, static_cast<size_t>(nw) }, off, sd->RexMatch))  // doesn't match
 			break;
 
-		const auto fpos = bpos + GetStrBytesNum(t_line, sd->RexMatch[0].start);
+		const auto fpos = bpos + GetStrBytesNum(t_line, sd->RexMatch.Matches[0].start);
 		if ( fpos < cpos )
 		{
-			off = sd->RexMatch[0].start + 1; // skip
+			off = sd->RexMatch.Matches[0].start + 1; // skip
 			continue;
 		}
 		else if (swrap == SearchWrap_CYCLE && !tail_part && fpos >= StartSearchPos)
@@ -2888,7 +2887,7 @@ SEARCHER_RESULT Viewer::search_regex_forward(search_data* sd)
 		else // found
 		{
 			sd->MatchPos = fpos;
-			sd->search_len = GetStrBytesNum(t_line + off + sd->RexMatch[0].start, sd->RexMatch[0].end - sd->RexMatch[0].start);
+			sd->search_len = GetStrBytesNum(t_line + off + sd->RexMatch.Matches[0].start, sd->RexMatch.Matches[0].end - sd->RexMatch.Matches[0].start);
 			return Search_Found;
 		}
 	}
@@ -2938,8 +2937,8 @@ SEARCHER_RESULT Viewer::search_regex_backward(search_data* sd)
 		if (!sd->Rex.SearchEx({ line, static_cast<size_t>(nw) }, off, sd->RexMatch))
 			break;
 
-		const auto fpos = bpos + GetStrBytesNum(t_line, sd->RexMatch[0].start);
-		const auto flen = GetStrBytesNum(t_line + sd->RexMatch[0].start, sd->RexMatch[0].end - sd->RexMatch[0].start);
+		const auto fpos = bpos + GetStrBytesNum(t_line, sd->RexMatch.Matches[0].start);
+		const auto flen = GetStrBytesNum(t_line + sd->RexMatch.Matches[0].start, sd->RexMatch.Matches[0].end - sd->RexMatch.Matches[0].start);
 		if (fpos+flen > cpos)
 			break;
 
@@ -2949,7 +2948,7 @@ SEARCHER_RESULT Viewer::search_regex_backward(search_data* sd)
 			prev_len = flen;
 		}
 
-		off = sd->RexMatch[0].start + 1; // skip
+		off = sd->RexMatch.Matches[0].start + 1; // skip
 	}
 
 	if (prev_len >= 0)
@@ -3595,7 +3594,7 @@ wchar_t Viewer::vgetc_prev()
 			else
 			{
 				assert(MB.GetCP() == m_Codepage);
-				for (const auto& i: irange(BytesRead))
+				for (const auto i: std::views::iota(0uz, BytesRead))
 				{
 					wchar_t Char;
 					if (MB.GetChar({ RawBuffer + i, BytesRead - i }, Char) == BytesRead - i)
@@ -3896,7 +3895,7 @@ int Viewer::ViewerControl(int Command, intptr_t Param1, void *Param2)
 			}
 			else
 			{
-				if (reinterpret_cast<intptr_t>(Param2) != -1) // не только перерисовать?
+				if (std::bit_cast<intptr_t>(Param2) != -1) // не только перерисовать?
 				{
 					if(CheckStructSize(Kbt))
 						m_ViewKeyBar->Change(Kbt->Titles);

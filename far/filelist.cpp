@@ -167,20 +167,9 @@ static constexpr auto order_indicator(sort_order const Order)
 	}
 }
 
-span<std::pair<panel_sort, sort_order> const> default_sort_layers(panel_sort const SortMode)
+std::span<std::pair<panel_sort, sort_order> const> default_sort_layers(panel_sort const SortMode)
 {
 	return SortModes[static_cast<size_t>(SortMode)].DefaultLayers;
-}
-
-template<typename T>
-auto compare_numbers(T const First, T const Second)
-{
-	return First < Second? -1 : First != Second;
-}
-
-static auto compare_time(os::chrono::time_point First, os::chrono::time_point Second)
-{
-	return compare_numbers(First, Second);
 }
 
 // FAT Last Write time is rounded up to the even number of seconds, e.g. 2s 1ms -> 4s
@@ -199,13 +188,13 @@ static auto to_whole_seconds(os::chrono::time_point Point)
 // so we take an opportunistic approach and try both methods:
 static auto compare_fat_write_time(os::chrono::time_point First, os::chrono::time_point Second)
 {
-	if (!compare_numbers(to_fat_write_time(First), to_fat_write_time(Second)))
-		return 0;
+	if (std::is_eq(to_fat_write_time(First) <=> to_fat_write_time(Second)))
+		return std::strong_ordering::equal;
 
-	if (!compare_numbers(to_whole_seconds(First), to_whole_seconds(Second)))
-		return 0;
+	if (std::is_eq(to_whole_seconds(First) <=> to_whole_seconds(Second)))
+		return std::strong_ordering::equal;
 
-	return compare_time(First, Second);
+	return First <=> Second;
 }
 
 
@@ -534,7 +523,7 @@ FileList::FileList(private_tag, window_ptr Owner):
 }
 
 
-FileList::~FileList()
+void FileList::dispose()
 {
 	if (m_PanelMode == panel_mode::PLUGIN_PANEL)
 		while (PopPlugin(FALSE))
@@ -548,6 +537,11 @@ FileList::~FileList()
 	auto& m_ListData = *DataLock;
 
 	m_ListData.clear();
+}
+
+FileList::~FileList()
+{
+	dispose();
 }
 
 
@@ -713,15 +707,15 @@ public:
 			const auto LayerSort = static_cast<panel_sort>(ModeValue);
 			const auto Reverse = LayerSort == m_ListSortMode || Order == sort_order::keep? m_Reverse : Order == sort_order::descend;
 
-			if (const auto Result = compare(LayerSort, Reverse, Item1, Item2))
-				return Result < 0;
+			if (const auto Result = compare(LayerSort, Reverse, Item1, Item2); !std::is_eq(Result))
+				return std::is_lt(Result);
 		}
 
 		return false;
 	}
 
 private:
-	int compare(panel_sort const SortMode, bool const Reverse, FileListItem const& Item1, FileListItem const& Item2) const
+	std::strong_ordering compare(panel_sort const SortMode, bool const Reverse, FileListItem const& Item1, FileListItem const& Item2) const
 	{
 		const auto& [a, b] = Reverse? std::tie(Item2, Item1) : std::tie(Item1, Item2);
 
@@ -740,7 +734,7 @@ private:
 		switch (SortMode)
 		{
 		case panel_sort::UNSORTED:
-			return compare_numbers(a.Position, b.Position);
+			return a.Position <=> b.Position;
 
 		case panel_sort::BY_NAME:
 			return string_sort::compare(ignore_path_opt(a.FileName), ignore_path_opt(b.FileName));
@@ -752,19 +746,19 @@ private:
 			return string_sort::compare(name_ext_opt(a).second, name_ext_opt(b).second);
 
 		case panel_sort::BY_MTIME:
-			return compare_time(a.LastWriteTime, b.LastWriteTime);
+			return a.LastWriteTime <=> b.LastWriteTime;
 
 		case panel_sort::BY_CTIME:
-			return compare_time(a.CreationTime, b.CreationTime);
+			return a.CreationTime <=> b.CreationTime;
 
 		case panel_sort::BY_ATIME:
-			return compare_time(a.LastAccessTime, b.LastAccessTime);
+			return a.LastAccessTime <=> b.LastAccessTime;
 
 		case panel_sort::BY_CHTIME:
-			return compare_time(a.ChangeTime, b.ChangeTime);
+			return a.ChangeTime <=> b.ChangeTime;
 
 		case panel_sort::BY_SIZE:
-			return compare_numbers(a.FileSize, b.FileSize);
+			return a.FileSize <=> b.FileSize;
 
 		case panel_sort::BY_DIZ:
 			return string_sort::compare(NullToEmpty(a.DizText), NullToEmpty(b.DizText));
@@ -773,16 +767,16 @@ private:
 			return string_sort::compare(a.Owner(m_Owner), b.Owner(m_Owner));
 
 		case panel_sort::BY_COMPRESSEDSIZE:
-			return compare_numbers(a.AllocationSize, b.AllocationSize);
+			return a.AllocationSize <=> b.AllocationSize;
 
 		case panel_sort::BY_NUMLINKS:
-			return compare_numbers(a.NumberOfLinks(m_Owner), b.NumberOfLinks(m_Owner));
+			return a.NumberOfLinks(m_Owner) <=> b.NumberOfLinks(m_Owner);
 
 		case panel_sort::BY_NUMSTREAMS:
-			return compare_numbers(a.NumberOfStreams(m_Owner), b.NumberOfStreams(m_Owner));
+			return a.NumberOfStreams(m_Owner) <=> b.NumberOfStreams(m_Owner);
 
 		case panel_sort::BY_STREAMSSIZE:
-			return compare_numbers(a.StreamsSize(m_Owner), b.StreamsSize(m_Owner));
+			return a.StreamsSize(m_Owner) <=> b.StreamsSize(m_Owner);
 
 		default:
 			std::unreachable();
@@ -793,7 +787,7 @@ private:
 	const panel_sort m_ListSortMode;
 	const panel_mode m_ListPanelMode;
 	const plugin_panel* m_SortPlugin;
-	const span<std::pair<panel_sort, sort_order>> m_SortLayers;
+	const std::span<std::pair<panel_sort, sort_order>> m_SortLayers;
 	const bool m_Reverse;
 	bool m_ListSortGroups;
 	bool m_ListSelectedFirst;
@@ -830,29 +824,29 @@ void FileList::SortFileList(bool KeepPosition)
 
 	if (m_SortMode < panel_sort::COUNT)
 	{
-		const auto NameColumn = std::find_if(ALL_CONST_RANGE(m_ViewSettings.PanelColumns), [](column const& i){ return i.type == column_type::name; });
+		const auto NameColumn = std::ranges::find(m_ViewSettings.PanelColumns, column_type::name, &column::type);
 		const auto IgnorePaths = NameColumn != m_ViewSettings.PanelColumns.cend() && NameColumn->type_flags & COLFLAGS_NAMEONLY;
 
 		list_less const Predicate(this, hSortPlugin, IgnorePaths);
 
 		const auto& SortLayers = Global->Opt->PanelSortLayers[static_cast<size_t>(m_SortMode)];
 
-		if (std::any_of(ALL_CONST_RANGE(SortLayers), [](std::pair<panel_sort, sort_order> const& Layer){ return Layer.first == panel_sort::UNSORTED; }))
+		if (std::ranges::any_of(SortLayers, [](std::pair<panel_sort, sort_order> const& Layer){ return Layer.first == panel_sort::UNSORTED; }))
 		{
 			// Unsorted criterion is deterministic and won't report equality, thus ensuring stability
-			std::sort(ALL_RANGE(m_ListData), Predicate);
+			std::ranges::sort(m_ListData, Predicate);
 		}
 		else
 		{
-			std::stable_sort(ALL_RANGE(m_ListData), Predicate);
+			std::ranges::stable_sort(m_ListData, Predicate);
 		}
 	}
 	else if (m_SortMode >= panel_sort::BY_USER)
 	{
 		custom_sort::CustomSort cs{};
 		custom_sort::FileListPtr = this;
-		std::vector<unsigned int> Positions(m_ListData.size());
-		std::iota(ALL_RANGE(Positions), 0);
+		const auto Enumerator = std::views::iota(0u, static_cast<unsigned>(m_ListData.size()));
+		std::vector Positions(ALL_CONST_RANGE(Enumerator));
 		cs.Positions = Positions.data();
 		cs.Items = m_ListData.data();
 		cs.ItemsCount = m_ListData.size();
@@ -866,7 +860,7 @@ void FileList::SortFileList(bool KeepPosition)
 
 		if (custom_sort::SortFileList(&cs, CustomSortIndicator))
 		{
-			apply_permutation(ALL_RANGE(m_ListData), Positions.begin());
+			apply_permutation(m_ListData, Positions.begin());
 		}
 		else
 		{
@@ -2646,7 +2640,7 @@ static bool IsExecutable(string_view const Filename)
 	const auto Extension = name_ext(Filename).second;
 
 	static const std::array Executables{ L".exe"sv, L".cmd"sv, L".com"sv, L".bat"sv };
-	return std::any_of(ALL_CONST_RANGE(Executables), [&](const string_view i)
+	return std::ranges::any_of(Executables, [&](const string_view i)
 	{
 		return equal_icase(Extension, i);
 	});
@@ -2722,7 +2716,24 @@ void FileList::ProcessEnter(bool EnableExec,bool SeparateWindow,bool EnableAssoc
 		bool OpenedPlugin = false;
 		const auto PluginMode = m_PanelMode == panel_mode::PLUGIN_PANEL && !PluginManager::UseInternalCommand(GetPluginHandle(), PLUGIN_FARGETFILE, m_CachedOpenPanelInfo);
 		string FileNameToDelete;
-		SCOPE_EXIT{ if (PluginMode && !OpenedPlugin && !FileNameToDelete.empty()) GetPluginHandle()->delayed_delete(FileNameToDelete); };
+
+		SCOPE_EXIT
+		{
+			if (PluginMode && !OpenedPlugin && !FileNameToDelete.empty())
+			{
+				if (const auto PluginHandle = GetPluginHandle())
+				{
+					PluginHandle->delayed_delete(FileNameToDelete);
+				}
+				else
+				{
+					// gh-783: in some cases the panel could be gone before we get here
+					delayed_deleter Deleter(true);
+					Deleter.add(FileNameToDelete);
+				}
+			}
+		};
+
 		file_state SavedState;
 
 		string strTempDir;
@@ -3595,7 +3606,7 @@ long FileList::FindFile(const string_view Name, const bool OnlyPartName)
 	const auto& m_ListData = *DataLock;
 
 	long II = -1;
-	for (const auto& I: irange(m_ListData.size()))
+	for (const auto I: std::views::iota(0uz, m_ListData.size()))
 	{
 		const auto CurPtrName = OnlyPartName? PointToName(m_ListData[I].FileName) : m_ListData[I].FileName;
 
@@ -3622,7 +3633,7 @@ long FileList::FindNext(int StartPos, string_view const Name)
 	if (static_cast<size_t>(StartPos) >= m_ListData.size())
 		return -1;
 
-	for (const auto& I: irange(StartPos, m_ListData.size()))
+	for (const auto I: std::views::iota(static_cast<size_t>(StartPos), m_ListData.size()))
 	{
 		if (CmpName(Name, m_ListData[I].FileName, true) && !IsParentDirectory(m_ListData[I]))
 			return static_cast<long>(I);
@@ -4395,15 +4406,17 @@ void FileList::CompareDir()
 			if (!equal_icase(PointToName(This.FileName), PointToName(That.FileName)))
 				continue;
 
-			const auto Cmp = (UseFatTime? compare_fat_write_time : compare_time)(This.LastWriteTime, That.LastWriteTime);
+			const auto Cmp = UseFatTime?
+				compare_fat_write_time(This.LastWriteTime, That.LastWriteTime) :
+				This.LastWriteTime <=> That.LastWriteTime;
 
-			if (!Cmp && (This.FileSize != That.FileSize))
+			if (std::is_eq(Cmp) && (This.FileSize != That.FileSize))
 				continue;
 
-			if (Cmp <= 0)
+			if (std::is_lteq(Cmp))
 				Select(This, false);
 
-			if (Cmp >= 0)
+			if (std::is_gteq(Cmp))
 				Another->Select(That, false);
 
 			if (Another->m_PanelMode != panel_mode::PLUGIN_PANEL)
@@ -4657,7 +4670,7 @@ static int select_sort_layer(std::vector<std::pair<panel_sort, sort_order>> cons
 		auto& Item = AvailableSortModesMenuItems[i.MenuPosition];
 		Item.Name = msg(i.Label);
 
-		if (std::any_of(ALL_CONST_RANGE(SortLayers), [&](std::pair<panel_sort, sort_order> const& Layer) { return Layer.first == static_cast<panel_sort>(&i - SortModes); }))
+		if (std::ranges::any_of(SortLayers, [&](std::pair<panel_sort, sort_order> const& Layer) { return Layer.first == static_cast<panel_sort>(&i - SortModes); }))
 		{
 			Item.Flags |= MIF_HIDDEN;
 			--VisibleCount;
@@ -4680,7 +4693,7 @@ static void edit_sort_layers(int MenuPos)
 	if (MenuPos >= static_cast<int>(panel_sort::COUNT))
 		return;
 
-	const auto SortMode = std::find_if(CONST_RANGE(SortModes, i){ return i.MenuPosition == MenuPos; }) - SortModes;
+	const auto SortMode = std::ranges::find_if(SortModes, [&](auto const& i){ return i.MenuPosition == MenuPos; }) - SortModes;
 	if (static_cast<panel_sort>(SortMode) == panel_sort::UNSORTED)
 		return;
 
@@ -4688,7 +4701,7 @@ static void edit_sort_layers(int MenuPos)
 
 	std::vector<menu_item> SortLayersMenuItems;
 	SortLayersMenuItems.reserve(SortLayers.size());
-	std::transform(ALL_CONST_RANGE(SortLayers), std::back_inserter(SortLayersMenuItems), [](std::pair<panel_sort, sort_order> const& Layer)
+	std::ranges::transform(SortLayers, std::back_inserter(SortLayersMenuItems), [](std::pair<panel_sort, sort_order> const& Layer)
 	{
 		return menu_item{ msg(SortModes[static_cast<size_t>(Layer.first)].Label), LIF_CHECKED | order_indicator(Layer.second) };
 	});
@@ -4718,7 +4731,7 @@ static void edit_sort_layers(int MenuPos)
 		case KEY_NUMPAD0:
 			if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
 			{
-				const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
+				const auto NewSortModeIndex = std::ranges::find_if(SortModes, [&](auto const& i){ return i.MenuPosition == Result; }) - SortModes;
 				const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
 				const auto InsertPos = Pos > 0? Pos : 1;
 				SortLayersMenu->AddItem(MenuItemEx{ msg(SortModes[NewSortModeIndex].Label), MIF_CHECKED | order_indicator(Order) }, InsertPos);
@@ -4741,7 +4754,7 @@ static void edit_sort_layers(int MenuPos)
 			{
 				if (const auto Result = select_sort_layer(SortLayers); Result >= 0)
 				{
-					const auto NewSortModeIndex = std::find_if(CONST_RANGE(SortModes, i) { return i.MenuPosition == Result; }) - SortModes;
+					const auto NewSortModeIndex = std::ranges::find_if(SortModes, [&](auto const& i){ return i.MenuPosition == Result; }) - SortModes;
 					const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
 					SortLayersMenu->at(Pos).Name = msg(SortModes[NewSortModeIndex].Label);
 					SortLayersMenu->at(Pos).SetCustomCheck(order_indicator(Order));
@@ -4793,7 +4806,7 @@ static void edit_sort_layers(int MenuPos)
 				const auto OtherPos = Pos + ((Key & KEY_UP) == KEY_UP? -1 : 1);
 				if (in_closed_range(1, OtherPos, static_cast<int>(SortLayers.size() - 1)))
 				{
-					using std::swap;
+					using std::ranges::swap;
 					swap(SortLayersMenu->at(Pos), SortLayersMenu->at(OtherPos));
 					swap(SortLayers[Pos], SortLayers[OtherPos]);
 					SortLayersMenu->SetSelectPos(OtherPos);
@@ -4970,7 +4983,7 @@ void FileList::SelectSortMode()
 			KeepOrder = true;
 		}
 
-		const auto SortMode = static_cast<panel_sort>(std::find_if(CONST_RANGE(SortModes, i){ return i.MenuPosition == SortCode; }) - SortModes);
+		const auto SortMode = static_cast<panel_sort>(std::ranges::find_if(SortModes, [&](auto const& i){ return i.MenuPosition == SortCode; }) - SortModes);
 		SetSortMode(SortMode, KeepOrder);
 	}
 	// custom sort modes
@@ -5258,7 +5271,7 @@ void FileList::CountDirSize(bool IsRealNames)
 				return Callback(PluginCurDir, ItemsCount, Size);
 			};
 
-			for (const auto& i: range(m_ListData.begin() + 1, m_ListData.end()))
+			for (const auto& i: m_ListData | std::views::drop(1))
 			{
 				if (i.Attributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
@@ -5793,7 +5806,7 @@ static void FileListItemToPluginPanelItemBasic(const FileListItem& From, PluginP
 	To.FileAttributes = From.Attributes;
 	To.NumberOfLinks = {};
 	To.CRC32 = From.CRC32;
-	std::fill(ALL_RANGE(To.Reserved), 0);
+	std::ranges::fill(To.Reserved, 0);
 }
 
 void FileList::FileListToPluginItem(const FileListItem& fi, PluginPanelItemHolder& Holder) const
@@ -5833,9 +5846,9 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 	const auto
 		StaticSize      = sizeof(PluginPanelItem),
 		FilenameSize    = StringSizeInBytes(fi.FileName),
-		AltNameSize     = StringSizeInBytes(fi.AlternateFileName()),
+		AltNameSize     = fi.HasAlternateFileName() ? StringSizeInBytes(fi.AlternateFileName()) : 0,
 		ColumnsSize     = fi.CustomColumns.size() * sizeof(wchar_t*),
-		ColumnsDataSize = std::accumulate(ALL_CONST_RANGE(fi.CustomColumns), size_t{}, [&](size_t s, const wchar_t* i) { return s + (i? StringSizeInBytes(i) : 0); }),
+		ColumnsDataSize = std::ranges::fold_left(fi.CustomColumns, 0uz, [&](size_t s, const wchar_t* i) { return s + (i? StringSizeInBytes(i) : 0); }),
 		DescriptionSize = fi.DizText? StringSizeInBytes(fi.DizText) : 0,
 		OwnerSize       = fi.IsOwnerRead() && !fi.Owner(this).empty()? StringSizeInBytes(fi.Owner(this)) : 0;
 
@@ -5871,7 +5884,7 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 	FileListItemToPluginPanelItemBasic(fi, *gpi->Item);
 	gpi->Item->NumberOfLinks = fi.IsNumberOfLinksRead()? fi.NumberOfLinks(this) : 0;
 
-	const auto data = edit_as<std::byte*>(gpi->Item);
+	const auto data = std::bit_cast<std::byte*>(gpi->Item);
 	const auto end = data + gpi->Size;
 
 	const auto CopyToBuffer = [&](size_t const Offset, string_view const Str)
@@ -5891,9 +5904,12 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 		return size;
 	gpi->Item->FileName = CopyToBuffer(FilenameOffset, fi.FileName);
 
-	if (not_enough_for(AltNameOffset, AltNameSize))
-		return size;
-	gpi->Item->AlternateFileName = CopyToBuffer(AltNameOffset, fi.AlternateFileName());
+	if (AltNameSize)
+	{
+		if (not_enough_for(AltNameOffset, AltNameSize))
+			return size;
+		gpi->Item->AlternateFileName = CopyToBuffer(AltNameOffset, fi.AlternateFileName());
+	}
 
 	if (ColumnsSize)
 	{
@@ -5912,7 +5928,7 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 		}
 
 		size_t ColumnOffset = ColumnsDataOffset;
-		for (const auto& [Column, Data]: zip(fi.CustomColumns, span(const_cast<const wchar_t**>(gpi->Item->CustomColumnData), fi.CustomColumns.size())))
+		for (const auto& [Column, Data]: zip(fi.CustomColumns, std::span(const_cast<const wchar_t**>(gpi->Item->CustomColumnData), fi.CustomColumns.size())))
 		{
 			if (!Column)
 			{
@@ -5969,7 +5985,7 @@ FileListItem::FileListItem(const PluginPanelItem& pi)
 	{
 		CustomColumns.reserve(pi.CustomColumnNumber);
 
-		for (const auto& i: span(pi.CustomColumnData, pi.CustomColumnNumber))
+		for (const auto& i: std::span(pi.CustomColumnData, pi.CustomColumnNumber))
 		{
 			if (!i)
 			{
@@ -6077,7 +6093,7 @@ void FileList::PluginDelete()
 }
 
 
-void FileList::PutDizToPlugin(FileList *DestPanel, span<PluginPanelItem> const ItemList, bool Delete, bool Move, DizList *SrcDiz) const
+void FileList::PutDizToPlugin(FileList *DestPanel, std::span<PluginPanelItem> const ItemList, bool Delete, bool Move, DizList *SrcDiz) const
 {
 	Global->CtrlObject->Plugins->GetOpenPanelInfo(DestPanel->GetPluginHandle(), &m_CachedOpenPanelInfo);
 
@@ -6321,7 +6337,7 @@ void FileList::PluginHostGetFiles()
 		if (UsedPlugins.contains(hCurPlugin->plugin()))
 			OpMode|=OPM_SILENT;
 
-		span<PluginPanelItem> Items;
+		std::span<PluginPanelItem> Items;
 
 		if (Global->CtrlObject->Plugins->GetFindData(hCurPlugin.get(), Items, OpMode))
 		{
@@ -6521,7 +6537,7 @@ void FileList::ProcessHostFile()
 		}
 		else
 		{
-			if ((Done=ProcessOneHostFile(&*(m_ListData.begin() + m_CurFile))) == 1)
+			if ((Done = ProcessOneHostFile(std::to_address(m_ListData.begin() + m_CurFile))) == 1)
 				ClearSelection();
 		}
 	}
@@ -6551,7 +6567,7 @@ int FileList::ProcessOneHostFile(const FileListItem* Item)
 	if (!hNewPlugin)
 		return Done;
 
-	span<PluginPanelItem> Items;
+	std::span<PluginPanelItem> Items;
 
 	if (Global->CtrlObject->Plugins->GetFindData(hNewPlugin.get(), Items, OPM_TOPLEVEL))
 	{
@@ -6651,7 +6667,7 @@ size_t FileList::PluginGetSelectedPanelItem(int ItemNumber,FarGetPluginPanelItem
 
 	size_t result = 0;
 
-	for (const auto& i: irange(StartValue, m_ListData.size()))
+	for (const auto i: std::views::iota(StartValue, m_ListData.size()))
 	{
 		if (m_ListData[i].Selected)
 			CurSel++;
@@ -6706,7 +6722,7 @@ void FileList::PluginClearSelection(int SelectedItemNumber)
 	const auto DataLock = lock_data();
 	auto& m_ListData = *DataLock;
 
-	for (const auto& i: irange(StartValue, m_ListData.size()))
+	for (const auto i: std::views::iota(StartValue, m_ListData.size()))
 	{
 		if (m_ListData[i].Selected)
 		{
@@ -6758,7 +6774,7 @@ bool FileList::ProcessPluginEvent(int Event,void *Param)
 	return Global->CtrlObject->Plugins->ProcessEvent(GetPluginHandle(), Event, Param) != FALSE;
 }
 
-void FileList::PluginClearSelection(span<PluginPanelItem> const ItemList)
+void FileList::PluginClearSelection(std::span<PluginPanelItem> const ItemList)
 {
 	SaveSelection();
 	size_t FileNumber=0,PluginNumber=0;
@@ -6999,7 +7015,7 @@ void FileList::ReadFileNames(bool const KeepSelection, bool const UpdateEvenIfPa
 		if (!m_ContentNames.empty())
 		{
 			m_ContentNamesPtrs.reserve(m_ContentNames.size());
-			std::transform(ALL_CONST_RANGE(m_ContentNames), std::back_inserter(m_ContentNamesPtrs), [](const string& i) { return i.c_str(); });
+			std::ranges::transform(m_ContentNames, std::back_inserter(m_ContentNamesPtrs), [](const string& i){ return i.c_str(); });
 			m_ContentPlugins = Global->CtrlObject->Plugins->GetContentPlugins(m_ContentNamesPtrs);
 			m_ContentValues.resize(m_ContentNames.size());
 		}
@@ -7110,7 +7126,7 @@ void FileList::ReadFileNames(bool const KeepSelection, bool const UpdateEvenIfPa
 		const auto hAnotherPlugin = AnotherPanel->GetPluginHandle();
 		string strPath(m_CurDir);
 		AddEndSlash(strPath);
-		span<PluginPanelItem> PanelData;
+		std::span<PluginPanelItem> PanelData;
 		if (Global->CtrlObject->Plugins->GetVirtualFindData(hAnotherPlugin, PanelData, strPath))
 		{
 			m_ListData.reserve(m_ListData.size() + PanelData.size());
@@ -7279,7 +7295,7 @@ void FileList::MoveSelection(list_data& From, list_data& To)
 		i.Position = &i - From.data();
 	}
 
-	std::sort(ALL_RANGE(From), hash_less{});
+	std::ranges::sort(From, hash_less{});
 
 	std::vector<size_t> OldPositions;
 	OldPositions.reserve(To.size());
@@ -7290,7 +7306,7 @@ void FileList::MoveSelection(list_data& From, list_data& To)
 
 	const auto find_old_item = [&](FileListItem const& NewItem)
 	{
-		range const EqualRange = std::equal_range(ALL_RANGE(From), make_hash(NewItem.FileName), hash_less{});
+		const auto EqualRange = std::ranges::equal_range(From, make_hash(NewItem.FileName), hash_less{});
 		if (EqualRange.empty())
 			return From.end();
 
@@ -7298,7 +7314,7 @@ void FileList::MoveSelection(list_data& From, list_data& To)
 			return EqualRange.begin();
 
 		MatchedNames.clear();
-		reserve_exp_noshrink(MatchedNames, EqualRange.size());
+		reserve_exp(MatchedNames, EqualRange.size());
 
 		for (auto Iterator = EqualRange.begin(); Iterator != EqualRange.end(); ++Iterator)
 		{
@@ -7358,7 +7374,7 @@ void FileList::MoveSelection(list_data& From, list_data& To)
 		OldItemIterator->FileName.clear();
 	}
 
-	std::sort(ALL_RANGE(To), [&](FileListItem const& a, FileListItem const& b)
+	std::ranges::sort(To, [&](FileListItem const& a, FileListItem const& b)
 	{
 		const auto OldPosA = OldPositions[a.Position];
 		const auto OldPosB = OldPositions[b.Position];
@@ -7407,7 +7423,7 @@ void FileList::UpdatePlugin(bool const KeepSelection, bool const UpdateEvenIfPan
 			FreeDiskSize = m_CachedOpenPanelInfo.FreeSize;
 	}
 
-	span<PluginPanelItem> PanelData;
+	std::span<PluginPanelItem> PanelData;
 
 	int result = FALSE;
 	{
@@ -7590,7 +7606,7 @@ void FileList::UpdatePlugin(bool const KeepSelection, bool const UpdateEvenIfPan
 }
 
 
-void FileList::ReadDiz(span<PluginPanelItem> const Items)
+void FileList::ReadDiz(std::span<PluginPanelItem> const Items)
 {
 	if (DizRead)
 		return;
@@ -7611,7 +7627,7 @@ void FileList::ReadDiz(span<PluginPanelItem> const Items)
 
 		int GetCode=TRUE;
 
-		span<PluginPanelItem> PanelData;
+		std::span<PluginPanelItem> PanelData;
 
 		if (Items.empty())
 		{
@@ -7624,7 +7640,7 @@ void FileList::ReadDiz(span<PluginPanelItem> const Items)
 
 		if (GetCode)
 		{
-			for (const auto& i: span(m_CachedOpenPanelInfo.DescrFiles, m_CachedOpenPanelInfo.DescrFilesNumber))
+			for (const auto& i: std::span(m_CachedOpenPanelInfo.DescrFiles, m_CachedOpenPanelInfo.DescrFilesNumber))
 			{
 				for (auto& CurPanelData: PanelData)
 				{
@@ -8223,7 +8239,7 @@ void FileList::ShowTotalSize(const OpenPanelInfo &Info)
 
 bool FileList::ConvertName(const string_view SrcName, string& strDest, const size_t MaxLength, const unsigned long long RightAlign, const int ShowStatus, os::fs::attributes const FileAttr) const
 {
-	reserve_exp_noshrink(strDest, MaxLength);
+	reserve_exp(strDest, MaxLength);
 
 	const auto SrcLength = visual_string_length(SrcName);
 
@@ -8271,7 +8287,7 @@ bool FileList::ConvertName(const string_view SrcName, string& strDest, const siz
 
 		const auto VisualNameLength = visual_string_length(Name);
 		const auto VisualExtensionLength = visual_string_length(Extension);
-		const auto AlignedVisualExtensionLength = std::max(size_t{ 3 }, VisualExtensionLength);
+		const auto AlignedVisualExtensionLength = std::max(3uz, VisualExtensionLength);
 
 		auto SpacesBetween =
 			VisualNameLength + AlignedVisualExtensionLength <= MaxLength?
@@ -8531,7 +8547,7 @@ void FileList::PrepareStripes(const std::vector<column>& Columns)
 {
 	const auto ColumnsSize = static_cast<int>(Columns.size());
 
-	for (const auto& StripeStride: irange(1, ColumnsSize / 2 + 1))
+	for (const auto StripeStride: std::views::iota(1, ColumnsSize / 2 + 1))
 	{
 		if (CanMakeStripes(Columns, StripeStride))
 		{
@@ -8589,7 +8605,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 		int StatusLine=FALSE;
 		int Level = 1;
 
-		for (const auto& K: irange(ColumnCount))
+		for (const auto K: std::views::iota(0uz, ColumnCount))
 		{
 			int ListPos=J+CurColumn*m_Height;
 
@@ -9089,8 +9105,8 @@ bool FileList::IsDizDisplayed() const
 bool FileList::IsColumnDisplayed(function_ref<bool(const column&)> const Compare) const
 {
 	return
-		std::any_of(ALL_CONST_RANGE(m_ViewSettings.PanelColumns), Compare) ||
-		std::any_of(ALL_CONST_RANGE(m_ViewSettings.StatusColumns), Compare);
+		std::ranges::any_of(m_ViewSettings.PanelColumns, Compare) ||
+		std::ranges::any_of(m_ViewSettings.StatusColumns, Compare);
 }
 
 bool FileList::IsColumnDisplayed(column_type Type) const
@@ -9164,40 +9180,45 @@ TEST_CASE("fat_time")
 {
 	using namespace std::chrono_literals;
 
+	constexpr auto
+		lt = std::strong_ordering::less,
+		eq = std::strong_ordering::equal,
+		gt = std::strong_ordering::greater;
+
 	static const struct
 	{
 		os::chrono::duration First, Second;
-		int Result;
+		std::strong_ordering Result;
 	}
 	Tests[]
 	{
-		{ 0s,          0s,    0, },
-		{ 0s + 1ms,    0s,    0, },
-		{ 0s + 1ms,    2s,    0, },
-		{ 1s - 1ms,    0s,    0, },
-		{ 1s - 1ms,    2s,    0, },
-		{ 1s,          2s,    0, },
-		{ 1s + 1ms,    1s,    0, },
-		{ 1s + 1ms,    2s,    0, },
-		{ 2s - 1ms,    1s,    0, },
-		{ 2s - 1ms,    2s,    0, },
-		{ 2s,          2s,    0, },
-		{ 2s + 1ms,    2s,    0, },
-		{ 2s + 1ms,    4s,    0, },
-		{ 3s - 1ms,    3s,    0, },
-		{ 3s - 1ms,    4s,    0, },
-		{ 3s,          4s,    0, },
-		{ 3s + 1ms,    3s,    0, },
-		{ 3s + 1ms,    4s,    0, },
-		{ 4s - 1ms,    3s,    0, },
-		{ 4s - 1ms,    4s,    0, },
-		{ 4s,          4s,    0, },
-		{ 4s + 1ms,    4s,    0, },
-		{ 4s + 1ms,    6s,    0, },
-		{ 0s,          2s,   -1, },
-		{ 2s,          4s,   -1, },
-		{ 2s,          0s,    1, },
-		{ 4s,          2s,    1, },
+		{ 0s,          0s,   eq, },
+		{ 0s + 1ms,    0s,   eq, },
+		{ 0s + 1ms,    2s,   eq, },
+		{ 1s - 1ms,    0s,   eq, },
+		{ 1s - 1ms,    2s,   eq, },
+		{ 1s,          2s,   eq, },
+		{ 1s + 1ms,    1s,   eq, },
+		{ 1s + 1ms,    2s,   eq, },
+		{ 2s - 1ms,    1s,   eq, },
+		{ 2s - 1ms,    2s,   eq, },
+		{ 2s,          2s,   eq, },
+		{ 2s + 1ms,    2s,   eq, },
+		{ 2s + 1ms,    4s,   eq, },
+		{ 3s - 1ms,    3s,   eq, },
+		{ 3s - 1ms,    4s,   eq, },
+		{ 3s,          4s,   eq, },
+		{ 3s + 1ms,    3s,   eq, },
+		{ 3s + 1ms,    4s,   eq, },
+		{ 4s - 1ms,    3s,   eq, },
+		{ 4s - 1ms,    4s,   eq, },
+		{ 4s,          4s,   eq, },
+		{ 4s + 1ms,    4s,   eq, },
+		{ 4s + 1ms,    6s,   eq, },
+		{ 0s,          2s,   lt, },
+		{ 2s,          4s,   lt, },
+		{ 2s,          0s,   gt, },
+		{ 4s,          2s,   gt, },
 	};
 
 	for (const auto& i: Tests)

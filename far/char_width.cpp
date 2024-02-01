@@ -82,12 +82,6 @@ namespace
 			UpperBound;
 
 		codepoint_width Width;
-
-		[[nodiscard]]
-		bool operator<(char_width::codepoint const Codepoint) const noexcept
-		{
-			return UpperBound < Codepoint;
-		}
 	};
 
 	// These mappings are based on src\types\CodepointWidthDetector.cpp from Windows Terminal.
@@ -399,7 +393,7 @@ namespace
 	auto lookup_width(char_width::codepoint const Codepoint)
 	{
 		if (
-			const auto Iterator = std::lower_bound(ALL_CONST_RANGE(s_WideAndAmbiguousTable), Codepoint);
+			const auto Iterator = std::ranges::lower_bound(s_WideAndAmbiguousTable, Codepoint, {}, &unicode_range::UpperBound);
 			Iterator != std::end(s_WideAndAmbiguousTable) && in_closed_range(Iterator->LowerBound, Codepoint, Iterator->UpperBound)
 		)
 		{

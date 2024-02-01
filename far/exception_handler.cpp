@@ -63,11 +63,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.hpp"
 #include "platform.com.hpp"
 #include "platform.debug.hpp"
+#include "platform.env.hpp"
 #include "platform.fs.hpp"
 #include "platform.process.hpp"
 #include "platform.version.hpp"
 
 // Common:
+#include "common/enum_substrings.hpp"
 #include "common/scope_exit.hpp"
 
 // External:
@@ -80,7 +82,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //----------------------------------------------------------------------------
 
 #define BUGREPORT_NAME   "bug_report.txt"
-#define MINIDDUMP_NAME   "far.mdmp"
+#define MINIDUMP_NAME    "far.mdmp"
 #define FULLDUMP_NAME    "far_full.mdmp"
 
 class exception_context
@@ -245,18 +247,25 @@ static bool write_readme(string_view const FullPath)
 {
 	os::fs::file const File(FullPath, GENERIC_WRITE, os::fs::file_share_read, nullptr, CREATE_ALWAYS);
 	if (!File)
+	{
+		const auto LastError = os::last_error();
+		LOGERROR(L"Error opening {}: {}"sv, FullPath, LastError);
 		return false;
+	}
 
 #define EOL "\r\n"
 
 	// English text, ANSI will do fine.
 	const auto Data =
-		"Please send " BUGREPORT_NAME " and " MINIDDUMP_NAME " to the developers:" EOL
+		"Please send " BUGREPORT_NAME " and " MINIDUMP_NAME " to the developers:" EOL
 		EOL
 		"  https://github.com/FarGroup/FarManager/issues" EOL
 		"  https://bugs.farmanager.com" EOL
 		"  https://forum.farmanager.com/viewforum.php?f=37" EOL
 		"  https://forum.farmanager.com/viewforum.php?f=9" EOL
+		EOL
+		"Please include the steps needed to reproduce the problem" EOL
+		"and any other potentially useful information." EOL
 		EOL
 		"------------------------------------------------------------" EOL
 		"DO NOT SHARE " FULLDUMP_NAME " UNLESS EXPLICITLY ASKED TO DO SO." EOL
@@ -266,15 +275,30 @@ static bool write_readme(string_view const FullPath)
 
 #undef EOL
 
-	return File.Write(Data.data(), Data.size() * sizeof(Data[0]));
+	if (File.Write(Data.data(), Data.size() * sizeof(Data[0])))
+		return true;
+
+	const auto LastError = os::last_error();
+	LOGERROR(L"Error writing to {}: {}"sv, FullPath, LastError);
+	return false;
 }
 
 static bool write_report(string_view const Data, string_view const FullPath)
 {
 	os::fs::file const File(FullPath, GENERIC_WRITE, os::fs::file_share_read, nullptr, CREATE_ALWAYS);
 	if (!File)
+	{
+		const auto LastError = os::last_error();
+		LOGERROR(L"Error opening {}: {}"sv, FullPath, LastError);
 		return false;
-	return File.Write(Data.data(), Data.size() * sizeof(decltype(Data)::value_type));
+	}
+
+	if (File.Write(Data.data(), Data.size() * sizeof(decltype(Data)::value_type)))
+		return true;
+
+	const auto LastError = os::last_error();
+	LOGERROR(L"Error writing to {}: {}"sv, FullPath, LastError);
+	return false;
 }
 
 static bool write_minidump(const exception_context& Context, string_view const FullPath, MINIDUMP_TYPE const Type)
@@ -289,7 +313,11 @@ static bool write_minidump(const exception_context& Context, string_view const F
 
 	const os::fs::file DumpFile(FullPath, GENERIC_WRITE, os::fs::file_share_read, nullptr, CREATE_ALWAYS);
 	if (!DumpFile)
+	{
+		const auto LastError = os::last_error();
+		LOGERROR(L"Error opening {}: {}"sv, FullPath, LastError);
 		return false;
+	}
 
 	auto ExceptionRecord = Context.exception_record();
 	auto ContextRecord = Context.context_record();
@@ -306,12 +334,8 @@ static bool write_minidump(const exception_context& Context, string_view const F
 		struct writer_context
 		{
 			DWORD const ThreadId{ GetCurrentThreadId() };
-		}
-		WriterContext;
 
-		MINIDUMP_CALLBACK_INFORMATION Mci
-		{
-			[](void* const Param, MINIDUMP_CALLBACK_INPUT* const Input, MINIDUMP_CALLBACK_OUTPUT*)
+			static BOOL WINAPI callback(void* const Param, MINIDUMP_CALLBACK_INPUT* const Input, MINIDUMP_CALLBACK_OUTPUT*)
 			{
 				const auto& Ctx = *static_cast<writer_context const*>(Param);
 
@@ -319,7 +343,13 @@ static bool write_minidump(const exception_context& Context, string_view const F
 					return FALSE;
 
 				return TRUE;
-			},
+			}
+		}
+		WriterContext;
+
+		MINIDUMP_CALLBACK_INFORMATION Mci
+		{
+			&writer_context::callback,
 			&WriterContext
 		};
 
@@ -351,7 +381,7 @@ static bool write_minidump(const exception_context& Context, string_view const F
 	return Result;
 }
 
-static void read_modules(span<HMODULE const> const Modules, string& To, string_view const Eol)
+static void read_modules(std::span<HMODULE const> const Modules, string& To, string_view const Eol)
 {
 	string Name;
 	for (const auto& i: Modules)
@@ -391,11 +421,29 @@ static void read_modules(string& To, string_view const Eol)
 	}
 }
 
+static void read_env(string& To, string_view const Eol)
+{
+	const os::env::provider::strings EnvStrings;
+	for (const auto& i: enum_substrings(EnvStrings.data()))
+	{
+		if (starts_with_icase(i, L"FAR"sv))
+		{
+			append(To, i, Eol);
+		}
+	}
+}
+
 static string self_version()
 {
 	const auto Version = far::format(L"{} {}"sv, version_to_string(build::version()), build::platform());
 	const auto ScmRevision = build::scm_revision();
 	return ScmRevision.empty()? Version : Version + far::format(L" ({:.7})"sv, ScmRevision);
+}
+
+static string timestamp(SYSTEMTIME const& SystemTime)
+{
+	const auto [Date, Time] = format_datetime(SystemTime);
+	return concat(Date, L' ', Time);
 }
 
 static string timestamp(os::chrono::time_point const Point)
@@ -408,8 +456,7 @@ static string timestamp(os::chrono::time_point const Point)
 		return far::format(L"{:16X}"sv, Point.time_since_epoch().count());
 	}
 
-	const auto [Date, Time] = format_datetime(SystemTime);
-	return concat(Date, L' ', Time);
+	return timestamp(SystemTime);
 }
 
 static string pe_timestamp()
@@ -438,6 +485,15 @@ static string file_timestamp()
 static string system_timestamp()
 {
 	return timestamp(os::chrono::nt_clock::now());
+}
+
+static string local_timestamp()
+{
+	SYSTEMTIME LocalTime;
+	if (!os::chrono::utc_to_local(os::chrono::nt_clock::now(), LocalTime))
+		return {};
+
+	return far::format(L"{} {}"sv, timestamp(LocalTime), MkStrFTime(L"%z, %Z"sv));
 }
 
 static void read_registers(string& To, CONTEXT const& Context, string_view const Eol)
@@ -581,7 +637,7 @@ public:
 	// IDebugOutputCallbacks
 	STDMETHOD(Output)(ULONG Mask, PCSTR Text) override
 	{
-		output_impl(Mask, encoding::utf8::get_chars(Text));
+		output_impl(Mask, encoding::ansi::get_chars(Text));
 		return S_OK;
 	}
 
@@ -630,7 +686,7 @@ public:
 	{
 	}
 
-	void disassembly(string_view const Module, span<os::debug::stack_frame const> const Stack, string_view const Eol)
+	void disassembly(string_view const Module, std::span<os::debug::stack_frame const> const Stack, string_view const Eol)
 	{
 		if (Stack.empty())
 			return;
@@ -929,7 +985,7 @@ static auto parent_process_id(process_basic_information_t const& Info)
 	// Surprisingly, MSDN calls it InheritedFromUniqueProcessId, so it might get renamed one day.
 	// For forward compatibility it's better to use the compiler rather than the preprocessor here.
 	else if constexpr (requires { Info.Reserved3; })
-		return static_cast<DWORD>(reinterpret_cast<uintptr_t>(Info.Reserved3));
+		return static_cast<DWORD>(std::bit_cast<uintptr_t>(Info.Reserved3));
 	else
 		static_assert(!sizeof(Info));
 }
@@ -958,6 +1014,33 @@ static string get_uptime()
 		return os::last_error().Win32ErrorStr();
 
 	return ConvertDurationToHMS(os::chrono::nt_clock::now() - CreationTime);
+}
+
+static auto memory_status()
+{
+	const auto size_to_str = [](uint64_t const Size)
+	{
+		return FileSizeToStr(Size, 0, COLFLAGS_FLOATSIZE | COLFLAGS_SHOW_MULTIPLIER);
+	};
+
+	string MemoryStatus;
+
+	if (MEMORYSTATUSEX ms{ sizeof(ms) }; GlobalMemoryStatusEx(&ms))
+	{
+		MemoryStatus = far::format(
+			L"{} out of {} free ({}%)"sv,
+			size_to_str(ms.ullAvailPageFile),
+			size_to_str(ms.ullTotalPageFile),
+			ToPercent(ms.ullAvailPageFile, ms.ullTotalPageFile)
+		);
+	}
+
+	if (PROCESS_MEMORY_COUNTERS pmc{ sizeof(pmc) }; GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+	{
+		far::format_to(MemoryStatus, L"{}{} used by the process"sv, MemoryStatus.empty()? L""sv : L"; "sv, size_to_str(pmc.PagefileUsage));
+	}
+
+	return MemoryStatus;
 }
 
 namespace detail
@@ -1104,7 +1187,7 @@ private:
 		return true;
 	}
 
-	span<int const> m_CatchableTypesRVAs;
+	std::span<int const> m_CatchableTypesRVAs;
 	size_t mutable m_Index{};
 	uintptr_t m_BaseAddress{};
 };
@@ -1237,7 +1320,7 @@ static string exception_details(string_view const Module, EXCEPTION_RECORD const
 			}(ExceptionRecord.ExceptionInformation[0]);
 
 			string Symbol;
-			tracer.get_symbols(Module, { { ExceptionRecord.ExceptionInformation[1], 0 } }, [&](string&& Line)
+			tracer.get_symbols(Module, {{{ ExceptionRecord.ExceptionInformation[1], 0 }}}, [&](string&& Line)
 			{
 				Symbol = std::move(Line);
 			});
@@ -1266,7 +1349,7 @@ static string exception_details(string_view const Module, EXCEPTION_RECORD const
 			if (!ExceptionRecord.NumberParameters)
 				return {};
 
-			const auto& Info = *reinterpret_cast<detail::DelayLoadInfo const*>(ExceptionRecord.ExceptionInformation[0]);
+			const auto& Info = view_as<detail::DelayLoadInfo>(ExceptionRecord.ExceptionInformation[0]);
 			return concat(
 				encoding::ansi::get_chars(Info.szDll),
 				L"::"sv,
@@ -1347,14 +1430,13 @@ static thread_status get_thread_status(HANDLE const Thread)
 
 static string collect_information(
 	exception_context const& Context,
-	std::string_view const Function,
-	string_view const Location,
+	source_location const& Location,
 	string_view const PluginInfo,
 	string_view ModuleName,
 	string_view const Type,
 	string_view const Message,
 	error_state_ex const& ErrorState,
-	span<os::debug::stack_frame const> const NestedStack
+	std::span<os::debug::stack_frame const> const NestedStack
 )
 {
 	string Strings;
@@ -1382,13 +1464,13 @@ static string collect_information(
 	if (!Name.empty())
 		append(Address, L" - "sv, Name);
 
-	if (Source.empty())
-		Source = Location;
+	if (!Source.empty())
+		append(Address, L" ("sv, Source, L')');
 
 	const auto Errno = ErrorState.ErrnoStr();
 	const auto LastError = ErrorState.Win32ErrorStr();
 	const auto LastNtStatus = ErrorState.NtErrorStr();
-	const auto FunctionWide = encoding::utf8::get_chars(Function);
+	const auto LocationStr = source_location_to_string(Location);
 	const auto PluginInfoStr = PluginInfo.empty()? L"N/A"sv : PluginInfo;
 
 	const auto Version = self_version();
@@ -1396,6 +1478,7 @@ static string collect_information(
 	const auto PeTime = pe_timestamp();
 	const auto FileTime = file_timestamp();
 	const auto SystemTime = system_timestamp();
+	const auto LocalTime = local_timestamp();
 	const auto Uptime = get_uptime();
 	const auto OsVersion = os::version::os_version();
 	const auto Locale = get_locale();
@@ -1403,14 +1486,17 @@ static string collect_information(
 	const auto Parent = get_parent_process();
 	const auto Command = GetCommandLine();
 	const auto AccessLevel = os::security::is_admin()? L"Administrator"sv : L"User"sv;
+	const auto MemoryStatus = memory_status();
 
 	const auto
 		LastErrorTitle = L"LastError:"sv,
 		NtStatusTitle = L"NTSTATUS: "sv;
 
-	using info_block = std::pair<string_view, string_view>;
-
-	info_block const ExceptionInfo[]
+	struct info_block
+	{
+		string_view Name, Value;
+	}
+	const ExceptionInfo[]
 	{
 		{ L"Exception:"sv, Exception,     },
 		{ L"Details:  "sv, Details,       },
@@ -1418,9 +1504,8 @@ static string collect_information(
 		{ LastErrorTitle,  LastError,     },
 		{ NtStatusTitle,   LastNtStatus,  },
 		{ L"Address:  "sv, Address,       },
-		{ L"Function: "sv, FunctionWide,  },
-		{ L"Source:   "sv, Source,        },
-		{ L"File:     "sv, ModuleName,    },
+		{ L"Location: "sv, LocationStr,   },
+		{ L"Module:   "sv, ModuleName,    },
 		{ L"Plugin:   "sv, PluginInfoStr, },
 	},
 	SystemInfo[]
@@ -1430,6 +1515,7 @@ static string collect_information(
 		{ L"PE time:  "sv, PeTime,        },
 		{ L"File time:"sv, FileTime,      },
 		{ L"Time:     "sv, SystemTime,    },
+		{ L"Local:    "sv, LocalTime,     },
 		{ L"Uptime:   "sv, Uptime,        },
 		{ L"OS:       "sv, OsVersion,     },
 		{ L"Locale:   "sv, Locale,        },
@@ -1437,13 +1523,14 @@ static string collect_information(
 		{ L"Parent:   "sv, Parent,        },
 		{ L"Command:  "sv, Command,       },
 		{ L"Access:   "sv, AccessLevel,   },
+		{ L"Memory:   "sv, MemoryStatus   },
 	};
 
-	const auto log_message = [](span<info_block const> const Info)
+	const auto log_message = [](std::span<info_block const> const Info)
 	{
-		auto LogMessage = join(L"\n"sv, select(Info, [](string_view const ParamName, string_view const ParamValue)
+		auto LogMessage = join(L"\n"sv, Info | std::views::transform([](info_block const& Param)
 		{
-			return far::format(L"{} {}"sv, ParamName, ParamValue);
+			return far::format(L"{} {}"sv, Param.Name, Param.Value);
 		}));
 
 		LogMessage += L"\n\n"sv;
@@ -1453,7 +1540,7 @@ static string collect_information(
 
 	LOGERROR(L"\n{}\n"sv, log_message(ExceptionInfo));
 
-	const auto print_info_block = [&](span<info_block const> const Info)
+	const auto print_info_block = [&](std::span<info_block const> const Info)
 	{
 		for (const auto& [Label, Value] : Info)
 		{
@@ -1506,12 +1593,12 @@ static string collect_information(
 		os::process::enum_processes const Enum;
 		const auto CurrentPid = GetCurrentProcessId();
 		const auto CurrentThreadId = GetCurrentThreadId();
-		const auto CurrentEntry = std::find_if(ALL_CONST_RANGE(Enum), [&](os::process::enum_process_entry const& Entry){ return Entry.Pid == CurrentPid; });
+		const auto CurrentEntry = std::ranges::find_if(Enum, [&](os::process::enum_process_entry const& Entry){ return Entry.Pid == CurrentPid; });
 		if (CurrentEntry != Enum.cend())
 		{
 			for (const auto& i: CurrentEntry->Threads)
 			{
-				const auto Tid = reinterpret_cast<uintptr_t>(i.ClientId.UniqueThread);
+				const auto Tid = std::bit_cast<uintptr_t>(i.ClientId.UniqueThread);
 				if (Tid == CurrentThreadId)
 					continue;
 
@@ -1567,18 +1654,20 @@ static string collect_information(
 	make_header(L"Modules"sv, append_line);
 	read_modules(Strings, Eol);
 
+	make_header(L"Environment"sv, append_line);
+	read_env(Strings, Eol);
+
 	return Strings;
 }
 
 static handler_result handle_generic_exception(
 	exception_context const& Context,
-	std::string_view const Function,
-	string_view const Location,
+	source_location const& Location,
 	Plugin const* const PluginModule,
 	string_view const Type,
 	string_view const Message,
 	error_state_ex const& ErrorState,
-	span<os::debug::stack_frame const> const NestedStack = {}
+	std::span<os::debug::stack_frame const> const NestedStack = {}
 )
 {
 	static bool ExceptionHandlingIgnored = false;
@@ -1627,9 +1716,9 @@ static handler_result handle_generic_exception(
 		MiniDumpIgnoreInaccessibleMemory
 	);
 
-	const auto MinidumpNormal = write_minidump(Context, path::join(ReportLocation, WIDE_SV(MINIDDUMP_NAME)), MinidumpFlags);
+	const auto MinidumpNormal = write_minidump(Context, path::join(ReportLocation, WIDE_SV(MINIDUMP_NAME)), MinidumpFlags);
 	const auto MinidumpFull = write_minidump(Context, path::join(ReportLocation, WIDE_SV(FULLDUMP_NAME)), FulldumpFlags);
-	const auto BugReport = collect_information(Context, Function, Location, PluginInfo, ModuleName, Type, Message, ErrorState, NestedStack);
+	const auto BugReport = collect_information(Context, Location, PluginInfo, ModuleName, Type, Message, ErrorState, NestedStack);
 	const auto ReportOnDisk = write_report(BugReport, path::join(ReportLocation, WIDE_SV(BUGREPORT_NAME)));
 	const auto ReportInClipboard = !ReportOnDisk && SetClipboardText(BugReport);
 	const auto ReadmeOnDisk = write_readme(path::join(ReportLocation, L"README.txt"sv));
@@ -1679,14 +1768,14 @@ void restore_system_exception_handler()
 class far_wrapper_exception final: public far_exception, public std::nested_exception
 {
 public:
-	far_wrapper_exception(std::string_view const Function, std::string_view const File, int const Line):
-		far_exception(true, L"exception_ptr"sv, Function, File, Line),
+	explicit far_wrapper_exception(source_location const& Location):
+		far_exception(true, L"exception_ptr"sv, Location),
 		m_ThreadHandle(std::make_shared<os::handle>(os::OpenCurrentThread())),
 		m_Stack(tracer.exception_stacktrace({}))
 	{
 	}
 
-	span<os::debug::stack_frame const> get_stack() const noexcept { return m_Stack; }
+	std::span<os::debug::stack_frame const> get_stack() const noexcept { return m_Stack; }
 
 private:
 	std::shared_ptr<os::handle> m_ThreadHandle;
@@ -1695,11 +1784,11 @@ private:
 
 static_assert(std::derived_from<far_wrapper_exception, std::nested_exception>);
 
-std::exception_ptr wrap_current_exception(std::string_view const Function, std::string_view const File, int const Line)
+std::exception_ptr wrap_current_exception(source_location const& Location)
 {
 	try
 	{
-		throw far_wrapper_exception(Function, File, Line);
+		throw far_wrapper_exception(Location);
 	}
 	catch (...)
 	{
@@ -1730,7 +1819,7 @@ static std::pair<string, string> extract_nested_exceptions(EXCEPTION_RECORD cons
 	}
 	else
 	{
-		What = encoding::utf8::get_chars(Exception.what());
+		What = encoding::utf8_or_ansi::get_chars(Exception.what());
 		if (ObjectType.empty())
 			ObjectType = WIDE_SV_LITERAL(std::exception);
 	}
@@ -1761,8 +1850,8 @@ static std::pair<string, string> extract_nested_exceptions(EXCEPTION_RECORD cons
 static bool handle_std_exception(
 	exception_context const& Context,
 	const std::exception& e,
-	std::string_view const Function,
-	const Plugin* const Module
+	const Plugin* const Module,
+	source_location const& Location
 )
 {
 	error_state_ex const LastError{ os::last_error(), {}, errno };
@@ -1773,18 +1862,18 @@ static bool handle_std_exception(
 		const auto NestedStack = [&]
 		{
 			const auto Wrapper = dynamic_cast<const far_wrapper_exception*>(&e);
-			return Wrapper? Wrapper->get_stack() : span<os::debug::stack_frame const>{};
+			return Wrapper? Wrapper->get_stack() : std::span<os::debug::stack_frame const>{};
 		}();
 
-		return handle_generic_exception(Context, FarException->function(), FarException->location(), Module, Type, What, *FarException, NestedStack) == handler_result::execute_handler;
+		return handle_generic_exception(Context, FarException->location(), Module, Type, What, *FarException, NestedStack) == handler_result::execute_handler;
 	}
 
-	return handle_generic_exception(Context, Function, {}, Module, Type, What, LastError) == handler_result::execute_handler;
+	return handle_generic_exception(Context, Location, Module, Type, What, LastError) == handler_result::execute_handler;
 }
 
-bool handle_std_exception(const std::exception& e, std::string_view const Function, const Plugin* const Module)
+bool handle_std_exception(const std::exception& e, const Plugin* const Module, source_location const& Location)
 {
-	return handle_std_exception(exception_context(os::debug::exception_information()), e, Function, Module);
+	return handle_std_exception(exception_context(os::debug::exception_information()), e, Module, Location);
 }
 
 class seh_exception::seh_exception_impl
@@ -1821,7 +1910,7 @@ void seh_exception::raise()
 
 	ULONG_PTR const Arguments[]
 	{
-		reinterpret_cast<ULONG_PTR>(this)
+		std::bit_cast<ULONG_PTR>(this)
 	};
 
 	RaiseException(STATUS_FAR_THREAD_RETHROW, 0, static_cast<DWORD>(std::size(Arguments)), Arguments);
@@ -1840,8 +1929,8 @@ seh_exception::seh_exception_impl const& seh_exception::get() const
 
 static handler_result handle_seh_exception(
 	exception_context const& Context,
-	std::string_view const Function,
-	Plugin const* const PluginModule
+	Plugin const* const PluginModule,
+	source_location const& Location
 )
 {
 	error_state_ex const LastError{ os::last_error(), {}, errno };
@@ -1849,25 +1938,25 @@ static handler_result handle_seh_exception(
 
 	if (Record.ExceptionCode == static_cast<DWORD>(STATUS_FAR_THREAD_RETHROW) && Record.NumberParameters == 1)
 	{
-		const auto& OriginalExceptionData = reinterpret_cast<seh_exception const*>(Record.ExceptionInformation[0])->get();
+		const auto& OriginalExceptionData = std::bit_cast<seh_exception const*>(Record.ExceptionInformation[0])->get();
 		// We don't need to care about the rethrow stack here: SEH is synchronous, so it will be a part of the handler stack
-		return handle_generic_exception(OriginalExceptionData.Context, Function, {}, PluginModule, {}, {}, OriginalExceptionData.ErrorState);
+		return handle_generic_exception(OriginalExceptionData.Context, Location, PluginModule, {}, {}, OriginalExceptionData.ErrorState);
 	}
 
 	for (const auto& i : enum_catchable_objects(Record))
 	{
 		if (std::strstr(i, "std::exception"))
-			return handle_std_exception(Context, view_as<std::exception>(Record.ExceptionInformation[1]), Function, PluginModule)?
+			return handle_std_exception(Context, view_as<std::exception>(Record.ExceptionInformation[1]), PluginModule, Location)?
 				handler_result::execute_handler :
 				handler_result::continue_search;
 	}
 
-	return handle_generic_exception(Context, Function, {}, PluginModule, {}, {}, LastError);
+	return handle_generic_exception(Context, Location, PluginModule, {}, {}, LastError);
 }
 
-bool handle_unknown_exception(std::string_view const Function, const Plugin* const Module)
+bool handle_unknown_exception(const Plugin* const Module, source_location const& Location)
 {
-	return handle_seh_exception(exception_context(os::debug::exception_information()), Function, Module) == handler_result::execute_handler;
+	return handle_seh_exception(exception_context(os::debug::exception_information()), Module, Location) == handler_result::execute_handler;
 }
 
 bool use_terminate_handler()
@@ -1886,10 +1975,12 @@ static void seh_abort_handler_impl()
 
 	InsideHandler = true;
 
+	constexpr auto Location = source_location::current();
+
 	// If it's a SEH or a C++ exception implemented in terms of SEH (and not a fake for GCC) it's better to handle it as SEH
 	if (const auto Info = os::debug::exception_information(); Info.ContextRecord && Info.ExceptionRecord && !is_fake_cpp_exception(*Info.ExceptionRecord))
 	{
-		if (handle_seh_exception(exception_context(Info), CURRENT_FUNCTION_NAME, {}) == handler_result::execute_handler)
+		if (handle_seh_exception(exception_context(Info), {}, Location) == handler_result::execute_handler)
 			os::process::terminate_by_user();
 	}
 
@@ -1902,12 +1993,12 @@ static void seh_abort_handler_impl()
 		}
 		catch (std::exception const& e)
 		{
-			if (handle_std_exception(e, CURRENT_FUNCTION_NAME, {}))
+			if (handle_std_exception(e, {}, Location))
 				os::process::terminate_by_user();
 		}
 		catch (...)
 		{
-			if (handle_unknown_exception(CURRENT_FUNCTION_NAME, {}))
+			if (handle_unknown_exception({}, Location))
 				os::process::terminate_by_user();
 		}
 	}
@@ -1916,7 +2007,7 @@ static void seh_abort_handler_impl()
 	exception_context const Context{ os::debug::fake_exception_information(STATUS_FAR_ABORT) };
 	error_state_ex const LastError{ os::last_error(), {}, errno };
 
-	if (handle_generic_exception(Context, CURRENT_FUNCTION_NAME, {}, {}, {}, L"Abnormal termination"sv, LastError) == handler_result::execute_handler)
+	if (handle_generic_exception(Context, Location, {}, {}, L"Abnormal termination"sv, LastError) == handler_result::execute_handler)
 		os::process::terminate_by_user();
 
 	restore_system_exception_handler();
@@ -1924,7 +2015,7 @@ static void seh_abort_handler_impl()
 
 static LONG WINAPI unhandled_exception_filter_impl(EXCEPTION_POINTERS* const Pointers)
 {
-	const auto Result = detail::seh_filter(Pointers, CURRENT_FUNCTION_NAME, {});
+	const auto Result = detail::seh_filter(Pointers, {});
 	if (Result == EXCEPTION_EXECUTE_HANDLER)
 		os::process::terminate_by_user(Pointers->ExceptionRecord->ExceptionCode);
 
@@ -1994,11 +2085,13 @@ static void invalid_parameter_handler_impl(const wchar_t* const Expression, cons
 
 	exception_context const Context{ os::debug::fake_exception_information(STATUS_FAR_ABORT) };
 	error_state_ex const LastError{ os::last_error(), {}, errno };
+	constexpr auto Location = source_location::current();
 
 	if (handle_generic_exception(
 		Context,
-		Function? encoding::utf8::get_bytes(Function) : CURRENT_FUNCTION_NAME,
-		far::format(L"{}({})"sv, File? File : WIDE(CURRENT_FILE_NAME), File? Line : __LINE__),
+		Function && File?
+			source_location(encoding::utf8::get_bytes(Function).c_str(), encoding::utf8::get_bytes(File).c_str(), Line) :
+			Location,
 		{},
 		{},
 		Expression? Expression : L"Invalid parameter"sv,
@@ -2024,7 +2117,7 @@ static LONG NTAPI vectored_exception_handler_impl(EXCEPTION_POINTERS* const Poin
 	if (static_cast<NTSTATUS>(Pointers->ExceptionRecord->ExceptionCode) == STATUS_HEAP_CORRUPTION)
 	{
 		// VEH handlers shouldn't do this in general, but it's not like we can make things much worse at this point anyways.
-		if (detail::seh_filter(Pointers, CURRENT_FUNCTION_NAME, {}) == EXCEPTION_EXECUTE_HANDLER)
+		if (detail::seh_filter(Pointers, {}) == EXCEPTION_EXECUTE_HANDLER)
 			os::process::terminate_by_user(Pointers->ExceptionRecord->ExceptionCode);
 	}
 
@@ -2044,7 +2137,12 @@ vectored_exception_handler::~vectored_exception_handler()
 
 namespace detail
 {
-	void cpp_try(function_ref<void()> const Callable, function_ref<void()> const UnknownHandler, function_ref<void(std::exception const&)> const StdHandler)
+	void cpp_try(
+		function_ref<void()> const Callable,
+		function_ref<void(source_location const&)> const UnknownHandler,
+		function_ref<void(std::exception const&, source_location const&)> const StdHandler,
+		source_location const& Location
+	)
 	{
 		if (!HandleCppExceptions)
 		{
@@ -2059,11 +2157,11 @@ namespace detail
 			}
 			catch (std::exception const& e)
 			{
-				return StdHandler(e);
+				return StdHandler(e, Location);
 			}
 			catch (...)
 			{
-				return UnknownHandler();
+				return UnknownHandler(Location);
 			}
 		}
 
@@ -2073,7 +2171,7 @@ namespace detail
 		}
 		catch (...)
 		{
-			return UnknownHandler();
+			return UnknownHandler(Location);
 		}
 	}
 
@@ -2115,7 +2213,7 @@ namespace detail
 #endif
 	}
 
-	int seh_filter(EXCEPTION_POINTERS const* const Info, std::string_view const Function, Plugin const* const Module)
+	int seh_filter(EXCEPTION_POINTERS const* const Info, Plugin const* const Module, source_location const& Location)
 	{
 		if (!HandleSehExceptions)
 		{
@@ -2133,7 +2231,7 @@ namespace detail
 				os::thread(os::thread::mode::join, [&]
 				{
 					os::debug::set_thread_name(L"Stack overflow handler");
-					Result = handle_seh_exception(Context, Function, Module);
+					Result = handle_seh_exception(Context, Module, Location);
 				});
 			}
 
@@ -2141,7 +2239,7 @@ namespace detail
 		}
 		else
 		{
-			Result = handle_seh_exception(Context, Function, Module);
+			Result = handle_seh_exception(Context, Module, Location);
 		}
 
 		switch (Result)

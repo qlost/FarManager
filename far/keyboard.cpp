@@ -306,13 +306,13 @@ void InitKeysArray()
 
 	BYTE KeyState[256]{};
 
-	for (const auto& j: irange(2))
+	for (const auto j: std::views::iota(0, 2))
 	{
 		KeyState[VK_SHIFT] = j * 0x80;
 
 		for (const auto& i: Layout())
 		{
-			for (const auto& VK : irange(256))
+			for (const auto VK : std::views::iota(0, 256))
 			{
 				if (wchar_t idx; ToUnicodeEx(VK, 0, KeyState, &idx, 1, ToUnicodeFlags, i) > 0)
 				{
@@ -335,7 +335,7 @@ void InitKeysArray()
 	//***********
 	//Имея мапирование юникод -> VK строим обратное мапирование
 	//VK -> символы с кодом меньше 0x80, т.е. только US-ASCII символы
-	for (const auto& i: irange(1, 0x80))
+	for (const auto i: std::views::iota(1, 0x80))
 	{
 		const auto x = KeyToVKey[i];
 
@@ -1129,7 +1129,7 @@ static DWORD GetInputRecordImpl(INPUT_RECORD *rec,bool ExcludeMacro,bool Process
 			{ KEY_RCTRL,     VK_CONTROL,     MODIF_RCTRL,      true,     },
 		};
 
-		if (std::any_of(ALL_CONST_RANGE(Keys), [&CalcKey](const KeysData& A){ return CalcKey == A.FarKey && !PressedLast.Check(A.Modif); }))
+		if (std::ranges::any_of(Keys, [&CalcKey](const KeysData& A){ return CalcKey == A.FarKey && !PressedLast.Check(A.Modif); }))
 			CalcKey = KEY_NONE;
 
 		const size_t AllModif = KEY_CTRL | KEY_ALT | KEY_SHIFT | KEY_RCTRL | KEY_RALT;
@@ -1375,7 +1375,7 @@ int KeyNameToKey(string_view Name)
 	if (!Name.empty())
 	{
 		// сначала - FKeys1 - Вариант (1)
-		const auto ItemIterator = std::find_if(CONST_RANGE(FKeys1, i)
+		const auto ItemIterator = std::ranges::find_if(FKeys1, [&](TFKey const& i)
 		{
 			return equal_icase(Name, i.Name);
 		});
@@ -1422,7 +1422,7 @@ int KeyNameToKey(string_view Name)
 				if (const auto IsOem = Name.starts_with(OemPrefix); IsOem || Name.starts_with(SpecPrefix))
 				{
 					const auto Tail = Name.substr(IsOem? OemPrefix.size() : SpecPrefix.size());
-					if (Tail.size() == 5 && std::all_of(ALL_CONST_RANGE(Tail), std::iswdigit)) // Варианты (3) и (4)
+					if (Tail.size() == 5 && std::ranges::all_of(Tail, std::iswdigit)) // Варианты (3) и (4)
 					{
 						Key |= (IsOem? KEY_FKEY_BEGIN : KEY_VK_0xFF_BEGIN) | from_string<unsigned>(Tail);
 						Name = {};
@@ -1451,7 +1451,8 @@ static string KeyToTextImpl(unsigned int const Key0, tfkey_to_text ToText, add_s
 
 	auto strKeyText = GetShiftKeyName(Key, ToText, AddSeparator);
 
-	if (const auto FKeys1Iterator = std::find(ALL_CONST_RANGE(FKeys1), FKey); FKeys1Iterator != std::cend(FKeys1))
+	// Ugh, ranges are awesome.
+	if (const auto FKeys1Iterator = std::ranges::find_if(FKeys1, [&](TFKey const& Key){ return Key == FKey; }); FKeys1Iterator != std::cend(FKeys1))
 	{
 		AddSeparator(strKeyText);
 		append(strKeyText, ToText(*FKeys1Iterator));
@@ -1521,9 +1522,9 @@ string KeyToLocalizedText(unsigned int const Key)
 	);
 }
 
-string KeysListToLocalizedText(span<unsigned int const> const Keys)
+string KeysListToLocalizedText(std::span<unsigned int const> const Keys)
 {
-	return join(L" "sv, select(Keys, [](unsigned int const Key){ return KeyToLocalizedText(Key); }));
+	return join(L" "sv, Keys | std::views::transform([](unsigned int const Key){ return KeyToLocalizedText(Key); }));
 }
 
 static int key_to_vk(unsigned int const Key)
@@ -1608,7 +1609,7 @@ int TranslateKeyToVK(int Key, INPUT_RECORD* Rec)
 			};
 
 			// In case of CtrlShift, CtrlAlt, AltShift, CtrlAltShift there is no unambiguous mapping.
-			const auto ItemIterator = std::find_if(CONST_RANGE(ExtKeyMap, i) { return (i.first & FShift) != 0; });
+			const auto ItemIterator = std::ranges::find_if(ExtKeyMap, [&](auto const& i){ return (i.first & FShift) != 0; });
 			if (ItemIterator != std::cend(ExtKeyMap))
 				VirtKey = ItemIterator->second;
 		}
@@ -1672,12 +1673,7 @@ int TranslateKeyToVK(int Key, INPUT_RECORD* Rec)
 				{'/','?'}
 			};
 
-			const auto ItemIterator = std::find_if(CONST_RANGE(Keys, Item)
-			{
-				return Item.FarKey == FKey;
-			});
-
-			if (ItemIterator != std::cend(Keys))
+			if (const auto ItemIterator = std::ranges::find(Keys, FKey, &KeysData::FarKey); ItemIterator != std::cend(Keys))
 			{
 				FKey = ItemIterator->Char;
 			}
@@ -2191,7 +2187,7 @@ static unsigned int CalcKeyCode(INPUT_RECORD* rec, bool RealKey, bool* NotMacros
 		{
 			static unsigned int const ScanCodes[]{ 82, 79, 80, 81, 75, 76, 77, 71, 72, 73 };
 
-			for (const auto& i: irange(std::size(ScanCodes)))
+			for (const auto i: std::views::iota(0uz, std::size(ScanCodes)))
 			{
 				if (ScanCodes[i] != ScanCode)
 					continue;

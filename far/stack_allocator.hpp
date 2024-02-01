@@ -1,12 +1,14 @@
-﻿#ifndef REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
-#define REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
+﻿#ifndef STACK_ALLOCATOR_HPP_7214ED21_CB3F_4E83_9723_F7707D14C876
+#define STACK_ALLOCATOR_HPP_7214ED21_CB3F_4E83_9723_F7707D14C876
 #pragma once
 
 /*
-reverse.hpp
+stack_allocator.hpp
+
+
 */
 /*
-Copyright © 2019 Far Group
+Copyright © 2023 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,42 +34,19 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "../keep_alive.hpp"
+// Internal:
 
-#include <iterator>
+// Platform:
+
+// Common:
+
+// External:
+#include "thirdparty/short_alloc/short_alloc.h"
 
 //----------------------------------------------------------------------------
 
-template<typename container, typename container_ref>
-class reverse
-{
-public:
-	explicit reverse(container_ref Container):
-		m_Container(FWD(Container))
-	{
-	}
+template<class T, std::size_t N, std::size_t Align = alignof(std::max_align_t)>
+using stack_allocator = short_alloc<T, N, Align>;
 
-	[[nodiscard]] auto begin()        { return std::rbegin(m_Container); }
-	[[nodiscard]] auto end()          { return std::rend(m_Container); }
-	[[nodiscard]] auto begin()  const { return std::rbegin(m_Container); }
-	[[nodiscard]] auto end()    const { return std::rend(m_Container); }
-	[[nodiscard]] auto cbegin() const { return std::crbegin(m_Container); }
-	[[nodiscard]] auto cend()   const { return std::crend(m_Container); }
-	[[nodiscard]] auto rbegin()        { return std::begin(m_Container); }
-	[[nodiscard]] auto rend()          { return std::end(m_Container); }
-	[[nodiscard]] auto rbegin()  const { return std::begin(m_Container); }
-	[[nodiscard]] auto rend()    const { return std::end(m_Container); }
-	[[nodiscard]] auto crbegin() const { return std::cbegin(m_Container); }
-	[[nodiscard]] auto crend()   const { return std::cend(m_Container); }
 
-private:
-	container m_Container;
-};
-
-template<typename container>
-reverse(container&& Container) ->
-	reverse<
-		keep_alive_type<decltype(Container)>, decltype(Container)
-	>;
-
-#endif // REVERSE_HPP_6B0AC0FA_E501_4DDA_A7B1_A4835F93B3B2
+#endif // STACK_ALLOCATOR_HPP_7214ED21_CB3F_4E83_9723_F7707D14C876

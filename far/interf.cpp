@@ -78,7 +78,7 @@ static HICON load_icon(int IconId, bool Big)
 
 static HICON set_icon(HWND Wnd, bool Big, HICON Icon)
 {
-	return reinterpret_cast<HICON>(SendMessage(Wnd, WM_SETICON, Big? ICON_BIG : ICON_SMALL, reinterpret_cast<LPARAM>(Icon)));
+	return std::bit_cast<HICON>(SendMessage(Wnd, WM_SETICON, Big? ICON_BIG : ICON_SMALL, std::bit_cast<LPARAM>(Icon)));
 }
 
 void consoleicons::update_icon()
@@ -225,7 +225,7 @@ static BOOL WINAPI CtrlHandler(DWORD CtrlType)
 	{
 		return control_handler(CtrlType);
 	},
-	[&]
+	[&](source_location const&)
 	{
 		return FALSE;
 	});
@@ -773,7 +773,7 @@ static void string_to_buffer_simple(string_view const Str, std::vector<FAR_CHAR_
 	const auto From = Str.substr(0, MaxSize);
 	Buffer.reserve(From.size());
 
-	std::transform(ALL_CONST_RANGE(From), std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, CurColor }; });
+	std::ranges::transform(From, std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, {}, {}, CurColor }; });
 }
 
 static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_CHAR_INFO>& Buffer, size_t const MaxSize)
@@ -796,7 +796,7 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 			Str.remove_prefix(1);
 		}
 
-		Buffer.push_back({ Char[0], CurColor });
+		Buffer.push_back({ Char[0], {}, {}, CurColor });
 
 		if (char_width::is_wide(Codepoint))
 		{
@@ -810,13 +810,13 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 			if (Char[1])
 			{
 				// It's wide and it already occupies two cells - awesome
-				Buffer.push_back({ Char[1], CurColor });
+				Buffer.push_back({ Char[1], {}, {}, CurColor });
 			}
 			else
 			{
 				// It's wide and we need to add a bogus cell
 				Buffer.back().Attributes.Flags |= COMMON_LVB_LEADING_BYTE;
-				Buffer.push_back({ Char[0], CurColor });
+				Buffer.push_back({ Char[0], {}, {}, CurColor });
 				Buffer.back().Attributes.Flags |= COMMON_LVB_TRAILING_BYTE;
 			}
 		}
@@ -830,13 +830,13 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 					// Put *one* fake character:
 					Buffer.back().Char = encoding::replace_char;
 					// Stash the actual codepoint. The drawing code will restore it from here:
-					Buffer.back().Attributes.Reserved[0] = Codepoint;
+					Buffer.back().Reserved1 = Codepoint;
 				}
 				else
 				{
 					// Classic grid mode, nothing we can do :(
 					// Expect the broken UI
-					Buffer.push_back({ Char[1], CurColor });
+					Buffer.push_back({ Char[1], {}, {}, CurColor });
 				}
 			}
 			else
@@ -1146,7 +1146,7 @@ string escape_ampersands(string_view const Str)
 
 void SetScreen(rectangle const Where, wchar_t Ch, const FarColor& Color)
 {
-	Global->ScrBuf->FillRect(Where, { Ch, Color });
+	Global->ScrBuf->FillRect(Where, { Ch, {}, {}, Color });
 }
 
 void MakeShadow(rectangle const Where, bool const IsLegacy)
@@ -1182,7 +1182,7 @@ void SetRealColor(const FarColor& Color)
 
 void ClearScreen(const FarColor& Color)
 {
-	Global->ScrBuf->FillRect({ 0, 0, ScrX, ScrY }, { L' ', Color });
+	Global->ScrBuf->FillRect({ 0, 0, ScrX, ScrY }, { L' ', {}, {}, Color });
 	if(Global->Opt->WindowMode)
 	{
 		console.ClearExtraRegions(Color, CR_BOTH);
@@ -1223,7 +1223,7 @@ bool DoWeReallyHaveToScroll(short Rows)
 	matrix<FAR_CHAR_INFO> BufferBlock(Rows, ScrX + 1);
 	Global->ScrBuf->Read(Region, BufferBlock);
 
-	return !std::all_of(ALL_CONST_RANGE(BufferBlock.vector()), [](const FAR_CHAR_INFO& i) { return i.Char == L' '; });
+	return !std::ranges::all_of(BufferBlock.vector(), [](const FAR_CHAR_INFO& i) { return i.Char == L' '; });
 }
 
 size_t string_pos_to_visual_pos(string_view Str, size_t const StringPos, size_t const TabSize, position_parser_state* SavedState)
@@ -1510,7 +1510,7 @@ string MakeLine(int const Length, line_type const Type, string_view const UserLi
 	}
 	else
 	{
-		std::transform(ALL_CONST_RANGE(Predefined[static_cast<size_t>(Type)]), Buffer, [](size_t i){ return BoxSymbols[i]; });
+		std::ranges::transform(Predefined[static_cast<size_t>(Type)], Buffer, [](size_t i){ return BoxSymbols[i]; });
 	}
 
 	string Result(Length, Buffer[1]);
@@ -1547,7 +1547,7 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 		Size = Size > StrPercent.size()? Size - StrPercent.size(): 0;
 	}
 	string Str(Size, BoxSymbols[BS_X_B0]);
-	const auto Pos = std::min(Percent, size_t{ 100 })* Size / 100;
+	const auto Pos = std::min(Percent, 100uz) * Size / 100;
 	std::fill_n(Str.begin(), Pos, BoxSymbols[BS_X_DB]);
 	if (ShowPercent)
 	{

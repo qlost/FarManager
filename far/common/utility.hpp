@@ -35,16 +35,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "preprocessor.hpp"
 #include "type_traits.hpp"
 
+#include <bit>
 #include <functional>
 #include <optional>
 #include <utility>
 
+#include <concepts>
 #include <cstddef>
 #include <cstring>
 
-#ifndef __cpp_lib_to_underlying
 #include "cpp.hpp"
-#endif
 
 //----------------------------------------------------------------------------
 
@@ -57,36 +57,30 @@ protected:
 	using base_type = T;
 };
 
-inline size_t grow_exp_noshrink(size_t const Current, std::optional<size_t> const Desired)
+inline size_t grow_exp(size_t const Current, std::optional<size_t> const Desired)
 {
-	// Unlike vector, string is allowed to shrink (another splendid design decision from the committee):
-	// "Calling reserve() with a res_arg argument less than capacity() is in effect a non-binding shrink request." (21.4.4 basic_string capacity)
-	// gcc decided to go mental and made that a _binding_ shrink request.
 	if (Desired && *Desired <= Current)
 		return Current;
 
-	// For vector reserve typically allocates exactly the requested amount instead of exponential growth.
+	// reserve typically allocates exactly the requested amount instead of exponential growth.
 	// This can be really bad if called in a loop.
-	const auto LowerBound = Current + std::max(size_t{1}, Current / 2);
+	const auto LowerBound = Current + std::max(1uz, Current / 2);
 	return Desired? std::max(LowerBound, *Desired) : LowerBound;
 }
 
-template<typename container>
-void reserve_exp_noshrink(container& Container, size_t const DesiredCapacity)
+void reserve_exp(auto& Container, size_t const DesiredCapacity)
 {
-	Container.reserve(grow_exp_noshrink(Container.capacity(), DesiredCapacity));
+	Container.reserve(grow_exp(Container.capacity(), DesiredCapacity));
 }
 
-template<typename container>
-void resize_exp_noshrink(container& Container)
+void resize_exp(auto& Container)
 {
-	Container.resize(grow_exp_noshrink(Container.size(), {}), {});
+	Container.resize(grow_exp(Container.size(), {}), {});
 }
 
-template<typename container>
-void resize_exp_noshrink(container& Container, size_t const DesiredSize)
+void resize_exp(auto& Container, size_t const DesiredSize)
 {
-	Container.resize(grow_exp_noshrink(Container.size(), DesiredSize), {});
+	Container.resize(grow_exp(Container.size(), DesiredSize), {});
 }
 
 
@@ -94,8 +88,7 @@ template<class T>
 void clear_and_shrink(T& container)
 {
 	T Tmp;
-	using std::swap;
-	swap(container, Tmp);
+	std::ranges::swap(container, Tmp);
 }
 
 
@@ -115,8 +108,7 @@ auto make_hash(const T& value)
 	return std::hash<T>{}(value);
 }
 
-template<class type>
-void hash_combine(size_t& Seed, const type& Value)
+void hash_combine(size_t& Seed, const auto& Value)
 {
 	// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
 	const auto MagicValue =
@@ -132,36 +124,26 @@ void hash_combine(size_t& Seed, const type& Value)
 	Seed ^= make_hash(Value) + MagicValue + (Seed << 6) + (Seed >> 2);
 }
 
-template<typename... args>
-size_t hash_combine_all(const args&... Args)
+size_t hash_combine_all(const auto&... Args)
 {
 	size_t Seed = 0;
 	(..., hash_combine(Seed, Args));
 	return Seed;
 }
 
-
-template<typename iterator>
-[[nodiscard]]
-size_t hash_range(iterator First, iterator Last)
+void hash_range(size_t& Seed, auto const& Range)
 {
-	size_t Seed = 0;
-
-	for (; First != Last; ++First)
+	for (const auto& i: Range)
 	{
-		hash_combine(Seed, *First);
+		hash_combine(Seed, i);
 	}
-
-	return Seed;
 }
 
-template<typename iterator>
-void hash_range(size_t& Seed, iterator First, iterator Last)
+size_t hash_range(auto const& Range)
 {
-	for (; First != Last; ++First)
-	{
-		hash_combine(Seed, *First);
-	}
+	size_t Seed = 0;
+	hash_range(Seed, Range);
+	return Seed;
 }
 
 template<typename T>
@@ -207,20 +189,24 @@ namespace flags
 		}
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr bool check_any(const value_type& Value, flags_type Bits)
+	constexpr bool check_any(const auto& Value, auto const Bits)
 	{
 		return (detail::reveal(Value) & detail::reveal(Bits)) != 0;
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr bool check_all(const value_type& Value, flags_type Bits)
+	constexpr bool check_one(const auto& Value, auto const Bit)
+	{
+		assert(std::has_single_bit(detail::reveal(Bit)));
+		return check_any(Value, Bit);
+	}
+
+	constexpr bool check_all(const auto& Value, auto const Bits)
 	{
 		return (detail::reveal(Value) & detail::reveal(Bits)) == detail::reveal(Bits);
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr void set(value_type& Value, flags_type Bits)
+	template<typename value_type>
+	constexpr void set(value_type& Value, auto const Bits)
 	{
 		if constexpr (requires { Value |= detail::reveal(Bits); })
 			Value |= detail::reveal(Bits);
@@ -228,8 +214,8 @@ namespace flags
 			Value = static_cast<value_type>(detail::reveal(Value) | detail::reveal(Bits));
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr void clear(value_type& Value, flags_type Bits)
+	template<typename value_type>
+	constexpr void clear(value_type& Value, auto const Bits)
 	{
 		const auto Mask = static_cast<std::remove_reference_t<decltype(detail::reveal(Value))>>(detail::reveal(Bits));
 		if constexpr (requires { Value &= ~Mask; })
@@ -238,8 +224,8 @@ namespace flags
 			Value = static_cast<value_type>(detail::reveal(Value) & ~Mask);
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr void invert(value_type& Value, flags_type Bits)
+	template<typename value_type>
+	constexpr void invert(value_type& Value, auto const Bits)
 	{
 		if constexpr (requires { Value ^= detail::reveal(Bits); })
 			Value ^= detail::reveal(Bits);
@@ -247,14 +233,12 @@ namespace flags
 			Value = static_cast<value_type>(detail::reveal(Value) ^ detail::reveal(Bits));
 	}
 
-	template<typename value_type, typename flags_type>
-	constexpr void change(value_type& Value, flags_type Bits, bool Set)
+	constexpr void change(auto& Value, auto const Bits, bool const Set)
 	{
 		Set? set(Value, Bits) : clear(Value, Bits);
 	}
 
-	template<typename value_type, typename mask_type, typename flags_type>
-	constexpr void copy(value_type& Value, mask_type Mask, flags_type Bits)
+	constexpr void copy(auto& Value, auto const Mask, auto const Bits)
 	{
 		clear(Value, Mask);
 		set(Value, detail::reveal(Bits) & detail::reveal(Mask));
@@ -273,7 +257,7 @@ constexpr inline auto aligned_sizeof = aligned_size(sizeof(T), Alignment);
 [[nodiscard]]
 inline bool is_aligned(const void* Address, const size_t Alignment)
 {
-	return !(reinterpret_cast<uintptr_t>(Address) % Alignment);
+	return !(std::bit_cast<uintptr_t>(Address) % Alignment);
 }
 
 template<typename T>
@@ -285,31 +269,44 @@ bool is_aligned(const T& Object)
 
 namespace enum_helpers
 {
-	template<class O, class R = void, class T>
-	[[nodiscard]]
-	constexpr auto operation(T a, T b)
-	{
-		return static_cast<std::conditional_t<std::same_as<R, void>, T, R>>(O()(std::to_underlying(a), std::to_underlying(b)));
-	}
-
 	template<typename T>
-	concept enum_is_bit_flags = std::is_enum_v<T> && requires { T::is_bit_flags; };
+	concept bit_flags_enum = std::is_enum_v<T> && requires { T::is_bit_flags; };
 
-	template<typename T> requires enum_is_bit_flags<T>
-	constexpr auto operator|(T const a, T const b)
+	namespace detail
 	{
-		return operation<std::bit_or<>>(a, b);
+		template<class O, class T>
+		[[nodiscard]]
+		constexpr auto operation(T const a, T const b)
+		{
+			return static_cast<T>(O()(std::to_underlying(a), std::to_underlying(b)));
+		}
 	}
 
-	template<typename T> requires enum_is_bit_flags<T>
-	constexpr auto operator&(T const a, T const b)
+	[[nodiscard]] constexpr auto operator|(bit_flags_enum auto const a, bit_flags_enum auto const b)
 	{
-		return operation<std::bit_and<>, std::underlying_type_t<T>>(a, b);
+		return detail::operation<std::bit_or<>>(a, b);
+	}
+
+	[[nodiscard]] constexpr auto& operator|=(bit_flags_enum auto& a, bit_flags_enum auto const b)
+	{
+		return a = a | b;
+	}
+
+	[[nodiscard]] constexpr auto operator&(bit_flags_enum auto const a, bit_flags_enum auto const b)
+	{
+		return detail::operation<std::bit_and<>>(a, b);
+	}
+
+	[[nodiscard]] constexpr auto& operator&=(bit_flags_enum auto& a, bit_flags_enum auto const b)
+	{
+		return a = a & b;
 	}
 }
 
 using enum_helpers::operator|;
+using enum_helpers::operator|=;
 using enum_helpers::operator&;
+using enum_helpers::operator&=;
 
 template<typename... args>
 struct [[nodiscard]] overload: args...
@@ -328,14 +325,10 @@ template<typename... args> overload(args...) -> overload<args...>;
 namespace detail
 {
 	template<typename T>
-	inline constexpr bool is_void_or_trivially_copyable = std::disjunction_v<std::is_void<T>, std::is_trivially_copyable<T>>;
+	concept void_or_trivially_copyable = std::disjunction_v<std::is_void<T>, std::is_trivially_copyable<T>>;
 }
 
-template<typename src_type, typename dst_type>
-requires
-	detail::is_void_or_trivially_copyable<src_type> &&
-	detail::is_void_or_trivially_copyable<dst_type>
-void copy_memory(const src_type* Source, dst_type* Destination, size_t const Size) noexcept
+void copy_memory(detail::void_or_trivially_copyable auto const* const Source, detail::void_or_trivially_copyable auto* const Destination, size_t const Size) noexcept
 {
 	if (Size) // paranoid gcc null checks are paranoid
 		std::memmove(Destination, Source, Size);
@@ -411,10 +404,10 @@ auto view_as_opt(detail::buffer_type auto const* const Buffer, size_t const Size
 }
 
 template<typename T> requires std::is_trivially_copyable_v<T>
-auto view_as_opt(span_like auto const& Buffer, size_t const Offset = 0)
+auto view_as_opt(std::ranges::contiguous_range auto const& Buffer, size_t const Offset = 0)
 {
-	static_assert(detail::buffer_type<value_type<decltype(Buffer)>>);
-	return view_as_opt<T>(std::data(Buffer), std::size(Buffer), Offset);
+	static_assert(detail::buffer_type<std::ranges::range_value_t<decltype(Buffer)>>);
+	return view_as_opt<T>(std::ranges::data(Buffer), std::ranges::size(Buffer), Offset);
 }
 
 template<typename large_type, typename small_type>
@@ -442,7 +435,7 @@ constexpr small_type extract_integer(large_type const Value)
 	static_assert(sizeof(small_type) < sizeof(large_type));
 	static_assert(sizeof(small_type) * Index < sizeof(large_type));
 
-	return Value >> sizeof(small_type) * Index * CHAR_BIT;
+	return static_cast<small_type>(Value >> sizeof(small_type) * Index * CHAR_BIT);
 }
 
 #endif // UTILITY_HPP_D8E934C7_BF30_4CEB_B80C_6E508DF7A1BC

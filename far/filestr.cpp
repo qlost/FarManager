@@ -143,7 +143,7 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) 
 	for (;;)
 	{
 		const auto Char = !m_BufferView.empty() || fill()?
-			std::optional<T>{ std::basic_string_view<T>{ view_as<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
+			std::optional<T>{ std::basic_string_view<T>{ std::bit_cast<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
 			std::optional<T>{};
 
 		if (Char == EolLf)
@@ -352,11 +352,11 @@ static bool GetCpUsingML(std::string_view Str, uintptr_t& Codepage, function_ref
 	if (const auto Result = ML->DetectInputCodepage(MLDETECTCP_NONE, 0, const_cast<char*>(Str.data()), &Size, Info, &InfoCount); FAILED(Result))
 		return false;
 
-	const auto Scores = span(Info, InfoCount);
-	std::sort(ALL_CONST_RANGE(Scores), [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
+	const auto Scores = std::span(Info, InfoCount);
+	std::ranges::sort(Scores, [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
 
-	const auto It = std::find_if(ALL_CONST_RANGE(Scores), [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
-	if (It == Scores.cend())
+	const auto It = std::ranges::find_if(Scores, [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
+	if (It == Scores.end())
 		return false;
 
 	Codepage = It->nCodePage;
@@ -425,11 +425,10 @@ static bool GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage,
 
 	unsigned long long FileSize = 0;
 	const auto WholeFileRead = File.GetSize(FileSize) && ReadSize == FileSize;
-	bool PureAscii = false;
 
-	if (encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead, PureAscii))
+	if (const auto IsUtf8 = encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead); IsUtf8 != encoding::is_utf8::no)
 	{
-		if (!PureAscii)
+		if (IsUtf8 == encoding::is_utf8::yes)
 			Codepage = CP_UTF8;
 		else if (DefaultCodepage == CP_UTF8 || DefaultCodepage == encoding::codepage::ansi() || DefaultCodepage == encoding::codepage::oem())
 			Codepage = DefaultCodepage;
@@ -602,5 +601,7 @@ TEST_CASE("GetCpUsingML_M4000")
 
 	uintptr_t Cp;
 	GetCpUsingML({ c, std::size(c) }, Cp, [](uintptr_t){ return true; });
+
+	SUCCEED();
 }
 #endif

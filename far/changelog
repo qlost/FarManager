@@ -1,4 +1,434 @@
 --------------------------------------------------------------------------------
+rohitab 2024-01-31 11:44:30+11:00 - build 6265
+
+1. gh-786: Enable autocompletion in edit controls after initialization.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-31 01:27:12+03:00 - build 6264
+
+1. SQLite v3.45.1
+
+--------------------------------------------------------------------------------
+drkns 2024-01-30 07:17:21+00:00 - build 6263
+
+1. Correction of 6262.
+
+--------------------------------------------------------------------------------
+rohitab 2024-01-29 14:21:57+11:00 - build 6262
+
+1. gh-670: AlternateFileName returns different values with different Lua APIs.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-27 16:45:12+00:00 - build 6261
+
+1. gh-783: Crash when opening a plugin via an association from a plugin panel.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-24 15:47:05+00:00 - build 6260
+
+1. Refactoring.
+
+2. More logging.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-24 14:11:48+00:00 - build 6259
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-23 20:57:27+00:00 - build 6258
+
+1. More gh-773.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-22 18:54:12+00:00 - build 6257
+
+1. More gh-773.
+
+2. More logging.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-20 14:19:30+00:00 - build 6256
+
+1. far:config hex mode fix.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-20 14:05:54+00:00 - build 6255
+
+1. Improve system error messages decoding.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-19 17:32:24+00:00 - build 6254
+
+1. Restore ExitFarW calls on plugins unload, dropped after 6139.
+   Also forum: crash on manual unload of anamorphosis.dll.
+   ExitFarW calls are meaningful, we can't just drop them.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2024-01-18 14:38:15+02:00 - build 6253
+
+1. copy progress dialog rendered according current size.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-17 01:29:14+03:00 - build 6252
+
+1. SQLite v3.45.0
+
+--------------------------------------------------------------------------------
+drkns 2024-01-14 18:33:02+00:00 - build 6251
+
+1. gh-773: Preserve centered dialog state on console resize.
+
+2. Cancelling dialog drag with right mouse click didn't work.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2024-01-12 12:01:38+02:00 - build 6250
+
+1. guid for copy progress dialog.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-07 18:24:05+00:00 - build 6249
+
+1. FSF.LStr[n]icmp case insensitivity depended on system settings.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-05 23:58:39+03:00 - build 6248
+
+1. fmt v10.2.1
+
+--------------------------------------------------------------------------------
+zg 2024-01-05 09:36:01+02:00 - build 6247
+
+1. M#4026: GUID for replace confirmation dialog in editor.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-03 18:53:27+00:00 - build 6246
+
+1. More ranges.
+
+2. Use std-like source_location.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-03 10:58:29+03:00 - build 6245
+
+1. fmt v10.2.
+
+--------------------------------------------------------------------------------
+MZK 2024-01-01 00:00:00-08:00 - build 6244
+
+1. More `VMenu` refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 20:09:55+00:00 - build 6243
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 12:07:31+00:00 - build 6242
+
+1. Use bit_cast where appropriate.
+
+2. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 01:44:13+00:00 - build 6241
+
+1. gh-769: "Find All" list is truncated from the top on a short screen.
+
+--------------------------------------------------------------------------------
+MZK 2023-12-29 16:07:42-08:00 - build 6240
+
+1. Refactored `VMenu::ShowMenu` and its vicinity.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-29 22:04:10+00:00 - build 6239
+
+1. Refactoring.
+
+2. Logging improvements.
+
+3. More info in crash reports.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-28 21:59:39+00:00 - build 6238
+
+1. Crash on empty regex groups.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-28 19:20:35+00:00 - build 6237
+
+1. And another.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-27 23:11:57+00:00 - build 6236
+
+1. Another attempt to make nested user screens work.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 21:23:54+00:00 - build 6235
+
+1. Fix issues with battery status in info panel.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 13:59:59+00:00 - build 6234
+
+1. Fix RGB color processing.
+
+--------------------------------------------------------------------------------
+shmuel 2023-12-23 13:44:26+02:00 - build 6233
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 00:21:23+00:00 - build 6232
+
+1. More ranges.
+
+2. More concepts.
+
+3. More spans.
+
+4. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 22:12:53+00:00 - build 6231
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 07:23:40+00:00 - build 6230
+
+1. Correction of 6229.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 00:38:58+00:00 - build 6229
+
+1. Remove old workarounds.
+
+2. More tests.
+
+3. More ranges.
+
+--------------------------------------------------------------------------------
+mishasychev 2023-12-20 10:55:32+03:00 - build 6228
+
+1. Replace `std::optional` with `std::variant` in lazy.hpp.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-16 16:35:29+00:00 - build 6227
+
+1. Fix deadlock after an external std::exit() call.
+
+2. Clarify calling plugins by prefix
+   - Do not pass the command to the OS if the user cancelled the operation.
+   - Do not send FE_CLOSE until we get a new panel.
+
+3. Fix calling FCTL_GETPANELINFO from ClosePanelW.
+
+4. Minor fixes & remove old workarounds.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-13 22:11:00+00:00 - build 6226
+
+1. More ranges.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-09 20:35:47+00:00 - build 6225
+
+1. More ranges (less trivial cases).
+
+--------------------------------------------------------------------------------
+drkns 2023-12-08 23:18:38+00:00 - build 6224
+
+1. Refactoring.
+
+2. Switch to ranges globally (simple cases for now).
+
+--------------------------------------------------------------------------------
+MZK 2023-12-07 12:21:35-08:00 - build 6223
+
+1. gh-750: Fixed VMenu set selection behavior around list edges.
+   Warning! Bugs are expected.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-07 19:52:27+00:00 - build 6222
+
+1. gh-758: Show all reparse point tags in Attributes dialog.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-30 17:25:47+00:00 - build 6221
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-28 17:30:27+00:00 - build 6220
+
+1. gh-754: Far crash on opening small file from network in Editor.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-27 20:38:00+00:00 - build 6219
+
+1. Reduce memory consumption in editor with a few tricks. Could be up to 30%.
+
+2. gh-752: Editor Undo Glitch.
+   Primordial bug from v1.50 beta (6 Oct 1997).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-26 15:22:17+00:00 - build 6218
+
+1. Fix flags processing in mf.size2str, broken in 5418.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2023-11-25 00:35:07+03:00 - build 6217
+
+1. SQLite v3.44.2
+
+--------------------------------------------------------------------------------
+yjh 2023-11-23 02:00:07+03:00 - build 6216
+
+1. SQLite v3.44.1
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-22 20:50:01+02:00 - build 6215
+
+1. Warnings.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-21 20:32:53+02:00 - build 6214
+
+1. Far.GetConfig() is implemented entirely in Far.exe (was: Far + LuaMacro).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-19 21:55:10+00:00 - build 6213
+
+1. Support underline style and color.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-14 23:04:38+02:00 - build 6212
+
+1. Fix Macro Settings dialog.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-13 20:19:31+02:00 - build 6211
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-11 23:43:42+00:00 - build 6210
+
+1. M#4019: restore elevation requests for network paths
+
+2. gh-747: Build 6209 crashes on start with the profile from build 5629.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-07 01:48:43+00:00 - build 6209
+
+1. Correction of 6204.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-06 18:35:45+00:00 - build 6208
+
+1. Refactoring.
+
+2. Clang:
+   - Fix build
+   - Fix warnings
+   - Remove outdated workarounds
+   - Bump version
+
+3. Clarification of "black on black - default color" logic in Files highlighting:
+   black on black is now considered "default" (or "transparent") only when both
+   foreground and background are fully opaque.
+   If you noticed a sudden black color somewhere where it shouldn't be - make sure
+   that both foreground and background are either fully opaque or fully transparent,
+   either via the UI or:
+   1. export the config
+   2. search for:   background="00000000" foreground="FF000000"
+      replace with: background="00000000" foreground="00000000"
+   3. save and import.
+
+--------------------------------------------------------------------------------
+yjh 2023-11-02 09:24:30+03:00 - build 6207
+
+1. SQLite v3.44.0
+
+--------------------------------------------------------------------------------
+drkns 2023-10-29 01:30:01+01:00 - build 6206
+
+1. gh-741: Far regular expressions - performance.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-26 18:32:38+01:00 - build 6205
+
+1. Fix 5199.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-13 22:09:02+01:00 - build 6204
+
+1. In VT mode, end each line with \n.
+   Apparently it's the right thing to do and it fixes a few issues.
+
+2. Refactoring, tests.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-11 01:59:20+01:00 - build 6203
+
+1. Fix build.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-11 01:27:28+01:00 - build 6202
+
+1. Properly update copy progress when skipping files.
+
+--------------------------------------------------------------------------------
+yjh 2023-10-11 00:41:58+03:00 - build 6201
+
+1. SQLite v3.43.2
+
+--------------------------------------------------------------------------------
+drkns 2023-10-10 07:08:40+01:00 - build 6200
+
+1. And again.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-09 23:16:20+01:00 - build 6199
+
+1. Correction of 6198.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-09 17:17:17+01:00 - build 6198
+
+1. M#3968, M#3992, forum: Error 0x000003EC when opening empty file shares with non-ASCII names.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-05 22:00:00+01:00 - build 6197
+
+1. Add "default color" concept.
+   In VT renderer "default" is SGR 39/49.
+   In classic renderer "default" is whatever was active in the console initially.
+
+2. COL_COMMANDLINE, COL_COMMANDLINEPREFIX, COL_COMMANDLINEUSERSCREEN use "default" by default.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-28 17:14:11+01:00 - build 6196
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
 drkns 2023-09-24 20:39:46+01:00 - build 6195
 
 1. Continue 6185.

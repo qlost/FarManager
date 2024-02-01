@@ -169,6 +169,7 @@ Editor::~Editor()
 void Editor::FreeAllocatedData()
 {
 	m_AutoDeletedColors.clear();
+	m_ColorList.clear();
 	Lines.clear();
 	UndoData.clear();
 	UndoSavePos = UndoPos = UndoData.end();
@@ -180,7 +181,7 @@ void Editor::FreeAllocatedData()
 void Editor::SwapState(Editor& swap_state)
 {
 	// BUGBUGBUG not all fields swapped
-	using std::swap;
+	using std::ranges::swap;
 	Lines.swap(swap_state.Lines);
 	swap(m_it_TopScreen, swap_state.m_it_TopScreen);
 	swap(m_it_CurLine, swap_state.m_it_CurLine);
@@ -209,6 +210,7 @@ void Editor::SwapState(Editor& swap_state)
 	swap(m_FoundLine, swap_state.m_FoundLine);
 	swap(m_FoundPos, swap_state.m_FoundPos);
 	swap(m_FoundSize, swap_state.m_FoundSize);
+	swap(m_ColorList, swap_state.m_ColorList);
 	swap(m_AutoDeletedColors, swap_state.m_AutoDeletedColors);
 	swap(MaxRightPosState, swap_state.MaxRightPosState);
 }
@@ -540,7 +542,7 @@ long long Editor::VMProcess(int OpCode, void* vParam, long long iParam)
 		{
 			long long Ret=-1;
 			InternalEditorBookmark ebm{};
-			const auto iMode = reinterpret_cast<intptr_t>(vParam);
+			const auto iMode = std::bit_cast<intptr_t>(vParam);
 
 			if (iMode >= 0 && iMode <= 3 && GetSessionBookmark(static_cast<int>(iParam - 1), &ebm))
 			{
@@ -562,7 +564,7 @@ long long Editor::VMProcess(int OpCode, void* vParam, long long iParam)
 		case MCODE_F_EDITOR_SEL:
 		{
 			int iPos;
-			switch (const auto Action = reinterpret_cast<intptr_t>(vParam))
+			switch (const auto Action = std::bit_cast<intptr_t>(vParam))
 			{
 				case 0:  // Get Param
 				{
@@ -1923,6 +1925,7 @@ bool Editor::ProcessKeyInternal(const Manager::Key& Key, bool& Refresh)
 			if (!m_Flags.Check(FEDITOR_LOCKMODE))
 			{
 				Undo(any_of(LocalKey(), KEY_CTRLSHIFTZ, KEY_RCTRLSHIFTZ));
+				m_Flags.Set(FEDITOR_NEWUNDO);
 				Refresh = true;
 			}
 
@@ -2923,7 +2926,7 @@ Editor::numbered_iterator Editor::DeleteString(numbered_iterator DelPtr, bool De
 		}
 	}
 
-	m_AutoDeletedColors.erase(&*DelPtr);
+	m_AutoDeletedColors.erase(std::to_address(DelPtr));
 
 	const auto Result = numbered_iterator(Lines.erase(DelPtr), DelPtr.Number());
 
@@ -2984,7 +2987,7 @@ void Editor::InsertString()
 		{
 			const auto& Str = PrevLine->GetString();
 
-			const auto It = std::find_if_not(ALL_CONST_RANGE(Str), std::iswblank);
+			const auto It = std::ranges::find_if_not(Str, std::iswblank);
 			if (It != Str.cend())
 			{
 				PrevLine->SetCurPos(static_cast<int>(It - Str.cbegin()));
@@ -3152,7 +3155,7 @@ void Editor::InsertString()
 
 		if (SpaceOnly)
 		{
-			const auto SpaceIterator = std::find_if_not(ALL_CONST_RANGE(Str), std::iswblank);
+			const auto SpaceIterator = std::ranges::find_if_not(Str, std::iswblank);
 			const auto NewPos = std::min<size_t>(SpaceIterator - Str.cbegin(), OrgIndentPos);
 			if (NewPos > CurPos)
 				m_it_CurLine->SetCurPos(static_cast<int>(NewPos));
@@ -3162,8 +3165,7 @@ void Editor::InsertString()
 	TextChanged(true);
 }
 
-template<class F>
-void Editor::UpdateIteratorAndKeepPos(numbered_iterator& Iter, const F& Func)
+void Editor::UpdateIteratorAndKeepPos(numbered_iterator& Iter, const auto& Func)
 {
 	const auto CurPos = Iter->GetTabCurPos();
 	const auto LeftPos = Iter->GetLeftPos();
@@ -3405,7 +3407,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 		auto CurPtr = FindAll ? FirstLine() : m_it_CurLine, TmpPtr = CurPtr;
 
-		std::vector<RegExpMatch> Match;
+		regex_match Match;
 		named_regex_match NamedMatch;
 		RegExp re;
 
@@ -3530,7 +3532,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 					TmpPtr=m_it_CurLine=CurPtr;
 
-					for ([[maybe_unused]] const auto& i: irange(FromTop))
+					for ([[maybe_unused]] const auto i: std::views::iota(0, FromTop))
 					{
 						if (TmpPtr != Lines.begin())
 							--TmpPtr;
@@ -3562,7 +3564,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 							newcol.SetColor(SelColor);
 							newcol.SetOwner(FarUuid);
 							newcol.Priority=EDITOR_COLOR_SELECTION_PRIORITY;
-							CurPtr->AddColor(newcol);
+							AddColor(CurPtr, newcol);
 
 							if (!SearchLength && strReplaceStrCurrent.empty())
 								ZeroLength = true;
@@ -3577,9 +3579,11 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 									msg(lng::MEditAskReplaceWith),
 									quote_unconditional(strReplaceStrCurrent)
 								},
-								{ lng::MEditReplace, lng::MEditReplaceAll, lng::MEditSkip, lng::MEditCancel });
+								{ lng::MEditReplace, lng::MEditReplaceAll, lng::MEditSkip, lng::MEditCancel },
+								{},
+								&EditorConfirmReplaceId);
 
-							CurPtr->DeleteColor([&](const ColorItem& Item) { return newcol.StartPos == Item.StartPos && newcol.GetOwner() == Item.GetOwner();});
+							DeleteColor(CurPtr, [&](const ColorItem& Item) { return newcol.StartPos == Item.StartPos && newcol.GetOwner() == Item.GetOwner();});
 
 							if (MsgCode == message_result::second_button)
 								IsReplaceAll = true;
@@ -3745,8 +3749,8 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 	if(FindAll && MatchFound)
 	{
-		const auto MenuY1 = ScrY - 20;
-		const auto MenuY2 = MenuY1 + std::min(static_cast<int>(FindAllList->size()), 10) + 2;
+		const auto MenuY1 = std::max(0, ScrY - 20);
+		const auto MenuY2 = std::min(ScrY, MenuY1 + std::min(static_cast<int>(FindAllList->size()), 10) + 2);
 		FindAllList->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND);
 		FindAllList->SetPosition({ -1, MenuY1, 0, MenuY2 });
 		FindAllList->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), FindAllList->size(), AllRefLines));
@@ -3770,10 +3774,10 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 				case KEY_CTRLENTER:
 				case KEY_RCTRLENTER:
-				// TODO: Need to handle mouse events with ProcessMouse(). This implementation is accpetable,
+				// TODO: Need to handle mouse events with ProcessMouse(). This implementation is acceptable,
 				// but a click on the border jumps to the currently selected item without changing the item.
 				// Normally, mouse click on the border frame does nothing. Mouse click on the border
-				// ouside of the frame starts dragging the dialog.
+				// outside of the frame starts dragging the dialog.
 				case KEY_CTRL|KEY_MSLCLICK:
 				case KEY_RCTRL|KEY_MSLCLICK:
 					{
@@ -4072,7 +4076,7 @@ string Editor::Block2Text()
 	string CopyData;
 	CopyData.reserve(TotalChars);
 
-	for (const auto& i: range(m_it_AnyBlockStart.base(), SelEnd))
+	for (const auto& i: std::ranges::subrange(m_it_AnyBlockStart.base(), SelEnd))
 	{
 		CopyData += i.GetSelString();
 
@@ -4474,7 +4478,7 @@ public:
 	static size_t HashBM(bookmark_list::iterator BM)
 	{
 		// BUGBUG this is some dark magic
-		auto x = reinterpret_cast<size_t>(&*BM);
+		auto x = std::bit_cast<size_t>(std::to_address(BM));
 		x ^= (BM->Line << 16) ^ (BM->Cursor);
 		return x;
 	}
@@ -4769,7 +4773,7 @@ long long Editor::GetCurPos(bool file_pos, bool add_bom) const
 		}
 	}
 
-	const auto TotalSize = std::accumulate(Lines.cbegin(), m_it_TopScreen.cbase(), bom, [&](auto Value, const auto& line)
+	const auto TotalSize = std::ranges::fold_left(Lines.cbegin(), m_it_TopScreen.cbase(), bom, [&](auto Value, const auto& line)
 	{
 		const auto& Str = line.GetString();
 		return Value + (Multiplier != UnknownMultiplier? Str.size() : encoding::get_bytes_count(Codepage, Str)) + line.GetEOL().str().size();
@@ -5494,7 +5498,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			{
 				BeginStreamMarking(CurPtr);
 
-				for (const auto& i: irange(Sel->BlockHeight))
+				for (const auto i: std::views::iota(0, Sel->BlockHeight))
 				{
 					const auto SelStart = i? 0 : Sel->BlockStartPos;
 					const auto SelEnd = (i < Sel->BlockHeight - 1)? -1 : Sel->BlockStartPos + Sel->BlockWidth;
@@ -5599,9 +5603,9 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			newcol.SetOwner(col->Owner);
 			newcol.Priority=col->Priority;
 
-			CurPtr->AddColor(newcol);
+			AddColor(CurPtr, newcol);
 			if (col->Flags & ECF_AUTODELETE)
-				m_AutoDeletedColors.emplace(&*CurPtr);
+				m_AutoDeletedColors.emplace(std::to_address(CurPtr));
 
 			return true;
 		}
@@ -5618,7 +5622,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 				return false;
 
 			ColorItem curcol;
-			if (!CurPtr->GetColor(curcol, col->ColorItem))
+			if (!GetColor(CurPtr, curcol, col->ColorItem))
 				return false;
 
 			col->StartPos = curcol.StartPos;
@@ -5641,7 +5645,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			if (CurPtr == Lines.end())
 				return false;
 
-			CurPtr->DeleteColor([&](const ColorItem& Item)
+			DeleteColor(CurPtr, [&](const ColorItem& Item)
 			{
 				return (col->StartPos == -1 || col->StartPos == Item.StartPos) && col->Owner == Item.GetOwner();
 			});
@@ -6096,7 +6100,7 @@ bool Editor::InitSessionBookmarksForPlugin(EditorBookmarks* Param, size_t Count,
 	if (!Param || Param->Size < Size)
 		return false;
 
-	const auto data = edit_as<intptr_t*>(Param + 1);
+	const auto data = std::bit_cast<intptr_t*>(Param + 1);
 	Param->Count=Count;
 	Param->Line=data;
 	Param->Cursor=data+Count;
@@ -6158,7 +6162,7 @@ Editor::numbered_iterator Editor::GetStringByNumber(int DestLine)
 
 	if(Forward)
 	{
-		for ([[maybe_unused]] const auto& Line: irange(DestLine - CurPtr.Number()))
+		for ([[maybe_unused]] const auto Line: std::views::iota(0, DestLine - CurPtr.Number()))
 		{
 			++CurPtr;
 			if (CurPtr == Lines.end())
@@ -6170,7 +6174,7 @@ Editor::numbered_iterator Editor::GetStringByNumber(int DestLine)
 	}
 	else
 	{
-		for ([[maybe_unused]] const auto& Line: irange(CurPtr.Number() - DestLine))
+		for ([[maybe_unused]] const auto Line: std::views::iota(0, CurPtr.Number() - DestLine))
 		{
 			if (CurPtr == Lines.begin())
 				CurPtr = EndIterator();
@@ -6636,21 +6640,21 @@ static std::string_view GetLineBytes(string_view const Str, std::vector<char>& B
 		if (Length <= Buffer.size())
 			return { Buffer.data(), Length };
 
-		resize_exp_noshrink(Buffer, Length);
+		resize_exp(Buffer, Length);
 	}
 }
 
-bool Editor::SetLineCodePage(iterator const& Iterator, uintptr_t CurrentCodepage, uintptr_t const NewCodepage, bool const Validate)
+bool Editor::SetLineCodePage(Edit& Line, uintptr_t CurrentCodepage, uintptr_t const NewCodepage, bool const Validate)
 {
-	if (Iterator->m_Str.empty())
+	if (Line.m_Str.empty())
 		return true;
 
 	encoding::diagnostics Diagnostics;
-	const auto Bytes = GetLineBytes(Iterator->m_Str, decoded, CurrentCodepage, Validate? &Diagnostics : nullptr);
+	const auto Bytes = GetLineBytes(Line.m_Str, decoded, CurrentCodepage, Validate? &Diagnostics : nullptr);
 	auto Result = !Bytes.empty() && !Diagnostics.ErrorPosition;
-	encoding::get_chars(NewCodepage, Bytes, Iterator->m_Str, &Diagnostics);
-	Result = Result && !Iterator->m_Str.empty() && !Diagnostics.ErrorPosition;
-	Iterator->Changed();
+	encoding::get_chars(NewCodepage, Bytes, Line.m_Str, &Diagnostics);
+	Result = Result && !Line.m_Str.empty() && !Diagnostics.ErrorPosition;
+	Line.Changed();
 
 	return Result;
 }
@@ -6712,7 +6716,7 @@ bool Editor::SetCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCod
 
 	auto Result = true;
 
-	FOR_RANGE(Lines, i)
+	for(auto& i: Lines)
 	{
 		if (!SetLineCodePage(i, CurrentCodepage, NewCodepage, Result))
 			Result = false;
@@ -6743,6 +6747,48 @@ uintptr_t Editor::GetCodePage() const
 		return HostFileEditor->GetCodePage();
 
 	throw MAKE_FAR_EXCEPTION(L"HostFileEditor is nullptr"sv);
+}
+
+void Editor::AddColor(numbered_iterator const& It, ColorItem const& Item)
+{
+	m_ColorList[std::to_address(It)].insert(Item);
+}
+
+void Editor::DeleteColor(Edit const* It, delete_color_condition const Condition)
+{
+	const auto [ColorsIterator, Inserted] = m_ColorList.try_emplace(It);
+	std::erase_if(ColorsIterator->second, Condition);
+	if (ColorsIterator->second.empty())
+		m_ColorList.erase(ColorsIterator);
+}
+
+void Editor::DeleteColor(numbered_iterator const& It, delete_color_condition Condition)
+{
+	return DeleteColor(std::to_address(It), Condition);
+}
+
+bool Editor::GetColor(numbered_iterator const& It, ColorItem& Item, size_t const Index) const
+{
+	const auto ColorsIterator = m_ColorList.find(std::to_address(It));
+	if (ColorsIterator == m_ColorList.cend())
+		return false;
+
+	if (Index >= ColorsIterator->second.size())
+		return false;
+
+	auto ColorIterator = ColorsIterator->second.begin();
+	std::advance(ColorIterator, Index);
+	Item = *ColorIterator;
+	return true;
+}
+
+std::multiset<ColorItem> const* Editor::GetColors(Edit* It) const
+{
+	const auto ColorsIterator = m_ColorList.find(It);
+	if (ColorsIterator == m_ColorList.cend())
+		return {};
+
+	return &ColorsIterator->second;
 }
 
 
@@ -6841,7 +6887,7 @@ Editor::numbered_const_iterator Editor::LastLine() const
 
 bool Editor::IsLastLine(const Edit* Line) const
 {
-	return Line == &*LastLine();
+	return Line == std::to_address(LastLine());
 }
 
 bool Editor::IsLastLine(const iterator& Line) const
@@ -6853,7 +6899,7 @@ void Editor::AutoDeleteColors()
 {
 	for (const auto& i: m_AutoDeletedColors)
 	{
-		i->DeleteColor([](const ColorItem& Item){ return (Item.Flags & ECF_AUTODELETE) != 0; });
+		DeleteColor(i, [](const ColorItem& Item){ return (Item.Flags & ECF_AUTODELETE) != 0; });
 	}
 
 	m_AutoDeletedColors.clear();

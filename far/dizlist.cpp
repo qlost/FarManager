@@ -137,7 +137,7 @@ void DizList::Read(string_view const Path, const string* DizName)
 				}
 
 				// Insert unconditionally
-				LastAdded = Insert({ &*NameBegin, static_cast<size_t>(NameEnd - NameBegin) });
+				LastAdded = Insert({ std::to_address(NameBegin), static_cast<size_t>(NameEnd - NameBegin) });
 				LastAdded->second.emplace_back(DescBegin, DizText.cend());
 			}
 			else if (LastAdded != m_DizData.end())
@@ -203,7 +203,7 @@ string_view DizList::Get(const string_view Name, const string_view ShortName, co
 		return {};
 	}
 
-	auto Begin = std::find_if_not(ALL_CONST_RANGE(Description), std::iswblank);
+	auto Begin = std::ranges::find_if_not(Description, std::iswblank);
 
 	if (std::iswdigit(*Begin))
 	{
@@ -237,10 +237,10 @@ string_view DizList::Get(const string_view Name, const string_view ShortName, co
 
 DizList::desc_map::iterator DizList::Find(const string_view Name, const string_view ShortName)
 {
-	auto Iterator = m_DizData.find(string_comparer::generic_key{ Name });
+	auto Iterator = m_DizData.find(Name);
 
 	if (Iterator == m_DizData.end())
-		Iterator = m_DizData.find(string_comparer::generic_key{ ShortName });
+		Iterator = m_DizData.find(ShortName);
 
 	//если файл описаний был в OEM/ANSI то имена файлов могут не совпадать с юникодными
 	if (Iterator == m_DizData.end() && m_CodePage && !IsUnicodeOrUtfCodePage(*m_CodePage))
@@ -264,7 +264,7 @@ DizList::desc_map::const_iterator DizList::Find(const string_view Name, const st
 DizList::desc_map::iterator DizList::Insert(string_view const Name)
 {
 	auto Iterator = m_DizData.emplace(Name, description_data{});
-	m_OrderForWrite.push_back(&*Iterator);
+	m_OrderForWrite.push_back(std::to_address(Iterator));
 	return Iterator;
 }
 
@@ -276,7 +276,7 @@ bool DizList::Erase(const string_view Name, const string_view ShortName)
 		return false;
 	}
 
-	m_OrderForWrite.erase(std::find(ALL_RANGE(m_OrderForWrite), &*Iterator));
+	m_OrderForWrite.erase(std::ranges::find(m_OrderForWrite, std::to_address(Iterator)));
 
 	// Sometimes client can keep the pointer after erasure and use it,
 	// e. g. if a description has been deleted during file moving and filelist decided to redraw in the process.

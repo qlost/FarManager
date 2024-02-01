@@ -100,14 +100,15 @@ static void invalidate_broken_pairs_in_cache(matrix<FAR_CHAR_INFO>const& Buf, ma
 		&Buf0 = BufRowData[X1X2.first],
 		&Buf1 = BufRowData[X1X2.second];
 
-	std::array Pair{ Buf0, Buf1 };
-	sanitise_pair(Pair[0], Pair[1]);
+	auto Pair0 = Buf0, Pair1 = Buf1;
+	if (sanitise_pair(Pair0, Pair1))
+	{
+		if (Pair0 != Buf0)
+			ShadowRowData[X1X2.first] = {};
 
-	if (Pair[0] != Buf0)
-		ShadowRowData[X1X2.first] = {};
-
-	if (Pair[1] != Buf1)
-		ShadowRowData[X1X2.second] = {};
+		if (Pair1 != Buf1)
+			ShadowRowData[X1X2.second] = {};
+	}
 }
 
 ScreenBuf::ScreenBuf():
@@ -121,10 +122,10 @@ void ScreenBuf::DebugDump() const
 	string s;
 	s.reserve(Buf.width() + 1);
 
-	for (const auto& row_num: irange(Buf.height()))
+	for (const auto row_num: std::views::iota(0uz, Buf.height()))
 	{
 		const auto& row = Buf[row_num];
-		std::transform(ALL_CONST_RANGE(row), std::back_inserter(s), [](const auto& i) { return i.Char; });
+		std::ranges::transform(row, std::back_inserter(s), [](const auto& i) { return i.Char; });
 		s.push_back(L'\n');
 		os::debug::print(s);
 		s.clear();
@@ -159,7 +160,7 @@ void ScreenBuf::FillBuf()
 
 /* Записать Text в виртуальный буфер
 */
-void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
+void ScreenBuf::Write(int X, int Y, std::span<const FAR_CHAR_INFO> Text)
 {
 	SCOPED_ACTION(std::scoped_lock)(CS);
 
@@ -175,7 +176,7 @@ void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
 	if (X + Text.size() > Buf.width())
 		Text = Text.first(Buf.width() - X);
 
-	for (const auto& i: irange(Text.size()))
+	for (const auto i: std::views::iota(0uz, Text.size()))
 	{
 		Buf[Y][X + i] = Text[i];
 	}
@@ -201,10 +202,10 @@ void ScreenBuf::Read(rectangle Where, matrix<FAR_CHAR_INFO>& Dest)
 
 	fix_coordinates(Where);
 
-	for (const auto& i: irange(Where.top + 0, Where.bottom + 1))
+	for (const auto i: std::views::iota(Where.top + 0, Where.bottom + 1))
 	{
 		const auto Row = Buf[i];
-		std::copy_n(Row.cbegin() + Where.left, Where.width(), Dest[i - Where.top].begin());
+		std::copy_n(Row.begin() + Where.left, Where.width(), Dest[i - Where.top].begin());
 	}
 }
 
@@ -230,6 +231,8 @@ static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccess
 	// Reduce the intensity or make black.
 	// Technically the other branch can merge index colours too,
 	// but this should give more predictable results than the approximation.
+
+	Color = colors::resolve_defaults(Color);
 	auto& ColorPart = std::invoke(ColorAccessor, Color);
 	const auto Index = colors::index_value(ColorPart);
 	const auto Alpha = colors::alpha_bits(ColorPart);
@@ -285,9 +288,10 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 	const auto Is256ColorAvailable = IsTrueColorAvailable;
 
 	static constexpr FarColor
-		TrueShadowFull{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x80'000000 } },
-		TrueShadowFore{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x00'000000 } },
-		TrueShadowBack{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x80'000000 } };
+		TrueShadowFull{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x80'000000 }, { 0x80'000000 } },
+		TrueShadowFore{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x00'000000 }, { 0x00'000000 } },
+		TrueShadowBack{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x80'000000 }, { 0x00'000000 } },
+		TrueShadowUndl{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x00'000000 }, { 0x80'000000 } };
 
 	for_submatrix(Buf, Where, [&](FAR_CHAR_INFO& Element, point const Point)
 	{
@@ -300,45 +304,50 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 				colors::set_index_value(Element.Attributes.BackgroundColor, F_BLACK) :
 				colors::set_color_value(Element.Attributes.BackgroundColor, 0);
 
-			if (Element.Attributes.IsFgIndex())
+			const auto apply_shadow = [](COLORREF& ColorRef, bool const IsIndex)
 			{
-				const auto Mask = FOREGROUND_INTENSITY;
-				auto ForegroundColor = colors::index_value(Element.Attributes.ForegroundColor);
-
-				if (ForegroundColor <= colors::index::nt_last)
+				if (IsIndex)
 				{
-					if (ForegroundColor != Mask)
-						ForegroundColor &= ~Mask;
-				}
-				else if (ForegroundColor <= colors::index::cube_last)
-				{
-					// Just to stop GCC from complaining about identical branches
-					[[maybe_unused]] constexpr auto Cube = true;
+					auto Color = colors::index_value(ColorRef);
 
-					// Subpar
-					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
+					if (Color <= colors::index::nt_last)
+					{
+						if (Color == F_LIGHTGRAY)
+							Color = F_DARKGRAY;
+						else if (const auto Mask = FOREGROUND_INTENSITY; Color != Mask)
+							Color &= ~Mask;
+					}
+					else if (Color <= colors::index::cube_last)
+					{
+						colors::rgb6 rgb(Color);
+
+						rgb.r = std::min<uint8_t>(rgb.r, 2);
+						rgb.g = std::min<uint8_t>(rgb.g, 2);
+						rgb.b = std::min<uint8_t>(rgb.b, 2);
+
+						Color = rgb;
+					}
+					else
+					{
+						Color = std::min<uint8_t>(Color, colors::index::grey_first + colors::index::grey_count / 2);
+					}
+
+					colors::set_index_value(ColorRef, Color);
 				}
 				else
 				{
-					// Just to stop GCC from complaining about identical branches
-					[[maybe_unused]] constexpr auto Ramp = true;
+					const auto Mask = 0x808080;
+					auto Color = colors::color_value(ColorRef);
 
-					// Subpar
-					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
+					if (Color != Mask)
+						Color &= ~Mask;
+
+					colors::set_color_value(ColorRef, Color);
 				}
+			};
 
-				colors::set_index_value(Element.Attributes.ForegroundColor, ForegroundColor);
-			}
-			else
-			{
-				const auto Mask = 0x808080;
-				auto ForegroundColor = colors::color_value(Element.Attributes.ForegroundColor);
-
-				if (ForegroundColor != Mask)
-					ForegroundColor &= ~Mask;
-
-				colors::set_color_value(Element.Attributes.ForegroundColor, ForegroundColor);
-			}
+			apply_shadow(Element.Attributes.ForegroundColor, Element.Attributes.IsFgIndex());
+			apply_shadow(Element.Attributes.UnderlineColor, Element.Attributes.IsUnderlineIndex());
 		}
 		else if (IsTrueColorAvailable)
 		{
@@ -349,6 +358,7 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 		{
 			apply_shadow(Element.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
 			apply_shadow(Element.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
+			apply_shadow(Element.Attributes, &FarColor::UnderlineColor, FCF_FG_UNDERLINE_INDEX, TrueShadowUndl, Is256ColorAvailable);
 		}
 
 		if (CharWidthEnabled)
@@ -410,16 +420,16 @@ void ScreenBuf::FillRect(rectangle Where, const FAR_CHAR_INFO& Info)
 
 void ScreenBuf::Invalidate(flush_type const FlushType)
 {
-	if (FlushType & flush_type::screen)
+	if (flags::check_one(FlushType, flush_type::screen))
 	{
 		SBFlags.Clear(SBFLAGS_FLUSHED);
 		Shadow.vector().assign(Shadow.vector().size(), {});
 	}
 
-	if (FlushType & flush_type::cursor)
+	if (flags::check_one(FlushType, flush_type::cursor))
 		SBFlags.Clear(SBFLAGS_FLUSHEDCURPOS | SBFLAGS_FLUSHEDCURTYPE);
 
-	if (FlushType & flush_type::title)
+	if (flags::check_one(FlushType, flush_type::title))
 		SBFlags.Clear(SBFLAGS_FLUSHEDTITLE);
 }
 
@@ -442,7 +452,7 @@ static void expand_write_region_if_needed(matrix<FAR_CHAR_INFO>& Buf, rectangle&
 			LeftChanged = false,
 			RightChanged = false;
 
-		for (const auto& Row: irange(WriteRegion.top + 0, WriteRegion.bottom + 1))
+		for (const auto Row: std::views::iota(WriteRegion.top + 0, WriteRegion.bottom + 1))
 		{
 			const auto RowData = Buf[Row];
 
@@ -486,7 +496,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 {
 	SCOPED_ACTION(std::scoped_lock)(CS);
 
-	if (FlushType & flush_type::title && !SBFlags.Check(SBFLAGS_FLUSHEDTITLE))
+	if (flags::check_one(FlushType, flush_type::title) && !SBFlags.Check(SBFLAGS_FLUSHEDTITLE))
 	{
 		console.SetTitle(m_Title);
 		SBFlags.Set(SBFLAGS_FLUSHEDTITLE);
@@ -498,7 +508,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 	if (!console.IsViewportVisible())
 		return;
 
-	if (FlushType & flush_type::screen)
+	if (flags::check_one(FlushType, flush_type::screen))
 	{
 		ShowTime();
 
@@ -576,7 +586,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 				const auto CharWidthEnabled = char_width::is_enabled();
 
 				auto PtrBuf = Buf.data(), PtrShadow = Shadow.data();
-				for (const auto& I: irange(Buf.height()))
+				for (const auto I: std::views::iota(0uz, Buf.height()))
 				{
 					for (size_t J = 0, Width = Buf.width(); J < Width; ++J, ++PtrBuf, ++PtrShadow)
 					{
@@ -668,11 +678,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 
 				Shadow = Buf;
 
-				for (const auto& i: WriteList)
-				{
-					console.WriteOutput(Shadow, { i.left, i.top }, i);
-				}
-
+				console.WriteOutputGather(Shadow, WriteList);
 				console.Commit();
 			}
 
@@ -690,7 +696,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 		}
 	}
 
-	if (FlushType & flush_type::cursor)
+	if (flags::check_one(FlushType, flush_type::cursor))
 	{
 		// Example: a dialog with an edit control, dragged beyond the screen
 		const auto IsCursorInBuffer = is_visible(m_CurPos);
@@ -816,7 +822,7 @@ void ScreenBuf::Scroll(size_t Count)
 
 	SCOPED_ACTION(std::scoped_lock)(CS);
 
-	const FAR_CHAR_INFO Fill{ L' ', colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN) };
+	const FAR_CHAR_INFO Fill{ L' ', {}, {}, colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN) };
 
 	if (Global->Opt->WindowMode)
 	{

@@ -54,7 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static void CleanupBuffer(FAR_CHAR_INFO* Buffer, size_t BufSize)
 {
-	const FAR_CHAR_INFO Value{ L' ', colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN) };
+	const FAR_CHAR_INFO Value{ L' ', {}, {}, colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN) };
 	std::fill_n(Buffer, BufSize, Value);
 }
 
@@ -125,12 +125,12 @@ void SaveScreen::AppendArea(const SaveScreen& NewArea)
 		return X - Scr.m_Where.left + Scr.width() * (Y - Scr.m_Where.top);
 	};
 
-	for (const auto& X: irange(m_Where.left, m_Where.right + 1))
+	for (const auto X: std::views::iota(m_Where.left, m_Where.right + 1))
 	{
 		if (!in_closed_range(NewArea.m_Where.left, X, NewArea.m_Where.right))
 			continue;
 
-		for (const auto& Y: irange(m_Where.top, m_Where.bottom + 1))
+		for (const auto Y: std::views::iota(m_Where.top, m_Where.bottom + 1))
 		{
 			if(!in_closed_range(NewArea.m_Where.top, Y, NewArea.m_Where.bottom))
 				continue;
@@ -161,7 +161,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 
 	if (DesiredHeight > OriginalHeight)
 	{
-		for (const auto& i: irange(CopyHeight))
+		for (const auto i: std::views::iota(0uz, CopyHeight))
 		{
 			const auto FromIndex = i * OriginalWidth;
 			const auto ToIndex = (i + DeltaY) * DesiredWidth;
@@ -170,7 +170,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 	}
 	else
 	{
-		for (const auto& i : irange(CopyHeight))
+		for (const auto i: std::views::iota(0uz, CopyHeight))
 		{
 			const auto FromIndex = (i + DeltaY) * OriginalWidth;
 			const auto ToIndex = i * DesiredWidth;
@@ -196,7 +196,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 					matrix<FAR_CHAR_INFO> Tmp(DesiredHeight - OriginalHeight, std::max(DesiredWidth, OriginalWidth));
 					if (console.ReadOutput(Tmp, ReadRegion))
 					{
-						for (const auto& i: irange(Tmp.height()))
+						for (const auto i: std::views::iota(0uz, Tmp.height()))
 						{
 							std::copy_n(Tmp[i].data(), Tmp.width(), NewBuf[i].data());
 						}
@@ -206,7 +206,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 			else if (rectangle const WriteRegion{ 0, DesiredHeight - OriginalHeight, OriginalWidth - 1, -1 }; WriteRegion.left < ScrX && WindowRect.first.top && WriteRegion.top < ScrY)
 			{
 				matrix<FAR_CHAR_INFO> Tmp(OriginalHeight - DesiredHeight, std::max(DesiredWidth, OriginalWidth));
-				for (const auto& i: irange(Tmp.height()))
+				for (const auto i: std::views::iota(0uz, Tmp.height()))
 				{
 					std::copy_n(ScreenBuf[i].data(), Tmp.width(), Tmp[i].data());
 				}
@@ -224,7 +224,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 					rectangle const ReadRegion{ OriginalWidth, 0, DesiredWidth - 1, DesiredHeight - 1 };
 					matrix<FAR_CHAR_INFO> Tmp(ReadRegion.height(), ReadRegion.width());
 					console.ReadOutput(Tmp, ReadRegion);
-					for (const auto& i: irange(NewBuf.height()))
+					for (const auto i: std::views::iota(0uz, NewBuf.height()))
 					{
 						std::copy_n(Tmp[i].data(), Tmp.width(), &NewBuf[i][OriginalWidth]);
 					}
@@ -237,7 +237,7 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 				WriteRegion.left -= VtFixup;
 				matrix<FAR_CHAR_INFO> Tmp(WriteRegion.height(), WriteRegion.width());
 				const auto StartY = OriginalHeight - Tmp.height();
-				for (const auto& i: irange(Tmp.height()))
+				for (const auto i: std::views::iota(0uz, Tmp.height()))
 				{
 					std::copy_n(&ScreenBuf[i + StartY][DesiredWidth - VtFixup], Tmp.width(), Tmp[i].data());
 				}
@@ -247,7 +247,6 @@ void SaveScreen::Resize(int DesiredWidth, int DesiredHeight, bool SyncWithConsol
 		}
 	}
 
-	using std::swap;
-	swap(ScreenBuf, NewBuf);
+	std::ranges::swap(ScreenBuf, NewBuf);
 	m_Where = NewWhere;
 }

@@ -30,17 +30,6 @@
 		</Expand>
 	</Type>
 
-	<Type Name="range&lt;*&gt;">
-		<DisplayString>{m_Begin,[m_End - m_Begin]na}</DisplayString>
-		<Expand>
-			<Item Name="[size]" ExcludeView="simple">m_End - m_Begin</Item>
-			<ArrayItems>
-				<Size>m_End - m_Begin</Size>
-				<ValuePointer>m_Begin</ValuePointer>
-			</ArrayItems>
-		</Expand>
-	</Type>
-
 	<Type Name="matrix_view&lt;*&gt;">
 		<Expand>
 			<CustomListItems>
@@ -86,7 +75,7 @@
 		</Expand>
 	</Type>
 
-	<Type Name="movable&lt;*&gt;">
+	<Type Name="movable">
 		<DisplayString>{m_Value}</DisplayString>
 		<StringView>m_Value</StringView>
 	</Type>
@@ -152,7 +141,9 @@
 		<Intrinsic Name="index_green" Expression="(i - 16) % 36 / 6"/>
 		<Intrinsic Name="index_blue"  Expression="(i - 16) % 6"/>
 		<Intrinsic Name="index_grey"  Expression="23 - (255 - i)"/>
+		<Intrinsic Name="is_default"  Expression="i == 0 &amp;&amp; reserved0 == 0 &amp;&amp; reserved1 == 0x80"/>
 
+		<DisplayString Condition="is_default()">{{(default) {a,nvo}}}</DisplayString>
 		<DisplayString Condition="i == 0x0">{{{i,nvo} (black) {a,nvo}}}</DisplayString>
 		<DisplayString Condition="i == 0x1">{{{i,nvo} (navy) {a,nvo}}}</DisplayString>
 		<DisplayString Condition="i == 0x2">{{{i,nvo} (green) {a,nvo}}}</DisplayString>
@@ -172,7 +163,7 @@
 		<DisplayString Condition="i&gt;0xe7">{{{i,nvo} (grey {index_grey()}) {a,nvo}}}</DisplayString>
 		<DisplayString Condition="i&gt;0xf">{{{i,nvo}  ({index_red()} {index_green()} {index_blue()}) {a,nvo}}}</DisplayString>
 		<Expand>
-			<Item      Name="index" Condition="i&lt;0x10">i,nvo</Item>
+			<Item      Name="index" Condition="!is_default() &amp;&amp; i&lt;0x10">i,nvo</Item>
 			<Synthetic Name="index" Condition="i&gt;0xf">
 				<DisplayString>{i,nvo}</DisplayString>
 				<Expand>
@@ -201,17 +192,22 @@
 		<!-- BUGBUG VS debugger can't inspect "constexpr inline" constants -->
 		<Intrinsic Name="is_f_index"    Expression="(Flags &amp; 0x0000000000000001) != 0"/>
 		<Intrinsic Name="is_b_index"    Expression="(Flags &amp; 0x0000000000000002) != 0"/>
+		<Intrinsic Name="is_u_index"    Expression="(Flags &amp; 0x0000000000000008) != 0"/>
 		<Intrinsic Name="is_inherit"    Expression="(Flags &amp; 0x0000000000000004) != 0"/>
 		<Intrinsic Name="is_bold"       Expression="(Flags &amp; 0x1000000000000000) != 0"/>
 		<Intrinsic Name="is_italic"     Expression="(Flags &amp; 0x2000000000000000) != 0"/>
-		<Intrinsic Name="is_underline"  Expression="(Flags &amp; 0x4000000000000000) != 0"/>
-		<Intrinsic Name="is_underline2" Expression="(Flags &amp; 0x8000000000000000) != 0"/>
 		<Intrinsic Name="is_overline"   Expression="(Flags &amp; 0x0100000000000000) != 0"/>
 		<Intrinsic Name="is_strikeout"  Expression="(Flags &amp; 0x0200000000000000) != 0"/>
 		<Intrinsic Name="is_faint"      Expression="(Flags &amp; 0x0400000000000000) != 0"/>
 		<Intrinsic Name="is_blink"      Expression="(Flags &amp; 0x0800000000000000) != 0"/>
 		<Intrinsic Name="is_inverse"    Expression="(Flags &amp; 0x0010000000000000) != 0"/>
 		<Intrinsic Name="is_invisible"  Expression="(Flags &amp; 0x0020000000000000) != 0"/>
+		<Intrinsic Name="is_underline0" Expression="(Flags &amp; 0xC040000000000000) == 0"/>
+		<Intrinsic Name="is_underline1" Expression="(Flags &amp; 0x4000000000000000) != 0"/>
+		<Intrinsic Name="is_underline2" Expression="(Flags &amp; 0x8000000000000000) != 0"/>
+		<Intrinsic Name="is_underline3" Expression="(Flags &amp; 0xC000000000000000) == 0xC000000000000000"/>
+		<Intrinsic Name="is_underline4" Expression="(Flags &amp; 0x0040000000000000) != 0"/>
+		<Intrinsic Name="is_underline5" Expression="(Flags &amp; 0x4040000000000000) == 0x4040000000000000"/>
 
 		<Expand>
 			<Synthetic Name="Foreground">
@@ -223,11 +219,19 @@
 				</Expand>
 			</Synthetic>
 			<Synthetic Name="Background">
-				<DisplayString Condition="is_f_index()">{BackgroundIndex}</DisplayString>
-				<DisplayString Condition="!is_f_index()">{BackgroundRGBA}</DisplayString>
+				<DisplayString Condition="is_b_index()">{BackgroundIndex}</DisplayString>
+				<DisplayString Condition="!is_b_index()">{BackgroundRGBA}</DisplayString>
 				<Expand>
-					<ExpandedItem Condition="is_f_index()">BackgroundIndex</ExpandedItem>
-					<ExpandedItem Condition="!is_f_index()">BackgroundRGBA</ExpandedItem>
+					<ExpandedItem Condition="is_b_index()">BackgroundIndex</ExpandedItem>
+					<ExpandedItem Condition="!is_b_index()">BackgroundRGBA</ExpandedItem>
+				</Expand>
+			</Synthetic>
+			<Synthetic Name="Underline">
+				<DisplayString Condition="is_u_index()">{UnderlineIndex}</DisplayString>
+				<DisplayString Condition="!is_u_index()">{UnderlineRGBA}</DisplayString>
+				<Expand>
+					<ExpandedItem Condition="is_u_index()">UnderlineIndex</ExpandedItem>
+					<ExpandedItem Condition="!is_u_index()">UnderlineRGBA</ExpandedItem>
 				</Expand>
 			</Synthetic>
 			<Synthetic Name="Style">
@@ -235,8 +239,6 @@
 					{int(is_inherit()),d}|
 					{int(is_bold()),d}|
 					{int(is_italic()),d}|
-					{int(is_underline()),d}|
-					{int(is_underline2()),d}|
 					{int(is_overline()),d}|
 					{int(is_strikeout()),d}|
 					{int(is_faint()),d}|
@@ -248,14 +250,18 @@
 					<Item Name="inherit">is_inherit()</Item>
 					<Item Name="bold">is_bold()</Item>
 					<Item Name="italic">is_italic()</Item>
-					<Item Name="underline">is_underline()</Item>
-					<Item Name="underline2">is_underline2()</Item>
 					<Item Name="overline">is_overline()</Item>
 					<Item Name="strikeout">is_strikeout()</Item>
 					<Item Name="faint">is_faint()</Item>
 					<Item Name="blink">is_blink()</Item>
 					<Item Name="inverse">is_inverse()</Item>
 					<Item Name="invisible">is_invisible()</Item>
+					<Item Name="underline" Condition="is_underline0()">UNDERLINE_NONE</Item>
+					<Item Name="underline" Condition="is_underline1()">UNDERLINE_SINGLE</Item>
+					<Item Name="underline" Condition="is_underline2()">UNDERLINE_DOUBLE</Item>
+					<Item Name="underline" Condition="is_underline3()">UNDERLINE_CURLY</Item>
+					<Item Name="underline" Condition="is_underline4()">UNDERLINE_DOT</Item>
+					<Item Name="underline" Condition="is_underline5()">UNDERLINE_DASH</Item>
 				</Expand>
 			</Synthetic>
 			<Item Name="LVB">char((Flags &amp; 0x000000000000FF00) &gt;&gt; 8),nvoh</Item>
@@ -443,7 +449,5 @@
 			<ExpandedItem Condition="EventType == 0x10">Event.FocusEvent</ExpandedItem>
 		</Expand>
 	</Type>
-
-
 
 </AutoVisualizer>

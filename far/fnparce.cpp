@@ -67,7 +67,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/string_utils.hpp"
 #include "common/scope_exit.hpp"
-#include "common/view/select.hpp"
 
 // External:
 #include "format.hpp"
@@ -233,7 +232,7 @@ static size_t ProcessBrackets(string_view const Str, wchar_t const EndMark, brac
 			if (*Iterator == L'(')
 			{
 				if (!Brackets.BeginBracket)
-					Brackets.BeginBracket = &*Iterator;
+					Brackets.BeginBracket = std::to_address(Iterator);
 
 				++BracketsCount;
 				continue;
@@ -249,7 +248,7 @@ static size_t ProcessBrackets(string_view const Str, wchar_t const EndMark, brac
 				if (BracketsCount)
 					continue;
 
-				Brackets.EndBracket = &*Iterator;
+				Brackets.EndBracket = std::to_address(Iterator);
 				continue;
 			}
 		}
@@ -465,8 +464,7 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 			Str,
 			join(
 				L" "sv,
-				select(
-					SubstData.Default().Panel->enum_selected(),
+				SubstData.Default().Panel->enum_selected() | std::views::transform(
 					[&](os::fs::find_data const& i)
 					{
 						const auto Data = std::invoke(Selector, i);
@@ -498,7 +496,7 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 	{
 		const auto ExclPos = Tail.find(L'!');
 		if (ExclPos == Tail.npos || Tail.substr(ExclPos + 1).starts_with(L'?'))
-			return size_t{};
+			return 0uz;
 
 		const auto Modifiers = Tail.substr(0, ExclPos);
 
@@ -638,7 +636,7 @@ static string_view ProcessVariable(string_view const CurStr, const subst_data& S
 {
 	const auto Str = CurStr.substr(1);
 
-	const auto Iterator = std::find_if(ALL_CONST_RANGE(*SubstData.Variables), [&](std::pair<string, string> const& i)
+	const auto Iterator = std::ranges::find_if(*SubstData.Variables, [&](std::pair<string, string> const& i)
 	{
 		return starts_with_icase(Str, i.first);
 	});
@@ -851,7 +849,7 @@ static bool InputVariablesDialog(string& strStr, subst_data& SubstData, string_v
 
 	for (size_t n = 0; n != strStr.size(); ++n)
 	{
-		const auto ItemIterator = std::find_if(CONST_RANGE(Positions, i) { return i.Pos == n; });
+		const auto ItemIterator = std::ranges::find(Positions, n, [&](pos_item const& i){ return i.Pos; });
 		if (ItemIterator != Positions.cend())
 		{
 			strTmpStr += DlgData[(ItemIterator - Positions.cbegin()) * 2 + 2].strData;

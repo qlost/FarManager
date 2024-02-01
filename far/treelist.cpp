@@ -318,7 +318,7 @@ static bool GetCacheTreeName(string_view const Root, string& strName, bool const
 			AddEndSlash(strRemoteName);
 	}
 
-	std::replace(ALL_RANGE(strRemoteName), path::separator, L'_');
+	std::ranges::replace(strRemoteName, path::separator, L'_');
 	strName = far::format(L"{}\\{}.{:X}.{}.{}"sv, strFolderName, strVolumeName, dwVolumeSerialNumber, strFileSystemName, strRemoteName);
 	return true;
 }
@@ -711,8 +711,7 @@ static void ReadLines(const os::fs::file& TreeFile, function_ref<void(string_vie
 	}
 }
 
-template<class string_type, class container_type, class opener_type>
-static void WriteTree(string_type& Name, const container_type& Container, const opener_type& Opener, size_t offset)
+static void WriteTree(auto& Name, const auto& Container, const auto& Opener, size_t offset)
 {
 	// получим и сразу сбросим атрибуты (если получится)
 	const auto SavedAttributes = os::fs::get_file_attributes(Name);
@@ -834,7 +833,7 @@ bool TreeList::ReadTree()
 		return false;
 	}
 
-	std::sort(ALL_RANGE(m_ListData), string_sort::less);
+	std::ranges::sort(m_ListData, string_sort::less);
 
 	if (!FillLastData())
 		return false;
@@ -926,7 +925,7 @@ bool TreeList::FillLastData()
 	};
 
 	const auto RootLength = m_Root.empty()? 0 : m_Root.size()-1;
-	const range Range(m_ListData.begin() + 1, m_ListData.end());
+	const auto Range = m_ListData | std::views::drop(1);
 	FOR_RANGE(Range, i)
 	{
 		const auto Pos = i->strName.rfind(path::separator);
@@ -939,7 +938,7 @@ bool TreeList::FillLastData()
 		auto SubDirPos = i;
 		int Last = 1;
 
-		const range SubRange(i + 1, Range.end());
+		const std::ranges::subrange SubRange(i + 1, Range.end());
 		FOR_RANGE(SubRange, j)
 		{
 			if (CountSlash(j->strName, RootLength) > Depth)
@@ -955,7 +954,7 @@ bool TreeList::FillLastData()
 			}
 		}
 
-		for (auto& j: range(i, SubDirPos + 1))
+		for (auto& j: std::ranges::subrange(i, SubDirPos + 1))
 		{
 			if (Depth > j.Last.size())
 			{
@@ -1352,11 +1351,11 @@ int TreeList::GetNextNavPos() const
 {
 	int NextPos=m_CurFile;
 
-	if (static_cast<size_t>(m_CurFile) + 1 < m_ListData.size())
+	if (static_cast<size_t>(m_CurFile + 1) < m_ListData.size())
 	{
 		const auto CurDepth = m_ListData[m_CurFile].Depth;
 
-		for (const auto& I: irange(m_CurFile + 1, m_ListData.size()))
+		for (const auto I: std::views::iota(static_cast<size_t>(m_CurFile + 1), m_ListData.size()))
 		{
 			if (m_ListData[I].Depth == CurDepth)
 			{
@@ -1975,7 +1974,7 @@ bool TreeList::GoToFile(const string_view Name, const bool OnlyPartName)
 
 long TreeList::FindFile(const string_view Name, const bool OnlyPartName)
 {
-	const auto ItemIterator = std::find_if(CONST_RANGE(m_ListData, i)
+	const auto ItemIterator = std::ranges::find_if(m_ListData, [&](TreeItem const& i)
 	{
 		return equal_icase(Name, OnlyPartName? PointToName(i.strName) : i.strName);
 	});
@@ -1992,7 +1991,7 @@ long TreeList::FindNext(int StartPos, string_view const Name)
 {
 	if (static_cast<size_t>(StartPos) < m_ListData.size())
 	{
-		const auto ItemIterator = std::find_if(CONST_RANGE(m_ListData, i)
+		const auto ItemIterator = std::ranges::find_if(m_ListData, [&](TreeItem const& i)
 		{
 			return CmpName(Name, i.strName, true) && !IsParentDirectory(i.strName);
 		});

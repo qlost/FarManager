@@ -32,6 +32,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "cpp.hpp"
 #include "preprocessor.hpp"
 #include "type_traits.hpp"
 #include "utility.hpp"
@@ -40,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <functional>
 #include <numeric>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -50,8 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-template<typename string_type, typename iterator_type>
-auto copy_string(string_type const& Str, iterator_type const Destination)
+auto copy_string(std::ranges::contiguous_range auto const& Str, std::contiguous_iterator auto const Destination)
 {
 	return Destination + Str.copy(std::to_address(Destination), Str.npos);
 }
@@ -152,12 +153,12 @@ namespace string_utils::detail
 
 	inline void append_impl(std::wstring& Str, const std::initializer_list<append_arg>& Args)
 	{
-		const auto TotalSize = std::accumulate(ALL_RANGE(Args), size_t{}, [](size_t const Value, const append_arg& Element)
+		const auto TotalSize = std::ranges::fold_left(Args, 0uz, [](size_t const Value, const append_arg& Element)
 		{
 			return Value + Element.size();
 		});
 
-		reserve_exp_noshrink(Str, TotalSize);
+		reserve_exp(Str, TotalSize);
 		for (const auto& i: Args)
 		{
 			Str += i;
@@ -165,15 +166,15 @@ namespace string_utils::detail
 	}
 }
 
-template<typename... args>
+// Don't "auto" it yet, ICE in VS2019
+template <typename... args>
 void append(std::wstring& Str, args const&... Args)
 {
 	string_utils::detail::append_impl(Str, { string_utils::detail::append_arg(Args)... });
 }
 
-template<typename... args>
 [[nodiscard]]
-auto concat(args const&... Args)
+auto concat(auto const&... Args)
 {
 	static_assert(sizeof...(Args) > 1);
 
@@ -183,18 +184,32 @@ auto concat(args const&... Args)
 }
 
 // uniform "contains"
-template<typename find_type, typename... traits>
+template<typename... traits>
 [[nodiscard]]
-bool contains(const std::basic_string<traits...>& Str, const find_type& What) noexcept
+bool contains(const std::basic_string<traits...>& Str, const auto& What) noexcept
 {
-	return Str.find(What) != Str.npos;
+	if constexpr (requires { Str.contains(What); })
+	{
+		return Str.contains(What);
+	}
+	else
+	{
+		return Str.find(What) != Str.npos;
+	}
 }
 
-template<typename find_type, typename... traits>
+template<typename... traits>
 [[nodiscard]]
-constexpr bool contains(const std::basic_string_view<traits...> Str, const find_type& What) noexcept
+constexpr bool contains(const std::basic_string_view<traits...> Str, const auto& What) noexcept
 {
-	return Str.find(What) != Str.npos;
+	if constexpr (requires { Str.contains(What); })
+	{
+		return Str.contains(What);
+	}
+	else
+	{
+		return Str.find(What) != Str.npos;
+	}
 }
 
 namespace detail
@@ -254,11 +269,10 @@ inline bool within(std::wstring_view const Haystack, std::wstring_view const Nee
 
 namespace detail
 {
-	template<typename begin_iterator, typename end_iterator>
 	[[nodiscard]]
-	size_t get_space_count(begin_iterator const Begin, end_iterator const End) noexcept
+	size_t get_leading_space_count(std::ranges::range auto const Range) noexcept
 	{
-		return std::find_if_not(Begin, End, std::iswspace) - Begin;
+		return std::ranges::find_if_not(Range, std::iswspace) - std::ranges::cbegin(Range);
 	}
 }
 
@@ -359,22 +373,22 @@ namespace inplace
 
 	inline void trim_left(std::wstring& Str)
 	{
-		Str.erase(0, detail::get_space_count(ALL_CONST_RANGE(Str)));
+		Str.erase(0, detail::get_leading_space_count(std::wstring_view(Str)));
 	}
 
 	inline void trim_left(std::wstring_view& Str) noexcept
 	{
-		Str.remove_prefix(detail::get_space_count(ALL_CONST_RANGE(Str)));
+		Str.remove_prefix(detail::get_leading_space_count(Str));
 	}
 
 	inline void trim_right(std::wstring& Str)
 	{
-		Str.resize(Str.size() - detail::get_space_count(ALL_CONST_REVERSE_RANGE(Str)));
+		Str.resize(Str.size() - detail::get_leading_space_count(std::wstring_view(Str) | std::views::reverse));
 	}
 
 	inline void trim_right(std::wstring_view& Str) noexcept
 	{
-		Str.remove_suffix(detail::get_space_count(ALL_CONST_REVERSE_RANGE(Str)));
+		Str.remove_suffix(detail::get_leading_space_count(Str | std::views::reverse));
 	}
 
 	inline void trim(std::wstring& Str)
@@ -392,10 +406,9 @@ namespace inplace
 
 namespace copy
 {
-	template<typename iterator>
-	void unquote(const std::wstring_view Str, const iterator Destination)
+	void unquote(const std::wstring_view Str, std::output_iterator<wchar_t> auto const Destination)
 	{
-		std::remove_copy(ALL_CONST_RANGE(Str), Destination, L'"');
+		std::ranges::remove_copy(Str, Destination, L'"');
 	}
 }
 
@@ -575,19 +588,18 @@ inline auto trim(std::wstring_view Str) noexcept
 	return Str;
 }
 
-template<typename container>
-void join(std::wstring& Str, std::wstring_view const Separator, const container& Container)
+void join(std::wstring& Str, std::wstring_view const Separator, std::ranges::range auto&& Range)
 {
-	const auto Size = std::accumulate(ALL_CONST_RANGE(Container), size_t{}, [Separator](size_t const Value, const auto& Element)
+	const auto Size = std::ranges::fold_left(Range, 0uz, [Separator](size_t const Value, const auto& Element)
 	{
 		return Value + Separator.size() + string_utils::detail::append_arg(Element).size();
 	});
 
-	reserve_exp_noshrink(Str, Size? Size - Separator.size() : Size);
+	reserve_exp(Str, Size? Size - Separator.size() : Size);
 
 	bool First = true;
 
-	for (const auto& i: Container)
+	for (const auto& i: Range)
 	{
 		if (First)
 		{
@@ -601,12 +613,11 @@ void join(std::wstring& Str, std::wstring_view const Separator, const container&
 	}
 }
 
-template<typename container>
 [[nodiscard]]
-std::wstring join(std::wstring_view const Separator, const container& Container)
+std::wstring join(std::wstring_view const Separator, std::ranges::range auto&& Range)
 {
 	std::wstring Str;
-	join(Str, Separator, Container);
+	join(Str, Separator, Range);
 	return Str;
 }
 
@@ -655,19 +666,6 @@ auto operator+(T const Lhs, std::basic_string_view<T> const Rhs)
 }
 
 
-// string_view has iterators, but you cannot construct it from them
-// "Design by committee" *facepalm*
-template<typename T>
-[[nodiscard]]
-constexpr auto make_string_view(T const Begin, T const End) noexcept
-{
-	using char_type = std::iter_value_t<T>;
-	static_assert(std::same_as<typename std::basic_string_view<char_type>::const_iterator, T>);
-
-	const auto Size = static_cast<size_t>(End - Begin);
-	return std::basic_string_view<char_type>{ Size ? &*Begin : nullptr, Size };
-}
-
 class lvalue_string_view
 {
 public:
@@ -695,12 +693,7 @@ private:
 
 struct string_comparer
 {
-#ifdef __cpp_lib_generic_unordered_lookup
 	using is_transparent = void;
-	using generic_key = std::wstring_view;
-#else
-	using generic_key = string;
-#endif
 
 	[[nodiscard]]
 	size_t operator()(const std::wstring_view Str) const

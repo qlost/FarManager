@@ -45,7 +45,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/2d/point.hpp"
 #include "common/2d/rectangle.hpp"
 #include "common/nifty_counter.hpp"
-#include "common/range.hpp"
 
 // External:
 
@@ -59,7 +58,7 @@ enum CLEAR_REGION
 };
 
 wchar_t ReplaceControlCharacter(wchar_t Char);
-void sanitise_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second);
+bool sanitise_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second);
 bool get_console_screen_buffer_info(HANDLE ConsoleOutput, CONSOLE_SCREEN_BUFFER_INFO* ConsoleScreenBufferInfo);
 
 namespace console_detail
@@ -112,16 +111,17 @@ namespace console_detail
 
 		bool IsVtSupported() const;
 
-		bool PeekInput(span<INPUT_RECORD> Buffer, size_t& NumberOfEventsRead) const;
+		bool PeekInput(std::span<INPUT_RECORD> Buffer, size_t& NumberOfEventsRead) const;
 		bool PeekOneInput(INPUT_RECORD& Record) const;
-		bool ReadInput(span<INPUT_RECORD> Buffer, size_t& NumberOfEventsRead) const;
+		bool ReadInput(std::span<INPUT_RECORD> Buffer, size_t& NumberOfEventsRead) const;
 		bool ReadOneInput(INPUT_RECORD& Record) const;
-		bool WriteInput(span<INPUT_RECORD> Buffer, size_t& NumberOfEventsWritten) const;
+		bool WriteInput(std::span<INPUT_RECORD> Buffer, size_t& NumberOfEventsWritten) const;
 		bool ReadOutput(matrix<FAR_CHAR_INFO>& Buffer, point BufferCoord, rectangle const& ReadRegionRelative) const;
 		bool ReadOutput(matrix<FAR_CHAR_INFO>& Buffer, const rectangle& ReadRegion) const { return ReadOutput(Buffer, {}, ReadRegion); }
 		bool WriteOutput(matrix<FAR_CHAR_INFO>& Buffer, point BufferCoord, rectangle const& WriteRegionRelative) const;
 		bool WriteOutput(matrix<FAR_CHAR_INFO>& Buffer, rectangle const& WriteRegion) const { return WriteOutput(Buffer, {}, WriteRegion); }
-		bool Read(span<wchar_t> Buffer, size_t& Size) const;
+		bool WriteOutputGather(matrix<FAR_CHAR_INFO>& Buffer, std::span<rectangle const> WriteRegions) const;
+		bool Read(std::span<wchar_t> Buffer, size_t& Size) const;
 		bool Write(string_view Str) const;
 		bool Commit() const;
 

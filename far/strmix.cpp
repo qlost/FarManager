@@ -63,28 +63,25 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 string GroupDigits(unsigned long long Value)
 {
-	NUMBERFMT Fmt{};
-
-	// Not needed - can't be decimal
-	Fmt.NumDigits = 0;
-	// Don't care - can't be decimal
-	Fmt.LeadingZero = 1;
-
-	Fmt.Grouping = locale.digits_grouping();
-
 	wchar_t DecimalSeparator[]{ locale.decimal_separator(), L'\0' };
-	Fmt.lpDecimalSep = DecimalSeparator;
-
 	wchar_t ThousandSeparator[]{ locale.thousand_separator(), L'\0' };
-	Fmt.lpThousandSep = ThousandSeparator;
 
-	// Don't care - can't be negative
-	Fmt.NegativeOrder = 1;
+	NUMBERFMT const Fmt
+	{
+		// Not needed - can't be decimal
+		.NumDigits = 0,
+		// Don't care - can't be decimal
+		.LeadingZero = 1,
+		.Grouping = locale.digits_grouping(),
+		.lpDecimalSep = DecimalSeparator,
+		.lpThousandSep = ThousandSeparator,
+		// Don't care - can't be negative
+		.NegativeOrder = 1,
+	};
 
 	auto Src = str(Value);
-	string Result;
 
-	if (os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Result, [&](span<wchar_t> Buffer)
+	if (string Result; os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Result, [&](std::span<wchar_t> Buffer)
 	{
 		const size_t Size = GetNumberFormat(LOCALE_USER_DEFAULT, 0, Src.c_str(), &Fmt, Buffer.data(), static_cast<int>(Buffer.size()));
 		return Size? Size - 1 : 0;
@@ -158,7 +155,7 @@ void inplace::QuoteOuterSpace(string& Str)
 // TODO: "…" is displayed as "." in raster fonts. Make it lng-customisable?
 static const auto Dots = L"…"sv;
 
-static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(span<wchar_t>, size_t, string_view)> const Handler)
+static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(std::span<wchar_t>, size_t, string_view)> const Handler)
 {
 	assert(MaxLength >= 0);
 	const size_t Max = std::max(0, MaxLength);
@@ -177,7 +174,7 @@ static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(span
 
 wchar_t* legacy::truncate_right(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		*copy_string(CurrentDots, StrParam.data() + MaxLengthParam - CurrentDots.size()) = {};
 	});
@@ -205,7 +202,7 @@ string truncate_right(string_view const Str, size_t const MaxLength)
 
 wchar_t* legacy::truncate_left(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Iterator = copy_string(CurrentDots, StrParam.data());
 
@@ -238,7 +235,7 @@ string truncate_left(string_view const Str, size_t const MaxLength)
 
 wchar_t* legacy::truncate_center(wchar_t *Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Iterator = copy_string(CurrentDots, StrParam.begin() + (MaxLengthParam - CurrentDots.size()) / 2);
 
@@ -278,7 +275,7 @@ static auto StartOffset(string_view const Str)
 
 wchar_t* legacy::truncate_path(wchar_t*Str, int MaxLength)
 {
-	return legacy_operation(Str, MaxLength, [](span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
+	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
 	{
 		const auto Offset = std::min(StartOffset(StrParam.data()), MaxLengthParam - CurrentDots.size());
 
@@ -314,17 +311,13 @@ string truncate_path(string_view const Str, size_t const MaxLength)
 
 bool IsCaseMixed(const string_view Str)
 {
-	const auto AlphaBegin = std::find_if(ALL_CONST_RANGE(Str), is_alpha);
+	const auto AlphaBegin = std::ranges::find_if(Str, is_alpha);
 	if (AlphaBegin == Str.cend())
 		return false;
 
 	const auto Case = is_lower(*AlphaBegin);
 	return std::any_of(AlphaBegin, Str.cend(), [Case](wchar_t c){ return is_alpha(c) && is_lower(c) != Case; });
 }
-
-/* FileSizeToStr()
-   Форматирование размера файла в удобочитаемый вид.
-*/
 
 template<size_t multiplier>
 struct units
@@ -375,7 +368,7 @@ static string& UnitStr(size_t Unit, bool Binary)
 
 void PrepareUnitStr()
 {
-	for (const auto& i: irange(std::size(BytesInUnit)))
+	for (const auto i: std::views::iota(0uz, std::size(BytesInUnit)))
 	{
 		UnitStr(i, true) = upper(msg(lng::MListBytes + i));
 		UnitStr(i, false) = lower(msg(lng::MListBytes + i));
@@ -553,11 +546,11 @@ bool ReplaceStrings(string& strStr, string_view FindStr, string_view ReplStr, co
 
 void remove_duplicates(string& Str, wchar_t const Char, bool const IgnoreCase)
 {
-	const auto NewEnd = IgnoreCase?
-		std::unique(ALL_RANGE(Str), [Char, Eq = string_comparer_icase{}](wchar_t const First, wchar_t const Second){ return Eq(First, Char) && Eq(Second, Char); }) :
-		std::unique(ALL_RANGE(Str), [Char](wchar_t const First, wchar_t const Second){ return First == Char && Second == Char; });
+	const auto Removed = IgnoreCase?
+		std::ranges::unique(Str, [Char, Eq = string_comparer_icase{}](wchar_t const First, wchar_t const Second){ return Eq(First, Char) && Eq(Second, Char); }) :
+		std::ranges::unique(Str, [Char](wchar_t const First, wchar_t const Second){ return First == Char && Second == Char; });
 
-	Str.resize(NewEnd - Str.begin());
+	Str.resize(Str.size() - Removed.size());
 }
 
 bool wrapped_text::get(bool Reset, string_view& Value) const
@@ -681,7 +674,8 @@ bool FindWordInString(string_view const Str, size_t CurPos, size_t& Begin, size_
 
 bool CheckFileSizeStringFormat(string_view const FileSizeStr)
 {
-	static const std::wregex SizeRegex(RE_BEGIN RE_ANY_OF(L"0-9") RE_ONE_OR_MORE_LAZY RE_ANY_OF(L"BKMGTPE") RE_ZERO_OR_ONE_GREEDY RE_END, std::regex::icase | std::regex::optimize);
+	// NumberSuffix
+	static const std::wregex SizeRegex(RE_BEGIN RE_ANY_OF(L"0-9") RE_ONE_OR_MORE_LAZY RE_ANY_OF(L"BbKkMmGgTtPpEe") RE_ZERO_OR_ONE_GREEDY RE_END, std::regex::optimize);
 	return std::regex_search(ALL_CONST_RANGE(FileSizeStr), SizeRegex);
 }
 
@@ -709,104 +703,92 @@ unsigned long long ConvertFileSizeString(string_view const FileSizeStr)
 string ReplaceBrackets(
 		const string_view SearchStr,
 		const string_view ReplaceStr,
-		span<RegExpMatch const> Match,
-		const named_regex_match* NamedMatch,
-		int& CurPos,
-		int& SearchLength)
+		std::span<RegExpMatch const> Match,
+		const named_regex_match* NamedMatch
+)
+{
+	string result;
+
+	for (size_t i = 0, length = ReplaceStr.size(); i < length; ++i)
 	{
-		string result;
-		for (size_t i = 0, length = ReplaceStr.size(); i < length; ++i)
+		const auto CurrentChar = ReplaceStr[i];
+
+		if (CurrentChar != L'$' || i + 1 == length)
 		{
-			const auto CurrentChar = ReplaceStr[i];
-			bool common = true;
+			result.push_back(CurrentChar);
+			continue;
+		}
 
-			if (CurrentChar == L'$')
+		const auto TokenStart = i + 1;
+		auto TokenEnd = TokenStart;
+		size_t TokenSize = 0;
+
+		size_t GroupNumber = 0;
+		string_view Replacement;
+
+		while (TokenEnd != length && std::iswdigit(ReplaceStr[TokenEnd]))
+		{
+			const auto NewGroupNumber = GroupNumber * 10 + ReplaceStr[TokenEnd] - L'0';
+			if (NewGroupNumber >= Match.size())
+				break;
+
+			GroupNumber = NewGroupNumber;
+			++TokenEnd;
+		}
+
+		if (TokenEnd != TokenStart)
+		{
+			Replacement = get_match(SearchStr, Match[GroupNumber]);
+			TokenSize = TokenEnd - TokenStart;
+		}
+		else if (NamedMatch)
+		{
+			// {some text}
+			static const std::wregex re(RE_BEGIN RE_ESCAPE(L"{") RE_C_GROUP(RE_ANY_OF(L"\\w\\s") RE_ZERO_OR_MORE_LAZY) RE_ESCAPE(L"}"), std::regex::optimize);
+			std::match_results<string_view::const_iterator> CMatch;
+			if (const auto Part = ReplaceStr.substr(TokenStart); std::regex_search(ALL_CONST_RANGE(Part), CMatch, re))
 			{
-				const auto TokenStart = i + 1;
-
-				if (TokenStart < length)
+				TokenSize = CMatch[0].length();
+				if (const auto Iterator = NamedMatch->Matches.find(string_view{ CMatch[1].first, CMatch[1].second }); Iterator != NamedMatch->Matches.cend())
 				{
-					intptr_t start = 0, end = 0;
-					size_t ShiftLength = 0;
-					auto TokenEnd = TokenStart;
-					bool Success = false;
-
-					while (TokenEnd != length && std::iswdigit(ReplaceStr[TokenEnd]))
-					{
-						++TokenEnd;
-					}
-
-					if (TokenEnd != TokenStart)
-					{
-						size_t index = 0;
-						while (TokenEnd != TokenStart && (index = from_string<unsigned long>(ReplaceStr.substr(TokenStart, TokenEnd - TokenStart))) >= Match.size())
-						{
-							--TokenEnd;
-						}
-
-						if (TokenEnd != TokenStart)
-						{
-							Success = true;
-							start = Match[index].start;
-							end = Match[index].end;
-							ShiftLength = TokenEnd - TokenStart;
-						}
-					}
-					else
-					{
-						static const std::wregex re(RE_BEGIN RE_ESCAPE(L"{") RE_C_GROUP(RE_ANY_OF(L"\\w\\s") RE_ZERO_OR_MORE_LAZY) RE_ESCAPE(L"}"), std::regex::optimize);
-						std::match_results<string_view::const_iterator> CMatch;
-						if (const auto Part = ReplaceStr.substr(TokenStart); std::regex_search(ALL_CONST_RANGE(Part), CMatch, re))
-						{
-							ShiftLength = CMatch[0].length();
-							if (NamedMatch)
-							{
-								const auto Iterator = NamedMatch->Matches.find(string_comparer::generic_key{ CMatch[1].first, CMatch[1].second });
-								if (Iterator != NamedMatch->Matches.cend())
-								{
-									Success = true;
-									const auto& m = Match[Iterator->second];
-									start = m.start;
-									end = m.end;
-								}
-							}
-						}
-					}
-
-					if (ShiftLength)
-					{
-						i += ShiftLength;
-						common = false;
-
-						if (Success)
-						{
-							result.append(SearchStr.data() + start, end - start);
-						}
-					}
+					Replacement = get_match(SearchStr, Match[Iterator->second]);
 				}
-			}
-
-			if (common)
-			{
-				result += CurrentChar;
+				else
+				{
+					Replacement = ReplaceStr.substr(i, CMatch.length() + 1);
+				}
 			}
 		}
 
-		SearchLength = Match[0].end - Match[0].start;
-		CurPos = Match[0].start;
-		return result;
+		if (TokenSize)
+		{
+			i += TokenSize;
+			result += Replacement;
+		}
+		else
+		{
+			result += CurrentChar;
+		}
 	}
+
+	return result;
+}
 
 namespace
 {
 	bool CanContainWholeWord(string_view const Haystack, size_t const Offset, size_t const NeedleSize, string_view const WordDiv)
 	{
+		assert(Offset <= Haystack.size());
+
 		const auto SpaceOrWordDiv = [&WordDiv](wchar_t Ch)
 		{
 			return std::iswspace(Ch) || contains(WordDiv, Ch);
 		};
 
 		if (Offset && !SpaceOrWordDiv(Haystack[Offset - 1]))
+			return false;
+
+		if (Offset + NeedleSize > Haystack.size())
 			return false;
 
 		if (Offset + NeedleSize < Haystack.size() && !SpaceOrWordDiv(Haystack[Offset + NeedleSize]))
@@ -818,7 +800,7 @@ namespace
 	bool SearchStringRegex(
 		string_view const Source,
 		const RegExp& re,
-		std::vector<RegExpMatch>& Match,
+		regex_match& Match,
 		named_regex_match* const NamedMatch,
 		intptr_t Position,
 		search_replace_string_options const options,
@@ -836,13 +818,15 @@ namespace
 				if (!re.SearchEx(Source, CurrentPosition, Match, NamedMatch))
 					return false;
 
-				if (options.WholeWords && !CanContainWholeWord(Source, Match[0].start, Match[0].end - Match[0].start, WordDiv))
+				if (options.WholeWords && !CanContainWholeWord(Source, Match.Matches[0].start, Match.Matches[0].end - Match.Matches[0].start, WordDiv))
 				{
 					++CurrentPosition;
 					continue;
 				}
 
-				ReplaceStr = ReplaceBrackets(Source, ReplaceStr, Match, NamedMatch, CurPos, SearchLength);
+				ReplaceStr = ReplaceBrackets(Source, ReplaceStr, Match.Matches, NamedMatch);
+				CurPos = Match.Matches[0].start;
+				SearchLength = Match.Matches[0].end - Match.Matches[0].start;
 				return true;
 			}
 			while (static_cast<size_t>(CurrentPosition) != Source.size());
@@ -851,23 +835,23 @@ namespace
 		bool found = false;
 		intptr_t pos = 0;
 
-		std::vector<RegExpMatch> FoundMatch;
+		regex_match FoundMatch;
 		named_regex_match FoundNamedMatch;
 
 		while (re.SearchEx(Source, pos, Match, NamedMatch))
 		{
-			pos = Match[0].start;
+			pos = Match.Matches[0].start;
 			if (pos > Position)
 				break;
 
-			if (options.WholeWords && !CanContainWholeWord(Source, Match[0].start, Match[0].end - Match[0].start, WordDiv))
+			if (options.WholeWords && !CanContainWholeWord(Source, Match.Matches[0].start, Match.Matches[0].end - Match.Matches[0].start, WordDiv))
 			{
 				++pos;
 				continue;
 			}
 
 			found = true;
-			FoundMatch = std::move(Match);
+			FoundMatch.Matches = std::move(Match.Matches);
 			if (NamedMatch)
 				FoundNamedMatch.Matches = std::move(NamedMatch->Matches);
 			++pos;
@@ -875,7 +859,10 @@ namespace
 
 		if (found)
 		{
-			ReplaceStr = ReplaceBrackets(Source, ReplaceStr, FoundMatch, NamedMatch? &FoundNamedMatch : nullptr, CurPos, SearchLength);
+			ReplaceStr = ReplaceBrackets(Source, ReplaceStr, FoundMatch.Matches, NamedMatch? &FoundNamedMatch : nullptr);
+			CurPos = FoundMatch.Matches[0].start;
+			SearchLength = FoundMatch.Matches[0].end - FoundMatch.Matches[0].start;
+
 		}
 
 		return found;
@@ -887,7 +874,7 @@ bool SearchString(
 	string_view const Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	std::vector<RegExpMatch>& Match,
+	regex_match& Match,
 	named_regex_match* const NamedMatch,
 	int& CurPos,
 	search_replace_string_options const options,
@@ -915,7 +902,7 @@ bool SearchAndReplaceString(
 	string_view const Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	std::vector<RegExpMatch>& Match,
+	regex_match& Match,
 	named_regex_match* const NamedMatch,
 	string& ReplaceStr,
 	int& CurPos,
@@ -1080,7 +1067,7 @@ string ExtractHexString(string_view const HexString)
 	string Result;
 	Result.reserve((Trimmed.size() + 2) / 3 * 2);
 	// TODO: Fix these and trailing spaces in Dialog class?
-	std::remove_copy(ALL_CONST_RANGE(Trimmed), std::back_inserter(Result), L' ');
+	std::ranges::remove_copy(Trimmed, std::back_inserter(Result), L' ');
 	if (Result.size() & 1)
 	{
 		// Odd length - hex string is not valid.
@@ -1167,11 +1154,13 @@ TEST_CASE("ConvertFileSizeString")
 	Tests[]
 	{
 		{ {},           0     },
-		{ {},           0     },
 		{ L"Beep"sv,    0     },
 		{ L"0"sv,       0 * B },
 		{ L"1"sv,       1 * B },
 		{ L"32K"sv,    32 * K },
+		{ L"32k"sv,    32 * K },
+		{ L"a32K"sv,    0     },
+		{ L"32K+"sv,    0     },
 		{ L"640K"sv,  640 * K },
 		{ L"1M"sv,      1 * M },
 		{ L"345M"sv,  345 * M },
@@ -1185,6 +1174,100 @@ TEST_CASE("ConvertFileSizeString")
 	for (const auto& i: Tests)
 	{
 		REQUIRE(i.Result == ConvertFileSizeString(i.Src));
+	}
+}
+
+TEST_CASE("ReplaceBrackets")
+{
+	static const struct
+	{
+		string_view Str, Replace, Result;
+		std::initializer_list<RegExpMatch> Match;
+		std::initializer_list<std::pair<string_view, size_t>> NamedMatch;
+	}
+	Tests[]
+	{
+		{},
+		{ L"dorime"sv },
+		{ L"meow"sv, L"${a }$cat$"sv, L"${a }$cat$"sv },
+		{ L"Ni!"sv, L"$0$0$0"sv, L"Ni!Ni!Ni!"sv, { { 0, 3 } } },
+		{ L"Fus Ro Dah"sv, L"$321-${first}-$2-$123-${nope}${oops$"sv, L"Dah21-Fus-Ro-Fus23-${nope}${oops$"sv, { { 0, 10 }, { 0, 3 }, { 4, 6 }, { 7, 10 } }, { { L"first"sv, 1 } } },
+	};
+
+	named_regex_match NamedRegexMatch;
+
+	for (const auto& i: Tests)
+	{
+		NamedRegexMatch.Matches.clear();
+		for (const auto& [k, v]: i.NamedMatch)
+		{
+			NamedRegexMatch.Matches.emplace(k, v);
+		}
+
+		REQUIRE(i.Result == ReplaceBrackets(i.Str, i.Replace, i.Match, &NamedRegexMatch));
+	}
+}
+
+TEST_CASE("CanContainWholeWord")
+{
+	static const struct
+	{
+		string_view Haystack;
+		std::initializer_list<std::initializer_list<int>> Table;
+	}
+	Tests[]
+	{
+		{
+			{},
+			{
+				{ 1, 0 },
+			}
+		},
+		{
+			L" "sv,
+			{
+				{ 1, 1 },
+				{ 1, 0 },
+			}
+		},
+		{
+			L"a"sv,
+			{
+				{ 0, 1 },
+				{ 0, 0 },
+			}
+		},
+		{
+			L"ab"sv,
+			{
+				{ 0, 0, 1, 0 },
+				{ 0, 0, 0 },
+				{ 0, 0 },
+			}
+		},
+		{
+			L" ab "sv,
+			{
+				{ 1, 0, 0, 1, 1, 0 },
+				{ 0, 0, 1, 1, 0 },
+				{ 0, 0, 0, 0 },
+				{ 0, 0, 0 },
+				{ 1, 0 },
+			}
+		}
+	};
+
+	const auto WordDiv = L" "sv;
+
+	for (const auto& i: Tests)
+	{
+		for (const auto& Row: i.Table)
+		{
+			for (const auto& Cell: Row)
+			{
+				REQUIRE(!!Cell == CanContainWholeWord(i.Haystack, &Row - i.Table.begin(), &Cell - Row.begin(), WordDiv));
+			}
+		}
 	}
 }
 
@@ -1374,90 +1457,107 @@ TEST_CASE("truncate")
 	static const struct tests
 	{
 		string_view Src;
-		size_t Size;
-		string_view ResultLeft, ResultCenter, ResultRight, ResultPath;
+		struct size
+		{
+			size_t Size;
+			string_view ResultLeft, ResultCenter, ResultRight, ResultPath;
+		};
+		std::initializer_list<size> Sizes;
 	}
 	Tests[]
 	{
-		{ {},              0,  {},               {},               {},               {},              },
-		{ {},              1,  {},               {},               {},               {},              },
-		{ {},              2,  {},               {},               {},               {},              },
-		{ {},              3,  {},               {},               {},               {},              },
-		{ {},              4,  {},               {},               {},               {},              },
+		{ {}, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  {},               {},               {},               {},              },
+			{ 2,  {},               {},               {},               {},              },
+			{ 3,  {},               {},               {},               {},              },
+			{ 4,  {},               {},               {},               {},              },
+		}},
+		{ L"0"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"0"sv,           L"0"sv,           L"0"sv,           L"0"sv,          },
+			{ 2,  L"0"sv,           L"0"sv,           L"0"sv,           L"0"sv,          },
+		}},
+		{ L"01"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
+			{ 2,  L"01"sv,          L"01"sv,          L"01"sv,          L"01"sv,         },
+			{ 3,  L"01"sv,          L"01"sv,          L"01"sv,          L"01"sv,         },
+		}},
+		{ L"012"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
+			{ 2,  L"…2"sv,          L"…2"sv,          L"0…"sv,          L"…2"sv,         },
+			{ 3,  L"012"sv,         L"012"sv,         L"012"sv,         L"012"sv,        },
+			{ 4,  L"012"sv,         L"012"sv,         L"012"sv,         L"012"sv,        },
+		}},
 
-		{ L"0"sv,          0,  {},               {},               {},               {},              },
-		{ L"0"sv,          1,  L"0"sv,           L"0"sv,           L"0"sv,           L"0"sv,          },
-		{ L"0"sv,          2,  L"0"sv,           L"0"sv,           L"0"sv,           L"0"sv,          },
+		{ L"0123"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
+			{ 2,  L"…3"sv,          L"…3"sv,          L"0…"sv,          L"…3"sv,         },
+			{ 3,  L"…23"sv,         L"0…3"sv,         L"01…"sv,         L"…23"sv,        },
+			{ 4,  L"0123"sv,        L"0123"sv,        L"0123"sv,        L"0123"sv,       },
+			{ 5,  L"0123"sv,        L"0123"sv,        L"0123"sv,        L"0123"sv,       },
+		}},
+		{ L"0123456789"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
+			{ 2,  L"…9"sv,          L"…9"sv,          L"0…"sv,          L"…9"sv,         },
+			{ 3,  L"…89"sv,         L"0…9"sv,         L"01…"sv,         L"…89"sv,        },
+			{ 4,  L"…789"sv,        L"0…89"sv,        L"012…"sv,        L"…789"sv,       },
+			{ 5,  L"…6789"sv,       L"01…89"sv,       L"0123…"sv,       L"…6789"sv,      },
+			{ 6,  L"…56789"sv,      L"01…789"sv,      L"01234…"sv,      L"…56789"sv,     },
+			{ 7,  L"…456789"sv,     L"012…789"sv,     L"012345…"sv,     L"…456789"sv,    },
+			{ 8,  L"…3456789"sv,    L"012…6789"sv,    L"0123456…"sv,    L"…3456789"sv,   },
+			{ 9,  L"…23456789"sv,   L"0123…6789"sv,   L"01234567…"sv,   L"…23456789"sv,  },
+			{ 10, L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv, },
+			{ 20, L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv, },
+		}},
 
-		{ L"01"sv,         0,  {},               {},               {},               {},              },
-		{ L"01"sv,         1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
-		{ L"01"sv,         2,  L"01"sv,          L"01"sv,          L"01"sv,          L"01"sv,         },
-		{ L"01"sv,         3,  L"01"sv,          L"01"sv,          L"01"sv,          L"01"sv,         },
-
-		{ L"012"sv,        0,  {},               {},               {},               {},              },
-		{ L"012"sv,        1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
-		{ L"012"sv,        2,  L"…2"sv,          L"…2"sv,          L"0…"sv,          L"…2"sv,         },
-		{ L"012"sv,        3,  L"012"sv,         L"012"sv,         L"012"sv,         L"012"sv,        },
-		{ L"012"sv,        4,  L"012"sv,         L"012"sv,         L"012"sv,         L"012"sv,        },
-
-		{ L"0123"sv,       0,  {},               {},               {},               {},              },
-		{ L"0123"sv,       1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
-		{ L"0123"sv,       2,  L"…3"sv,          L"…3"sv,          L"0…"sv,          L"…3"sv,         },
-		{ L"0123"sv,       3,  L"…23"sv,         L"0…3"sv,         L"01…"sv,         L"…23"sv,        },
-		{ L"0123"sv,       4,  L"0123"sv,        L"0123"sv,        L"0123"sv,        L"0123"sv,       },
-		{ L"0123"sv,       5,  L"0123"sv,        L"0123"sv,        L"0123"sv,        L"0123"sv,       },
-
-		{ L"0123456789"sv, 0,  {},               {},               {},               {},              },
-		{ L"0123456789"sv, 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
-		{ L"0123456789"sv, 2,  L"…9"sv,          L"…9"sv,          L"0…"sv,          L"…9"sv,         },
-		{ L"0123456789"sv, 3,  L"…89"sv,         L"0…9"sv,         L"01…"sv,         L"…89"sv,        },
-		{ L"0123456789"sv, 4,  L"…789"sv,        L"0…89"sv,        L"012…"sv,        L"…789"sv,       },
-		{ L"0123456789"sv, 5,  L"…6789"sv,       L"01…89"sv,       L"0123…"sv,       L"…6789"sv,      },
-		{ L"0123456789"sv, 6,  L"…56789"sv,      L"01…789"sv,      L"01234…"sv,      L"…56789"sv,     },
-		{ L"0123456789"sv, 7,  L"…456789"sv,     L"012…789"sv,     L"012345…"sv,     L"…456789"sv,    },
-		{ L"0123456789"sv, 8,  L"…3456789"sv,    L"012…6789"sv,    L"0123456…"sv,    L"…3456789"sv,   },
-		{ L"0123456789"sv, 9,  L"…23456789"sv,   L"0123…6789"sv,   L"01234567…"sv,   L"…23456789"sv,  },
-		{ L"0123456789"sv, 10, L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv, },
-		{ L"0123456789"sv, 20, L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv,  L"0123456789"sv, },
-
-		{ L"c:/123/456"sv, 0,  {},               {},               {},               {},              },
-		{ L"c:/123/456"sv, 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
-		{ L"c:/123/456"sv, 2,  L"…6"sv,          L"…6"sv,          L"c…"sv,          L"c…"sv,         },
-		{ L"c:/123/456"sv, 3,  L"…56"sv,         L"c…6"sv,         L"c:…"sv,         L"c:…"sv,        },
-		{ L"c:/123/456"sv, 4,  L"…456"sv,        L"c…56"sv,        L"c:/…"sv,        L"c:/…"sv,       },
-		{ L"c:/123/456"sv, 5,  L"…/456"sv,       L"c:…56"sv,       L"c:/1…"sv,       L"c:/…6"sv,      },
-		{ L"c:/123/456"sv, 6,  L"…3/456"sv,      L"c:…456"sv,      L"c:/12…"sv,      L"c:/…56"sv,     },
-		{ L"c:/123/456"sv, 7,  L"…23/456"sv,     L"c:/…456"sv,     L"c:/123…"sv,     L"c:/…456"sv,    },
-		{ L"c:/123/456"sv, 8,  L"…123/456"sv,    L"c:/…/456"sv,    L"c:/123/…"sv,    L"c:/…/456"sv,   },
-		{ L"c:/123/456"sv, 9,  L"…/123/456"sv,   L"c:/1…/456"sv,   L"c:/123/4…"sv,   L"c:/…3/456"sv,  },
-		{ L"c:/123/456"sv, 10, L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv, },
-		{ L"c:/123/456"sv, 20, L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv, },
+		{ L"c:/123/456"sv, {
+			{ 0,  {},               {},               {},               {},              },
+			{ 1,  L"…"sv,           L"…"sv,           L"…"sv,           L"…"sv,          },
+			{ 2,  L"…6"sv,          L"…6"sv,          L"c…"sv,          L"c…"sv,         },
+			{ 3,  L"…56"sv,         L"c…6"sv,         L"c:…"sv,         L"c:…"sv,        },
+			{ 4,  L"…456"sv,        L"c…56"sv,        L"c:/…"sv,        L"c:/…"sv,       },
+			{ 5,  L"…/456"sv,       L"c:…56"sv,       L"c:/1…"sv,       L"c:/…6"sv,      },
+			{ 6,  L"…3/456"sv,      L"c:…456"sv,      L"c:/12…"sv,      L"c:/…56"sv,     },
+			{ 7,  L"…23/456"sv,     L"c:/…456"sv,     L"c:/123…"sv,     L"c:/…456"sv,    },
+			{ 8,  L"…123/456"sv,    L"c:/…/456"sv,    L"c:/123/…"sv,    L"c:/…/456"sv,   },
+			{ 9,  L"…/123/456"sv,   L"c:/1…/456"sv,   L"c:/123/4…"sv,   L"c:/…3/456"sv,  },
+			{ 10, L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv, },
+			{ 20, L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv,  L"c:/123/456"sv, },
+		}},
 	};
 
 	static const struct
 	{
 		string(*Truncate)(string_view, size_t);
 		wchar_t*(*TruncateLegacy)(wchar_t*, int);
-		string_view tests::*StrAccessor;
+		string_view tests::size::*StrAccessor;
 	}
 	Functions[]
 	{
-		{ truncate_left,   legacy::truncate_left,   &tests::ResultLeft   },
-		{ truncate_center, legacy::truncate_center, &tests::ResultCenter },
-		{ truncate_right,  legacy::truncate_right,  &tests::ResultRight  },
-		{ truncate_path,   legacy::truncate_path,   &tests::ResultPath   },
+		{ truncate_left,   legacy::truncate_left,   &tests::size::ResultLeft   },
+		{ truncate_center, legacy::truncate_center, &tests::size::ResultCenter },
+		{ truncate_right,  legacy::truncate_right,  &tests::size::ResultRight  },
+		{ truncate_path,   legacy::truncate_path,   &tests::size::ResultPath   },
 	};
 
 	for (const auto& i: Tests)
 	{
-		for (const auto& f: Functions)
+		for (const auto& Size: i.Sizes)
 		{
-			const auto Baseline = std::invoke(f.StrAccessor, i);
+			for (const auto& f: Functions)
+			{
+				const auto Baseline = std::invoke(f.StrAccessor, Size);
 
-			REQUIRE(f.Truncate(string(i.Src), i.Size) == Baseline);
+				REQUIRE(f.Truncate(string(i.Src), Size.Size) == Baseline);
 
-			string Buffer(i.Src);
-			REQUIRE(f.TruncateLegacy(Buffer.data(), static_cast<int>(i.Size)) == Baseline);
+				string Buffer(i.Src);
+				REQUIRE(f.TruncateLegacy(Buffer.data(), static_cast<int>(Size.Size)) == Baseline);
+			}
 		}
 	}
 }
@@ -1528,9 +1628,9 @@ TEST_CASE("xwcsncpy")
 		{ L"12345"sv, },
 	};
 
-	const auto MaxBufferSize = std::max_element(ALL_CONST_RANGE(Tests), [](const auto& a, const auto& b){ return a.Src.size() < b.Src.size(); })->Src.size() + 1;
+	const auto MaxBufferSize = std::ranges::fold_left(Tests, 0uz, [](size_t const Value, auto const& Item){ return std::max(Value, Item.Src.size()); }) + 1;
 
-	for (const auto& BufferSize: irange(MaxBufferSize + 1))
+	for (const auto BufferSize: std::views::iota(0uz, MaxBufferSize + 1))
 	{
 		for (const auto& i: Tests)
 		{

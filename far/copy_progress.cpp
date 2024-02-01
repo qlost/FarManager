@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "strmix.hpp"
 #include "interf.hpp"
 #include "dialog.hpp"
+#include "uuids.far.dialogs.hpp"
 
 // Platform:
 
@@ -84,8 +85,6 @@ namespace
 }
 
 copy_progress::copy_progress(bool Move, bool Total, bool Time):
-	m_CurrentBarSize(CanvasWidth()),
-	m_TotalBarSize(CanvasWidth()),
 	m_Move(Move),
 	m_Total(Total),
 	m_ShowTime(Time),
@@ -114,7 +113,7 @@ copy_progress::copy_progress(bool Move, bool Total, bool Time):
 		ProgressDlgItems[progress_items::pr_total_progress].Flags |= DIF_HIDDEN;
 		ProgressDlgItems[progress_items::pr_console_title].strData = ProgressDlgItems[progress_items::pr_doublebox].strData;
 
-		for (const auto& i: irange(progress_items::pr_total_progress + 1, progress_items::pr_count))
+		for (const auto i: std::views::iota(progress_items::pr_total_progress + 1, progress_items::pr_count))
 		{
 			--ProgressDlgItems[i].Y1;
 			--ProgressDlgItems[i].Y2;
@@ -131,7 +130,7 @@ copy_progress::copy_progress(bool Move, bool Total, bool Time):
 	}
 
 	const int DialogHeight = ProgressDlgItems[progress_items::pr_doublebox].Y2 - ProgressDlgItems[progress_items::pr_doublebox].Y1 + 1 + 2;
-	init(ProgressDlgItems, { -1, -1, DlgW, DialogHeight });
+	init(ProgressDlgItems, { -1, -1, DlgW, DialogHeight }, &CopyProgressId);
 }
 
 size_t copy_progress::CanvasWidth()
@@ -139,10 +138,10 @@ size_t copy_progress::CanvasWidth()
 	return DlgW - 10;
 }
 
-void copy_progress::skip()
+void copy_progress::skip(unsigned long long const Size)
 {
 	m_BytesTotal.Copied -= m_BytesCurrent.Copied;
-	m_BytesTotal.Total -= m_BytesCurrent.Total;
+	m_BytesTotal.Total -= m_BytesCurrent.Total? m_BytesCurrent.Total : Size;
 
 	m_BytesCurrent = {};
 
@@ -214,23 +213,29 @@ void copy_progress::Flush()
 	m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_src_name, UNSAFE_CSTR(m_Src));
 	m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_dst_name, UNSAFE_CSTR(m_Dst));
 
-	const auto CurrentProgress = make_progressbar(m_CurrentBarSize, m_CurrentPercent, true, !m_Total);
+	const auto CurrentProgress = make_progressbar(GetWidth(progress_items::pr_current_progress), m_CurrentPercent, true, !m_Total);
 	m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_current_progress, UNSAFE_CSTR(CurrentProgress));
+
+	if (m_FilesLastRendered != m_Files)
+	{
+		m_FilesCopied = FormatCounter(lng::MCopyFilesTotalInfo, lng::MCopyBytesTotalInfo, m_Files.Copied, m_Files.Total, m_Total, GetWidth(progress_items::pr_total_files) - 5);
+		m_FilesLastRendered = m_Files;
+	}
 
 	m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_total_files, UNSAFE_CSTR(m_FilesCopied));
 
-	const auto Result = FormatCounter(lng::MCopyBytesTotalInfo, lng::MCopyFilesTotalInfo, m_BytesTotal.Copied, m_BytesTotal.Total, m_Total, CanvasWidth() - 5);
+	const auto Result = FormatCounter(lng::MCopyBytesTotalInfo, lng::MCopyFilesTotalInfo, m_BytesTotal.Copied, m_BytesTotal.Total, m_Total, GetWidth(progress_items::pr_total_bytes) - 5);
 	m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_total_bytes, UNSAFE_CSTR(Result));
 
 	if (m_Total)
 	{
-		const auto TotalProgress = make_progressbar(m_TotalBarSize, m_TotalPercent, true, true);
+		const auto TotalProgress = make_progressbar(GetWidth(progress_items::pr_total_progress), m_TotalPercent, true, true);
 		m_Dialog->SendMessage(DM_SETTEXTPTR, progress_items::pr_total_progress, UNSAFE_CSTR(TotalProgress));
 	}
 
 	if (!m_Time.empty())
 	{
-		const auto Width = CanvasWidth();
+		const auto Width = GetWidth(progress_items::pr_stats);
 		const auto ConsumedSpace = m_Time.size() + 1 + m_TimeLeft.size() + 1 + m_Speed.size();
 		const auto RemainingSpace = ConsumedSpace > Width? 0 : Width - ConsumedSpace;
 		const auto FirstFillerWidth = RemainingSpace / 2;
@@ -316,10 +321,8 @@ void copy_progress::SetNames(const string_view Src, const string_view Dst)
 		m_CalcTime = 0s;
 	}
 
-	const auto NameWidth = static_cast<int>(CanvasWidth());
-	m_Src = truncate_path(Src, NameWidth);
-	m_Dst = truncate_path(Dst, NameWidth);
-	m_FilesCopied = FormatCounter(lng::MCopyFilesTotalInfo, lng::MCopyBytesTotalInfo, m_Files.Copied, m_Files.Total, m_Total, CanvasWidth() - 5);
+	m_Src = truncate_path(Src, static_cast<int>(GetWidth(progress_items::pr_src_name)));
+	m_Dst = truncate_path(Dst, static_cast<int>(GetWidth(progress_items::pr_dst_name)));
 
 	set_current_total(0);
 	set_current_copied(0);
@@ -362,4 +365,12 @@ void copy_progress::UpdateTime(unsigned long long SizeDone, unsigned long long S
 		m_TimeLeft.clear();
 		m_Speed.clear();
 	}
+}
+
+size_t copy_progress::GetWidth(intptr_t Index)
+{
+	FarDialogItem Item;
+	if (!m_Dialog->SendMessage(DM_GETDLGITEMSHORT, Index, &Item))
+		return CanvasWidth();
+	return Item.X2 - Item.X1 + 1;
 }

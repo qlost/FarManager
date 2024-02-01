@@ -185,7 +185,7 @@ TEST_CASE("2d.algorithm")
 		21, 22, 23, 24, 25,
 	};
 
-	REQUIRE(std::equal(ALL_CONST_RANGE(Data), ALL_CONST_RANGE(Expected)));
+	REQUIRE(std::ranges::equal(Data, Expected));
 	REQUIRE(Value == StartValue + 3 * 3);
 }
 
@@ -208,7 +208,7 @@ TEST_CASE("algorithm.apply_permutation")
 {
 	{
 		std::vector<int> Data, Indices;
-		apply_permutation(ALL_RANGE(Data), Indices.begin());
+		apply_permutation(Data, Indices.begin());
 		REQUIRE(Data.empty());
 		REQUIRE(Indices.empty());
 	}
@@ -221,7 +221,7 @@ TEST_CASE("algorithm.apply_permutation")
 			std::size(Data) == std::size(Expected) &&
 			std::size(Data) == std::size(Indices)
 		);
-		apply_permutation(ALL_RANGE(Data), Indices.begin());
+		apply_permutation(Data, Indices.begin());
 		REQUIRE(Data == Expected);
 	}
 }
@@ -383,7 +383,7 @@ TEST_CASE("base64.random.roundtrip")
 	std::uniform_int_distribution CharDist(0, UCHAR_MAX);
 
 	char RandomInput[256];
-	std::generate(ALL_RANGE(RandomInput), [&]{ return CharDist(mt); });
+	std::ranges::generate(RandomInput, [&]{ return CharDist(mt); });
 
 	const auto Encoded = base64::encode(view_bytes(RandomInput));
 	REQUIRE(base64::decode(Encoded) == view_bytes(RandomInput));
@@ -521,7 +521,23 @@ TEST_CASE("enum_tokens")
 
 #include "common/enumerator.hpp"
 
-TEST_CASE("enumerator")
+TEST_CASE("enumerator.static")
+{
+	using test_range = decltype(inline_enumerator<int>([](bool, int&){ return false; }));
+
+	STATIC_REQUIRE(std::ranges::range<test_range>);
+	STATIC_REQUIRE(std::ranges::input_range<test_range>);
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::begin(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::cbegin(Range); });
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::end(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::cend(Range); });
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::find(Range, *Range.begin()); });
+}
+
+TEST_CASE("enumerator.dynamic")
 {
 	enum
 	{
@@ -532,7 +548,7 @@ TEST_CASE("enumerator")
 	bool Finalised = false;
 
 	{
-		auto TestEnumerator = make_inline_enumerator<int>([Counter = static_cast<int>(e_begin)](bool const Reset, int& Value) mutable
+		auto TestEnumerator = inline_enumerator<int>([Counter = static_cast<int>(e_begin)](bool const Reset, int& Value) mutable
 		{
 			if (Reset)
 				Counter = e_begin;
@@ -756,6 +772,11 @@ TEST_CASE("lazy")
 		REQUIRE(CallCount == 0);
 	}
 
+	{
+		lazy<string> Str([&] { return L""s; });
+		STATIC_REQUIRE(std::same_as<decltype(*Str), string&>);
+		STATIC_REQUIRE(std::same_as<decltype(Str->c_str()), decltype(std::declval<string&>().c_str())>);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -780,13 +801,12 @@ TEST_CASE("monitored")
 
 TEST_CASE("movable")
 {
-	const auto Value = 42;
-	movable m1 = Value;
-	REQUIRE(m1 == Value);
+	movable m1;
+	REQUIRE(m1);
 
 	const auto m2 = std::move(m1);
-	REQUIRE(m2 == Value);
-	REQUIRE(m1 == 0);
+	REQUIRE(m2);
+	REQUIRE(!m1);
 }
 
 //----------------------------------------------------------------------------
@@ -873,42 +893,15 @@ TEST_CASE("placement")
 
 	placement::destruct(Object);
 	REQUIRE(Value == 33);
+
+#ifdef _DEBUG
+	REQUIRE(std::ranges::all_of(Data, [](std::byte const Value) { return Value == std::byte{0xFE}; }));
+#endif
 }
 
 //----------------------------------------------------------------------------
 
 #include "common/preprocessor.hpp"
-
-TEST_CASE("preprocessor.types")
-{
-	{
-		using type = std::vector<int>;
-		type v;
-
-		STATIC_REQUIRE(std::same_as<REFERENCE(v),              type::reference>);
-		STATIC_REQUIRE(std::same_as<CONST_REFERENCE(v),        type::const_reference>);
-		STATIC_REQUIRE(std::same_as<VALUE_TYPE(v),             type::value_type>);
-		STATIC_REQUIRE(std::same_as<CONST_VALUE_TYPE(v),       type::value_type const>);
-		STATIC_REQUIRE(std::same_as<ITERATOR(v),               type::iterator>);
-		STATIC_REQUIRE(std::same_as<CONST_ITERATOR(v),         type::const_iterator>);
-		STATIC_REQUIRE(std::same_as<REVERSE_ITERATOR(v),       type::reverse_iterator>);
-		STATIC_REQUIRE(std::same_as<CONST_REVERSE_ITERATOR(v), type::const_reverse_iterator>);
-	}
-
-	{
-		using type = int[2];
-		type v;
-
-		STATIC_REQUIRE(std::same_as<REFERENCE(v),              int&>);
-		STATIC_REQUIRE(std::same_as<CONST_REFERENCE(v),        int const&>);
-		STATIC_REQUIRE(std::same_as<VALUE_TYPE(v),             int>);
-		STATIC_REQUIRE(std::same_as<CONST_VALUE_TYPE(v),       int const>);
-		STATIC_REQUIRE(std::same_as<ITERATOR(v),               int*>);
-		STATIC_REQUIRE(std::same_as<CONST_ITERATOR(v),         int const*>);
-		STATIC_REQUIRE(std::same_as<REVERSE_ITERATOR(v),       std::reverse_iterator<int*>>);
-		STATIC_REQUIRE(std::same_as<CONST_REVERSE_ITERATOR(v), std::reverse_iterator<int const*>>);
-	}
-}
 
 TEST_CASE("preprocessor.copy-move")
 {
@@ -1086,115 +1079,56 @@ TEST_CASE("preprocessor.literals")
 	}
 }
 
-TEST_CASE("preprocessor.predefined")
+//----------------------------------------------------------------------------
+
+#include "common/source_location.hpp"
+
+TEST_CASE("source_location")
 {
 	struct test
 	{
 		static void method()
 		{
-			STATIC_REQUIRE(CURRENT_FUNCTION_NAME == "method"sv);
+			constexpr auto Location = source_location::current(); constexpr auto Line = __LINE__;
+
+			STATIC_REQUIRE(std::string_view(Location.file_name()) == __FILE__);
+			STATIC_REQUIRE(std::string_view(Location.function_name()) == __func__);
+			STATIC_REQUIRE(Location.line() == Line);
 		}
 	};
 
-	test::method();
+	{
+		source_location constexpr Location("squash", "banana", 42);
 
-	STATIC_REQUIRE(WIDE(CURRENT_FILE_NAME).ends_with(L"common.tests.cpp"sv));
+		STATIC_REQUIRE(Location.file_name() == "squash"sv);
+		STATIC_REQUIRE(Location.function_name() == "banana"sv);
+		STATIC_REQUIRE(Location.line() == 42);
+	}
 }
 
 //----------------------------------------------------------------------------
 
-#include "common/range.hpp"
+#include "common/span.hpp"
 
-TEST_CASE("range.static")
+TEST_CASE("span.static")
 {
-	{
-		const auto Test = [](auto&& Container)
-		{
-			const auto TestImpl = [](auto& ContainerVersion)
-			{
-				auto Range = range(ContainerVersion);
-
-				const auto TestType = [&](const auto & ContainerGetter, const auto & RangeGetter)
-				{
-					STATIC_REQUIRE(std::same_as<decltype(ContainerGetter(ContainerVersion)), decltype(RangeGetter(Range))>);
-				};
-
-// std::cbegin and friends are broken in the standard for shallow-const containers, thus the member version.
-#define TEST_TYPE(x) TestType(LIFT(std::x), LIFT_MF(x))
-#define TEST_ALL_ACCESSORS(callable, x) callable(x), callable(c##x), callable(r##x), callable(cr##x)
-
-				TEST_ALL_ACCESSORS(TEST_TYPE, begin);
-				TEST_ALL_ACCESSORS(TEST_TYPE, end);
-
-#undef TEST_ALL_ACCESSORS
-#undef TEST_TYPE
-			};
-
-			TestImpl(Container);
-			TestImpl(std::as_const(Container));
-		};
-
-		{ Test(std::vector<int>{}); }
-		{ Test(std::list<int>{}); }
-		using ints = int[2];
-		{ Test(ints{}); }
-	}
-
-	{
-		int Data[2]{};
-		range Range(std::begin(Data), std::end(Data));
-		STATIC_REQUIRE(std::same_as<decltype(*Range.begin()), int&>);
-		STATIC_REQUIRE(std::same_as<decltype(*Range.cbegin()), const int&>);
-	}
-
-	{
-		std::vector<int> Data;
-		range Range(std::begin(Data), std::end(Data));
-		STATIC_REQUIRE(std::same_as<decltype(*Range.begin()), int&>);
-		// It's not possible to deduce const_iterator here
-		STATIC_REQUIRE(std::same_as<decltype(*Range.cbegin()), int&>);
-	}
-
 	{
 		int Data[2]{};
 		span Span(Data);
 		STATIC_REQUIRE(std::same_as<decltype(*Span.begin()), int&>);
-
-		[](auto S)
-		{
-			if constexpr (requires(std::span<decltype(S)> s) { s.cbegin(); })
-			{
-				STATIC_REQUIRE(std::same_as<decltype(*S.cbegin()), const int&>);
-			}
-			else
-			{
-				STATIC_REQUIRE(std::same_as<decltype(*S.cbegin()), int&>);
-			}
-		}(Span);
 	}
 
 	{
 		int Data[2]{};
 		span Span{ Data };
 		STATIC_REQUIRE(std::same_as<decltype(*Span.begin()), int* const&>);
-		// It's not possible to deduce const_iterator here
-		STATIC_REQUIRE(std::same_as<decltype(*Span.cbegin()), int* const&>);
 	}
 
 	{
 		using v = int;
 		using cv = int const;
-		using ptr = v*;
-		using cptr = cv*;
 
 		STATIC_REQUIRE(std::same_as<decltype(span({1, 2})), span<cv>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(ptr{}, 0)), span<v>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(cptr{}, 0)), span<cv>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(ptr{}, ptr{})), span<v>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(ptr{}, cptr{})), span<v>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(cptr{}, ptr{})), span<cv>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(cptr{}, cptr{})), span<cv>>);
-		STATIC_REQUIRE(std::same_as<decltype(span(std::vector<v>{})), span<v>>);
 		STATIC_REQUIRE(std::same_as<decltype(span(std::array<v, 0>{})), span<v>>);
 		STATIC_REQUIRE(std::same_as<decltype(span(std::array<cv, 0>{})), span<cv>>);
 	}
@@ -1235,51 +1169,6 @@ TEST_CASE("range.static")
 	}
 }
 
-TEST_CASE("range.dynamic")
-{
-	{
-		std::array Value{ 1, 2, 3, 4, 5 };
-		range Range(Value);
-		REQUIRE(Range.size() == Value.size());
-		REQUIRE(Range.data() == Value.data());
-
-		Range.pop_front();
-		REQUIRE(Range.size() == Value.size() - 1);
-		REQUIRE(Range.data() == Value.data() + 1);
-
-		Range.pop_back();
-		REQUIRE(Range.size() == Value.size() - 2);
-		REQUIRE(Range.data() == Value.data() + 1);
-	}
-
-	{
-		const auto Begin = 3, End = 7;
-		const irange Range(Begin, End);
-		auto Iterator = Range.begin();
-
-		for (auto i = Begin; i != End; ++i, ++Iterator)
-		{
-			REQUIRE(Iterator != Range.cend());
-			REQUIRE(*Iterator == i);
-		}
-
-		REQUIRE(Iterator == Range.cend());
-	}
-
-	{
-		size_t const Total = 10;
-		size_t Count = 0;
-
-		for (const auto& i: irange(Total))
-		{
-			REQUIRE(i == Count);
-			++Count;
-		}
-
-		REQUIRE(Count == Total);
-	}
-}
-
 //----------------------------------------------------------------------------
 
 #include "common/scope_exit.hpp"
@@ -1310,8 +1199,8 @@ namespace
 
 	enum
 	{
-		on_fail    = bit(0),
-		on_success = bit(1),
+		on_fail    = 0_bit,
+		on_success = 1_bit,
 	};
 
 	template<scope_exit::scope_type type>
@@ -1350,7 +1239,7 @@ TEST_CASE("singleton")
 
 #include "common/smart_ptr.hpp"
 
-TEST_CASE("smart_ptr")
+TEST_CASE("smart_ptr.char_ptr_n")
 {
 	const char_ptr_n<1> Ptr;
 	constexpr auto ActualStaticSize = sizeof(std::unique_ptr<char[]>) / sizeof(char);
@@ -1358,6 +1247,57 @@ TEST_CASE("smart_ptr")
 
 	STATIC_REQUIRE(sizeof(Ptr) == sizeof(Ptr2));
 	REQUIRE(Ptr.size() == Ptr2.size());
+}
+
+TEST_CASE("smart_ptr.block_ptr")
+{
+	struct s
+	{
+		int size;
+		char str[1];
+	};
+
+	{
+		const struct test
+		{
+			block_ptr<s, sizeof(s) + 8> S{ sizeof(s) + 8 };
+			int Sentinel = 0x12345678;
+		}
+		Test;
+
+		REQUIRE(in_closed_range(
+			std::bit_cast<uintptr_t>(&Test.S),
+			std::bit_cast<uintptr_t>(&Test.S->str),
+			std::bit_cast<uintptr_t>(&Test.Sentinel)
+		));
+
+		const auto Str = "01234657"sv;
+		const auto Ptr = Test.S->str;
+		copy_memory(Str.data(), Ptr, Str.size());
+		REQUIRE(Str == std::string_view(Ptr, Str.size()));
+		REQUIRE(Test.Sentinel == 0x12345678);
+	}
+
+	{
+		const struct test
+		{
+			block_ptr<s> S{ sizeof(s) + 8 };
+			int Sentinel = 0x12345678;
+		}
+		Test;
+
+		REQUIRE(!in_closed_range(
+			std::bit_cast<uintptr_t>(&Test.S),
+			std::bit_cast<uintptr_t>(&Test.S->str),
+			std::bit_cast<uintptr_t>(&Test.Sentinel)
+		));
+
+		const auto Str = "01234657"sv;
+		const auto Ptr = Test.S->str;
+		copy_memory(Str.data(), Ptr, Str.size());
+		REQUIRE(Str == std::string_view(Ptr, Str.size()));
+		REQUIRE(Test.Sentinel == 0x12345678);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -1588,10 +1528,21 @@ TEST_CASE("string_utils.split")
 	}
 }
 
-TEST_CASE("string_utils.misc")
+TEST_CASE("string_utils.null_terminated")
 {
-	REQUIRE(!null_terminated(L"12345"sv.substr(0, 2)).c_str()[2]);
+	const auto Str = L"12345"sv;
 
+	const auto LuckyCase = null_terminated(Str.substr(1));
+	REQUIRE(!LuckyCase.c_str()[4]);
+	REQUIRE(LuckyCase.c_str() == Str.data() + 1);
+
+	const auto UnluckyCase = null_terminated(Str.substr(0, 2));
+	REQUIRE(!UnluckyCase.c_str()[2]);
+	REQUIRE(UnluckyCase.c_str() != Str.data());
+}
+
+TEST_CASE("string_utils.string_copyref")
+{
 	{
 		auto Str = L"Sempre assim em cima, em cima, em cima, em cima"s;
 		string_copyref StrCr1(Str);
@@ -1614,6 +1565,15 @@ TEST_CASE("string_utils.misc")
 		STATIC_REQUIRE(!std::is_move_constructible_v<string_copyref>);
 		STATIC_REQUIRE(!std::is_move_assignable_v<string_copyref>);
 	}
+}
+
+TEST_CASE("string_utils.concat")
+{
+	{
+		auto Str = L"ba"s;
+		append(Str, L"nan"sv, L'a');
+		REQUIRE(Str == L"banana"sv);
+	}
 
 	REQUIRE(concat(L'a', L"bc", L"def"sv, L"1234"s) == L"abcdef1234"sv);
 	REQUIRE(concat(L""sv, L""sv).empty());
@@ -1623,12 +1583,17 @@ TEST_CASE("string_utils.misc")
 	REQUIRE(L"123"s + L"45"sv == L"12345"sv);
 	REQUIRE(L"123"sv + L"45"s == L"12345"sv);
 	REQUIRE(L"123"sv + L"45"sv == L"12345"sv);
-
-	const auto Str = L"12345"sv;
-	REQUIRE(make_string_view(Str.begin() + 1, Str.end() - 1) == L"234"sv);
 }
 
-#ifdef __cpp_lib_generic_unordered_lookup
+TEST_CASE("string_utils.lvalue_string_view")
+{
+	STATIC_REQUIRE(std::constructible_from<lvalue_string_view, string_view>);
+	STATIC_REQUIRE(std::constructible_from<lvalue_string_view, string const&>);
+	STATIC_REQUIRE(std::constructible_from<lvalue_string_view, string&>);
+	STATIC_REQUIRE(!std::constructible_from<lvalue_string_view, string&&>);
+	STATIC_REQUIRE(!std::constructible_from<lvalue_string_view, string>);
+}
+
 TEST_CASE("string_utils.generic_lookup")
 {
 	const unordered_string_map<int> Map
@@ -1639,7 +1604,6 @@ TEST_CASE("string_utils.generic_lookup")
 	REQUIRE(Map.find(L"123"sv) != Map.cend());
 	REQUIRE(Map.find(L"123") != Map.cend());
 }
-#endif
 
 //----------------------------------------------------------------------------
 
@@ -1649,82 +1613,6 @@ TEST_CASE("type_traits")
 {
 	STATIC_REQUIRE(is_one_of_v<int, char, bool, int>);
 	STATIC_REQUIRE(!is_one_of_v<int, char, bool, unsigned int>);
-
-
-	STATIC_REQUIRE(range_like<range<int*>>);
-	STATIC_REQUIRE(range_like<span<int>>);
-	STATIC_REQUIRE(range_like<int[1]>);
-	STATIC_REQUIRE(range_like<std::initializer_list<int>>);
-	STATIC_REQUIRE(range_like<std::vector<int>>);
-	STATIC_REQUIRE(range_like<std::string_view>);
-	STATIC_REQUIRE(range_like<std::string>);
-	STATIC_REQUIRE(range_like<std::list<int>>);
-	STATIC_REQUIRE(range_like<std::set<int>>);
-	STATIC_REQUIRE(!range_like<int>);
-	STATIC_REQUIRE(!range_like<void>);
-
-
-	STATIC_REQUIRE(span_like<span<int>>);
-	STATIC_REQUIRE(span_like<range<int*>>);
-	STATIC_REQUIRE(span_like<int[1]>);
-	STATIC_REQUIRE(span_like<std::initializer_list<int>>);
-	STATIC_REQUIRE(span_like<std::vector<int>>);
-	STATIC_REQUIRE(span_like<std::string_view>);
-	STATIC_REQUIRE(span_like<std::string>);
-	STATIC_REQUIRE(!span_like<std::list<int>>);
-	STATIC_REQUIRE(!span_like<std::set<int>>);
-	STATIC_REQUIRE(!span_like<int>);
-	STATIC_REQUIRE(!span_like<void>);
-
-
-	STATIC_REQUIRE(std::same_as<int, value_type<std::vector<int>>>);
-	STATIC_REQUIRE(std::same_as<int, value_type<std::list<int>>>);
-	STATIC_REQUIRE(std::same_as<int, value_type<int[1]>>);
-	STATIC_REQUIRE_ERROR(int, typename value_type<TestType>);
-
-	{
-		struct test_type
-		{
-			using value_type = char;
-
-			int* begin()  const { return {}; }
-			int* end()    const { return {}; }
-
-			bool* data()  const { return {}; }
-			size_t size() const { return {}; }
-		};
-
-		STATIC_REQUIRE(std::same_as<char, value_type<test_type>>);
-		STATIC_REQUIRE(range_like<test_type>);
-		STATIC_REQUIRE(span_like<test_type>);
-	}
-
-	{
-		struct test_type
-		{
-			int* begin()  const { return {}; }
-			int* end()    const { return {}; }
-
-			bool* data()  const { return {}; }
-			size_t size() const { return {}; }
-		};
-
-		STATIC_REQUIRE(std::same_as<bool, value_type<test_type>>);
-		STATIC_REQUIRE(range_like<test_type>);
-		STATIC_REQUIRE(span_like<test_type>);
-	}
-
-	{
-		struct test_type
-		{
-			int* begin()  const { return {}; }
-			int* end()    const { return {}; }
-		};
-
-		STATIC_REQUIRE(std::same_as<int, value_type<test_type>>);
-		STATIC_REQUIRE(range_like<test_type>);
-		STATIC_REQUIRE(!span_like<test_type>);
-	}
 
 	enum class foo: int;
 	STATIC_REQUIRE(std::same_as<sane_underlying_type<foo>, int>);
@@ -1753,19 +1641,19 @@ TEST_CASE("utility.base")
 	D;
 }
 
-TEST_CASE("utility.grow_exp_noshrink")
+TEST_CASE("utility.grow_exp")
 {
-	for (const auto& i: irange(size_t{32}))
+	for (const auto i: std::views::iota(0uz, 32uz))
 	{
-		const auto ExpectedIncrease = std::max(size_t{1}, i / 2);
-		REQUIRE(grow_exp_noshrink(i, 0) == i);
-		REQUIRE(grow_exp_noshrink(i, {}) == i + ExpectedIncrease);
-		REQUIRE(grow_exp_noshrink(i, i + 1) == i + ExpectedIncrease);
-		REQUIRE(grow_exp_noshrink(i, i * 2) == i * 2);
+		const auto ExpectedIncrease = std::max(1uz, i / 2);
+		REQUIRE(grow_exp(i, 0) == i);
+		REQUIRE(grow_exp(i, {}) == i + ExpectedIncrease);
+		REQUIRE(grow_exp(i, i + 1) == i + ExpectedIncrease);
+		REQUIRE(grow_exp(i, i * 2) == i * 2);
 	}
 }
 
-TEMPLATE_TEST_CASE("utility.reserve_exp_noshrink", "", string, std::vector<int>)
+TEMPLATE_TEST_CASE("utility.reserve_exp", "", string, std::vector<int>)
 {
 	TestType Container;
 	Container.resize(42);
@@ -1773,19 +1661,20 @@ TEMPLATE_TEST_CASE("utility.reserve_exp_noshrink", "", string, std::vector<int>)
 
 	SECTION("no shrink")
 	{
-		reserve_exp_noshrink(Container, 1);
+		// Mandated by the standard now, but just in case.
+		reserve_exp(Container, 1);
 		REQUIRE(Container.capacity() >= InitialCapacity);
 	}
 
 	SECTION("exponential < factor")
 	{
-		reserve_exp_noshrink(Container, InitialCapacity + InitialCapacity / 10);
+		reserve_exp(Container, InitialCapacity + InitialCapacity / 10);
 		REQUIRE(Container.capacity() >= InitialCapacity  + InitialCapacity / 2);
 	}
 
 	SECTION("exponential > factor")
 	{
-		reserve_exp_noshrink(Container, InitialCapacity * 2);
+		reserve_exp(Container, InitialCapacity * 2);
 		REQUIRE(Container.capacity() >= InitialCapacity * 2);
 	}
 }
@@ -1826,9 +1715,9 @@ TEST_CASE("utility.hash_range")
 	const auto s2 = L"12345"s;
 	const auto s3 = L"abcde"s;
 
-	const auto h1 = hash_range(ALL_CONST_RANGE(s1));
-	const auto h2 = hash_range(ALL_CONST_RANGE(s2));
-	const auto h3 = hash_range(ALL_CONST_RANGE(s3));
+	const auto h1 = hash_range(s1);
+	const auto h2 = hash_range(s2);
+	const auto h3 = hash_range(s3);
 
 	REQUIRE(h1 == h2);
 	REQUIRE(h2 != h3);
@@ -1851,10 +1740,10 @@ TEST_CASE("utility.flags")
 	{
 		enum class scoped_flags
 		{
-			f0 = bit(0),
-			f1 = bit(1),
-			f2 = bit(2),
-			f3 = bit(3),
+			f0 = 0_bit,
+			f1 = 1_bit,
+			f2 = 2_bit,
+			f3 = 3_bit,
 
 			is_bit_flags
 		};
@@ -1862,19 +1751,20 @@ TEST_CASE("utility.flags")
 		auto Flags = scoped_flags::f0 | scoped_flags::f3;
 
 		REQUIRE(flags::check_any(Flags, scoped_flags::f0));
+		REQUIRE(flags::check_one(Flags, scoped_flags::f0));
 		REQUIRE(flags::check_all(Flags, scoped_flags::f3));
 
 		flags::set(Flags, scoped_flags::f1);
-		REQUIRE(flags::check_any(Flags, scoped_flags::f1));
+		REQUIRE(flags::check_one(Flags, scoped_flags::f1));
 
 		flags::clear(Flags, scoped_flags::f1);
-		REQUIRE(!flags::check_any(Flags, scoped_flags::f1));
+		REQUIRE(!flags::check_one(Flags, scoped_flags::f1));
 
 		flags::invert(Flags, scoped_flags::f0);
-		REQUIRE(!flags::check_any(Flags, scoped_flags::f0));
+		REQUIRE(!flags::check_one(Flags, scoped_flags::f0));
 
 		flags::change(Flags, scoped_flags::f0, true);
-		REQUIRE(flags::check_any(Flags, scoped_flags::f0));
+		REQUIRE(flags::check_one(Flags, scoped_flags::f0));
 
 		Flags = {};
 		flags::copy(Flags, scoped_flags::f1 | scoped_flags::f2, -1);
@@ -1996,15 +1886,15 @@ TEST_CASE("utility.enum_helpers")
 	};
 
 	{
-		constexpr auto r = enum_helpers::operation<std::plus<>>(e::foo, e::bar);
+		constexpr auto r = enum_helpers::detail::operation<std::plus<>>(e::foo, e::bar);
 		STATIC_REQUIRE(std::same_as<decltype(r), e const>);
 		STATIC_REQUIRE(std::to_underlying(r) == 3);
 	}
 
 	{
-		constexpr auto r = enum_helpers::operation<std::bit_and<>, int>(e::foo, e::bar);
-		STATIC_REQUIRE(std::same_as<decltype(r), int const>);
-		STATIC_REQUIRE(r == 0);
+		constexpr auto r = enum_helpers::detail::operation<std::bit_and<>>(e::foo, e::bar);
+		STATIC_REQUIRE(std::same_as<decltype(r), e const>);
+		STATIC_REQUIRE(std::to_underlying(r) == 0);
 	}
 }
 
@@ -2254,177 +2144,30 @@ TEST_CASE("view.enumerate")
 
 //----------------------------------------------------------------------------
 
-#include "common/view/reverse.hpp"
-
-TEST_CASE("view.reverse")
-{
-	const std::array Data    { 1, 2, 3, 4, 5 };
-	const std::array Reversed{ 5, 4, 3, 2, 1 };
-
-	auto Iterator = std::cbegin(Reversed);
-
-	for (const auto& i: reverse(Data))
-	{
-		REQUIRE(Iterator != std::cend(Reversed));
-		REQUIRE(i == *Iterator);
-		++Iterator;
-	}
-
-	REQUIRE(Iterator == std::cend(Reversed));
-}
-
-//----------------------------------------------------------------------------
-
-#include "common/view/select.hpp"
-
-TEST_CASE("view.select")
-{
-	const auto Test = [](const auto& Data, const auto& Selector)
-	{
-		auto Iterator = std::cbegin(Data);
-
-WARNING_PUSH()
-WARNING_DISABLE_CLANG("-Wrange-loop-analysis")
-		for (const auto& i: select(Data, Selector))
-WARNING_POP()
-		{
-			REQUIRE(Iterator != std::cend(Data));
-
-			if constexpr (requires { Selector(*Iterator); })
-				REQUIRE(i == Selector(*Iterator));
-			else
-				REQUIRE(i == std::apply(Selector, *Iterator));
-
-			++Iterator;
-		}
-
-		REQUIRE(Iterator == std::cend(Data));
-	};
-
-	{
-		std::pair<bool, int> const Data[]
-		{
-			{ true,  42 },
-			{ false, 33 },
-		};
-
-		Test(Data, [](const auto& i) { return i.second; });
-
-		std::vector DataCopy(std::cbegin(Data), std::cend(Data));
-		for (auto& i: select(DataCopy, [](auto& i) -> auto& { return i.second; }))
-		{
-			i *= 2;
-		}
-
-		for (size_t i = 0; i != std::size(Data); ++i)
-		{
-			REQUIRE(DataCopy[i].second == Data[i].second * 2);
-		}
-	}
-
-	{
-		std::vector const Data{ 1, 2, 3, 4, 5 };
-		Test(Data, [](const auto& i) { return i * 2; });
-	}
-
-	{
-		std::vector<int> const Data;
-		Test(Data, [](const auto& i) { return i; });
-	}
-
-	{
-		std::vector<std::pair<int, int>> const Data;
-		Test(Data, [](auto a, auto b) { return b; });
-	}
-}
-
-//----------------------------------------------------------------------------
-
-#include "common/view/where.hpp"
-
-TEST_CASE("view.where")
-{
-	const auto Test = [](const auto& Data, const auto& Baseline, const auto& Predicate)
-	{
-		auto BaselineIterator = std::cbegin(Baseline);
-
-		for (const auto& i: where(Data, Predicate))
-		{
-			REQUIRE(i == *BaselineIterator);
-			++BaselineIterator;
-		}
-
-		REQUIRE(BaselineIterator == std::cend(Baseline));
-	};
-
-	using ints = std::vector<int>;
-	const auto Even = [](const auto& Item) { return (Item & 1) == 0; };
-	const auto Odd = [](const auto& Item) { return (Item & 1) != 0; };
-
-	Test(
-		ints{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-		ints{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-		[](const auto&) { return true; });
-
-	Test(
-		ints{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-		ints{},
-		[](const auto&) { return false; });
-
-	Test(
-		ints{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-		ints{ 0, 2, 4, 6, 8 },
-		Even);
-
-	Test(
-		ints{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-		ints{ 1, 3, 5, 7, 9 },
-		Odd);
-
-	Test(
-		ints{ 2, 4, 6 },
-		ints{},
-		Odd);
-
-	Test(
-		ints{},
-		ints{},
-		Even);
-
-
-	using tuples = std::vector<std::tuple<int, int>>;
-	const auto Equal = [](int const a, int const b) { return a == b; };
-
-	Test(
-		tuples{ { 0, 0 }, { 1, 1 }, { 2, 2 } },
-		tuples{ { 0, 0 }, { 1, 1 }, { 2, 2 } },
-		Equal
-	);
-
-	Test(
-		tuples{ { 0, 1 }, { 1, 1 }, { 1, 2 } },
-		tuples{ { 1, 1 } },
-		Equal
-	);
-
-	Test(
-		tuples{ { 0, 1 }, { 1, 2 } },
-		tuples{},
-		Equal
-	);
-
-	Test(
-		tuples{},
-		tuples{},
-		Equal
-	);
-}
-
-//----------------------------------------------------------------------------
-
 #include "common/view/zip.hpp"
 
-TEST_CASE("view.zip")
+TEST_CASE("view.zip.static")
+{
+	using test_range = decltype(zip(std::declval<std::span<int>&>(), std::declval<std::span<int>&>()));
+
+	STATIC_REQUIRE(std::ranges::range<test_range>);
+	STATIC_REQUIRE(std::ranges::bidirectional_range<test_range>);
+	STATIC_REQUIRE(std::ranges::sized_range<test_range>);
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::begin(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::cbegin(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::rbegin(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::crbegin(Range); });
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::end(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::cend(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::rend(Range); });
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::crend(Range); });
+
+	STATIC_REQUIRE(requires(test_range Range) { std::ranges::find(Range, *Range.begin()); });
+}
+
+TEST_CASE("view.zip.dynamic")
 {
 	{
 		const std::array Source      { 1, 2, 3 };

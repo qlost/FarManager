@@ -70,13 +70,13 @@ static auto extract_impl(string_view& Str, size_t const Size)
 
 static auto extract_separators(string_view& Str)
 {
-	const auto SeparatorsSize = std::find_if_not(ALL_CONST_RANGE(Str), [](wchar_t c) { return c == L' ' || c == L',' || c == L';'; }) - Str.cbegin();
+	const auto SeparatorsSize = std::ranges::find_if_not(Str, [](wchar_t c) { return c == L' ' || c == L',' || c == L';'; }) - Str.cbegin();
 	return extract_impl(Str, SeparatorsSize);
 }
 
 static auto extract_masks(string_view& Str)
 {
-	const auto MasksSize = std::find_if(ALL_CONST_RANGE(Str), [](wchar_t c) { return c == RE_start || c == ExcludeMaskSeparator; }) - Str.cbegin();
+	const auto MasksSize = std::ranges::find_if(Str, [](wchar_t c) { return c == RE_start || c == ExcludeMaskSeparator; }) - Str.cbegin();
 	return extract_impl(Str, MasksSize);
 }
 
@@ -105,7 +105,7 @@ public:
 	bool operator==(string_view FileName) const;
 	bool empty() const;
 
-	using last_regex_matches = std::pair<std::vector<RegExpMatch> const*, named_regex_match const*>;
+	using last_regex_matches = std::pair<std::vector<RegExpMatch> const*, unordered_string_map<size_t> const*>;
 	last_regex_matches last_matches() const;
 
 private:
@@ -113,7 +113,7 @@ private:
 	{
 		RegExp Regex;
 		mutable std::vector<RegExpMatch> Match;
-		mutable named_regex_match NamedMatch;
+		mutable unordered_string_map<size_t> NamedMatch;
 	};
 
 	std::variant<std::vector<string>, regex_data> m_Masks;
@@ -150,7 +150,7 @@ bool filemasks::assign(string_view Str, DWORD const Flags)
 		const auto MaskGroupNameWithBrackets = string_view(ExpandedGroups).substr(LBPos, RBPos - LBPos + 1);
 		const auto MaskGroupName = MaskGroupNameWithBrackets.substr(1, MaskGroupNameWithBrackets.size() - 2);
 
-		if (UsedGroups.contains(string_comparer::generic_key{ MaskGroupName }))
+		if (UsedGroups.contains(MaskGroupName))
 		{
 			MaskGroupValue.clear();
 		}
@@ -266,7 +266,8 @@ bool filemasks::check(const string_view Name, regex_matches const* const Matches
 	if (contains(Exclude, Name))
 		return false;
 
-	const auto MaskIterator = std::find(ALL_CONST_RANGE(Include), Name);
+	// Ugh, ranges are awesome.
+	const auto MaskIterator = std::ranges::find_if(Include, [&](masks const& Masks){ return Masks == Name; });
 	if (MaskIterator == Include.cend())
 		return false;
 
@@ -284,8 +285,8 @@ bool filemasks::check(const string_view Name, regex_matches const* const Matches
 
 bool filemasks::empty() const
 {
-	return std::all_of(ALL_CONST_RANGE(Include), LIFT_MF(empty)) &&
-	       std::all_of(ALL_CONST_RANGE(Exclude), LIFT_MF(empty));
+	return std::ranges::all_of(Include, LIFT_MF(empty)) &&
+	       std::ranges::all_of(Exclude, LIFT_MF(empty));
 }
 
 void filemasks::ErrorMessage()
@@ -409,11 +410,19 @@ bool filemasks::masks::operator==(const string_view FileName) const
 	{
 		[&](const std::vector<string>& Data)
 		{
-			return std::any_of(CONST_RANGE(Data, i) { return CmpName(i, FileName, false); });
+			return std::ranges::any_of(Data, [&](string_view const i){ return CmpName(i, FileName, false); });
 		},
 		[&](const regex_data& Data)
 		{
-			return Data.Regex.Search(FileName, Data.Match, &Data.NamedMatch);
+			regex_match Match;
+			named_regex_match NamedMatch;
+			if (!Data.Regex.Search(FileName, Match, &NamedMatch))
+				return false;
+
+			Data.Match.assign(ALL_CONST_RANGE(Match.Matches));
+			for (const auto& [k, v]: NamedMatch.Matches)
+				Data.NamedMatch.emplace(k, v);
+			return true;
 		}
 	}, m_Masks);
 }
@@ -507,7 +516,7 @@ TEST_CASE("masks_with_matches")
 	Masks.assign(L"/(.+)\\.(?:.+)\\.(?{scratch}.+)/"sv);
 
 	std::vector<RegExpMatch> Matches;
-	named_regex_match NamedMatches;
+	unordered_string_map<size_t> NamedMatches;
 	filemasks::regex_matches const RegexMatches{ Matches, NamedMatches };
 	const auto Test = L"none.shall.pass"sv;
 
@@ -524,7 +533,7 @@ TEST_CASE("masks_with_matches")
 	REQUIRE(Matches[2].start == 11);
 	REQUIRE(Matches[2].end == 15);
 
-	REQUIRE(NamedMatches.Matches.size() == 1u);
-	REQUIRE(NamedMatches.Matches.at(L"scratch"s) == 2u);
+	REQUIRE(NamedMatches.size() == 1u);
+	REQUIRE(NamedMatches.at(L"scratch"s) == 2u);
 }
 #endif

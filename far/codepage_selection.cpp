@@ -297,9 +297,9 @@ size_t codepages::GetCodePageInsertPosition(uintptr_t codePage, size_t start, si
 		}
 	};
 
-	const auto iRange = irange(start, start + length);
-	const auto Pos = std::find_if(CONST_RANGE(iRange, i) { return GetCodePage(i) >= codePage; });
-	return Pos != iRange.cend()? *Pos : start + length;
+	const auto iRange = std::views::iota(start, start + length);
+	const auto Pos = std::ranges::find_if(iRange, [&](size_t const i){ return GetCodePage(i) >= codePage; });
+	return Pos != iRange.end()? *Pos : start + length;
 }
 
 static string_view unicode_codepage_name(uintptr_t const Codepage)
@@ -598,7 +598,7 @@ intptr_t codepages::EditDialogProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 
 			if (Param1 == EDITCP_OK)
 			{
-				strCodePageName = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EDITCP_EDIT, nullptr));
+				strCodePageName = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EDITCP_EDIT, nullptr));
 			}
 			// Если имя кодовой страницы пустое, то считаем, что имя не задано
 			if (strCodePageName.empty())
@@ -647,7 +647,7 @@ void codepages::EditCodePageName()
 
 	EditDialog[EDITCP_EDIT].strHistory = L"CodePageName"sv;
 
-	const auto Dlg = Dialog::create(EditDialog, &codepages::EditDialogProc, this);
+	const auto Dlg = Dialog::create(EditDialog, std::bind_front(&codepages::EditDialogProc, this));
 	Dlg->SetPosition({ -1, -1, 54, 7 });
 	Dlg->SetHelp(L"EditCodePageNameDlg"sv);
 	Dlg->Process();
@@ -760,7 +760,7 @@ size_t codepages::FillCodePagesList(Dialog* Dlg, size_t controlId, uintptr_t cod
 		FarListInfo info{ sizeof(info) };
 		Dlg->SendMessage(DM_LISTINFO, control, &info);
 
-		for (const auto& i: irange(info.ItemsNumber))
+		for (const auto i: std::views::iota(0uz, info.ItemsNumber))
 		{
 			if (GetListItemCodePage(i) == codePage)
 			{
@@ -894,7 +894,7 @@ F8CP::F8CP(bool viewer):
 
 uintptr_t F8CP::NextCP(uintptr_t cp) const
 {
-	auto curr = std::find(ALL_CONST_RANGE(m_F8CpOrder), cp);
+	auto curr = std::ranges::find(m_F8CpOrder, cp);
 	return curr != m_F8CpOrder.cend() && ++curr != m_F8CpOrder.cend()? *curr : *m_F8CpOrder.cbegin();
 }
 

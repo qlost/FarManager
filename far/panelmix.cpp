@@ -403,7 +403,7 @@ std::vector<column> DeserialiseViewSettings(string_view const ColumnTitles, stri
 		}
 		else
 		{
-			const auto ItemIterator = std::find_if(CONST_RANGE(ColumnInfo, i) { return Type == i.String; });
+			const auto ItemIterator = std::ranges::find(ColumnInfo, Type, [&](column_info const& i){ return i.String; });
 			if (ItemIterator != std::cend(ColumnInfo))
 				NewColumn.type = ItemIterator->Type;
 			else if (Type.size() >= 2 && Type.size() <= 3 && Type.front() == L'C')
@@ -429,7 +429,7 @@ std::vector<column> DeserialiseViewSettings(string_view const ColumnTitles, stri
 	}
 
 	enum_tokens const EnumWidths(ColumnWidths, L","sv);
-	range EnumWidthsRange(EnumWidths);
+	std::ranges::subrange EnumWidthsRange(EnumWidths);
 
 	for (auto& i: Columns)
 	{
@@ -437,8 +437,8 @@ std::vector<column> DeserialiseViewSettings(string_view const ColumnTitles, stri
 
 		if (!EnumWidthsRange.empty())
 		{
-			Width = EnumWidthsRange.front();
-			EnumWidthsRange.pop_front();
+			Width = *EnumWidthsRange.begin();
+			EnumWidthsRange.advance(1);
 		}
 
 		// "column types" is a determinant here (see the loop header) so we can't break or continue here -
@@ -708,7 +708,7 @@ string FormatStr_Size(
 			lng::MListFolder,
 		};
 
-		const auto LabelSize = msg(*std::max_element(ALL_CONST_RANGE(FolderLabels), [](lng a, lng b) { return msg(a).size() < msg(b).size(); })).size();
+		const auto LabelSize = std::ranges::fold_left(FolderLabels, 0uz, [](size_t const Value, lng const Id) { return std::max(Value, msg(Id).size()); });
 
 		string TypeName;
 
@@ -728,23 +728,24 @@ string FormatStr_Size(
 						auto ID_Msg = lng::MListJunction;
 						if (Global->Opt->PanelDetailedJunction && !CurDir.empty())
 						{
-							string strLinkName;
-							if (GetReparsePointInfo(path::join(CurDir, PointToName(strName)), strLinkName))
+							if (string strLinkName; GetReparsePointInfo(path::join(CurDir, PointToName(strName)), strLinkName))
 							{
 								NormalizeSymlinkName(strLinkName);
-								bool Root;
-								if(ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root)
-								{
+
+								if(bool Root; ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root)
 									ID_Msg = lng::MListVolMount;
-								}
 							}
 						}
-						TypeName=msg(ID_Msg);
+						TypeName = msg(ID_Msg);
 					}
 					break;
 
+				case IO_REPARSE_TAG_SYMLINK:
+					TypeName = msg(lng::MListSymlink);
+					break;
+
 				default:
-					if (!reparse_tag_to_string(ReparseTag, TypeName) && !Global->Opt->ShowUnknownReparsePoint)
+					if (!reparse_tag_to_string(ReparseTag, TypeName, Global->Opt->ShowUnknownReparsePoint) && TypeName.empty())
 						TypeName = msg(lng::MListUnknownReparsePoint);
 					break;
 				}

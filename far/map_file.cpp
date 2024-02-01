@@ -180,7 +180,8 @@ static void read_vc(std::istream& Stream, unordered_string_set& Files, std::map<
 	ReBase.Compile(L"^ +Preferred load address is ([0-9A-Fa-f]+)$"sv, OP_OPTIMIZE);
 	ReSymbol.Compile(L"^ +[0-9A-Fa-f]+:[0-9A-Fa-f]+ +([^ ]+) +([0-9A-Fa-f]+) .+ ([^ ]+)$"sv, OP_OPTIMIZE);
 
-	std::vector<RegExpMatch> m;
+	regex_match Match;
+	auto& m = Match.Matches;
 	m.reserve(3);
 
 	uintptr_t BaseAddress{};
@@ -190,13 +191,13 @@ static void read_vc(std::istream& Stream, unordered_string_set& Files, std::map<
 		if (i.Str.empty())
 			continue;
 
-		if (!BaseAddress && ReBase.Search(i.Str, m))
+		if (!BaseAddress && ReBase.Search(i.Str, Match))
 		{
 			BaseAddress = from_string<uintptr_t>(get_match(i.Str, m[1]), {}, 16);
 			continue;
 		}
 
-		if (ReSymbol.Search(i.Str, m))
+		if (ReSymbol.Search(i.Str, Match))
 		{
 			auto Address = from_string<uintptr_t>(get_match(i.Str, m[2]), {}, 16);
 			if (!Address)
@@ -208,7 +209,7 @@ static void read_vc(std::istream& Stream, unordered_string_set& Files, std::map<
 			map_file::line Line;
 			Line.Name = get_match(i.Str, m[1]);
 			const auto File = get_match(i.Str, m[3]);
-			Line.File = &*Files.emplace(File).first;
+			Line.File = std::to_address(Files.emplace(File).first);
 
 			Symbols.emplace(Address, std::move(Line));
 			continue;
@@ -222,7 +223,8 @@ static void read_clang(std::istream& Stream, unordered_string_set& Files, std::m
 	ReObject.Compile(L"^[0-9A-Fa-f]+ [0-9A-Fa-f]+ +[0-9]+         (.+)$"sv);
 	ReSymbol.Compile(L"^([0-9A-Fa-f]+) [0-9A-Fa-f]+     0                 (.+)$"sv);
 
-	std::vector<RegExpMatch> m;
+	regex_match Match;
+	auto& m = Match.Matches;
 	m.reserve(2);
 
 	string ObjName;
@@ -232,17 +234,17 @@ static void read_clang(std::istream& Stream, unordered_string_set& Files, std::m
 		if (i.Str.empty())
 			continue;
 
-		if (ReSymbol.Search(i.Str, m))
+		if (ReSymbol.Search(i.Str, Match))
 		{
 			map_file::line Line;
 			Line.Name = get_match(i.Str, m[2]);
-			Line.File = &*Files.emplace(ObjName).first;
+			Line.File = std::to_address(Files.emplace(ObjName).first);
 			const auto Address = from_string<uintptr_t>(get_match(i.Str, m[1]), {}, 16);
 			Symbols.emplace(Address, std::move(Line));
 			continue;
 		}
 
-		if (ReObject.Search(i.Str, m))
+		if (ReObject.Search(i.Str, Match))
 		{
 			ObjName = get_match(i.Str, m[1]);
 			continue;
@@ -257,7 +259,8 @@ static void read_gcc(std::istream& Stream, unordered_string_set& Files, std::map
 	ReFileName.Compile(L"^\\[ *[0-9]+\\]\\(.+\\)\\(.+\\)\\(.+\\)\\(.+\\) \\(nx 1\\) 0x[0-9A-Fa-f]+ (.+)$"sv);
 	ReSymbol.Compile(L"^\\[ *[0-9]+\\]\\(.+\\)\\(.+\\)\\(.+\\)\\(.+\\) \\(nx 0\\) 0x([0-9A-Fa-f]+) (.+)$"sv);
 
-	std::vector<RegExpMatch> m;
+	regex_match Match;
+	auto& m = Match.Matches;
 	m.reserve(2);
 
 	const auto BaseAddress = 0x1000;
@@ -269,18 +272,18 @@ static void read_gcc(std::istream& Stream, unordered_string_set& Files, std::map
 		if (i.Str.empty())
 			continue;
 
-		if (ReFile.Search(i.Str, m) && ReFileName.Search(LastLine, m))
+		if (ReFile.Search(i.Str, Match) && ReFileName.Search(LastLine, Match))
 		{
 			FileName = get_match(LastLine, m[1]);
 			LastLine.clear();
 			continue;
 		}
 
-		if (ReSymbol.Search(i.Str, m))
+		if (ReSymbol.Search(i.Str, Match))
 		{
 			map_file::line Line;
 			Line.Name = get_match(i.Str, m[2]);
-			Line.File = &*Files.emplace(FileName).first;
+			Line.File = std::to_address(Files.emplace(FileName).first);
 			const auto Address = from_string<uintptr_t>(get_match(i.Str, m[1]), {}, 16) + BaseAddress;
 			Symbols.emplace(Address, std::move(Line));
 			continue;

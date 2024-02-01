@@ -39,10 +39,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if !CHECK_COMPILER(CL, 19, 29, 30148)
 #error Visual C++ 2019 Update 16.11.24 (or higher) required
-#elif !CHECK_COMPILER(GCC, 10, 0, 0)
-#error GCC 10.0.0 (or higher) required
-#elif !CHECK_COMPILER(CLANG, 10, 0, 0)
-#error Clang 10.0.0 (or higher) required
+#elif !CHECK_COMPILER(GCC, 12, 0, 0)
+#error GCC 12.0.0 (or higher) required
+#elif !CHECK_COMPILER(CLANG, 16, 0, 0)
+#error Clang 16.0.0 (or higher) required
 #endif
 
 #ifdef __GNUC__
@@ -68,7 +68,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bit>
 #include <bitset>
 #include <chrono>
+#include <compare>
 #include <concepts>
+#include <exception>
 #include <forward_list>
 #include <fstream>
 #include <functional>
@@ -83,6 +85,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <numeric>
 #include <optional>
 #include <random>
+#include <ranges>
 #include <regex>
 #include <set>
 #include <span>

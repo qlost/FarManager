@@ -126,7 +126,7 @@ namespace os::process
 			return imports.NtWow64ReadVirtualMemory64 && NT_SUCCESS(imports.NtWow64ReadVirtualMemory64(Process, BaseAddress, Buffer, Size, NumberOfBytesRead));
 		else
 #endif
-			return ReadProcessMemory(Process, reinterpret_cast<void*>(BaseAddress), Buffer, Size, NumberOfBytesRead) != FALSE;
+			return ReadProcessMemory(Process, std::bit_cast<void*>(BaseAddress), Buffer, Size, NumberOfBytesRead) != FALSE;
 	}
 
 	static auto subsystem_to_type(int const Subsystem)
@@ -380,7 +380,7 @@ namespace os::process
 			return 0;
 		}
 
-		for (const auto& i: span(Info->ProcessIdList, Info->NumberOfProcessIdsInList))
+		for (const auto& i: std::span(Info->ProcessIdList, Info->NumberOfProcessIdsInList))
 		{
 			const auto Name = get_process_name(i);
 			version::file_version Version;
@@ -410,7 +410,7 @@ namespace os::process
 
 			if (any_of(Result, STATUS_INFO_LENGTH_MISMATCH, STATUS_BUFFER_OVERFLOW, STATUS_BUFFER_TOO_SMALL))
 			{
-				m_Info.reset(ReturnSize? ReturnSize : grow_exp_noshrink(m_Info.size(), {}));
+				m_Info.reset(ReturnSize? ReturnSize : grow_exp(m_Info.size(), {}));
 				continue;
 			}
 
@@ -434,7 +434,7 @@ namespace os::process
 		if (!Info.NextEntryOffset)
 			return false;
 
-		Value.Pid = static_cast<DWORD>(reinterpret_cast<uintptr_t>(Info.UniqueProcessId));
+		Value.Pid = static_cast<DWORD>(std::bit_cast<uintptr_t>(Info.UniqueProcessId));
 		Value.Name = { Info.ImageName.Buffer, Info.ImageName.Length / sizeof(wchar_t) };
 		Value.Threads = { view_as<SYSTEM_THREAD_INFORMATION const*>(&Info, sizeof(Info)), Info.NumberOfThreads };
 		m_Offset += Info.NextEntryOffset;
