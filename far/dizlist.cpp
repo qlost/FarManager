@@ -52,6 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "file_io.hpp"
 #include "log.hpp"
 #include "stddlg.hpp"
+#include "encoding.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -243,7 +244,7 @@ DizList::desc_map::iterator DizList::Find(const string_view Name, const string_v
 		Iterator = m_DizData.find(ShortName);
 
 	//если файл описаний был в OEM/ANSI то имена файлов могут не совпадать с юникодными
-	if (Iterator == m_DizData.end() && m_CodePage && !IsUnicodeOrUtfCodePage(*m_CodePage))
+	if (Iterator == m_DizData.end() && m_CodePage && !IsUtfCodePage(*m_CodePage))
 	{
 		const auto strRecoded = encoding::get_chars(*m_CodePage, encoding::get_bytes(*m_CodePage, Name));
 		if (strRecoded == Name)
@@ -343,7 +344,7 @@ bool DizList::Flush(string_view const Path, const string* DizName)
 		if (m_OrderForWrite.empty())
 		{
 			if (!os::fs::delete_file(m_DizFileName))
-				throw MAKE_FAR_EXCEPTION(L"Can't delete the file"sv);
+				throw far_exception(L"Can't delete the file"sv);
 
 			return true;
 		}

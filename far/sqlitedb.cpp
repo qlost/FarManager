@@ -119,7 +119,7 @@ namespace
 	[[noreturn]]
 	void throw_exception(string_view const DatabaseName, int const ErrorCode, string_view const ErrorString = {}, int const SystemErrorCode = 0, string_view const Sql = {}, int const ErrorOffset = -1)
 	{
-		throw MAKE_EXCEPTION(far_sqlite_exception, ErrorCode, true, far::format(L"[{}] - SQLite error {}: {}{}{}{}"sv,
+		throw far_sqlite_exception(ErrorCode, far::format(L"[{}] - SQLite error {}: {}{}{}{}"sv,
 			DatabaseName,
 			ErrorCode,
 			ErrorString.empty()? GetErrorString(ErrorCode) : ErrorString,
@@ -148,7 +148,7 @@ namespace
 
 	SCOPED_ACTION(components::component)([]
 	{
-		return components::info{ L"SQLite"sv, WIDE_S(SQLITE_VERSION) };
+		return components::info{ L"SQLite"sv, far::format(L"{} (API) / {} (library)"sv, WIDE_S(SQLITE_VERSION), encoding::utf8::get_chars(sqlite::sqlite3_libversion())) };
 	});
 }
 

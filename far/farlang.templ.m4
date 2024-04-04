@@ -19032,7 +19032,7 @@ MSetColorStyleUnderlineNone
 "Ne"
 "Nein"
 "Nem"
-"Nie"
+"Brak"
 "No"
 "Nie"
 "No"
@@ -22556,7 +22556,7 @@ upd:"Plugin LuaMacro is not loaded"
 "Modul LuaMacro nie je spustený"
 "Plugin LuaMacro Non Caricato"
 "Плагін LuaMacro не завантажено"
-"Дадатак LuMacro не запампаваны"
+"Дадатак LuaMacro не запампаваны"
 upd:"Plugin LuaMacro is not loaded"
 
 MMacroRecordingIsDisabled

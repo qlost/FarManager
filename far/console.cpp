@@ -394,14 +394,14 @@ protected:
 			{
 				DWORD BytesRead;
 				if (!ReadFile(GetStdHandle(m_Type), Str.data(), static_cast<DWORD>(Str.size() * sizeof(wchar_t)), &BytesRead, {}))
-					throw MAKE_FAR_FATAL_EXCEPTION(L"File read error"sv);
+					throw far_fatal_exception(L"File read error"sv);
 
 				return BytesRead / sizeof(wchar_t);
 			}
 
 			size_t Size;
 			if (!::console.Read(Str, Size))
-				throw MAKE_FAR_FATAL_EXCEPTION(L"Console read error"sv);
+				throw far_fatal_exception(L"Console read error"sv);
 
 			return Size;
 		}
@@ -417,7 +417,7 @@ protected:
 				{
 					DWORD BytesWritten;
 					if (!WriteFile(GetStdHandle(m_Type), Data, static_cast<DWORD>(Size), &BytesWritten, {}))
-						throw MAKE_FAR_FATAL_EXCEPTION(L"File write error"sv);
+						throw far_fatal_exception(L"File write error"sv);
 				};
 
 				if constexpr (constexpr auto UseUtf8Output = true)
@@ -445,7 +445,7 @@ protected:
 			SCOPE_EXIT{ if (ChangeColour) ::console.SetTextAttributes(CurrentColor); };
 
 			if (!::console.Write(Str))
-				throw MAKE_FAR_FATAL_EXCEPTION(L"Console write error"sv);
+				throw far_fatal_exception(L"Console write error"sv);
 		}
 
 		void flush() const
@@ -784,17 +784,38 @@ protected:
 		return true;
 	}
 
-	bool console::GetKeyboardLayoutName(string &strName) const
+	static HKL get_keyboard_layout_imm()
 	{
+		const auto ImeWnd = ImmGetDefaultIMEWnd(::console.GetWindow());
+		if (!ImeWnd)
+		{
+			LOGWARNING(L"ImmGetDefaultIMEWnd(): {}"sv, os::last_error());
+			return {};
+		}
+
+		const auto ThreadId = GetWindowThreadProcessId(ImeWnd, {});
+		if (!ThreadId)
+		{
+			LOGWARNING(L"GetWindowThreadProcessId(): {}"sv, os::last_error());
+			return {};
+		}
+
+		return GetKeyboardLayout(ThreadId);
+	}
+
+	HKL console::GetKeyboardLayout() const
+	{
+		if (const auto Hkl = get_keyboard_layout_imm())
+			return Hkl;
+
 		wchar_t Buffer[KL_NAMELENGTH];
 		if (!imports.GetConsoleKeyboardLayoutNameW(Buffer))
 		{
-			LOGERROR(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
-			return false;
+			LOGWARNING(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
+			return {};
 		}
 
-		strName = Buffer;
-		return true;
+		return os::make_hkl(Buffer);
 	}
 
 	uintptr_t console::GetInputCodepage() const
@@ -1730,8 +1751,8 @@ WARNING_POP()
 
 			for (const auto& [Color, i] : enumerate(Palette))
 			{
-				const union { COLORREF Color; rgba RGBA; } Value{ Color };
-				far::format_to(Str, OSC(L"4;{};rgb:{:02x}/{:02x}/{:02x}"), vt_color_index(i), Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
+				const auto RGBA = colors::to_rgba(Color);
+				far::format_to(Str, OSC(L"4;{};rgb:{:02x}/{:02x}/{:02x}"), vt_color_index(i), RGBA.r, RGBA.g, RGBA.b);
 			}
 
 			return ::console.Write(Str);
@@ -1925,7 +1946,7 @@ WARNING_POP()
 
 	bool console::GetAlias(string_view const Name, string& Value, string_view const ExeName) const
 	{
-		os::last_error_guard Guard;
+		SCOPED_ACTION(os::last_error_guard);
 
 		null_terminated const C_Name(Name), C_ExeName(ExeName);
 

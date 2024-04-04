@@ -129,7 +129,7 @@ namespace os
 
 			default:
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"WaitForSingleobject returned {}"sv, Result));
+				throw far_fatal_exception(far::format(L"WaitForSingleobject returned {}"sv, Result));
 			}
 		}
 
@@ -152,7 +152,7 @@ namespace os
 			else
 			{
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"WaitForMultipleObjects returned {}"sv, Result));
+				throw far_fatal_exception(far::format(L"WaitForMultipleObjects returned {}"sv, Result));
 			}
 		}
 
@@ -712,7 +712,8 @@ namespace rtdl
 	{
 		void module::module_deleter::operator()(HMODULE Module) const
 		{
-			FreeLibrary(Module);
+			if (!FreeLibrary(Module))
+				LOGWARNING(L"FreeLibrary({}): {}"sv, static_cast<void const*>(Module), os::last_error());
 		}
 
 		module::module(string_view const Name, bool const AlternativeLoad):
@@ -753,7 +754,7 @@ namespace rtdl
 			}
 
 			if (!*m_module && Mandatory)
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"Error loading {}: {}"sv, m_name, last_error()));
+				throw far_fatal_exception(far::format(L"Error loading {}: {}"sv, m_name, last_error()));
 
 			return m_module->get();
 		}
@@ -782,7 +783,7 @@ namespace rtdl
 			if (const auto Pointer = *m_Pointer; Pointer || !Mandatory)
 				return Pointer;
 
-			throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"{}!{} is missing: {}"sv, m_Module->name(), encoding::ansi::get_chars(m_Name), last_error()));
+			throw far_fatal_exception(far::format(L"{}!{} is missing: {}"sv, m_Module->name(), encoding::ansi::get_chars(m_Name), last_error()));
 		}
 	}
 

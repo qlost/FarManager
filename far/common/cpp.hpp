@@ -129,6 +129,8 @@ namespace std
 #endif
 
 #ifndef __cpp_lib_ranges_fold
+#include <algorithm>
+#ifndef _LIBCPP___ALGORITHM_FOLD_H // as of March 2024 libc++ doesn't define __cpp_lib_ranges_fold
 #include <functional>
 #include <iterator>
 #include <ranges>
@@ -160,6 +162,7 @@ namespace std::ranges
 
 	inline constexpr fold_left_fn fold_left;
 }
+#endif
 #endif
 
 #ifndef __cpp_size_t_suffix

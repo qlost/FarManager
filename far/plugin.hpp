@@ -77,14 +77,16 @@ struct FAR_INPUT_RECORD
 #endif // END FAR_USE_INTERNALS
 
 #ifdef FAR_USE_INTERNALS
-#define CP_UNICODE    static_cast<uintptr_t>(1200)
-#define CP_REVERSEBOM static_cast<uintptr_t>(1201)
+#define CP_UTF16LE    static_cast<uintptr_t>(1200)
+#define CP_UTF16BE    static_cast<uintptr_t>(1201)
 #define CP_DEFAULT    static_cast<uintptr_t>(-1)
 #define CP_REDETECT   static_cast<uintptr_t>(-2)
 #define CP_ALL        static_cast<uintptr_t>(-3)
 #else // ELSE FAR_USE_INTERNALS
-#define CP_UNICODE    ((uintptr_t)1200)
-#define CP_REVERSEBOM ((uintptr_t)1201)
+#define CP_UTF16LE    ((uintptr_t)1200)
+#define CP_UTF16BE    ((uintptr_t)1201)
+#define CP_UNICODE    CP_UTF16LE
+#define CP_REVERSEBOM CP_UTF16BE
 #define CP_DEFAULT    ((uintptr_t)-1)
 #define CP_REDETECT   ((uintptr_t)-2)
 #endif // END FAR_USE_INTERNALS
@@ -2497,6 +2499,14 @@ FAR_INLINE_CONSTANT FARFORMATFILESIZEFLAGS
 
 typedef size_t (WINAPI *FARFORMATFILESIZE)(unsigned long long Size, intptr_t Width, FARFORMATFILESIZEFLAGS Flags, wchar_t *Dest, size_t DestSize);
 
+struct DetectCodePageInfo
+{
+	size_t StructSize;
+	const wchar_t* FileName;
+};
+
+typedef uintptr_t (WINAPI *FARSTDDETECTCODEPAGE)(struct DetectCodePageInfo* Info);
+
 typedef struct FarStandardFunctions
 {
 	size_t StructSize;
@@ -2555,6 +2565,7 @@ typedef struct FarStandardFunctions
 	FARFORMATFILESIZE          FormatFileSize;
 	FARSTDFARCLOCK             FarClock;
 	FARSTDCOMPARESTRINGS       CompareStrings;
+	FARSTDDETECTCODEPAGE       DetectCodePage;
 } FARSTANDARDFUNCTIONS;
 
 struct PluginStartupInfo

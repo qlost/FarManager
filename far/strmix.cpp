@@ -48,6 +48,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "regex_helpers.hpp"
 #include "string_utils.hpp"
 #include "global.hpp"
+#include "codepage.hpp"
 
 // Platform:
 
@@ -92,7 +93,7 @@ string GroupDigits(unsigned long long Value)
 	return Src;
 }
 
-wchar_t* legacy::InsertQuotes(wchar_t *Str)
+static wchar_t* legacy_InsertQuotes(wchar_t *Str)
 {
 	const auto QuoteChar = L'"';
 	size_t l = std::wcslen(Str);
@@ -112,14 +113,6 @@ wchar_t* legacy::InsertQuotes(wchar_t *Str)
 	return Str;
 }
 
-wchar_t* legacy::QuoteSpace(wchar_t *Str)
-{
-	if (Global->Opt->strQuotedSymbols.Get().find_first_of(Str) != string::npos)
-		InsertQuotes(Str);
-
-	return Str;
-}
-
 string InsertRegexpQuote(string strStr)
 {
 	//выражение вида /regexp/i не дополняем слешами
@@ -135,7 +128,7 @@ string InsertRegexpQuote(string strStr)
 wchar_t* legacy::QuoteSpaceOnly(wchar_t* Str)
 {
 	if (contains(Str, L' '))
-		InsertQuotes(Str);
+		legacy_InsertQuotes(Str);
 
 	return Str;
 }
@@ -170,14 +163,6 @@ static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(std:
 
 	Handler({ Str, Size }, Max, Dots.substr(0, Max));
 	return Str;
-}
-
-wchar_t* legacy::truncate_right(wchar_t *Str, int MaxLength)
-{
-	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
-	{
-		*copy_string(CurrentDots, StrParam.data() + MaxLengthParam - CurrentDots.size()) = {};
-	});
 }
 
 void inplace::truncate_right(string& Str, size_t const MaxLength)
@@ -231,19 +216,6 @@ string truncate_left(string Str, size_t const MaxLength)
 string truncate_left(string_view const Str, size_t const MaxLength)
 {
 	return truncate_left(string(Str), MaxLength);
-}
-
-wchar_t* legacy::truncate_center(wchar_t *Str, int MaxLength)
-{
-	return legacy_operation(Str, MaxLength, [](std::span<wchar_t> const StrParam, size_t const MaxLengthParam, string_view const CurrentDots)
-	{
-		const auto Iterator = copy_string(CurrentDots, StrParam.begin() + (MaxLengthParam - CurrentDots.size()) / 2);
-
-		const auto StrEnd = StrParam.end();
-		const auto StrBegin = Iterator + (StrParam.size() - MaxLengthParam);
-
-		*std::copy(StrBegin, StrEnd, Iterator) = {};
-	});
 }
 
 void inplace::truncate_center(string& Str, size_t const MaxLength)
@@ -337,9 +309,20 @@ struct units
 using binary = units<1024>;
 using decimal = units<1000>;
 
-static constexpr unsigned long long BytesInUnit[][2]
+namespace id
 {
-#define BD_UNIT(x) { binary::x, decimal::x }
+	enum { invariant, localized };
+	enum { binary, decimal };
+}
+
+static constexpr struct
+{
+	unsigned long long Value;
+	char Symbol;
+}
+BytesInUnit[][2]
+{
+#define BD_UNIT(x) { { binary::x, *#x }, { decimal::x, *#x + ('a' - 'A') } }
 
 	BD_UNIT(B),
 	BD_UNIT(K),
@@ -359,30 +342,41 @@ static constexpr unsigned long long PrecisionMultiplier[]
 	100ull,
 };
 
-
-static string& UnitStr(size_t Unit, bool Binary)
+static consteval auto invariant_symbols()
 {
-	static string Data[std::size(BytesInUnit)][2];
-	return Data[Unit][Binary? 0 : 1];
+	std::array<std::array<wchar_t, 2>, std::size(BytesInUnit)> Result;
+
+	for (size_t i = 0; i != std::size(BytesInUnit); ++i)
+	{
+		Result[i][id::binary] = BytesInUnit[i][id::binary].Symbol;
+		Result[i][id::decimal] = BytesInUnit[i][id::decimal].Symbol;
+	}
+
+	return Result;
 }
+
+static constinit decltype(invariant_symbols()) UnitSymbol[2]
+{
+	invariant_symbols()
+};
 
 void PrepareUnitStr()
 {
 	for (const auto i: std::views::iota(0uz, std::size(BytesInUnit)))
 	{
-		UnitStr(i, true) = upper(msg(lng::MListBytes + i));
-		UnitStr(i, false) = lower(msg(lng::MListBytes + i));
+		const auto LocalizedSymbol = msg(lng::MListBytes + i).front();
+		auto& Dest = UnitSymbol[id::localized][i];
+		Dest[id::binary] = upper(LocalizedSymbol);
+		Dest[id::decimal] = lower(LocalizedSymbol);
 	}
 }
 
-string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned long long ViewFlags)
+static string FileSizeToStrImpl(unsigned long long const FileSize, int const WidthWithSign, unsigned long long const ViewFlags, bool const Localized)
 {
-	// подготовительные мероприятия
-	if (UnitStr(0, false) != lower(msg(lng::MListBytes)))
-	{
+	if (Localized && !UnitSymbol[id::localized][0][0])
 		PrepareUnitStr();
-	}
 
+	const auto& Symbol = UnitSymbol[Localized? id::localized : id::invariant];
 	const size_t Width = std::abs(WidthWithSign);
 	const bool LeftAlign = WidthWithSign < 0;
 	const bool UseGroupDigits = (ViewFlags & COLFLAGS_GROUPDIGITS) != 0;
@@ -394,14 +388,12 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 	const size_t MinUnit = (ViewFlags & COLFLAGS_MULTIPLIER_MASK & ~COLFLAGS_USE_MULTIPLIER) + 1;
 
 	constexpr auto
-		binary_index = 0,
-		decimal_index = 1,
 		log2_of_1024 = 10,
 		log10_of_1000 = 3;
 
 	constexpr std::pair
-		BinaryDivider(binary_index, log2_of_1024),
-		DecimalDivider(decimal_index, log10_of_1000);
+		BinaryDivider(id::binary, log2_of_1024),
+		DecimalDivider(id::decimal, log10_of_1000);
 
 	const auto& [BaseIndex, BasePower] = ViewFlags & COLFLAGS_THOUSAND? DecimalDivider : BinaryDivider;
 
@@ -429,7 +421,7 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 		if (!UnitIndex && !ShowUnit)
 			return FitToWidth(std::move(StrSize));
 
-		return FitToWidth(concat(StrSize, UseCompact? L""sv : L" "sv, UnitStr(UnitIndex, UseBinaryUnit).front()));
+		return FitToWidth(concat(StrSize, UseCompact? L""sv : L" "sv, Symbol[UnitIndex][UseBinaryUnit? id::binary : id::decimal]));
 	};
 
 	if (UseFloatSize)
@@ -445,7 +437,7 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 		}
 		else
 		{
-			const auto Denominator = BytesInUnit[UnitIndex][BaseIndex];
+			const auto Denominator = BytesInUnit[UnitIndex][BaseIndex].Value;
 			const auto RawIntegral = FileSize / Denominator;
 			const auto RawFractional = static_cast<double>(FileSize % Denominator) / static_cast<double>(Denominator);
 
@@ -487,12 +479,11 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 
 	while ((UseUnit && UnitIndex < MinUnit) || (Width && Str.size() > MaxNumberWidth))
 	{
-		const auto Denominator = BytesInUnit[UnitIndex + 1][BaseIndex];
+		const auto Denominator = BytesInUnit[UnitIndex + 1][BaseIndex].Value;
 		const auto IntegralPart = FileSize / Denominator;
 		const auto FractionalPart = static_cast<double>(FileSize % Denominator) / static_cast<double>(Denominator);
-		const auto SizeInUnits = IntegralPart + static_cast<unsigned long long>(std::round(FractionalPart));
 
-		if (SizeInUnits)
+		if (const auto SizeInUnits = IntegralPart + static_cast<unsigned long long>(std::round(FractionalPart)))
 		{
 			++UnitIndex;
 			Str = ToStr(SizeInUnits);
@@ -502,6 +493,16 @@ string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned lo
 	}
 
 	return FormatSize(std::move(Str), UnitIndex);
+}
+
+string FileSizeToStr(unsigned long long FileSize, int WidthWithSign, unsigned long long ViewFlags)
+{
+	return FileSizeToStrImpl(FileSize, WidthWithSign, ViewFlags, true);
+}
+
+string FileSizeToStrInvariant(unsigned long long FileSize, int WidthWithSign, unsigned long long ViewFlags)
+{
+	return FileSizeToStrImpl(FileSize, WidthWithSign, ViewFlags, false);
 }
 
 // Заменить в строке Str Count вхождений подстроки FindStr на подстроку ReplStr
@@ -994,7 +995,7 @@ bool SearchAndReplaceString(
 char IntToHex(int h)
 {
 	if (h > 0xF)
-		throw MAKE_FAR_FATAL_EXCEPTION(L"Not a hex char"sv);
+		throw far_fatal_exception(L"Not a hex char"sv);
 	if (h >= 0xA)
 		return 'A' + h - 0xA;
 	return '0' + h;
@@ -1011,7 +1012,7 @@ int HexToInt(char h)
 	if (std::isdigit(h))
 		return h - '0';
 
-	throw MAKE_FAR_FATAL_EXCEPTION(L"Not a hex char"sv);
+	throw far_fatal_exception(L"Not a hex char"sv);
 }
 
 string BlobToHexString(bytes_view const Blob, wchar_t Separator)
@@ -1041,7 +1042,7 @@ bytes HexStringToBlob(const string_view Hex, const wchar_t Separator)
 {
 	// Size shall be either 3 * N + 2 or even
 	if (!Hex.empty() && (Separator? Hex.size() % 3 != 2 : Hex.size() & 1))
-		throw MAKE_FAR_FATAL_EXCEPTION(L"Incomplete hex string"sv);
+		throw far_fatal_exception(L"Incomplete hex string"sv);
 
 	const auto SeparatorSize = Separator? 1 : 0;
 	const auto StepSize = 2 + SeparatorSize;
@@ -1268,6 +1269,99 @@ TEST_CASE("CanContainWholeWord")
 				REQUIRE(!!Cell == CanContainWholeWord(i.Haystack, &Row - i.Table.begin(), &Cell - Row.begin(), WordDiv));
 			}
 		}
+	}
+}
+
+static consteval auto mutiply(auto const Value, auto const Multiplier)
+{
+	return static_cast<unsigned long long>(Value * static_cast<decltype(Value)>(std::to_underlying(Multiplier)));
+}
+
+#define DEFINE_LITERAL(U) \
+static consteval auto operator ""_##U(unsigned long long const Value) { return mutiply(Value, binary::U); } \
+static consteval auto operator ""_##U(long double const Value)        { return mutiply(Value, binary::U); }
+
+DEFINE_LITERAL(K)
+DEFINE_LITERAL(M)
+DEFINE_LITERAL(G)
+DEFINE_LITERAL(T)
+DEFINE_LITERAL(P)
+DEFINE_LITERAL(E)
+
+#undef DEFINE_LITERAL
+
+TEST_CASE("FileSizeToStrInvariant")
+{
+	const auto max = std::numeric_limits<uint64_t>::max();
+
+	const struct
+	{
+		unsigned long long Size;
+		string_view ResultBinary, ResultDecimal;
+		int Width;
+		unsigned long long Flags;
+	}
+	Tests[]
+	{
+		{    0,       L"0"sv,        L"0"sv,          0, 0 },
+		{    1,       L"1"sv,        L"1"sv,          0, 0 },
+		{ 1023,       L"1023"sv,     L"1023"sv,       0, 0 },
+		{ 1024,       L"1024"sv,     L"1024"sv,       0, 0 },
+		{ 1025,       L"1025"sv,     L"1025"sv,       0, 0 },
+
+		{ 1024,       L"1024 "sv,    L"1024 "sv,     -5, 0 },
+		{ 1024,       L"1024"sv,     L"1024"sv,      -4, 0 },
+		{ 1024,       L"1 K"sv,      L"1 k"sv,       -3, 0 },
+		{ 1024,       L"1…"sv,       L"1…"sv,        -2, 0 },
+		{ 1024,       L"…"sv,        L"…"sv,         -1, 0 },
+
+		{ 1024,       L"1K"sv,       L"1k"sv,        -2, COLFLAGS_ECONOMIC },
+
+		{    0,       L"0"sv,        L"0"sv,          0, COLFLAGS_MULTIPLIER_K },
+		{    1,       L"1"sv,        L"1"sv,          0, COLFLAGS_MULTIPLIER_K },
+		{  511,       L"511"sv,      L"1 k"sv,        0, COLFLAGS_MULTIPLIER_K },
+		{  512,       L"1 K"sv,      L"1 k"sv,        0, COLFLAGS_MULTIPLIER_K },
+		{ 1023,       L"1 K"sv,      L"1 k"sv,        0, COLFLAGS_MULTIPLIER_K },
+		{ 1024,       L"1 K"sv,      L"1 k"sv,        0, COLFLAGS_MULTIPLIER_K },
+		{ 1025,       L"1 K"sv,      L"1 k"sv,        0, COLFLAGS_MULTIPLIER_K },
+
+		{ 10_M,       L"10240 K"sv,  L"10486 k"sv,    0, COLFLAGS_MULTIPLIER_K },
+		{ 1024_M,     L"1024 M"sv,   L"1074 m"sv,     0, COLFLAGS_MULTIPLIER_M },
+		{ 400000_M,   L"391 G"sv,    L"419 g"sv,      0, COLFLAGS_MULTIPLIER_G },
+		{ 4_P,        L"4096 T"sv,   L"4504 t"sv,     0, COLFLAGS_MULTIPLIER_T },
+		{ 3000_T,     L"3 P"sv,      L"3 p"sv,        0, COLFLAGS_MULTIPLIER_P },
+		{ max,        L"16 E"sv,     L"18 e"sv,       0, COLFLAGS_MULTIPLIER_E },
+
+		{ 999,        L"999"sv,      L"999"sv,        0, COLFLAGS_FLOATSIZE },
+		{ 1000,       L"1000"sv,     L"1.00 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1023,       L"1023"sv,     L"1.02 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1024,       L"1.00 K"sv,   L"1.02 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1536,       L"1.50 K"sv,   L"1.54 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 2042,       L"1.99 K"sv,   L"2.04 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 2043,       L"2.00 K"sv,   L"2.04 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 10_K,       L"10.0 K"sv,   L"10.2 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 10.14_K,    L"10.1 K"sv,   L"10.4 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 10.18_K,    L"10.2 K"sv,   L"10.4 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 100_K,      L"100 K"sv,    L"102 k"sv,      0, COLFLAGS_FLOATSIZE },
+		{ 1_K,        L"1.00 K"sv,   L"1.02 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_K,      L"1.00 K"sv,   L"1.02 k"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1_M,        L"1.00 M"sv,   L"1.05 m"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_M,      L"1.00 M"sv,   L"1.05 m"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1_G,        L"1.00 G"sv,   L"1.07 g"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_G,      L"1.00 G"sv,   L"1.07 g"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1_T,        L"1.00 T"sv,   L"1.10 t"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_T,      L"1.00 T"sv,   L"1.10 t"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1_P,        L"1.00 P"sv,   L"1.13 p"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_P,      L"1.00 P"sv,   L"1.13 p"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1_E,        L"1.00 E"sv,   L"1.15 e"sv,     0, COLFLAGS_FLOATSIZE },
+		{ 1.0_E,      L"1.00 E"sv,   L"1.15 e"sv,     0, COLFLAGS_FLOATSIZE },
+		{ max,        L"16.0 E"sv,   L"18.4 e"sv,     0, COLFLAGS_FLOATSIZE },
+	};
+
+	for (const auto& i: Tests)
+	{
+		REQUIRE(i.ResultBinary == FileSizeToStrInvariant(i.Size, i.Width, i.Flags));
+		REQUIRE(i.ResultDecimal == FileSizeToStrInvariant(i.Size, i.Width, i.Flags | COLFLAGS_THOUSAND));
 	}
 }
 
@@ -1540,8 +1634,8 @@ TEST_CASE("truncate")
 	Functions[]
 	{
 		{ truncate_left,   legacy::truncate_left,   &tests::size::ResultLeft   },
-		{ truncate_center, legacy::truncate_center, &tests::size::ResultCenter },
-		{ truncate_right,  legacy::truncate_right,  &tests::size::ResultRight  },
+		{ truncate_center, {},                      &tests::size::ResultCenter },
+		{ truncate_right,  {},                      &tests::size::ResultRight },
 		{ truncate_path,   legacy::truncate_path,   &tests::size::ResultPath   },
 	};
 
@@ -1555,8 +1649,11 @@ TEST_CASE("truncate")
 
 				REQUIRE(f.Truncate(string(i.Src), Size.Size) == Baseline);
 
-				string Buffer(i.Src);
-				REQUIRE(f.TruncateLegacy(Buffer.data(), static_cast<int>(Size.Size)) == Baseline);
+				if (f.TruncateLegacy)
+				{
+					string Buffer(i.Src);
+					REQUIRE(f.TruncateLegacy(Buffer.data(), static_cast<int>(Size.Size)) == Baseline);
+				}
 			}
 		}
 	}
@@ -1608,7 +1705,7 @@ TEST_CASE("hex")
 	{
 		REQUIRE(ExtractHexString(i.Src) == i.Numbers);
 		REQUIRE(HexStringToBlob(i.Numbers, 0) == i.Bytes);
-		REQUIRE(BlobToHexString(view_bytes(i.Bytes), 0) == i.Numbers);
+		REQUIRE(BlobToHexString(i.Bytes, 0) == i.Numbers);
 	}
 }
 

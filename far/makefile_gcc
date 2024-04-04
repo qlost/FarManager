@@ -1,9 +1,18 @@
 .SILENT:
 
+ifndef CLANG
+ifndef USE_LLD
+# LD map files are unusable for tracing,
+# so we keep the symbols, objdump them and strip manually.
+# LLD, on the contrary, generates good maps and doesn't need this trickery.
+USE_OBJDUMP_MAPS=1
+endif
+endif
+
 include ./makefile_gcc_common
 THIS_MAKE = $(TOP_MAKEFILE)
 
-EXEDIR = $(DIRNAME).$(DIRBIT).$(DIRSUFFIX)/
+EXEDIR = $(DIRNAME).$(BITPREFIX)$(DIRBIT).$(DIRSUFFIX)/
 OBJDIR = $(EXEDIR)obj/
 export BOOTSTRAPDIR=$(OBJDIR)include/bootstrap/
 FORCEINCLUDELIST_NO_PCH=memcheck.hpp disabled_warnings.hpp
@@ -12,23 +21,25 @@ EXENAME = Far.exe
 EXEFULLNAME = $(EXEDIR)$(EXENAME)
 DEPFILE = $(BOOTSTRAPDIR)far.dep
 
+ifndef ENABLE_TESTS
 ifdef DEBUG
 ENABLE_TESTS = 1
 endif
+endif
 
-ifdef ENABLE_TESTS
+ifeq ($(ENABLE_TESTS),1)
 CFLAGS += \
 	-D ENABLE_TESTS \
 
 endif
 
 SRCS = \
-	sqlite.c \
 	cache.cpp \
 	cddrv.cpp \
 	char_width.cpp \
 	clipboard.cpp \
 	cmdline.cpp \
+	codepage.cpp \
 	codepage_selection.cpp \
 	color_picker.cpp \
 	color_picker_256.cpp \
@@ -179,8 +190,12 @@ SRCS = \
 	wm_listener.cpp \
 	xlat.cpp \
 
+ifeq ($(ARM),0)
 ifeq ($(DIRBIT),32)
-	SRCS += hook_wow64.cpp
+SRCS += \
+	hook_wow64.cpp \
+
+endif
 endif
 
 OBJS = $(patsubst %.c,$(OBJDIR)%.o,$(filter %.c,$(SRCS))) $(patsubst %.cpp,$(OBJDIR)%.o,$(filter %.cpp,$(SRCS)))
@@ -190,10 +205,13 @@ MAP = $(patsubst %.exe,%.map,$(EXEFULLNAME))
 
 TESTOBJS = $(OBJDIR)api_test_c.testobj $(OBJDIR)api_test_c++.testobj
 
-ADDINCLUDE=-I$(BOOTSTRAPDIR).. 
+ADDINCLUDE=-I$(BOOTSTRAPDIR)..
 FORCEINCLUDE=$(patsubst %, -include %, headers.hpp $(FORCEINCLUDELIST_NO_PCH))
 
 CPPFLAGS += $(ADDINCLUDE)
+
+CPPFLAGS += \
+	-fvisibility=hidden \
 
 .PHONY: all
 all:
@@ -215,6 +233,7 @@ depfile:
 dirs:
 	$(MKDIR) $(EXEDIR) $(OBJDIR) $(FARINCLUDE) $(BOOTSTRAPDIR)
 
+ifeq ($(ARM),0)
 .PHONY: include
 include: \
 	$(FARINCLUDE)PluginW.pas \
@@ -224,6 +243,14 @@ include: \
 	$(FARINCLUDE)vc_crt_fix_impl.cpp \
 	$(FARINCLUDE)vc_crt_fix.asm \
 	$(FARINCLUDE)vc_crt_fix_ulink.cpp
+else
+.PHONY: include
+include: \
+	$(FARINCLUDE)PluginW.pas \
+	$(FARINCLUDE)FarColorW.pas \
+	$(FARINCLUDE)farcolor.hpp \
+	$(FARINCLUDE)plugin.hpp
+endif
 
 .PHONY: docs
 docs: \
@@ -241,19 +268,30 @@ docs: \
 .PHONY: build
 build: $(EXEFULLNAME)
 
-$(EXEFULLNAME): $(BOOTSTRAPDIR)copyright.inc $(BOOTSTRAPDIR)farversion.inc $(OBJS)
+$(EXEFULLNAME): $(BOOTSTRAPDIR)copyright.inc $(BOOTSTRAPDIR)farversion.inc $(OBJS) $(EXEDIR)sqlite3.dll
 	@echo Linking $@
-	$(CXX) -o $@ $(OBJS) $(LNKFLAGS)
+	$(CXX) -o $@ $(OBJS) $(EXEDIR)sqlite3.dll $(LNKFLAGS)
 ifdef USE_OBJDUMP_MAPS
 	@echo Generating map file
-	objdump --syms --demangle $(EXEFULLNAME) > $(MAP)
+	$(OBJDUMP) --syms --demangle $(EXEFULLNAME) > $(MAP)
 endif
 ifndef DEBUG
-	strip $(EXEFULLNAME)
+	$(STRIP) $(EXEFULLNAME)
 endif
-ifdef ENABLE_TESTS
+ifeq ($(ENABLE_TESTS),1)
 	@echo Running unit tests
 	$@ /service:test
+endif
+
+$(EXEDIR)sqlite3.dll: $(OBJDIR)sqlite.o $(OBJDIR)sqlite.rc.o
+	@echo Linking $@
+	$(CXX) -o $@ $(OBJDIR)sqlite.o $(OBJDIR)sqlite.rc.o -shared $(LNKFLAGS)
+ifdef USE_OBJDUMP_MAPS
+	@echo Generating map file
+	$(OBJDUMP) --syms --demangle $(EXEDIR)sqlite3.dll > $(EXEDIR)sqlite3.map
+endif
+ifndef DEBUG
+	$(STRIP) $(EXEDIR)sqlite3.dll
 endif
 
 $(OBJDIR)%.o: %.c
@@ -283,6 +321,14 @@ endif
 $(OBJDIR)far.rc.o: far.rc $(BOOTSTRAPDIR)far.rc.inc $(BOOTSTRAPDIR)Far.exe.manifest Far.ico Far.red.ico Far.black.ico Far.hack.ico Far.mono.ico Far.msg.ico
 	@echo $<
 	$(WINDRES) $(ADDINCLUDE) -i $< -o $@
+
+$(OBJDIR)sqlite.rc.o: thirdparty/sqlite/sqlite3.rc $(BOOTSTRAPDIR)sqlite_version.h
+	@echo $<
+	$(WINDRES) $(ADDINCLUDE) -i $< -o $@
+
+$(BOOTSTRAPDIR)sqlite_version.h: thirdparty/sqlite/sqlite3.h
+	@echo sqlite_version.h
+	$(GAWK) -f scripts/sqlite_version.awk -v target=$@ thirdparty/sqlite/sqlite3.h
 
 $(OBJDIR)api_test_c.testobj: $(FARINCLUDE)plugin.hpp $(FARINCLUDE)farcolor.hpp api_test.c
 	@echo Testing C plugin API
@@ -331,7 +377,8 @@ endif
 .PHONY: clean
 clean:
 	@echo Cleaning
-	$(RM) $(OBJS) $(TESTOBJS) $(OBJDIR)headers.gch
+	$(RM) $(OBJS) $(TESTOBJS) $(OBJDIR)headers.gch $(OBJDIR)sqlite.o $(OBJDIR)sqlite.rc.o
 	$(RM) $(EXEFULLNAME) $(MAP)
+	$(RM) $(EXEDIR)sqlite3.dll $(EXEDIR)sqlite3.map
 	$(RM) $(BOOTSTRAPDIR)*.* $(FARINCLUDE)*.*
 	$(RM) $(EXEDIR)*.lng $(EXEDIR)*.hlf $(EXEDIR)File_id.diz $(EXEDIR)Far.exe.example.ini

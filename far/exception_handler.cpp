@@ -329,7 +329,7 @@ static bool write_minidump(const exception_context& Context, string_view const F
 	// You can call the function from a new worker thread and filter this worker thread from the dump.
 
 	bool Result = false;
-	os::thread(os::thread::mode::join, [&]
+	os::thread([&]
 	{
 		struct writer_context
 		{
@@ -957,15 +957,62 @@ static string get_locale()
 	);
 }
 
-static string get_console_host()
+static DWORD get_console_host_pid_from_nt()
 {
 	ULONG_PTR ConsoleHostProcess;
 	if (const auto Status = imports.NtQueryInformationProcess(GetCurrentProcess(), ProcessConsoleHostProcess, &ConsoleHostProcess, sizeof(ConsoleHostProcess), {}); !NT_SUCCESS(Status))
-		return os::format_ntstatus(Status);
+		throw far_exception(error_state_ex{{ 0, Status }});
 
-	const auto ConsoleHostProcessId = ConsoleHostProcess & ~0b11;
+	return static_cast<DWORD>(ConsoleHostProcess & ~0b11);
+}
 
-	const auto ConhostName = os::process::get_process_name(ConsoleHostProcessId);
+static DWORD get_console_host_pid_from_window()
+{
+	// When you call GetWindowThreadProcessId(GetConsoleWindow()),
+	// Windows lies and returns the ids of the hosted console process,
+	// even though the console window is owned by the console host itself.
+	// Amusingly, the HWND returned from ImmGetDefaultIMEWnd is not covered
+	// by these shenanigans, allowing us to get real host ids.
+	// Apparently this is also the only way to do it on WOW64,
+	// since ProcessConsoleHostProcess doesn't work there.
+	// Yes, it's horrible, but it's better than nothing.
+	const auto ImeWnd = ImmGetDefaultIMEWnd(GetConsoleWindow());
+	if (!ImeWnd)
+		throw far_exception(error_state_ex{{ GetLastError(), 0 }});
+
+	DWORD ProcessId;
+	if (!GetWindowThreadProcessId(ImeWnd, &ProcessId))
+		throw far_exception(error_state_ex{{ GetLastError(), 0 }});
+
+	return ProcessId;
+}
+
+static std::variant<DWORD, string> get_console_host_pid()
+{
+	try
+	{
+		return get_console_host_pid_from_nt();
+	}
+	catch (far_exception const& e1)
+	{
+		try
+		{
+			return get_console_host_pid_from_window();
+		}
+		catch (far_exception const& e2)
+		{
+			return concat(e1.to_string(), L", "sv, e2.to_string());
+		}
+	}
+}
+
+static string get_console_host()
+{
+	const auto ConsoleHostProcessId = get_console_host_pid();
+	if (ConsoleHostProcessId.index() == 1)
+		return std::get<1>(ConsoleHostProcessId);
+
+	const auto ConhostName = os::process::get_process_name(std::get<0>(ConsoleHostProcessId));
 	if (ConhostName.empty())
 		return {};
 
@@ -1020,7 +1067,7 @@ static auto memory_status()
 {
 	const auto size_to_str = [](uint64_t const Size)
 	{
-		return FileSizeToStr(Size, 0, COLFLAGS_FLOATSIZE | COLFLAGS_SHOW_MULTIPLIER);
+		return FileSizeToStrInvariant(Size, 0, COLFLAGS_FLOATSIZE | COLFLAGS_SHOW_MULTIPLIER);
 	};
 
 	string MemoryStatus;
@@ -1146,7 +1193,7 @@ namespace detail
 
 static bool is_cpp_exception(const EXCEPTION_RECORD& Record)
 {
-	return Record.ExceptionCode == static_cast<DWORD>(EH_EXCEPTION_NUMBER) && Record.NumberParameters;
+	return Record.ExceptionCode == static_cast<DWORD>(EH_EXCEPTION_NUMBER) && Record.NumberParameters >= 3;
 }
 
 static bool is_fake_cpp_exception(const EXCEPTION_RECORD& Record)
@@ -1164,7 +1211,7 @@ public:
 		if (!is_cpp_exception(Record))
 			return;
 
-		m_BaseAddress = Record.NumberParameters == 4? Record.ExceptionInformation[3] : 0;
+		m_BaseAddress = Record.NumberParameters >= 4? Record.ExceptionInformation[3] : 0;
 		const auto& ThrowInfoRef = view_as<detail::ThrowInfo>(Record.ExceptionInformation[2]);
 		const auto& CatchableTypeArrayRef = view_as<detail::CatchableTypeArray>(m_BaseAddress + ThrowInfoRef.pCatchableTypeArray);
 		m_CatchableTypesRVAs = { &CatchableTypeArrayRef.arrayOfCatchableTypes, static_cast<size_t>(CatchableTypeArrayRef.nCatchableTypes) };
@@ -1319,17 +1366,25 @@ static string exception_details(string_view const Module, EXCEPTION_RECORD const
 				}
 			}(ExceptionRecord.ExceptionInformation[0]);
 
-			string Symbol;
-			tracer.get_symbols(Module, {{{ ExceptionRecord.ExceptionInformation[1], 0 }}}, [&](string&& Line)
+			const auto Symbol = [&]
 			{
-				Symbol = std::move(Line);
-			});
+				if (ExceptionRecord.NumberParameters < 2)
+					return L"<unknown>"s;
 
-			if (Symbol.empty())
-				Symbol = to_hex_wstring(ExceptionRecord.ExceptionInformation[1]);
+				string SymbolName;
+				tracer.get_symbols(Module, {{{ ExceptionRecord.ExceptionInformation[1], 0 }}}, [&](string&& Line)
+				{
+					SymbolName = std::move(Line);
+				});
+
+				if (SymbolName.empty())
+					SymbolName = to_hex_wstring(ExceptionRecord.ExceptionInformation[1]);
+
+				return SymbolName;
+			}();
 
 			auto Result = far::format(L"Memory at {} could not be {}"sv, Symbol, Mode);
-			if (NtStatus == EXCEPTION_IN_PAGE_ERROR && ExceptionRecord.NumberParameters > 2)
+			if (NtStatus == EXCEPTION_IN_PAGE_ERROR && ExceptionRecord.NumberParameters >= 3)
 				append(Result, L": "sv, os::format_ntstatus(static_cast<NTSTATUS>(ExceptionRecord.ExceptionInformation[2])));
 
 			return Result;
@@ -1346,7 +1401,7 @@ static string exception_details(string_view const Module, EXCEPTION_RECORD const
 	case EH_DELAYLOAD_MODULE:
 	case EH_DELAYLOAD_PROCEDURE:
 		{
-			if (!ExceptionRecord.NumberParameters)
+			if (!ExceptionRecord.NumberParameters || !ExceptionRecord.ExceptionInformation[0])
 				return {};
 
 			const auto& Info = view_as<detail::DelayLoadInfo>(ExceptionRecord.ExceptionInformation[0]);
@@ -1390,7 +1445,11 @@ static string exception_details(string_view const Module, EXCEPTION_RECORD const
 				else
 					ExtraDetails = L"ASan report is missing, probably it is too large."s;
 
-				return { Record.u.Asan.pwRuntimeShortMessage, static_cast<size_t>(Record.u.Asan.uiRuntimeShortMessageLength) };
+				return far::format(
+					L"{} ({})"sv,
+					string_view{ Record.u.Asan.pwRuntimeShortMessage, static_cast<size_t>(Record.u.Asan.uiRuntimeShortMessageLength) },
+					string_view{ Record.u.Asan.pwRuntimeDescription, static_cast<size_t>(Record.u.Asan.uiRuntimeDescriptionLength) }
+				);
 
 			default:
 				return L"Unrecognized sanitizer kind"s;
@@ -1593,7 +1652,7 @@ static string collect_information(
 		os::process::enum_processes const Enum;
 		const auto CurrentPid = GetCurrentProcessId();
 		const auto CurrentThreadId = GetCurrentThreadId();
-		const auto CurrentEntry = std::ranges::find_if(Enum, [&](os::process::enum_process_entry const& Entry){ return Entry.Pid == CurrentPid; });
+		const auto CurrentEntry = std::ranges::find(Enum, CurrentPid, &os::process::enum_process_entry::Pid);
 		if (CurrentEntry != Enum.cend())
 		{
 			for (const auto& i: CurrentEntry->Threads)
@@ -1769,7 +1828,7 @@ class far_wrapper_exception final: public far_exception, public std::nested_exce
 {
 public:
 	explicit far_wrapper_exception(source_location const& Location):
-		far_exception(true, L"exception_ptr"sv, Location),
+		far_exception(L"exception_ptr"sv, true, Location),
 		m_ThreadHandle(std::make_shared<os::handle>(os::OpenCurrentThread())),
 		m_Stack(tracer.exception_stacktrace({}))
 	{
@@ -2228,7 +2287,7 @@ namespace detail
 		if (static_cast<NTSTATUS>(Info->ExceptionRecord->ExceptionCode) == EXCEPTION_STACK_OVERFLOW)
 		{
 			{
-				os::thread(os::thread::mode::join, [&]
+				os::thread([&]
 				{
 					os::debug::set_thread_name(L"Stack overflow handler");
 					Result = handle_seh_exception(Context, Module, Location);

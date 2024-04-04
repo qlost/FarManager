@@ -732,7 +732,7 @@ void push_utf16_string(lua_State* L, const wchar_t* str, intptr_t numchars)
 	lua_pushlstring(L, (const char*)str, numchars*sizeof(wchar_t));
 }
 
-int ustring_sub(lua_State *L)
+int ustring_subW(lua_State *L)
 {
 	size_t len;
 	intptr_t from, to;
@@ -756,7 +756,7 @@ int ustring_sub(lua_State *L)
 	return 1;
 }
 
-int ustring_len(lua_State *L)
+int ustring_lenW(lua_State *L)
 {
 	size_t len;
 	(void) luaL_checklstring(L, 1, &len);
@@ -858,38 +858,40 @@ int ustring_GetKeyState (lua_State *L)
 	return 2;
 }
 
+#define PAIR(prefix,txt) {#txt, prefix ## _ ## txt}
+
 const luaL_Reg ustring_funcs[] =
 {
-	{"EnumSystemCodePages", ustring_EnumSystemCodePages},
-	{"GetACP",              ustring_GetACP},
-	{"GetCPInfo",           ustring_GetCPInfo},
-	{"GetCurrentDir",       ustring_GetCurrentDir},
-	{"GetDriveType",        ustring_GetDriveType},
-	{"GetFileAttr",         ustring_GetFileAttr},
-	{"GetKeyState",         ustring_GetKeyState},
-	{"GetLogicalDriveStrings",ustring_GetLogicalDriveStrings},
-	{"GetOEMCP",            ustring_GetOEMCP},
-	{"GetConsoleCP",        ustring_GetConsoleCP},
-	{"SetConsoleCP",        ustring_SetConsoleCP},
-	{"GetConsoleOutputCP",  ustring_GetConsoleOutputCP},
-	{"SetConsoleOutputCP",  ustring_SetConsoleOutputCP},
-	{"GlobalMemoryStatus",  ustring_GlobalMemoryStatus},
-	{"MultiByteToWideChar", ustring_MultiByteToWideChar },
-	{"OemToUtf8",           ustring_OemToUtf8},
-	{"OutputDebugString",   ustring_OutputDebugString},
-	{"SHGetFolderPath",     ustring_SHGetFolderPath},
-	{"SearchPath",          ustring_SearchPath},
-	{"SetCurrentDir",       ustring_SetCurrentDir},
-	{"SetFileAttr",         ustring_SetFileAttr},
-	{"Sleep",               ustring_Sleep},
-	{"Utf16ToUtf8",         ustring_Utf16ToUtf8},
-	{"Utf8ToOem",           ustring_Utf8ToOem},
-	{"Utf8ToUtf16",         ustring_Utf8ToUtf16},
-	{"Uuid",                ustring_Uuid},
-	{"WideCharToMultiByte", ustring_WideCharToMultiByte},
-	{"subW",                ustring_sub},
-	{"system",              ustring_system},
-	{"lenW",                ustring_len},
+	PAIR( ustring, EnumSystemCodePages),
+	PAIR( ustring, GetACP),
+	PAIR( ustring, GetConsoleCP),
+	PAIR( ustring, GetConsoleOutputCP),
+	PAIR( ustring, GetCPInfo),
+	PAIR( ustring, GetCurrentDir),
+	PAIR( ustring, GetDriveType),
+	PAIR( ustring, GetFileAttr),
+	PAIR( ustring, GetKeyState),
+	PAIR( ustring, GetLogicalDriveStrings),
+	PAIR( ustring, GetOEMCP),
+	PAIR( ustring, GlobalMemoryStatus),
+	PAIR( ustring, lenW),
+	PAIR( ustring, MultiByteToWideChar ),
+	PAIR( ustring, OemToUtf8),
+	PAIR( ustring, OutputDebugString),
+	PAIR( ustring, SearchPath),
+	PAIR( ustring, SetConsoleCP),
+	PAIR( ustring, SetConsoleOutputCP),
+	PAIR( ustring, SetCurrentDir),
+	PAIR( ustring, SetFileAttr),
+	PAIR( ustring, SHGetFolderPath),
+	PAIR( ustring, Sleep),
+	PAIR( ustring, subW),
+	PAIR( ustring, system),
+	PAIR( ustring, Utf16ToUtf8),
+	PAIR( ustring, Utf8ToOem),
+	PAIR( ustring, Utf8ToUtf16),
+	PAIR( ustring, Uuid),
+	PAIR( ustring, WideCharToMultiByte),
 
 	{NULL, NULL}
 };

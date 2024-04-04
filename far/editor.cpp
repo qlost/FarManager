@@ -65,6 +65,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lang.hpp"
 #include "string_utils.hpp"
 #include "global.hpp"
+#include "codepage.hpp"
 
 // Platform:
 
@@ -2024,6 +2025,13 @@ bool Editor::ProcessKeyInternal(const Manager::Key& Key, bool& Refresh)
 				*/
 				int VisPos=m_it_CurLine->RealPosToVisual(CurPos),
 				           NextVisPos=m_it_CurLine->RealPosToVisual(CurPos+1);
+
+				if (NextVisPos == VisPos)
+				{
+					// If the next physical pos got resolved into the same visual pos, we're likely standing on a surrogate. Try +2:
+					NextVisPos = m_it_CurLine->RealPosToVisual(CurPos + 2);
+				}
+
 				const auto Delta=NextVisPos-VisPos;
 
 				if (m_it_CurLine->GetTabCurPos()>=VBlockX+VBlockSizeX)
@@ -2927,6 +2935,7 @@ Editor::numbered_iterator Editor::DeleteString(numbered_iterator DelPtr, bool De
 	}
 
 	m_AutoDeletedColors.erase(std::to_address(DelPtr));
+	DeleteColor(DelPtr, [](ColorItem const&){ return true; });
 
 	const auto Result = numbered_iterator(Lines.erase(DelPtr), DelPtr.Number());
 
@@ -3751,7 +3760,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 	{
 		const auto MenuY1 = std::max(0, ScrY - 20);
 		const auto MenuY2 = std::min(ScrY, MenuY1 + std::min(static_cast<int>(FindAllList->size()), 10) + 2);
-		FindAllList->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND);
+		FindAllList->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND | VMENU_ENABLEALIGNANNOTATIONS);
 		FindAllList->SetPosition({ -1, MenuY1, 0, MenuY2 });
 		FindAllList->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), FindAllList->size(), AllRefLines));
 		FindAllList->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
@@ -4755,21 +4764,24 @@ long long Editor::GetCurPos(bool file_pos, bool add_bom) const
 
 	if (file_pos)
 	{
-		if (Codepage == CP_UNICODE || Codepage == CP_REVERSEBOM)
+		switch (Codepage)
 		{
-			Multiplier = sizeof(wchar_t);
-			if (add_bom)
-				bom = 1;
-		}
-		else if (Codepage == CP_UTF8)
-		{
+		case CP_UTF8:
 			Multiplier = UnknownMultiplier;
 			if (add_bom)
 				bom = 3;
-		}
-		else if (const auto Info = GetCodePageInfo(Codepage); Info && Info->MaxCharSize > 1)
-		{
-			Multiplier = UnknownMultiplier;
+			break;
+
+		case CP_UTF16LE:
+		case CP_UTF16BE:
+			Multiplier = sizeof(char16_t);
+			if (add_bom)
+				bom = 1;
+			break;
+
+		default:
+			if (const auto Info = GetCodePageInfo(Codepage); Info && Info->MaxCharSize > 1)
+				Multiplier = UnknownMultiplier;
 		}
 	}
 
@@ -5705,7 +5717,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 				}
 				else
 				{
-					if (cp == CP_DEFAULT || !codepages::IsCodePageSupported(cp) || !SetCodePage(GetCodePage(), cp))
+					if (cp == CP_DEFAULT || !IsCodePageSupported(cp) || !SetCodePage(GetCodePage(), cp))
 						return false;
 				}
 				Show();
@@ -6546,16 +6558,19 @@ void Editor::SetCacheParams(EditorPosCache &pc, bool count_bom)
 		size_t TotalSize = 0;
 		const auto Codepage = GetCodePage();
 
-		if (Codepage == CP_UNICODE || Codepage == CP_REVERSEBOM)
+		switch (Codepage)
 		{
-			StartChar /= 2;
-			if ( count_bom )
-				--StartChar;
-		}
-		else if (Codepage == CP_UTF8)
-		{
-			if ( count_bom )
+		case CP_UTF8:
+			if (count_bom)
 				StartChar -= 3;
+			break;
+
+		case CP_UTF16LE:
+		case CP_UTF16BE:
+			StartChar /= sizeof(char16_t);
+			if (count_bom)
+				--StartChar;
+			break;
 		}
 
 		while (!IsLastLine(CurPtr))
@@ -6746,7 +6761,7 @@ uintptr_t Editor::GetCodePage() const
 	if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
 		return HostFileEditor->GetCodePage();
 
-	throw MAKE_FAR_EXCEPTION(L"HostFileEditor is nullptr"sv);
+	throw far_exception(L"HostFileEditor is nullptr"sv);
 }
 
 void Editor::AddColor(numbered_iterator const& It, ColorItem const& Item)
@@ -6756,7 +6771,10 @@ void Editor::AddColor(numbered_iterator const& It, ColorItem const& Item)
 
 void Editor::DeleteColor(Edit const* It, delete_color_condition const Condition)
 {
-	const auto [ColorsIterator, Inserted] = m_ColorList.try_emplace(It);
+	const auto ColorsIterator = m_ColorList.find(It);
+	if (ColorsIterator == m_ColorList.end())
+		return;
+
 	std::erase_if(ColorsIterator->second, Condition);
 	if (ColorsIterator->second.empty())
 		m_ColorList.erase(ColorsIterator);

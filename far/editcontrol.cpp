@@ -73,7 +73,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback const* aCallback, History* iHistory, FarList* iList, DWORD iFlags):
+EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback const* aCallback, History* iHistory, VMenu* iList, DWORD iFlags):
 	Edit(std::move(Owner)),
 	pHistory(iHistory),
 	pList(iList),
@@ -284,12 +284,10 @@ static bool EnumModules(VMenu2& Menu, const string_view strStart, const string_v
 
 	std::set<string, string_sort::less_t> ResultStrings;
 
-	for (const auto& i: enum_tokens(os::env::expand(Global->Opt->Exec.strExcludeCmds), L";"sv))
+	if (const auto Range = std::ranges::equal_range(Global->Opt->Exec.ExcludeCmds, Token, string_sort::less_icase, std::views::take(Token.size())); !Range.empty())
 	{
-		if (starts_with_icase(i, Token))
-		{
-			ResultStrings.emplace(i);
-		}
+		// TODO: insert_range
+		ResultStrings.insert(ALL_CONST_RANGE(Range));
 	}
 
 	if (const auto strPathEnv = os::env::get(L"PATH"sv); !strPathEnv.empty())
@@ -449,16 +447,18 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			}
 			else if (pList)
 			{
-				for (const auto& i: std::span(pList->Items, pList->ItemsNumber))
+				for (const auto i: std::views::iota(0uz, pList->size()))
 				{
-					if (!starts_with_icase(i.Text, Str))
+					string_view const Text = pList->at(i).Name;
+
+					if (!starts_with_icase(Text, Str))
 						continue;
 
-					MenuItemEx Item(i.Text);
+					MenuItemEx Item(Text);
 					// Preserve the case of the already entered part
 					if (Global->Opt->AutoComplete.AppendCompletion)
 					{
-						Item.ComplexUserData = cmp_user_data{ Str + string_view(i.Text + Str.size()) };
+						Item.ComplexUserData = cmp_user_data{ Str + Text.substr(Str.size()) };
 					}
 					ComplMenu->AddItem(Item);
 				}
@@ -549,7 +549,13 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 						if (Global->Opt->AutoComplete.ModalList)
 							return 0;
 
-						const auto CurPos = ComplMenu->GetSelectPos();
+						if (!IsChanged && (Msg == DN_DRAWDIALOGDONE || Msg == DN_DRAWDLGITEMDONE))
+						{
+							::SetCursorType(Visible, Size);
+							return 0;
+						}
+
+						const auto CurPos = Msg == DN_LISTCHANGE? static_cast<int>(std::bit_cast<intptr_t>(Param)) : ComplMenu->GetSelectPos();
 						if(CurPos>=0 && (PrevPos!=CurPos || IsChanged))
 						{
 							PrevPos=CurPos;
@@ -562,7 +568,25 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 					}
 
 					const auto& ReadRec = *static_cast<INPUT_RECORD const*>(Param);
-					auto MenuKey = InputRecordToKey(&ReadRec);
+
+					auto MenuKey = [&]() -> unsigned
+					{
+						// ugh
+						if (ReadRec.EventType == MOUSE_EVENT)
+						{
+							auto Position = ComplMenu->GetPosition();
+
+							++Position.left;
+							++Position.top;
+							--Position.right;
+							--Position.bottom;
+
+							if (!Position.contains(ReadRec.Event.MouseEvent.dwMousePosition))
+								return KEY_NONE;
+						}
+
+						return InputRecordToKey(&ReadRec);
+					}();
 
 					::SetCursorType(Visible, Size);
 
@@ -663,6 +687,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 									}
 									m_ParentProcessKey(Manager::Key(MenuKey));
 									Show();
+									ComplMenu->Show();
 									return 1;
 								}
 

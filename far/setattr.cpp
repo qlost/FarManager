@@ -510,7 +510,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 
 	case DN_GOTFOCUS:
 		{
-			if (!std::ranges::any_of(TimeMap, [&](const auto& i) { return i.DateId == Param1; }))
+			if (std::ranges::find(TimeMap, Param1, &time_map::DateId) == std::ranges::cend(TimeMap))
 				break;
 
 			if (locale.date_format() != date_type::ymd)
@@ -659,7 +659,7 @@ static bool process_single_file(
 
 	{
 		os::chrono::time_point WriteTime, CreationTime, AccessTime, ChangeTime;
-		std::array TimePointers{ &WriteTime, & CreationTime, & AccessTime, & ChangeTime };
+		std::array TimePointers{ &WriteTime, &CreationTime, &AccessTime, &ChangeTime };
 
 		for (const auto& [i, TimePointer] : zip(TimeMap, TimePointers))
 		{
@@ -671,7 +671,7 @@ static bool process_single_file(
 			}
 		}
 
-		ESetFileTime(Name, TimePointers[0], TimePointers[1], TimePointers[2], TimePointers[3], Current.FindData.Attributes, SkipErrors);
+		ESetFileTime(Name, TimePointers[0], TimePointers[1], TimePointers[2], TimePointers[3], SkipErrors);
 	}
 
 	return true;

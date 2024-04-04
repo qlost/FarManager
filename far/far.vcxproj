@@ -65,6 +65,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="char_width.cpp" />
     <ClCompile Include="clipboard.cpp" />
     <ClCompile Include="cmdline.cpp" />
+    <ClCompile Include="codepage.cpp" />
     <ClCompile Include="codepage_selection.cpp" />
     <ClCompile Include="color_picker.cpp" />
     <ClCompile Include="color_picker_256.cpp" />
@@ -204,10 +205,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="setattr.cpp" />
     <ClCompile Include="setcolor.cpp" />
     <ClCompile Include="shortcuts.cpp" />
-    <ClCompile Include="sqlite.c">
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <ForcedIncludeFiles>disabled_warnings.hpp</ForcedIncludeFiles>
-    </ClCompile>
     <ClCompile Include="sqlitedb.cpp" />
     <ClCompile Include="stddlg.cpp" />
     <ClCompile Include="string_sort.cpp" />
@@ -243,6 +240,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="char_width.hpp" />
     <ClInclude Include="clipboard.hpp" />
     <ClInclude Include="cmdline.hpp" />
+    <ClInclude Include="codepage.hpp" />
     <ClInclude Include="codepage_selection.hpp" />
     <ClInclude Include="color_picker.hpp" />
     <ClInclude Include="color_picker_common.hpp" />
@@ -367,6 +365,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="log.hpp" />
     <ClInclude Include="macro.hpp" />
     <ClInclude Include="macroopcode.hpp" />
+    <ClInclude Include="macrovalues.hpp" />
     <ClInclude Include="manager.hpp" />
     <ClInclude Include="map_file.hpp" />
     <ClInclude Include="memcheck.hpp" />
@@ -517,6 +516,9 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ProjectReference Include="common_test.vcxproj">
       <Project>{459C0A10-7D18-4623-9FA9-1D5B6A587D40}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="sqlite.vcxproj">
+      <Project>{7FFC46F3-7C9F-4849-AA03-44F47F616212}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ProjectDir)..\_build\vc\config\common.targets" />

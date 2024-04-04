@@ -152,9 +152,6 @@ intptr_t VMenu2::VMenu2DlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void*
 		break;
 
 	case DN_LISTCHANGE:
-		if (Dlg->CheckDialogMode(DMODE_ISMENU))
-			break;
-
 		if(!cancel)
 		{
 			if(Call(Msg, Param2))
@@ -416,7 +413,7 @@ void VMenu2::SetMenuFlags(DWORD Flags)
 	if (Flags&VMENU_NOMERGEBORDER)
 		fdi.Flags|=DIF_LISTNOMERGEBORDER;
 
-	ListBox().SetMenuFlags(Flags & (VMENU_REVERSEHIGHLIGHT | VMENU_LISTSINGLEBOX));
+	ListBox().SetMenuFlags(Flags & (VMENU_REVERSEHIGHLIGHT | VMENU_LISTSINGLEBOX | VMENU_ENABLEALIGNANNOTATIONS));
 
 	SendMessage(DM_SETDLGITEMSHORT, 0, &fdi);
 }
@@ -574,6 +571,7 @@ intptr_t VMenu2::RunEx(const std::function<int(int Msg, void *param)>& fn)
 	Resize(true);
 
 	Process();
+	mfn = {};
 
 	return GetExitCode();
 }

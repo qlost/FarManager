@@ -185,12 +185,12 @@ static bool CASHook(const Manager::Key& key)
 
 	enum
 	{
-		cas_left  = bit(0),
-		cas_right = bit(1)
+		cas_left  = 0_bit,
+		cas_right = 1_bit
 	};
 
 	const auto
-		CaseAny   = flags::check_any(Global->Opt->CASRule, cas_left | cas_right) && AnyPressed(state),
+		CaseAny   = flags::check_all(Global->Opt->CASRule, cas_left | cas_right) && AnyPressed(state),
 		CaseLeft  = flags::check_one(Global->Opt->CASRule, cas_left) && LeftPressed(state),
 		CaseRight = flags::check_one(Global->Opt->CASRule, cas_right) && RightPressed(state);
 
@@ -650,7 +650,7 @@ void Manager::ProcessMainLoop()
 	}
 }
 
-void Manager::ExitMainLoop(int Ask)
+void Manager::ExitMainLoop(int Ask, int ExitCode)
 {
 	if (!Ask || !Global->Opt->Confirm.Exit || Message(0,
 		msg(lng::MQuit),
@@ -666,6 +666,7 @@ void Manager::ExitMainLoop(int Ask)
 		*/
 		if (ExitAll() || Global->CloseFAR)
 		{
+			Global->FarExitCode = ExitCode;
 			Global->CtrlObject->Plugins->NotifyExitLuaMacro();
 
 			const auto cp = Global->CtrlObject->Cp();
