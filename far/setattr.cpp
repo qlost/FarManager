@@ -945,10 +945,14 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 							{
 								const auto path = path::join(SrcPanel->GetCurDir(), SingleSelFileName);
 								os::netapi::ptr<DFS_INFO_3> DfsInfo;
-								auto Result = imports.NetDfsGetInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
-								if (Result != NERR_Success)
-									Result = imports.NetDfsGetClientInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
-								if (Result == NERR_Success)
+
+								auto get_dfs_info = [&](const auto& Callable)
+								{
+									return Callable(UNSAFE_CSTR(path), {}, {}, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo))) == NERR_Success;
+								};
+
+								// Client first - it should be faster and we want to see the activity flag, which is a client thing
+								if (get_dfs_info(imports.NetDfsGetClientInfo) || get_dfs_info(imports.NetDfsGetInfo))
 								{
 									KnownReparseTag = true;
 
@@ -1356,17 +1360,12 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				SHELLEXECUTEINFO seInfo{ sizeof(seInfo) };
 				seInfo.nShow = SW_SHOW;
 				seInfo.fMask = SEE_MASK_INVOKEIDLIST;
-				NTPath strFullName(SingleSelFileName);
+				auto strFullName = SingleSelFileName;
 				if(SingleSelFindData.Attributes&FILE_ATTRIBUTE_DIRECTORY)
 				{
 					AddEndSlash(strFullName);
 				}
 				seInfo.lpFile = strFullName.c_str();
-				if (!IsWindowsVistaOrGreater() && ParsePath(seInfo.lpFile) == root_type::win32nt_drive_letter)
-				{
-					// "\\?\c:\..." fails on old windows
-					seInfo.lpFile += 4;
-				}
 				seInfo.lpVerb = L"properties";
 				const auto strCurDir = os::fs::get_current_directory();
 				seInfo.lpDirectory=strCurDir.c_str();

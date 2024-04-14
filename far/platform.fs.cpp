@@ -155,6 +155,12 @@ namespace os::fs
 			if (!FindCloseChangeNotification(Handle))
 				LOGWARNING(L"FindCloseChangeNotification(): {}"sv, last_error());
 		}
+
+		void find_nt_handle_closer::operator()(HANDLE const Handle) const noexcept
+		{
+			if (const auto Status = imports.NtClose(Handle); !NT_SUCCESS(Status))
+				LOGWARNING(L"NtClose(): {}"sv, Status);
+		}
 	}
 
 	namespace state
@@ -712,6 +718,64 @@ namespace os::fs
 
 	//-------------------------------------------------------------------------
 
+	enum_devices::enum_devices(string_view const Object)
+	{
+		m_Object.Buffer = const_cast<wchar_t*>(Object.data());
+		m_Object.Length = m_Object.MaximumLength = static_cast<USHORT>(Object.size() * sizeof(wchar_t));
+
+		OBJECT_ATTRIBUTES Attributes;
+		InitializeObjectAttributes(&Attributes, &m_Object, 0, nullptr, nullptr)
+
+		if (!NT_SUCCESS(imports.NtOpenDirectoryObject(&ptr_setter(m_Handle), GENERIC_READ, &Attributes)))
+			return;
+
+		m_Buffer.reset(32 * 1024);
+	}
+
+	bool enum_devices::get(bool Reset, string_view& Value) const
+	{
+		if (!m_Handle)
+			return false;
+
+		if (Reset)
+			m_Index.reset();
+
+		auto RestartScan = Reset;
+
+		const auto fill = [&]
+		{
+			ULONG Size;
+			if (!NT_SUCCESS(imports.NtQueryDirectoryObject(m_Handle.native_handle(), m_Buffer.data(), static_cast<ULONG>(m_Buffer.size()), false, RestartScan, &m_Context, &Size)))
+				return false;
+
+			RestartScan = false;
+			m_Index = 0;
+			return true;
+		};
+
+		if (!m_Index)
+		{
+			if (!fill())
+				return false;
+		}
+
+		const auto Entries = std::bit_cast<OBJECT_DIRECTORY_INFORMATION const*>(m_Buffer.data());
+
+		if (!Entries[*m_Index].Name.Length)
+		{
+			m_Index.reset();
+			if (!fill())
+				return false;
+		}
+
+		Value = { Entries[*m_Index].Name.Buffer, Entries[*m_Index].Name.Length / sizeof(wchar_t) };
+		++*m_Index;
+
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
+
 	file::file():
 		m_Pointer(),
 		m_NeedSyncPointer(),
@@ -1054,8 +1118,23 @@ namespace os::fs
 		};
 
 		// simple way to handle network paths
-		if (ReplaceRoot(L"\\Device\\LanmanRedirector"sv, L"\\"sv) || ReplaceRoot(L"\\Device\\Mup"sv, L"\\"sv))
+		for (const auto NetworkPrefix: {
+			L"\\Device\\LanmanRedirector\\"sv,
+			L"\\Device\\Mup\\"sv,
+			L"\\Device\\WinDfs\\Root\\"sv
+		})
+		{
+			if (ReplaceRoot(NetworkPrefix, L"\\\\"sv))
+				return true;
+		}
+
+		// Mapped drives resolve to \Device\WinDfs\X:<whatever>\server\share
+		if (const auto DfsPrefix = L"\\Device\\WinDfs\\"sv; NtPath.starts_with(DfsPrefix))
+		{
+			const auto ServerStart = NtPath.find(L"\\", DfsPrefix.size());
+			FinalFilePath = NtPath.replace(0, ServerStart, 1, L'\\');
 			return true;
+		}
 
 		// try to convert NT path (\Device\HarddiskVolume1) to drive letter
 		for (const auto& i: enum_drives(get_logical_drives()))
@@ -1063,7 +1142,7 @@ namespace os::fs
 			const auto Device = drive::get_device_path(i);
 			if (const auto Len = MatchNtPathRoot(NtPath, Device))
 			{
-				FinalFilePath = NtPath.starts_with(L"\\Device\\WinDfs"sv)? NtPath.replace(0, Len, 1, L'\\') : NtPath.replace(0, Len, Device);
+				FinalFilePath = NtPath.replace(0, Len, Device);
 				return true;
 			}
 		}
