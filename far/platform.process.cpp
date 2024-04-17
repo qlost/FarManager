@@ -237,12 +237,33 @@ namespace os::process
 		}
 	}
 
+	static auto get_process_subsystem_from_handle(HANDLE const Process)
+	{
+#ifdef _M_IX86
+		if (IsWow64Process())
+			return image_type::unknown;
+
+		const auto HandleValue = std::bit_cast<uintptr_t>(Process);
+
+		if (HandleValue & 0b01)
+			return image_type::console; // VDM
+
+		if (HandleValue & 0b10)
+			return image_type::graphical; // WOW32
+#endif
+
+		return image_type::unknown;
+	}
+
 	image_type get_process_subsystem(HANDLE const Process)
 	{
 		if (const auto Type = get_process_subsystem_from_memory(Process); Type != image_type::unknown)
 			return Type;
 
 		if (const auto Type = get_process_subsystem_from_module(Process); Type != image_type::unknown)
+			return Type;
+
+		if (const auto Type = get_process_subsystem_from_handle(Process); Type != image_type::unknown)
 			return Type;
 
 		return image_type::unknown;
@@ -423,21 +444,26 @@ namespace os::process
 
 	bool enum_processes::get(bool Reset, enum_process_entry& Value) const
 	{
+		constexpr auto InvalidOffset = static_cast<size_t>(-1);
+
 		if (m_Info.empty())
 			return false;
 
 		if (Reset)
 			m_Offset = 0;
+		else if (m_Offset == InvalidOffset)
+			return false;
 
 		const auto& Info = view_as<SYSTEM_PROCESS_INFORMATION>(m_Info.data(), m_Offset);
-
-		if (!Info.NextEntryOffset)
-			return false;
 
 		Value.Pid = static_cast<DWORD>(std::bit_cast<uintptr_t>(Info.UniqueProcessId));
 		Value.Name = { Info.ImageName.Buffer, Info.ImageName.Length / sizeof(wchar_t) };
 		Value.Threads = { view_as<SYSTEM_THREAD_INFORMATION const*>(&Info, sizeof(Info)), Info.NumberOfThreads };
-		m_Offset += Info.NextEntryOffset;
+
+		if (Info.NextEntryOffset)
+			m_Offset += Info.NextEntryOffset;
+		else
+			m_Offset = InvalidOffset;
 
 		return true;
 	}

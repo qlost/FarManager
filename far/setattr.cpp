@@ -510,7 +510,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 
 	case DN_GOTFOCUS:
 		{
-			if (!std::ranges::any_of(TimeMap, [&](const auto& i) { return i.DateId == Param1; }))
+			if (std::ranges::find(TimeMap, Param1, &time_map::DateId) == std::ranges::cend(TimeMap))
 				break;
 
 			if (locale.date_format() != date_type::ymd)
@@ -659,7 +659,7 @@ static bool process_single_file(
 
 	{
 		os::chrono::time_point WriteTime, CreationTime, AccessTime, ChangeTime;
-		std::array TimePointers{ &WriteTime, & CreationTime, & AccessTime, & ChangeTime };
+		std::array TimePointers{ &WriteTime, &CreationTime, &AccessTime, &ChangeTime };
 
 		for (const auto& [i, TimePointer] : zip(TimeMap, TimePointers))
 		{
@@ -671,10 +671,39 @@ static bool process_single_file(
 			}
 		}
 
-		ESetFileTime(Name, TimePointers[0], TimePointers[1], TimePointers[2], TimePointers[3], Current.FindData.Attributes, SkipErrors);
+		ESetFileTime(Name, TimePointers[0], TimePointers[1], TimePointers[2], TimePointers[3], SkipErrors);
 	}
 
 	return true;
+}
+
+static auto symlink_type(lng const Id, DWORD const ReparseTag)
+{
+	if (Id != lng::MSetAttrSymlink)
+		return msg(Id);
+
+	const auto Suffix = [ReparseTag]
+	{
+		switch (ReparseTag)
+		{
+		case IO_REPARSE_TAG_SYMLINK:
+			return L""sv;
+
+		case IO_REPARSE_TAG_DFS:
+			return L" DFS"sv;
+
+		case IO_REPARSE_TAG_NFS:
+			return L" NFS"sv;
+
+		case IO_REPARSE_TAG_LX_SYMLINK:
+			return L" LX"sv;
+
+		default:
+			return L" (?)"sv;
+		}
+	}();
+
+	return far::vformat(msg(Id), Suffix);
 }
 
 static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
@@ -882,12 +911,21 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				}
 			}
 
-			bool IsMountPoint;
+			const auto IsMountPoint = [&]
 			{
+				if (DlgParam.Plugin)
+					return false;
+
 				bool IsRoot = false;
 				const auto PathType = ParsePath(SingleSelFileName, nullptr, &IsRoot);
-				IsMountPoint = IsRoot && ((PathType == root_type::drive_letter || PathType == root_type::win32nt_drive_letter));
-			}
+				if (!IsRoot)
+					return false;
+
+				if (none_of(PathType, root_type::drive_letter, root_type::win32nt_drive_letter))
+					return false;
+
+				return os::fs::GetVolumeNameForVolumeMountPoint(SingleSelFileName, strLinkName);
+			}();
 
 			if ((SingleSelFindData.Attributes != INVALID_FILE_ATTRIBUTES && (SingleSelFindData.Attributes & FILE_ATTRIBUTE_REPARSE_POINT)) || IsMountPoint)
 			{
@@ -904,7 +942,6 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 						// BUGBUG, cheating
 						ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
 						KnownReparseTag = true;
-						(void)os::fs::GetVolumeNameForVolumeMountPoint(SingleSelFileName, strLinkName);
 					}
 					else
 					{
@@ -923,11 +960,11 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 						switch (ReparseTag)
 						{
 						case IO_REPARSE_TAG_MOUNT_POINT:
-							ID_Msg = lng::MSetAttrJunction;
 
-							if (bool Root; !IsMountPoint && ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root)
+							if (bool Root; IsMountPoint || (ParsePath(strLinkName, nullptr, &Root) == root_type::volume && Root))
 								ID_Msg = lng::MSetAttrVolMount;
-
+							else
+								ID_Msg = lng::MSetAttrJunction;
 							break;
 
 						case IO_REPARSE_TAG_SYMLINK:
@@ -945,10 +982,14 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 							{
 								const auto path = path::join(SrcPanel->GetCurDir(), SingleSelFileName);
 								os::netapi::ptr<DFS_INFO_3> DfsInfo;
-								auto Result = imports.NetDfsGetInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
-								if (Result != NERR_Success)
-									Result = imports.NetDfsGetClientInfo(UNSAFE_CSTR(path), nullptr, nullptr, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo)));
-								if (Result == NERR_Success)
+
+								auto get_dfs_info = [&](const auto& Callable)
+								{
+									return Callable(UNSAFE_CSTR(path), {}, {}, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo))) == NERR_Success;
+								};
+
+								// Client first - it should be faster and we want to see the activity flag, which is a client thing
+								if (get_dfs_info(imports.NetDfsGetClientInfo) || get_dfs_info(imports.NetDfsGetInfo))
 								{
 									KnownReparseTag = true;
 
@@ -995,7 +1036,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 				if (KnownReparseTag)
 				{
-					AttrDlg[SA_TEXT_REPARSE_POINT].strData = msg(ID_Msg);
+					AttrDlg[SA_TEXT_REPARSE_POINT].strData = symlink_type(ID_Msg, ReparseTag);
 
 					if (ReparseTag == IO_REPARSE_TAG_DFS)
 					{
@@ -1356,17 +1397,12 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				SHELLEXECUTEINFO seInfo{ sizeof(seInfo) };
 				seInfo.nShow = SW_SHOW;
 				seInfo.fMask = SEE_MASK_INVOKEIDLIST;
-				NTPath strFullName(SingleSelFileName);
+				auto strFullName = SingleSelFileName;
 				if(SingleSelFindData.Attributes&FILE_ATTRIBUTE_DIRECTORY)
 				{
 					AddEndSlash(strFullName);
 				}
 				seInfo.lpFile = strFullName.c_str();
-				if (!IsWindowsVistaOrGreater() && ParsePath(seInfo.lpFile) == root_type::win32nt_drive_letter)
-				{
-					// "\\?\c:\..." fails on old windows
-					seInfo.lpFile += 4;
-				}
 				seInfo.lpVerb = L"properties";
 				const auto strCurDir = os::fs::get_current_directory();
 				seInfo.lpDirectory=strCurDir.c_str();

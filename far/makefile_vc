@@ -28,6 +28,9 @@
 #ENABLE_TESTS - Enable unit tests in Release mode (always enabled in Debug)
 #
 #DEFUSERFLAGS -
+#
+#PYTHON - use the python script for language files generation
+
 
 #include for user defines if needed
 !ifdef DEFFILE
@@ -44,13 +47,19 @@ ENABLE_TESTS=1
 
 !ifdef CLANG
 OUTDIR=$(OUTDIR).clang
-INTDIR=$(OUTDIR)\obj
+INTDIR=$(OUTDIR)/obj
 !endif
 
 FARINCLUDE=Include
 
 M4=tools\m4 -P -DFARBIT=$(DIRBIT) -DBUILD_TYPE=$(FARMANAGER_BUILD_TYPE) -DSCM_REVISION=$(FARMANAGER_SCM_REVISION)
 GAWK=tools\gawk
+
+!ifdef PYTHON
+LGEN=python.exe ..\misc\lng\lng.generator.py
+!else
+LGEN=tools\lng.generator.exe
+!endif
 
 BOOTSTRAPDIR=$(INTDIR)/include/bootstrap/
 
@@ -62,12 +71,12 @@ PCH_NAME = headers
 PCH_FILE = "$(INTDIR)\$(PCH_NAME).pch"
 
 LINK_OBJS = \
-	"$(INTDIR)\sqlite.obj" \
 	"$(INTDIR)\cache.obj" \
 	"$(INTDIR)\cddrv.obj" \
 	"$(INTDIR)\char_width.obj" \
 	"$(INTDIR)\clipboard.obj" \
 	"$(INTDIR)\cmdline.obj" \
+	"$(INTDIR)\codepage.obj" \
 	"$(INTDIR)\codepage_selection.obj" \
 	"$(INTDIR)\color_picker.obj" \
 	"$(INTDIR)\color_picker_256.obj" \
@@ -234,8 +243,7 @@ TEST_OBJS = "$(INTDIR)\api_test_c.testobj" "$(INTDIR)\api_test_c++.testobj"
 ADDINCLUDE=/I $(BOOTSTRAPDIR)..
 
 CPPFLAGS = $(CPPFLAGS) $(ADDINCLUDE)
-RFLAGS = $(RFLAGS) $(ADDINCLUDE) /fo"$(RES_FILE)"
-LINKFLAGS = $(LINKFLAGS) /out:"$(OUTDIR)\Far.exe"
+RFLAGS = $(RFLAGS) $(ADDINCLUDE)
 
 !ifdef ENABLE_TESTS
 CPPFLAGS = $(CPPFLAGS) /D "ENABLE_TESTS"
@@ -247,7 +255,7 @@ ALL: AllDirs lng depfile include docs $(TEST_OBJS)
 .PHONY: lng
 lng: $(BOOTSTRAPDIR)farlang.templ
 	@echo Generating language files
-	tools\lng.generator.exe -nc -i "$(BOOTSTRAPDIR)lang.ini" -oh "$(BOOTSTRAPDIR)" -ol "$(OUTDIR)" "$(BOOTSTRAPDIR)farlang.templ"
+	$(LGEN) -nc -i "$(BOOTSTRAPDIR)lang.ini" -oh "$(BOOTSTRAPDIR)" -ol "$(OUTDIR)" "$(BOOTSTRAPDIR)farlang.templ"
 
 .PHONY: depfile
 depfile:
@@ -292,17 +300,17 @@ AllDirs:
 	if not exist "$(INTDIR)\" mkdir "$(INTDIR)"
 	if not exist "$(BOOTSTRAPDIR)" mkdir "$(BOOTSTRAPDIR)"
 
-"$(OUTDIR)\Far.exe": $(PCH_FILE) $(LINK_OBJS) $(RES_FILE) $(BOOTSTRAPDIR)copyright.inc $(BOOTSTRAPDIR)farversion.inc
+"$(OUTDIR)\Far.exe": $(PCH_FILE) $(LINK_OBJS) $(RES_FILE) $(BOOTSTRAPDIR)copyright.inc $(BOOTSTRAPDIR)farversion.inc "$(OUTDIR)\sqlite3.dll"
 	@echo Linking $@
 !ifndef LINK_ULINK
 	$(LINK) @<<
-	$(LINKFLAGS) $(LINK_OBJS) $(RES_FILE) $(LINK_LIBS)
+	$(LINKFLAGS) /out:"$(OUTDIR)\Far.exe" $(LINK_OBJS) $(RES_FILE) $(LINK_LIBS) $(INTDIR)/sqlite3.lib
 <<
 !else
 	$(ULINK) +- @+<<
 	$(ULINKFLAGS) $(LINK_OBJS)
 	,"$(OUTDIR)\Far.exe","$(OUTDIR)\Far.map"
-	,$(LINK_LIBS)
+	,$(LINK_LIBS) $(INTDIR)/sqlite3.lib
 	,,"$(RES_FILE)"
 <<
 !endif
@@ -314,6 +322,40 @@ AllDirs:
 	@echo Running unit tests
 	$(OUTDIR)\Far.exe /service:test
 !endif
+
+LINK_SQLITE_OBJS = \
+	"$(INTDIR)\sqlite.obj" \
+	"$(INTDIR)\sqlite.res" \
+!ifndef LINK_ULINK
+!if "$(BUILD_PLATFORM)" == "X86" || "$(BUILD_PLATFORM)" == "AMD64"
+	"$(INTDIR)\vc_crt_fix.obj" \
+!endif
+	"$(INTDIR)\vc_crt_fix_impl.obj" \
+!else
+	"$(INTDIR)\vc_crt_fix_ulink.obj"
+!endif
+
+$(OUTDIR)\sqlite3.dll: $(LINK_SQLITE_OBJS)
+	@echo Linking $@
+!ifndef LINK_ULINK
+	$(LINK) @<<
+	$(LINKFLAGS) /dll /implib:$(INTDIR)/sqlite3.lib /out:"$@" $(LINK_SQLITE_OBJS)
+<<
+!else
+	$(ULINK) +- @+<<
+	$(ULINKFLAGS) -Tpd -Gic -ZI:$(INTDIR)/sqlite3.lib
+	,"$@","$(@R).map"
+	,$(LINK_SQLITE_OBJS)
+<<
+!endif
+
+$(INTDIR)\sqlite.res: thirdparty/sqlite/sqlite3.rc $(BOOTSTRAPDIR)sqlite_version.h
+	@echo sqlite3.rc
+	$(RC) $(RFLAGS) /fo"$@" thirdparty/sqlite/sqlite3.rc
+
+$(BOOTSTRAPDIR)sqlite_version.h:
+	@echo sqlite_version.h
+	$(GAWK) -f scripts/sqlite_version.awk -v target=$(BOOTSTRAPDIR)sqlite_version.h thirdparty/sqlite/sqlite3.h
 
 $(PCH_FILE): $(PCH_NAME).cpp $(PCH_NAME).hpp
 	@echo Making precompiled headers
@@ -354,7 +396,7 @@ $(INTDIR)\vc_crt_fix_ulink.obj: $(@B).cpp
 
 $(RES_FILE): far.rc $(BOOTSTRAPDIR)far.rc.inc $(BOOTSTRAPDIR)Far.exe.manifest Far.ico Far.red.ico Far.black.ico Far.hack.ico Far.mono.ico Far.msg.ico
 	@echo far.rc
-	$(RC) $(RFLAGS) far.rc
+	$(RC) $(RFLAGS) /fo"$(RES_FILE)" far.rc
 
 !ifdef USEDEPS
 !include "$(DEPFILE)"
@@ -413,10 +455,11 @@ CLEAN:
 	"$(CODDIR)"\
 	"$(INTDIR)"\
 	"$(OUTDIR)\Far.exe"\
-	"$(OUTDIR)\Far.exp"\
-	"$(OUTDIR)\Far.lib"\
 	"$(OUTDIR)\Far.map"\
 	"$(OUTDIR)\Far.pdb"\
+	"$(OUTDIR)\sqlite3.dll"\
+	"$(OUTDIR)\sqlite3.map"\
+	"$(OUTDIR)\sqlite3.pdb"\
 	"$(OUTDIR)\*.hlf"\
 	"$(OUTDIR)\*.lng"\
 	"$(OUTDIR)\File_id.diz"\
@@ -435,7 +478,7 @@ install: instdir
 	@copy /Y "$(FARINCLUDE)\*.hpp" "$(HPPINSTDIR)\" > nul
 	@copy /Y "$(FARINCLUDE)\..\..\plugins\common\unicode\DlgBuilder.hpp" "$(HPPINSTDIR)\" > nul
 	@copy /Y "$(FARINCLUDE)\*.pas" "$(PASINSTDIR)\" > nul
-	for %%i in (changelog "$(OUTDIR)\Far.*" "$(OUTDIR)\*.lng" "$(OUTDIR)\File_id.diz" "$(OUTDIR)\*.hlf" "$(OUTDIR)\Far.exe.example.ini") do @copy /Y %%i "$(INSTALLDIR)\" > nul
+	for %%i in (changelog "$(OUTDIR)\Far.*" "$(OUTDIR)\sqlite3.*" "$(OUTDIR)\*.lng" "$(OUTDIR)\File_id.diz" "$(OUTDIR)\*.hlf" "$(OUTDIR)\Far.exe.example.ini") do @copy /Y %%i "$(INSTALLDIR)\" > nul
 
 .PHONY: instdir
 instdir:

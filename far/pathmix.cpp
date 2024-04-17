@@ -141,11 +141,6 @@ root_type ParsePath(const string_view Path, size_t* const RootSize, bool* const 
 			re(RE_PATH_PREFIX(L"[Vv][Oo][Ll][Uu][Mm][Ee]" RE_ESCAPE(L"{") RE_ANY_UUID RE_ESCAPE(L"}")) RE_ANY_SLASH_OR_NONE),
 		},
 		{
-			// \\?\pipe(\...)
-			root_type::pipe,
-			re(RE_PATH_PREFIX(L"[Pp][Ii][Pp][Ee]") RE_ANY_SLASH_OR_NONE),
-		},
-		{
 			// \\?\<anything_else>(\...)
 			root_type::unknown_rootlike,
 			re(RE_PATH_PREFIX(L"." RE_ONE_OR_MORE_LAZY) RE_ANY_SLASH_OR_NONE),
@@ -288,79 +283,68 @@ std::pair<string_view, string_view> name_ext(string_view const Path)
 	return { Path.substr(0, NameSize), Path.substr(NameSize) };
 }
 
-
-static size_t SlashType(const wchar_t* Begin, const wchar_t* End, wchar_t &TypeSlash)
-{
-	size_t Slash = 0, BackSlash = 0;
-
-	auto Iterator = Begin;
-	for (; End? Iterator != End : *Iterator; ++Iterator)
-	{
-		const auto c = *Iterator;
-		BackSlash += (c == L'\\');
-		Slash += (c == L'/');
-	}
-
-	TypeSlash = Slash > BackSlash? L'/' : L'\\';
-	return Iterator - Begin;
-}
-
-// Функция работает с обоими видами слешей, также происходит
-// изменение уже существующего конечного слеша на такой, который
-// указан, или встречается чаще (при равенстве '\').
-//
-bool AddEndSlash(wchar_t *Path, wchar_t TypeSlash)
+template<typename char_type>
+static bool LegacyAddEndSlash(char_type* const Path)
 {
 	if (!Path)
 		return false;
 
-	auto len = path::is_separator(TypeSlash)? std::wcslen(Path) : SlashType(Path, nullptr, TypeSlash);
+	auto LastSeenSeparator = path::separator;
 
-	if (len && path::is_separator(Path[len-1]))
-		--len;
+	auto end = Path;
 
-	Path[len++] = TypeSlash;
-	Path[len] = {};
+	for (; *end; ++end)
+	{
+		if (path::is_separator(*end))
+			LastSeenSeparator = *end;
+	}
+
+	if (end != Path && path::is_separator(*(end - 1)))
+		return true;
+
+	end[0] = LastSeenSeparator;
+	end[1] = {};
 	return true;
 }
 
-bool AddEndSlash(wchar_t *Path)
+bool legacy::AddEndSlash(wchar_t* const Path)
 {
-	return AddEndSlash(Path, {});
+	return LegacyAddEndSlash(Path);
+}
+
+#ifndef NO_WRAPPER
+bool legacy::AddEndSlash(char* const Path)
+{
+	return LegacyAddEndSlash(Path);
+}
+#endif
+
+void AddEndSlash(string& Path)
+{
+	if (!Path.empty() && path::is_separator(Path.back()))
+		return;
+
+	auto LastSeenSeparator = path::separator;
+
+	if (const auto Pos = Path.find_last_of(path::separators); Pos != Path.npos)
+		LastSeenSeparator = Path[Pos];
+
+	Path += LastSeenSeparator;
 }
 
 string AddEndSlash(string_view const Path)
 {
-	string Result(Path);
+	string Result;
+	if (!Path.empty() && path::is_separator(Path.back()))
+		return Result = Path;
+
+	Result.reserve(Path.size() + 1);
+	Result = Path;
 	AddEndSlash(Result);
 	return Result;
 }
 
-void AddEndSlash(string &strPath, wchar_t TypeSlash)
-{
-	if (!path::is_separator(TypeSlash))
-		SlashType(strPath.data(), strPath.data() + strPath.size(), TypeSlash);
-
-	wchar_t LastSlash{};
-
-	if (!strPath.empty() && path::is_separator(strPath.back()))
-		LastSlash = strPath.back();
-
-	if (TypeSlash != LastSlash)
-	{
-		if (LastSlash)
-			strPath.back() = TypeSlash;
-		else
-			strPath.push_back(TypeSlash);
-	}
-}
-
-void AddEndSlash(string &strPath)
-{
-	AddEndSlash(strPath, {});
-}
-
-void DeleteEndSlash(wchar_t *Path)
+void legacy::DeleteEndSlash(wchar_t* const Path)
 {
 	const auto REnd = std::make_reverse_iterator(Path);
 	Path[REnd - std::find_if_not(REnd - std::wcslen(Path), REnd, path::is_separator)] = 0;
@@ -801,11 +785,11 @@ TEST_CASE("path.ParsePath")
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}\\p"sv,     root_type::volume,                 49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEZ}\\path"sv,  root_type::unknown_rootlike,       49,   false, },
 		{ L"\\\\?\\Volume{01234567-89AB-CDEF-0123-456789ABCDEF}_\\"sv,     root_type::unknown_rootlike,       50,   true,  },
-		{ L"\\\\?\\pipe"sv,                                                root_type::pipe,                    8,   true,  },
-		{ L"\\\\?\\PiPe"sv,                                                root_type::pipe,                    8,   true,  },
-		{ L"\\\\?\\pipe\\"sv,                                              root_type::pipe,                    9,   true,  },
-		{ L"\\\\?\\pipe\\path"sv,                                          root_type::pipe,                    9,   false, },
-		{ L"\\\\?\\pipe\\p"sv,                                             root_type::pipe,                    9,   false, },
+		{ L"\\\\?\\pipe"sv,                                                root_type::unknown_rootlike,        8,   true,  },
+		{ L"\\\\?\\PiPe"sv,                                                root_type::unknown_rootlike,        8,   true,  },
+		{ L"\\\\?\\pipe\\"sv,                                              root_type::unknown_rootlike,        9,   true,  },
+		{ L"\\\\?\\pipe\\path"sv,                                          root_type::unknown_rootlike,        9,   false, },
+		{ L"\\\\?\\pipe\\p"sv,                                             root_type::unknown_rootlike,        9,   false, },
 		{ L"\\\\?\\pepe\\path"sv,                                          root_type::unknown_rootlike,        9,   false, },
 		{ L"\\\\?\\pipe_\\"sv,                                             root_type::unknown_rootlike,       10,   true,  },
 		{ L"\\\\?\\storage#volume#_??_usbstor#disk&ven_usb&prod_flash_disk&rev_1100#6&295c6d19&0#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}\\"sv, root_type::unknown_rootlike, 160, true, },
@@ -915,7 +899,7 @@ TEST_CASE("path.AddEndSlash")
 		{ L"a"sv,          L"a\\"sv },
 		{ L"a\\"sv,        L"a\\"sv },
 		{ L"a\\\\"sv,      L"a\\\\"sv },
-		{ L"a\\b/"sv,      L"a\\b\\"sv },
+		{ L"a\\b/"sv,      L"a\\b/"sv },
 		{ L"a\\b/c/d"sv,   L"a\\b/c/d/"sv },
 	};
 
@@ -924,11 +908,12 @@ TEST_CASE("path.AddEndSlash")
 		string Str(i.Input);
 		AddEndSlash(Str);
 		REQUIRE(Str == i.Result);
+		REQUIRE(AddEndSlash(i.Input) == i.Result);
 
 		wchar_t Buffer[64];
 		REQUIRE(i.Input.size() < std::size(Buffer));
 		*copy_string(i.Input, Buffer) = {};
-		AddEndSlash(Buffer);
+		legacy::AddEndSlash(Buffer);
 		REQUIRE(Buffer == i.Result);
 	}
 }
@@ -960,7 +945,7 @@ TEST_CASE("path.DeleteEndSlash")
 		wchar_t Buffer[64];
 		REQUIRE(i.Input.size() < std::size(Buffer));
 		*copy_string(i.Input, Buffer) = {};
-		DeleteEndSlash(Buffer);
+		legacy::DeleteEndSlash(Buffer);
 		REQUIRE(Buffer == i.Result);
 	}
 }

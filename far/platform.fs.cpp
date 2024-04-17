@@ -155,6 +155,12 @@ namespace os::fs
 			if (!FindCloseChangeNotification(Handle))
 				LOGWARNING(L"FindCloseChangeNotification(): {}"sv, last_error());
 		}
+
+		void find_nt_handle_closer::operator()(HANDLE const Handle) const noexcept
+		{
+			if (const auto Status = imports.NtClose(Handle); !NT_SUCCESS(Status))
+				LOGWARNING(L"NtClose(): {}"sv, Status);
+		}
 	}
 
 	namespace state
@@ -712,6 +718,64 @@ namespace os::fs
 
 	//-------------------------------------------------------------------------
 
+	enum_devices::enum_devices(string_view const Object)
+	{
+		m_Object.Buffer = const_cast<wchar_t*>(Object.data());
+		m_Object.Length = m_Object.MaximumLength = static_cast<USHORT>(Object.size() * sizeof(wchar_t));
+
+		OBJECT_ATTRIBUTES Attributes;
+		InitializeObjectAttributes(&Attributes, &m_Object, 0, nullptr, nullptr)
+
+		if (!NT_SUCCESS(imports.NtOpenDirectoryObject(&ptr_setter(m_Handle), GENERIC_READ, &Attributes)))
+			return;
+
+		m_Buffer.reset(32 * 1024);
+	}
+
+	bool enum_devices::get(bool Reset, string_view& Value) const
+	{
+		if (!m_Handle)
+			return false;
+
+		if (Reset)
+			m_Index.reset();
+
+		auto RestartScan = Reset;
+
+		const auto fill = [&]
+		{
+			ULONG Size;
+			if (!NT_SUCCESS(imports.NtQueryDirectoryObject(m_Handle.native_handle(), m_Buffer.data(), static_cast<ULONG>(m_Buffer.size()), false, RestartScan, &m_Context, &Size)))
+				return false;
+
+			RestartScan = false;
+			m_Index = 0;
+			return true;
+		};
+
+		if (!m_Index)
+		{
+			if (!fill())
+				return false;
+		}
+
+		const auto Entries = std::bit_cast<OBJECT_DIRECTORY_INFORMATION const*>(m_Buffer.data());
+
+		if (!Entries[*m_Index].Name.Length)
+		{
+			m_Index.reset();
+			if (!fill())
+				return false;
+		}
+
+		Value = { Entries[*m_Index].Name.Buffer, Entries[*m_Index].Name.Length / sizeof(wchar_t) };
+		++*m_Index;
+
+		return true;
+	}
+
+	//-------------------------------------------------------------------------
+
 	file::file():
 		m_Pointer(),
 		m_NeedSyncPointer(),
@@ -1054,8 +1118,23 @@ namespace os::fs
 		};
 
 		// simple way to handle network paths
-		if (ReplaceRoot(L"\\Device\\LanmanRedirector"sv, L"\\"sv) || ReplaceRoot(L"\\Device\\Mup"sv, L"\\"sv))
+		for (const auto NetworkPrefix: {
+			L"\\Device\\LanmanRedirector\\"sv,
+			L"\\Device\\Mup\\"sv,
+			L"\\Device\\WinDfs\\Root\\"sv
+		})
+		{
+			if (ReplaceRoot(NetworkPrefix, L"\\\\"sv))
+				return true;
+		}
+
+		// Mapped drives resolve to \Device\WinDfs\X:<whatever>\server\share
+		if (const auto DfsPrefix = L"\\Device\\WinDfs\\"sv; NtPath.starts_with(DfsPrefix))
+		{
+			const auto ServerStart = NtPath.find(L"\\", DfsPrefix.size());
+			FinalFilePath = NtPath.replace(0, ServerStart, 1, L'\\');
 			return true;
+		}
 
 		// try to convert NT path (\Device\HarddiskVolume1) to drive letter
 		for (const auto& i: enum_drives(get_logical_drives()))
@@ -1063,7 +1142,7 @@ namespace os::fs
 			const auto Device = drive::get_device_path(i);
 			if (const auto Len = MatchNtPathRoot(NtPath, Device))
 			{
-				FinalFilePath = NtPath.starts_with(L"\\Device\\WinDfs"sv)? NtPath.replace(0, Len, 1, L'\\') : NtPath.replace(0, Len, Device);
+				FinalFilePath = NtPath.replace(0, Len, Device);
 				return true;
 			}
 		}
@@ -1259,7 +1338,7 @@ namespace os::fs
 		m_Buffer(BufferSize)
 	{
 		if (!(m_Mode & std::ios::in) == !(m_Mode & std::ios::out))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Unsupported mode"sv);
+			throw far_fatal_exception(L"Unsupported mode"sv);
 
 		reset_get_area();
 		reset_put_area();
@@ -1268,14 +1347,14 @@ namespace os::fs
 	filebuf::int_type filebuf::underflow()
 	{
 		if (!m_File)
-			throw MAKE_FAR_FATAL_EXCEPTION(L"File not opened"sv);
+			throw far_fatal_exception(L"File not opened"sv);
 
 		if (!(m_Mode & std::ios::in))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Buffer not opened for reading"sv);
+			throw far_fatal_exception(L"Buffer not opened for reading"sv);
 
 		size_t Read;
 		if (!m_File.Read(m_Buffer.data(), m_Buffer.size() * sizeof(char), Read))
-			throw MAKE_FAR_EXCEPTION(L"Read error"sv);
+			throw far_exception(L"Read error"sv);
 
 		if (!Read)
 			return traits_type::eof();
@@ -1287,15 +1366,15 @@ namespace os::fs
 	filebuf::int_type filebuf::overflow(int_type Ch)
 	{
 		if (!m_File)
-			throw MAKE_FAR_FATAL_EXCEPTION(L"File not opened"sv);
+			throw far_fatal_exception(L"File not opened"sv);
 
 		if (!(m_Mode & std::ios::out))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Buffer not opened for writing"sv);
+			throw far_fatal_exception(L"Buffer not opened for writing"sv);
 
 		if (pptr() != pbase())
 		{
 			if (!m_File.Write(pbase(), static_cast<size_t>(pptr() - pbase()) * sizeof(char)))
-				throw MAKE_FAR_EXCEPTION(L"Write error"sv);
+				throw far_exception(L"Write error"sv);
 		}
 
 		reset_put_area();
@@ -1341,7 +1420,7 @@ namespace os::fs
 	filebuf::pos_type filebuf::seekoff(off_type Offset, std::ios::seekdir Way, std::ios::openmode Which)
 	{
 		if (!m_File)
-			throw MAKE_FAR_FATAL_EXCEPTION(L"File not opened"sv);
+			throw far_fatal_exception(L"File not opened"sv);
 
 		switch (Way)
 		{
@@ -1370,7 +1449,7 @@ namespace os::fs
 			return set_pointer(Offset, FILE_CURRENT);
 
 		default:
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Unknown seekdir"sv);
+			throw far_fatal_exception(L"Unknown seekdir"sv);
 		}
 	}
 
@@ -1381,7 +1460,7 @@ namespace os::fs
 
 	filebuf::int_type filebuf::pbackfail(int_type Ch)
 	{
-		throw MAKE_FAR_FATAL_EXCEPTION(L"Not implemented"sv);
+		throw far_fatal_exception(L"Not implemented"sv);
 	}
 
 	void filebuf::reset_get_area()
@@ -1400,7 +1479,7 @@ namespace os::fs
 	{
 		unsigned long long Result;
 		if (!m_File.SetPointer(Value, &Result, Way))
-			throw MAKE_FAR_EXCEPTION(L"SetFilePointer error"sv);
+			throw far_exception(L"SetFilePointer error"sv);
 
 		return Result;
 	}
@@ -1677,21 +1756,16 @@ namespace os::fs
 
 	bool SetProcessRealCurrentDirectory(const string_view Directory)
 	{
-		if constexpr (features::win10_curdir)
-		{
-			/*
-			The final character before the null character must be a backslash (''). If you do not specify the backslash, it will be added for you
-			https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory
-			It seems that "it will be added for you" doesn't work for funny names with trailing dots or spaces, so we add it ourselves.
-			 */
-			string DirectoryWithSlash(Directory);
-			AddEndSlash(DirectoryWithSlash);
-			return ::SetCurrentDirectory(DirectoryWithSlash.c_str()) != FALSE;
-		}
-		else
-		{
+		// https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory
+		// The final character before the null character must be a backslash ('\').
+		// If you do not specify the backslash, it will be added for you
+
+		// It seems that "it will be added for you" doesn't work for funny names with trailing dots or spaces, so we add it ourselves.
+
+		if (!Directory.empty() && path::is_separator(Directory.back()))
 			return ::SetCurrentDirectory(null_terminated(Directory).c_str()) != FALSE;
-		}
+
+		return ::SetCurrentDirectory(AddEndSlash(Directory).c_str()) != FALSE;
 	}
 
 	void InitCurrentDirectory()
@@ -2157,7 +2231,7 @@ namespace os::fs
 		// - It's tiresome to check every time
 		// - There's not much we can do without it anyways
 		if (!get_module_file_name({}, {}, FileName))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"get_current_process_file_name");
+			throw far_fatal_exception(L"get_current_process_file_name");
 
 		return FileName;
 	}

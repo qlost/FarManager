@@ -363,7 +363,7 @@ public:
 	void SetTreeName(string_view const Name) { m_TreeName = Name; }
 
 private:
-	using cache_set = std::set<string, string_sort::less_t>;
+	using cache_set = std::set<string, string_sort::less_icase_t>;
 
 public:
 	using const_iterator = cache_set::const_iterator;
@@ -702,7 +702,7 @@ static void ReadLines(const os::fs::file& TreeFile, function_ref<void(string_vie
 	std::istream Stream(&StreamBuffer);
 	Stream.exceptions(Stream.badbit | Stream.failbit);
 
-	for (const auto& i: enum_lines(Stream, CP_UNICODE))
+	for (const auto& i: enum_lines(Stream, CP_UTF16LE))
 	{
 		if (i.Str.empty() || !path::is_separator(i.Str.front()))
 			continue;
@@ -711,7 +711,7 @@ static void ReadLines(const os::fs::file& TreeFile, function_ref<void(string_vie
 	}
 }
 
-static void WriteTree(auto& Name, const auto& Container, const auto& Opener, size_t offset)
+static void WriteTree(auto& Name, std::ranges::range auto const& Container, const auto& Opener, size_t offset)
 {
 	// получим и сразу сбросим атрибуты (если получится)
 	const auto SavedAttributes = os::fs::get_file_attributes(Name);
@@ -730,7 +730,7 @@ static void WriteTree(auto& Name, const auto& Container, const auto& Opener, siz
 			os::fs::filebuf StreamBuffer(TreeFile, std::ios::out);
 			std::ostream Stream(&StreamBuffer);
 			Stream.exceptions(Stream.badbit | Stream.failbit);
-			encoding::writer Writer(Stream, CP_UNICODE, false);
+			encoding::writer Writer(Stream, CP_UTF16LE, false);
 			const auto Eol = eol::system.str();
 
 			for (const auto& i: Container)
@@ -1687,10 +1687,7 @@ bool TreeList::ReadTreeFile()
 	{
 		ReadLines(TreeFile, [&](const string_view Name)
 		{
-WARNING_PUSH()
-WARNING_DISABLE_GCC("-Wmaybe-uninitialized") // Rubbish
 			m_ListData.emplace_back(string_view(m_Root).substr(0, RootLength) + Name);
-WARNING_POP()
 		});
 	}
 	catch (std::exception const& e)

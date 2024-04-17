@@ -63,6 +63,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "plugapi.hpp"
 #include "exception_handler.hpp"
 #include "log.hpp"
+#include "codepage.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -240,7 +241,7 @@ private:
 	bool FindExport(const std::string_view ExportName) const override
 	{
 		// module with ANY known export can be OEM plugin
-		return std::ranges::includes(m_ExportsNames, std::views::single(ExportName), {}, [](const export_name& Item){ return Item.AName; });
+		return std::ranges::includes(m_ExportsNames, std::views::single(ExportName), {}, &export_name::AName);
 	}
 
 	string_view kind() const override { return L"legacy"sv; }
@@ -1860,45 +1861,7 @@ static BOOL WINAPI AddEndSlashA(char *Path) noexcept
 	return cpp_try(
 	[&]
 	{
-		if (!Path)
-			return FALSE;
-		/* $ 06.12.2000 IS
-		! Теперь функция работает с обоими видами слешей, также происходит
-		изменение уже существующего конечного слеша на такой, который
-		встречается чаще.
-		*/
-		int Slash = 0, BackSlash = 0;
-
-		auto end = Path;
-
-		while (*end)
-		{
-			Slash += (*end == '\\');
-			BackSlash += (*end == '/');
-			end++;
-		}
-
-		const auto Length = end - Path;
-		const auto c = (Slash < BackSlash) ? '/' : '\\';
-
-		if (!Length)
-		{
-			*end = c;
-			end[1] = 0;
-		}
-		else
-		{
-			end--;
-
-			if (!IsSlashA(*end))
-			{
-				end[1] = c;
-				end[2] = 0;
-			}
-			else
-				*end = c;
-		}
-		return TRUE;
+		return legacy::AddEndSlash(Path)? TRUE : FALSE;
 	},
 	FALSE);
 }
@@ -4549,7 +4512,7 @@ static int WINAPI FarViewerControlA(int Command, void* Param) noexcept
 				viA->CurMode.UseDecodeTable = 0;
 				viA->CurMode.TableNum       = 0;
 				viA->CurMode.AnsiMode       = viW.CurMode.CodePage == encoding::codepage::ansi();
-				viA->CurMode.Unicode        = IsUnicodeCodePage(viW.CurMode.CodePage);
+				viA->CurMode.Unicode        = IsUtf16CodePage(viW.CurMode.CodePage);
 				viA->CurMode.Wrap           = (viW.CurMode.Flags&VMF_WRAP)?1:0;
 				viA->CurMode.WordWrap       = (viW.CurMode.Flags&VMF_WORDWRAP)?1:0;
 				viA->CurMode.Hex            = viW.CurMode.ViewMode;

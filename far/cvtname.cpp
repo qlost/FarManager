@@ -100,7 +100,7 @@ static void MixToFullPath(string& strPath)
 			if (Pos + 2 == strPath.size() || path::is_separator(strPath[Pos + 2]))
 			{
 				//Calculate subdir name offset
-				size_t n = strPath.find_last_of(L"\\/"sv, Pos-2);
+				size_t n = strPath.find_last_of(path::separators, Pos-2);
 				n = (n == string::npos || n < DirOffset) ? DirOffset : n+1;
 
 				//fragment "..\" or "../"
@@ -185,7 +185,6 @@ static void MixToFullPath(const string_view stPath, string& Dest, const string_v
 	case root_type::win32nt_drive_letter: //"\\?\whatever"
 	case root_type::unc_remote:
 	case root_type::volume:
-	case root_type::pipe:
 	case root_type::unknown_rootlike:
 		blIgnore=true;
 		PathOffset = 0;

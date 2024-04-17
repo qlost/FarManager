@@ -50,6 +50,9 @@
     <ClCompile Include="cmdline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="codepage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="codepage_selection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -446,9 +449,6 @@
     <ClCompile Include="shortcuts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sqlite.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="sqlitedb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -524,6 +524,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="cmdline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="codepage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="codepage_selection.hpp">
@@ -905,6 +908,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="macroopcode.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="macrovalues.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="manager.hpp">

@@ -82,10 +82,10 @@ public:
 	{
 		const file_ptr XmlFile(_wfsopen(NTPath(File).c_str(), L"rb", _SH_DENYWR));
 		if (!XmlFile)
-			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
+			throw far_known_exception(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
 
 		if (const auto LoadResult = m_Document.LoadFile(XmlFile.get()); LoadResult != tinyxml::XML_SUCCESS)
-			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error loading document from \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(LoadResult))));
+			throw far_known_exception(far::format(L"Error loading document from \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(LoadResult))));
 
 		const auto root = m_Document.FirstChildElement(XmlDocumentRootName);
 		SetRoot(root);
@@ -142,10 +142,10 @@ public:
 	{
 		const file_ptr XmlFile(_wfsopen(NTPath(File).c_str(), L"w", _SH_DENYWR));
 		if (!XmlFile)
-			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
+			throw far_known_exception(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
 
 		if (const auto SaveResult = m_Document.SaveFile(XmlFile.get()); SaveResult != tinyxml::XML_SUCCESS)
-			throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error saving document to \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(SaveResult))));
+			throw far_known_exception(far::format(L"Error saving document to \"{}\": {}"sv, File, encoding::utf8::get_chars(m_Document.ErrorIDToName(SaveResult))));
 	}
 
 private:
@@ -1779,7 +1779,7 @@ private:
 	os::event AsyncDeleteAddDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncCommitDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncWork{os::event::type::automatic, os::event::state::nonsignaled};
-	[[maybe_unused]] os::thread WorkThread{os::thread::mode::join, &HistoryConfigCustom::ThreadProc, this};
+	[[maybe_unused]] os::thread WorkThread{&HistoryConfigCustom::ThreadProc, this};
 
 	struct AsyncWorkItem
 	{
@@ -2695,7 +2695,7 @@ bool config_provider::ShowProblems() const
 void config_provider::AsyncCall(async_key, const std::function<void()>& Routine)
 {
 	std::erase_if(m_Threads, [](const os::thread& i){ return i.is_signaled(); });
-	m_Threads.emplace_back(os::thread::mode::join, Routine);
+	m_Threads.emplace_back(Routine);
 }
 
 config_provider& ConfigProvider()

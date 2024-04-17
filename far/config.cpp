@@ -1783,6 +1783,14 @@ Options::Options():
 		::SetPalette();
 	}));
 
+	Exec.strExcludeCmds.SetCallback(option::notifier([&](string_view const Value)
+	{
+		const auto Enum = enum_tokens(Value, L";"sv);
+		// TODO: assign_range
+		Exec.ExcludeCmds.assign(ALL_RANGE(Enum));
+		std::ranges::sort(Exec.ExcludeCmds, string_sort::less_icase);
+	}));
+
 	// По умолчанию - брать плагины из основного каталога
 	LoadPlug.MainPluginDir = true;
 	LoadPlug.PluginsPersonal = true;
@@ -2664,8 +2672,7 @@ bool Options::AdvancedConfig(config_type Mode)
 	std::vector<FarListItem> items;
 	items.reserve(CurrentConfig.size());
 	std::vector<string> Strings(CurrentConfig.size());
-	const auto ConfigData = zip(CurrentConfig, Strings);
-	std::ranges::transform(ConfigData, std::back_inserter(items), [](const auto& i) { return std::get<0>(i).MakeListItem(std::get<1>(i)); });
+	std::ranges::transform(zip(CurrentConfig, Strings), std::back_inserter(items), [](const auto& i) { return std::get<0>(i).MakeListItem(std::get<1>(i)); });
 
 	FarList Items{ sizeof(Items), items.size(), items.data() };
 

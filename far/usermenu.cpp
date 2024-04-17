@@ -64,6 +64,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "file_io.hpp"
 #include "keyboard.hpp"
 #include "log.hpp"
+#include "codepage.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -112,21 +113,18 @@ private:
 	void SaveMenu(string_view MenuFileName) const;
 	intptr_t EditMenuDlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2);
 
-	enum class menu_mode : int;
+	enum class menu_mode
+	{
+		local,
+		user,
+		global,
+	};
 
-	menu_mode m_MenuMode;
+	menu_mode m_MenuMode{ menu_mode::local };
 	mutable bool m_MenuModified{};
 	bool m_ItemChanged{};
-	uintptr_t m_MenuCP;
+	uintptr_t m_MenuCP{ default_menu_file_codepage };
 	menu_container m_Menu;
-};
-
-// Режимы показа меню (Menu mode)
-enum class UserMenu::menu_mode: int
-{
-	local,
-	user,
-	global,
 };
 
 // Коды выхода из меню (Exit codes)
@@ -266,22 +264,18 @@ static void DeserializeMenu(UserMenu::menu_container& Menu, const os::fs::file& 
 	enum_lines EnumFileLines(Stream, Codepage);
 	ParseMenu(Menu, EnumFileLines, Codepage == encoding::codepage::oem());
 
-	if (!IsUnicodeOrUtfCodePage(Codepage))
+	if (!IsUtfCodePage(Codepage))
 	{
 		Codepage = default_menu_file_codepage;
 	}
 }
 
-UserMenu::UserMenu(bool ChooseMenuType):
-	m_MenuMode(menu_mode::local),
-	m_MenuCP(default_menu_file_codepage)
+UserMenu::UserMenu(bool ChooseMenuType)
 {
 	ProcessUserMenu(ChooseMenuType, {});
 }
 
-UserMenu::UserMenu(string_view const MenuFileName):
-	m_MenuMode(menu_mode::local),
-	m_MenuCP(default_menu_file_codepage)
+UserMenu::UserMenu(string_view const MenuFileName)
 {
 	ProcessUserMenu(false, MenuFileName);
 }
@@ -322,7 +316,7 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 		if (SerialisedMenu.empty())
 		{
 			if (!os::fs::delete_file(MenuFileName))
-				throw MAKE_FAR_EXCEPTION(L"Can't delete the file"sv);
+				throw far_exception(L"Can't delete the file"sv);
 
 			return;
 		}
@@ -348,7 +342,7 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 	}
 }
 
-void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileName)
+void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 {
 	// Путь к текущему каталогу с файлом LocalMenuFileName
 	string strMenuFilePath;
@@ -380,6 +374,19 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileNa
 
 		default:
 			std::unreachable();
+		}
+	}
+	else
+	{
+		if (MenuFileName.empty())
+		{
+			strMenuFilePath = Global->CtrlObject->Cp()->ActivePanel()->GetCurDir();
+		}
+		else
+		{
+			auto ParentDir = MenuFileName;
+			CutToParent(ParentDir);
+			strMenuFilePath = ParentDir;
 		}
 	}
 
@@ -464,6 +471,10 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileNa
 			{
 				if (m_MenuMode == menu_mode::local)
 				{
+					// Menu can be invoked from any file with any name
+					// Going up switches to standard names & logic
+					MenuFileName = {};
+
 					if (CutToParent(strMenuFilePath))
 					{
 						continue;
@@ -487,6 +498,10 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view const MenuFileNa
 				switch (m_MenuMode)
 				{
 					case menu_mode::local:
+						// Menu can be invoked from any file with any name
+						// Switching to global switches to standard names & logic
+						MenuFileName = {};
+
 						m_MenuMode = menu_mode::global;
 						strMenuFilePath = Global->Opt->GlobalUserMenuDir;
 						break;

@@ -74,7 +74,7 @@ void DlgEdit::Init()
 		{
 			EditControl::Callback callback{ true, EditChange, this };
 
-			FarList* iList = nullptr;
+			VMenu* iList = nullptr;
 			DWORD iFlags=0;
 			const auto& CurItem = GetDialog()->Items[m_Index];
 			if(Global->Opt->Dialogs.AutoComplete && CurItem.Flags&(DIF_HISTORY|DIF_EDITPATH|DIF_EDITPATHEXEC) && !(CurItem.Flags&DIF_DROPDOWNLIST) && !(CurItem.Flags&DIF_NOAUTOCOMPLETE))
@@ -87,7 +87,7 @@ void DlgEdit::Init()
 			}
 			if(CurItem.Type == DI_COMBOBOX)
 			{
-				iList=CurItem.ListItems;
+				iList = CurItem.ListPtr.get();
 			}
 			if(CurItem.Flags&DIF_HISTORY)
 			{
@@ -120,6 +120,11 @@ DlgEdit::~DlgEdit()
 void DlgEdit::SetHistory(string_view const Name)
 {
 	iHistory = std::make_unique<History>(HISTORYTYPE_DIALOG, Name, Global->Opt->Dialogs.EditHistory, false);
+
+	if (lineEdit)
+	{
+		lineEdit.get()->pHistory = iHistory.get();
+	}
 }
 
 bool DlgEdit::ProcessKey(const Manager::Key& Key)

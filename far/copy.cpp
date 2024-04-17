@@ -1901,7 +1901,9 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 				SrcData.ReparseTag,
 				IO_REPARSE_TAG_SYMLINK,
 				IO_REPARSE_TAG_MOUNT_POINT,
-				IO_REPARSE_TAG_APPEXECLINK
+				IO_REPARSE_TAG_NFS,
+				IO_REPARSE_TAG_APPEXECLINK,
+				IO_REPARSE_TAG_LX_SYMLINK
 			);
 		}
 		if (CopySymlinkContents)

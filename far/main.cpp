@@ -204,8 +204,6 @@ static int MainProcess(
 		}
 		else
 		{
-			int DirCount=0;
-
 			// воспользуемся тем, что ControlObject::Init() создает панели
 			// юзая Global->Opt->*
 
@@ -215,7 +213,6 @@ static int MainProcess(
 
 			const auto SetupPanel = [&](bool active)
 			{
-				++DirCount;
 				string strPath = active? apanel : ppanel;
 				if (active? IsFileA : IsFileP)
 				{
@@ -246,7 +243,7 @@ static int MainProcess(
 			}
 
 			// теперь все готово - создаем панели!
-			Global->CtrlObject->Init(DirCount);
+			Global->CtrlObject->Init();
 
 			// а теперь "провалимся" в каталог или хост-файл (если получится ;-)
 			if (!apanel.empty())  // активная панель
@@ -316,7 +313,7 @@ static int MainProcess(
 		Global->ScrBuf->ResetLockCount();
 		Global->ScrBuf->Flush();
 
-		return EXIT_SUCCESS;
+		return Global->FarExitCode;
 }
 
 static auto full_path_expanded(string_view const Str)
@@ -476,7 +473,7 @@ static void handle_exception(function_ref<bool()> const Handler)
 	throw;
 }
 
-#ifndef _WIN64
+#ifdef _M_IX86
 std::pair<string_view, DWORD> get_hook_wow64_error();
 
 static void log_hook_wow64_status()
@@ -527,7 +524,7 @@ struct args_context
 [[noreturn]]
 static void invalid_argument(string_view const Argument, string_view const Str)
 {
-	throw MAKE_FAR_KNOWN_EXCEPTION(far::format(L"Error processing \"{}\": {}"sv, Argument, Str));
+	throw far_known_exception(far::format(L"Error processing \"{}\": {}"sv, Argument, Str));
 }
 
 namespace args
@@ -805,7 +802,7 @@ static int mainImpl(std::span<const wchar_t* const> const Args)
 
 	os::memory::enable_low_fragmentation_heap();
 
-#ifndef _WIN64
+#ifdef _M_IX86
 	log_hook_wow64_status();
 #endif
 
@@ -973,8 +970,8 @@ static int wmain_seh()
 
 	// wmain is a non-standard extension and not available in gcc.
 	int Argc = 0;
-	const os::memory::local::ptr Argv(CommandLineToArgvW(GetCommandLine(), &Argc));
-	std::span<wchar_t const* const> const AllArgs(Argv.get(), Argc), Args(AllArgs.subspan(1));
+	os::memory::local::ptr<wchar_t const* const> const Argv(CommandLineToArgvW(GetCommandLine(), &Argc));
+	std::span const AllArgs(Argv.get(), Argc), Args(AllArgs.subspan(1));
 
 	configure_exception_handling(Args);
 

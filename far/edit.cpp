@@ -449,7 +449,7 @@ bool Edit::ProcessInsPath(unsigned int Key,int PrevSelStart,int PrevSelEnd)
 
 	if (Key >= KEY_RCTRL0 && Key <= KEY_RCTRL9)
 	{
-		if (!Shortcuts(Key - KEY_RCTRL0).Get(Data))
+		if (!Shortcuts::Get(Key - KEY_RCTRL0, Data))
 			return false;
 		Data.Folder = os::env::expand(Data.Folder);
 	}
@@ -485,7 +485,7 @@ long long Edit::VMProcess(int OpCode, void* vParam, long long iParam)
 		case MCODE_V_ITEMCOUNT:
 			return m_Str.size();
 		case MCODE_V_CURPOS:
-			return GetLineCursorPos()+1;
+			return m_CurPos+1;
 		case MCODE_F_EDITOR_SEL:
 		{
 			const auto Action = static_cast<int>(std::bit_cast<intptr_t>(vParam));
