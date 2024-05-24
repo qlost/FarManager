@@ -1,3 +1,56 @@
+shmuel 2024-05-20 01:24:46+03:00 - build 835
+
+1. LuaFAR: fix the last commit.
+
+shmuel 2024-05-19 17:31:46+03:00 - build 834
+
+1. LuaFAR: refactoring.
+
+shmuel 2024-05-19 11:12:10+03:00 - build 833
+
+1. LuaFAR: refactoring.
+
+shmuel 2024-05-15 17:51:04+03:00 - build 832
+
+1. Add command lm:browser (or macro:browser).
+
+2. Shift+F4 in macro browser does the same as Alt+F4.
+
+shmuel 2024-05-06 11:34:46+03:00 - build 831
+
+1. mf.eval(S,2): invalid area in 'S' is treated as a part of key
+
+2. mf.eval(S,2): a leading slash in 'S' indicates that no area is specified
+
+shmuel 2024-05-04 16:04:43+03:00 - build 830
+
+1. mf.mainmenu: add parameter 'filemaskgroups'.
+
+shmuel 2024-04-28 21:47:10+03:00 - build 829
+
+1. LuaFAR: far.InputRecordToName - improve error message.
+
+shmuel 2024-04-28 12:20:33+03:00 - build 828
+
+1. A new function mf.mainmenu replacing the 4 functions from the last commit.
+
+shmuel 2024-04-27 16:40:25+03:00 - build 827
+
+1. Macro-API: add the following function to mf table:
+              fileassociations, filehighlight, filepanelmodes, foldershortcuts.
+
+shmuel 2024-04-23 13:37:42+03:00 - build 826
+
+1. Refactoring.
+
+shmuel 2024-04-23 01:42:17+03:00 - build 825
+
+1. LuaFAR: add function utf8.reformat.
+
+shmuel 2024-04-22 18:35:26+03:00 - build 824
+
+1. Refactoring.
+
 shmuel 2024-04-16 14:30:12+03:00 - build 823
 
 1. LuaFAR: add function win.JoinPath.

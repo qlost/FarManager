@@ -616,7 +616,7 @@ lv=2
 dt=Text
 nm=Operacje wiersza poleceń
 ctime=3617997112
-mtime=3637689351
+mtime=3924957438
 <article>
 #_<markdown>
 #_* `macro: load [ścieżka]`<br>
@@ -628,6 +628,8 @@ mtime=3637689351
 #_   Wyładuj makra (poza tymi utworzonymi z operacją `MCTL_ADDMACRO`) i uchwyty zdarzeń z pamięci.
 #_* `macro: about`<br>
 #_   Pokazuje wersję wtyczki i bibliotek jakie są używane.
+#_* `macro: browser`<br>
+#_   Run macro browser.
 #_* `lua: [=] <kod>`
 #_* `moon: [=] <kod>`<br>
 #_   Wykonuje kod `<kod>` napisany odpowiednio w Lua lub MoonScript.<br>
@@ -954,43 +956,73 @@ lv=2
 dt=Text
 nm=mf
 ctime=3553243522
-mtime=3833370824
+mtime=3923469859
 <article>
 #_**Właściwości:** brak.
 #_
 #_**Funkcje:**
 #_
-#_  abs                len
-#_  `acall`              max
-#_  `AddExitHandler`     `mdelete`
-#_  akey               min
-#_  asc                `mload`
-#_  atoi               mmode
-#_  beep               mod
-#_  chr                `msave`
-#_  clip               msgbox
-#_  date               `postmacro`
-#_  `deserialize`        print
-#_  `EnumScripts`        `printconsole`
-#_  env                prompt
-#_  `eval`               replace
-#_  `exit`               rindex
-#_  fattr              `serialize`
-#_  fexist             size2str
-#_  float              sleep
-#_  flock              string
-#_  fmatch             strpad
-#_  fsplit             strwrap
-#_  `GetMacroCopy`       substr
-#_  iif                testfolder
-#_  index              trim
-#_  int                ucase
-#_  itoa               `usermenu`
-#_  key                waitkey
-#_  `Keys`               xlat
+#_  abs
+#_  `acall`
+#_  `AddExitHandler`
+#_  akey
+#_  asc
+#_  atoi
+#_  beep
+#_  chr
+#_  clip
+#_  date
+#_  `deserialize`
+#_  `EnumScripts`
+#_  env
+#_  `eval`
+#_  `exit`
+#_  fattr
+#_  fexist
+#_  float
+#_  flock
+#_  fmatch
+#_  fsplit
+#_  `GetMacroCopy`
+#_  iif
+#_  index
+#_  int
+#_  itoa
+#_  key
+#_  `Keys`
 #_  lcase
+#_  len
+#_  `mainmenu`
+#_  max
+#_  `mdelete`
+#_  min
+#_  `mload`
+#_  mmode
+#_  mod
+#_  `msave`
+#_  msgbox
+#_  `postmacro`
+#_  print
+#_  `printconsole`
+#_  prompt
+#_  replace
+#_  rindex
+#_  `serialize`
+#_  size2str
+#_  sleep
+#_  string
+#_  strpad
+#_  strwrap
+#_  substr
+#_  testfolder
+#_  trim
+#_  ucase
+#_  `usermenu`
+#_  waitkey
+#_  xlat
 #_
 #_@@@
+#_[mainmenu]: 111.html
 #_[acall]: 91.html
 #_[deserialize]: 104.html
 #_[EnumScripts]: 106.html
@@ -1291,6 +1323,34 @@ mtime=3833370856
 #_
 #_@@@
 #_[EnumScripts]: 106.html
+</article>
+</node>
+<node>
+id=111
+lv=3
+dt=Text
+nm=mainmenu
+ctime=3923469785
+mtime=3924000602
+<article>
+#_mf.mainmenu (Param)
+#_
+#_**Parameters:**
+#_  Param:  string
+#_
+#_**Returns:**
+#_  nothing
+#_
+#_**Param values:**
+#_  "fileassociations" : call "File associations" menu
+#_  "filehighlighting" : call "Files highlighting and sort groups" menu
+#_  "filemaskgroups"   : call "Groups of file masks" menu
+#_  "filepanelmodes"   : call "File panel modes" menu
+#_  "foldershortcuts"  : call "Folder shortcuts" menu
+#_
+#_**Note:**
+#_  The function is asynchronous and returns immediately.
+#_
 </article>
 </node>
 <node>
