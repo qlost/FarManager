@@ -77,6 +77,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "strmix.hpp"
 #include "string_sort.hpp"
 #include "tvar.hpp"
+#include "filetype.hpp"
+#include "hilight.hpp"
+#include "shortcuts.hpp"
 #include "global.hpp"
 
 // Platform:
@@ -829,6 +832,43 @@ int KeyMacro::GetKey()
 
 			case MPRT_USERMENU:
 				ShowUserMenu(mpr.Count,mpr.Values);
+				break;
+
+			case MPRT_FOLDERSHORTCUTS:
+				if (IsPanelsArea(m_Area))
+				{
+					const auto Result = Shortcuts::Configure();
+					if (Result != -1)
+						Global->CtrlObject->Cp()->ActivePanel()->ExecShortcutFolder(Result);
+				}
+				break;
+
+			case MPRT_FILEASSOCIATIONS:
+				if (IsPanelsArea(m_Area))
+				{
+					EditFileTypes();
+				}
+				break;
+
+			case MPRT_FILEHIGHLIGHT:
+				if (IsPanelsArea(m_Area))
+				{
+					Global->CtrlObject->HiFiles->HiEdit(0);
+				}
+				break;
+
+			case MPRT_FILEPANELMODES:
+				if (IsPanelsArea(m_Area))
+				{
+					Global->Opt->SetFilePanelModes();
+				}
+				break;
+
+			case MPRT_FILEMASKGROUPS:
+				if (IsPanelsArea(m_Area))
+				{
+					Global->Opt->MaskGroupsSettings();
+				}
 				break;
 		}
 	}
@@ -2575,7 +2615,12 @@ void FarMacroApi::atoiFunc() const
 {
 	auto Params = parseParams(2);
 	long long Value = 0;
-	PassValue(from_string(Params[0].toString(), Value, nullptr, static_cast<int>(Params[1].toInteger()))? Value : 0);
+	int radix = static_cast<int>(Params[1].toInteger());
+
+	if (radix == 0 || (radix >= 2 && radix <= 36))
+		PassValue(from_string(Params[0].toString(), Value, nullptr, radix)? Value : 0);
+	else
+		PassValue(0);
 }
 
 // N=Window.Scroll(Lines[,Axis])
@@ -2607,7 +2652,7 @@ void FarMacroApi::itowFunc() const
 		wchar_t value[65];
 		auto Radix = static_cast<int>(Params[1].toInteger());
 
-		if (!Radix)
+		if (Radix < 2 || Radix > 36)
 			Radix = 10;
 
 		Params[0] = TVar(_i64tow(Params[0].toInteger(), value, Radix));

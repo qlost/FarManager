@@ -41,7 +41,7 @@ extern void push_flags_table(lua_State *L);
 extern void SetFarColors(lua_State *L);
 extern void WINAPI FarPanelItemFreeCallback(void* UserData, const struct FarPanelItemFreeInfo* Info);
 extern int far_MacroCallFar(lua_State *L);
-extern int far_FarMacroCallToLua(lua_State *L);
+extern int far_MacroCallToLua(lua_State *L);
 extern void PackMacroValues(lua_State* L, size_t Count, const struct FarMacroValue* Values);
 extern void PushFarMacroValue(lua_State* L, const struct FarMacroValue* val);
 extern int GetExportFunction(lua_State* L, const char* FuncName);
@@ -525,10 +525,10 @@ void PutMouseEvent(lua_State *L, const MOUSE_EVENT_RECORD* rec, BOOL table_exist
 
 // convert a string from utf-8 to wide char and put it into a table,
 // to prevent stack overflow and garbage collection
-const wchar_t* StoreTempString(lua_State *L, int store_stack_pos, int* index)
+static const wchar_t* StoreTempString(lua_State *L, int store_stack_pos)
 {
 	const wchar_t *s = check_utf8_string(L,-1,NULL);
-	lua_rawseti(L, store_stack_pos, ++(*index));
+	luaL_ref(L, store_stack_pos);
 	return s;
 }
 
@@ -966,7 +966,7 @@ static int editor_UndoRedo(lua_State *L)
 
 static void FillKeyBarTitles(lua_State *L, int src_pos, struct KeyBarTitles *kbt)
 {
-	int store=0, store_pos, i;
+	int store_pos, i;
 	size_t size;
 	lua_newtable(L);
 	store_pos = lua_gettop(L);
@@ -992,10 +992,10 @@ static void FillKeyBarTitles(lua_State *L, int src_pos, struct KeyBarTitles *kbt
 		kbt->Labels[i].Key.ControlKeyState = CAST(DWORD,CheckFlagsFromTable(L, -1, "ControlKeyState"));
 		//-----------------------------------------------------------------------
 		lua_getfield(L, -1, "Text");
-		kbt->Labels[i].Text = StoreTempString(L, store_pos, &store);
+		kbt->Labels[i].Text = StoreTempString(L, store_pos);
 		//-----------------------------------------------------------------------
 		lua_getfield(L, -1, "LongText");
-		kbt->Labels[i].LongText = StoreTempString(L, store_pos, &store);
+		kbt->Labels[i].LongText = StoreTempString(L, store_pos);
 		//-----------------------------------------------------------------------
 		lua_pop(L, 1);
 	}
@@ -1569,13 +1569,28 @@ static int editor_ReadInput(lua_State *L)
 
 void FillInputRecord(lua_State *L, int pos, INPUT_RECORD *ir)
 {
+	int success = 0;
 	pos = abs_index(L, pos);
 	luaL_checktype(L, pos, LUA_TTABLE);
 	memset(ir, 0, sizeof(INPUT_RECORD));
 	// determine event type
 	lua_getfield(L, pos, "EventType");
-	ir->EventType = CAST(WORD, check_env_flag(L, -1));
-	if (ir->EventType==0) ir->EventType=KEY_EVENT;
+	ir->EventType = CAST(WORD, get_env_flag(L, -1, &success));
+	if (success)
+	{
+		if (ir->EventType == 0)
+		{
+			ir->EventType = KEY_EVENT;
+		}
+		success = ir->EventType == KEY_EVENT
+			|| ir->EventType == MOUSE_EVENT
+			|| ir->EventType == WINDOW_BUFFER_SIZE_EVENT
+			|| ir->EventType == MENU_EVENT
+			|| ir->EventType == FOCUS_EVENT;
+	}
+	if (!success)
+		luaL_error(L, "invalid 'EventType' specified");
+
 	lua_pop(L, 1);
 	lua_pushvalue(L, pos);
 
@@ -1669,56 +1684,63 @@ static int editor_SubscribeChangeEvent(lua_State *L)
 //     a nil    -- menu canceled by the user
 static int far_Menu(lua_State *L)
 {
+	enum {
+		POS_PROPS = 1, // properties
+		POS_ITEMS = 2, // items
+		POS_BKEYS = 3, // break keys
+		POS_STORE = 4, // temporary storage
+	};
+
 	TPluginData *pd = GetPluginData(L);
 	int X = -1, Y = -1, MaxHeight = 0;
 	UINT64 Flags = FMENU_WRAPMODE;
 	const wchar_t *Title = L"Menu", *Bottom = NULL, *HelpTopic = NULL;
 	intptr_t SelectIndex = 0, ItemsNumber, ret;
-	int store = 0, i;
+	int i;
 	intptr_t BreakCode = 0, *pBreakCode;
 	int NumBreakCodes = 0;
 	const GUID* MenuGuid = NULL;
 	struct FarMenuItem *Items, *pItem;
 	struct FarKey *pBreakKeys;
-	lua_settop(L, 3);     // cut unneeded parameters; make stack predictable
-	luaL_checktype(L, 1, LUA_TTABLE);
-	luaL_checktype(L, 2, LUA_TTABLE);
-	ItemsNumber = lua_objlen(L, 2);
 
-	if (!lua_isnil(L,3) && !lua_istable(L,3) && lua_type(L,3)!=LUA_TSTRING)
-		return luaL_argerror(L, 3, "must be table, string or nil");
+	luaL_checktype(L, POS_PROPS, LUA_TTABLE);
+	luaL_checktype(L, POS_ITEMS, LUA_TTABLE);
+	ItemsNumber = lua_objlen(L, POS_ITEMS);
 
+	lua_settop(L, POS_BKEYS);     // cut unneeded parameters; make stack predictable
 	lua_newtable(L); // temporary store; at stack position 4
+
+	if (!lua_isnil(L,POS_BKEYS) && !lua_istable(L,POS_BKEYS) && lua_type(L,POS_BKEYS)!=LUA_TSTRING)
+		return luaL_argerror(L, POS_BKEYS, "must be table, string or nil");
+
 	// Properties
-	lua_pushvalue(L,1);                 //+1
+	lua_pushvalue(L, POS_PROPS);
 	X = GetOptIntFromTable(L, "X", -1);
 	Y = GetOptIntFromTable(L, "Y", -1);
 	MaxHeight = GetOptIntFromTable(L, "MaxHeight", 0);
-	lua_getfield(L, 1, "Flags");        //+2
 
+	lua_getfield(L, POS_PROPS, "Flags");
 	if (!lua_isnil(L, -1)) Flags = CheckFlags(L, -1);
 
-	lua_getfield(L, 1, "Title");        //+3
+	lua_getfield(L, POS_PROPS, "Title");
+	if (lua_isstring(L,-1))    Title = StoreTempString(L, POS_STORE);
 
-	if (lua_isstring(L,-1))    Title = StoreTempString(L, 4, &store);
+	lua_getfield(L, POS_PROPS, "Bottom");
+	if (lua_isstring(L,-1))    Bottom = StoreTempString(L, POS_STORE);
 
-	lua_getfield(L, 1, "Bottom");       //+3
+	lua_getfield(L, POS_PROPS, "HelpTopic");
+	if (lua_isstring(L,-1))    HelpTopic = StoreTempString(L, POS_STORE);
 
-	if (lua_isstring(L,-1))    Bottom = StoreTempString(L, 4, &store);
-
-	lua_getfield(L, 1, "HelpTopic");    //+3
-
-	if (lua_isstring(L,-1))    HelpTopic = StoreTempString(L, 4, &store);
-
-	lua_getfield(L, 1, "SelectIndex");  //+3
+	lua_getfield(L, POS_PROPS, "SelectIndex");
 	if ((SelectIndex = lua_tointeger(L,-1)) > ItemsNumber)
 		SelectIndex = 0;
 
-	lua_getfield(L, 1, "Id");           //+4
+	lua_getfield(L, POS_PROPS, "Id");
 	if (lua_type(L,-1)==LUA_TSTRING && lua_objlen(L,-1)==sizeof(GUID))
 		MenuGuid = (const GUID*)lua_tostring(L, -1);
 
-	lua_pop(L, 4);
+	lua_settop (L, POS_STORE);
+
 	// Items
 	Items = (struct FarMenuItem*)lua_newuserdata(L, ItemsNumber*sizeof(struct FarMenuItem));
 	memset(Items, 0, ItemsNumber*sizeof(struct FarMenuItem));
@@ -1728,7 +1750,7 @@ static int far_Menu(lua_State *L)
 	{
 		static const char key[] = "text";
 		lua_pushinteger(L, i+1);
-		lua_gettable(L, 2);
+		lua_gettable(L, POS_ITEMS);
 
 		if (!lua_istable(L, -1))
 			return luaLF_SlotError(L, i+1, "table");
@@ -1736,7 +1758,7 @@ static int far_Menu(lua_State *L)
 		//-------------------------------------------------------------------------
 		lua_getfield(L, -1, key);
 
-		if (lua_isstring(L,-1))  pItem->Text = StoreTempString(L, 4, &store);
+		if (lua_isstring(L,-1))  pItem->Text = StoreTempString(L, POS_STORE);
 		else if (!lua_isnil(L,-1)) return luaLF_FieldError(L, key, "string");
 
 		if (!pItem->Text)
@@ -1794,9 +1816,9 @@ static int far_Menu(lua_State *L)
 	// Break Keys
 	pBreakKeys = NULL;
 	pBreakCode = NULL;
-	if (lua_type(L,3) == LUA_TSTRING)
+	if (lua_type(L, POS_BKEYS) == LUA_TSTRING)
 	{
-		const char *q, *ptr = lua_tostring(L,3);
+		const char *q, *ptr = lua_tostring(L, POS_BKEYS);
 		lua_newtable(L);
 		while (*ptr)
 		{
@@ -1809,10 +1831,10 @@ static int far_Menu(lua_State *L)
 			lua_setfield(L,-2,"BreakKey");
 			lua_rawseti(L,-2,++NumBreakCodes);
 		}
-		lua_replace(L,3);
+		lua_replace(L, POS_BKEYS);
 	}
 	else
-		NumBreakCodes = lua_istable(L,3) ? (int)lua_objlen(L,3) : 0;
+		NumBreakCodes = lua_istable(L,POS_BKEYS) ? (int)lua_objlen(L,POS_BKEYS) : 0;
 
 	if (NumBreakCodes)
 	{
@@ -1823,7 +1845,7 @@ static int far_Menu(lua_State *L)
 		lua_pushstring(L, FAR_VIRTUALKEYS);
 		lua_rawget(L, LUA_REGISTRYINDEX);
 		// push breakkeys table on top
-		lua_pushvalue(L, 3);              // vk=-2; bk=-1;
+		lua_pushvalue(L, POS_BKEYS);        // vk=-2; bk=-1;
 
 		for(ind=0; ind < NumBreakCodes; ind++)
 		{
@@ -1910,14 +1932,14 @@ static int far_Menu(lua_State *L)
 	if (NumBreakCodes && (BreakCode != -1))
 	{
 		lua_pushinteger(L, BreakCode+1);
-		lua_gettable(L, 3);
+		lua_gettable(L, POS_BKEYS);
 	}
 	else if (ret == -1)
 		return lua_pushnil(L), 1;
 	else
 	{
 		lua_pushinteger(L, ret+1);
-		lua_gettable(L, 2);
+		lua_gettable(L, POS_ITEMS);
 	}
 
 	lua_pushinteger(L, ret+1);
@@ -6557,26 +6579,39 @@ const luaL_Reg far_funcs[] =
 	{NULL, NULL}
 };
 
-const char far_Dialog[] =
-"function far.Dialog (Id,X1,Y1,X2,Y2,HelpTopic,Items,Flags,DlgProc,Param)\n\
-  local hDlg = far.DialogInit(Id,X1,Y1,X2,Y2,HelpTopic,Items,Flags,DlgProc,Param)\n\
-  if hDlg == nil then return nil end\n\
-\n\
-  local ret = far.DialogRun(hDlg)\n\
-  for i, item in ipairs(Items) do\n\
-    local newitem = far.GetDlgItem(hDlg, i)\n\
-    if type(item[6]) == 'table' then\n\
-      local pos = far.SendDlgMessage(hDlg, 'DM_LISTGETCURPOS', i, 0)\n\
-      item[6].SelectIndex = pos.SelectPos\n\
-    else\n\
-      item[6] = newitem[6]\n\
-    end\n\
-    item[10] = newitem[10]\n\
-  end\n\
-\n\
-  far.DialogFree(hDlg)\n\
-  return ret\n\
-end";
+static const char far_Dialog[] =
+"function far.Dialog (Id,X1,Y1,X2,Y2,HelpTopic,Items,Flags,DlgProc,Param)\n"
+  "local hDlg = far.DialogInit(Id,X1,Y1,X2,Y2,HelpTopic,Items,Flags,DlgProc,Param)\n"
+  "if hDlg == nil then return nil end\n"
+
+  "local ret = far.DialogRun(hDlg)\n"
+  "for i, item in ipairs(Items) do\n"
+    "local newitem = far.GetDlgItem(hDlg, i)\n"
+    "if type(item[6]) == 'table' then\n"
+      "local pos = far.SendDlgMessage(hDlg, 'DM_LISTGETCURPOS', i, 0)\n"
+      "item[6].SelectIndex = pos.SelectPos\n"
+    "else\n"
+      "item[6] = newitem[6]\n"
+    "end\n"
+    "item[10] = newitem[10]\n"
+  "end\n"
+
+  "far.DialogFree(hDlg)\n"
+  "return ret\n"
+"end";
+
+static const char utf8_reformat[] =
+"function utf8.reformat (patt, ...)\n"
+  "local args = { ... }\n"
+  "local function Subst (i, m, f)\n"
+    "i = tonumber(i)\n"
+    "f = f:match('[^s]')\n"
+    "return args[i] and ('%' .. m .. (f or 's')):format(f and args[i] or tostring(args[i])) or ''\n"
+  "end\n"
+
+  "patt = patt:gsub('%f[%%{]{(%d+):?(%-?%d*%.?%d*)([A-Za-z]?)}', Subst):gsub('%%{', '{')\n"
+  "return patt:format(...)\n"
+"end";
 
 static int luaopen_far(lua_State *L)
 {
@@ -6601,8 +6636,8 @@ static int luaopen_far(lua_State *L)
 	{
 		lua_pushcfunction(L, far_MacroCallFar);
 		lua_setfield(L, -2, "MacroCallFar");
-		lua_pushcfunction(L, far_FarMacroCallToLua);
-		lua_setfield(L, -2, "FarMacroCallToLua");
+		lua_pushcfunction(L, far_MacroCallToLua);
+		lua_setfield(L, -2, "MacroCallToLua");
 	}
 
 	push_flags_table(L);
@@ -6684,11 +6719,6 @@ void LF_RunLuafarInit(lua_State* L)
 	}
 }
 
-// This exported function is needed for old builds of the plugins.
-void LF_ProcessEnvVars(lua_State *L, const wchar_t* aEnvPrefix, const wchar_t* PluginDir)
-{
-}
-
 static const luaL_Reg lualibs[] =
 {
 #if LUA_VERSION_NUM == 501
@@ -6747,6 +6777,8 @@ void LF_InitLuaState1(lua_State *L, lua_CFunction aOpenLibs)
 	lua_pushvalue(L, -4);                       //+5
 	lua_setfield(L, -2, "__index");	            //+4
 	lua_pop(L, 4);                              //+0
+	// add utf8.reformat
+	(void) luaL_dostring(L, utf8_reformat);
 
 	// unicode.utf8 = utf8 (for backward compatibility;)
 	lua_newtable(L);
@@ -6823,6 +6855,9 @@ static void LoadExtraLibraries(lua_State *L)
 	lua_pushcfunction(L, far_FileTimeResolution);
 	lua_setfield(L, -2, "FileTimeResolution");
 	lua_setglobal(L, "luafar");
+
+	// add utf8.reformat
+	(void) luaL_dostring(L, utf8_reformat);
 
 	// getmetatable("").__index = utf8
 	lua_pushliteral(L, "");

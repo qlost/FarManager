@@ -4,10 +4,6 @@
 -- This plugin does not support reloading the default script on the fly.
 if not (...) then return end
 
-local function LOG (fmt, ...)
-  win.OutputDebugString(fmt:format(...))
-end
-
 local F, Msg = far.Flags, nil
 local bor = bit64.bor
 local JoinPath = win.JoinPath
@@ -98,8 +94,6 @@ end
 -- END: Functions implemented via "returning a key" to Far
 -------------------------------------------------------------------------------
 
-local PluginInfo
-
 function export.GetPluginInfo()
   local out = {
     Flags = bor(F.PF_PRELOAD,F.PF_FULLCMDLINE,F.PF_EDITOR,F.PF_VIEWER,F.PF_DIALOG),
@@ -107,7 +101,6 @@ function export.GetPluginInfo()
     PluginMenuGuids = win.Uuid("EF6D67A2-59F7-4DF3-952E-F9049877B492"),
     PluginMenuStrings = { "Macro Browser" },
   }
-  PluginInfo = out
 
   local mode = far.MacroGetArea()
   local area = utils.GetTrueAreaName(mode)
@@ -266,7 +259,7 @@ local function MacroParse (Lang, Text, onlyCheck, skipFile)
     _loadstring, _loadfile = ms.loadstring, ms.loadfile
   end
 
-  local ok,msg = true,nil
+  local ok,msg
   local fname,params = GetFileParams(Text)
   if fname then
     ok,msg = _loadstring("return "..params)
@@ -346,23 +339,32 @@ local function Open_CommandLine (strCmdLine)
   if not prefix then return end -- this can occur with Plugin.Command()
   prefix = prefix:lower()
   if prefix == "lm" or prefix == "macro" then
-    if text=="" then ShowCmdLineHelp(); return;  end
+    if text == "" then
+      ShowCmdLineHelp(); return;
+    end
     local cmd = text:match("%S*"):lower()
     if cmd == "load" then
       local paths = text:match("%S.*",5)
       paths = paths and paths:gsub([[^"(.+)"$]], "%1")
       far.MacroLoadAll(paths)
-    elseif cmd == "save" then utils.WriteMacros()
-    elseif cmd == "unload" then utils.UnloadMacros()
-    elseif cmd == "about" then About()
-    elseif cmd ~= "" then ErrMsg(Msg.CL_UnsupportedCommand .. cmd) end
+    elseif cmd == "save" then
+      utils.WriteMacros()
+    elseif cmd == "unload" then
+      utils.UnloadMacros()
+    elseif cmd == "about" then
+      About()
+    elseif cmd == "browser" then
+      macrobrowser()
+    elseif cmd ~= "" then
+      ErrMsg(Msg.CL_UnsupportedCommand .. cmd)
+    end
   elseif prefix == "lua" or prefix == "moon" or prefix == "luas" or prefix == "moons" then
     if text=="" then ShowCmdLineHelp(); return;  end
     local show = false
     if text:find("^=") then
       show, text = true, text:sub(2)
     end
-    local fname, params = GetFileParams(text)
+    local fname = GetFileParams(text)
     if show and not fname then
       text = "return "..text
     end
@@ -482,7 +484,8 @@ function export.Open (OpenFrom, guid, ...)
       return far.MacroPost([[far.Message"macropost"]])
     end
 
-  else
+  else -- OPEN_DIALOG, OPEN_EDITOR, OPEN_FILEPANEL, OPEN_LEFTDISKMENU,
+       -- OPEN_PLUGINSMENU, OPEN_RIGHTDISKMENU, OPEN_VIEWER
     local items = utils.GetMenuItems()
     if items[guid] then
       local mod, obj = items[guid].action(OpenFrom, ...)
@@ -514,11 +517,11 @@ local function Init()
     yieldcall         = yieldcall,
   }
   Shared.MacroCallFar, far.MacroCallFar = far.MacroCallFar, nil
-  Shared.FarMacroCallToLua, far.FarMacroCallToLua = far.FarMacroCallToLua, nil
+  Shared.MacroCallToLua, far.MacroCallToLua = far.MacroCallToLua, nil
 
   local ModuleDir = far.PluginStartupInfo().ModuleDir
   local function RunPluginFile (fname, param)
-    local func,msg = assert(loadfile(JoinPath(ModuleDir,fname)))
+    local func = assert(loadfile(JoinPath(ModuleDir,fname)))
     return func(param)
   end
 
