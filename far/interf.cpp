@@ -392,7 +392,6 @@ void InitConsole()
 	SetPalette();
 
 	UpdateScreenSize();
-	Global->ScrBuf->FillBuf();
 
 	consoleicons::instance().update_icon();
 }
@@ -1181,26 +1180,9 @@ void SetRealColor(const FarColor& Color)
 	console.SetTextAttributes(Color);
 }
 
-void ClearScreen(const FarColor& Color)
-{
-	Global->ScrBuf->FillRect({ 0, 0, ScrX, ScrY }, { L' ', {}, {}, Color });
-	if(Global->Opt->WindowMode)
-	{
-		console.ClearExtraRegions(Color, CR_BOTH);
-	}
-	Global->ScrBuf->Flush();
-	console.SetTextAttributes(Color);
-}
-
 const FarColor& GetColor()
 {
 	return CurColor;
-}
-
-
-void ScrollScreen(int Count)
-{
-	Global->ScrBuf->Scroll(Count);
 }
 
 bool DoWeReallyHaveToScroll(short Rows)

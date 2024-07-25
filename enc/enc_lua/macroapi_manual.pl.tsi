@@ -616,7 +616,7 @@ lv=2
 dt=Text
 nm=Operacje wiersza poleceń
 ctime=3617997112
-mtime=3924957438
+mtime=3925879972
 <article>
 #_<markdown>
 #_* `macro: load [ścieżka]`<br>
@@ -630,6 +630,8 @@ mtime=3924957438
 #_   Pokazuje wersję wtyczki i bibliotek jakie są używane.
 #_* `macro: browser`<br>
 #_   Run macro browser.
+#_* `macro: test`<br>
+#_   Run tests and exit Far (exit code 0 = success)
 #_* `lua: [=] <kod>`
 #_* `moon: [=] <kod>`<br>
 #_   Wykonuje kod `<kod>` napisany odpowiednio w Lua lub MoonScript.<br>
@@ -2592,7 +2594,7 @@ lv=2
 dt=Text
 nm=Ograniczenia w korzystaniu z niektórych funkcji
 ctime=3557323094
-mtime=3732332374
+mtime=3926597548
 <article>
 #_<markdown>
 #_The following functions have certain restrictions on their use in macros: 
@@ -2600,6 +2602,7 @@ mtime=3732332374
 #_* [`exit`][exit]
 #_* [`mf.acall`][acall]
 #_* [`mf.AddExitHandler`][AddExitHandler]
+#_* [`mf.mainmenu`][mainmenu]
 #_* [`mf.usermenu`][usermenu] (in the "asynchronous" call mode)
 #_* [`Keys`][keys]
 #_* [`Plugin.Call`][plugincall]
@@ -2631,6 +2634,7 @@ mtime=3732332374
 #_[exit]: 61.html
 #_[keys]: 4.html
 #_[AddExitHandler]: 100.html
+#_[mainmenu]: 111.html
 #_
 #_@@@
 #_{plugin.command}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/general.html#plugin.command

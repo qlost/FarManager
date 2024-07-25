@@ -332,7 +332,7 @@ static string ConvertName(string_view const Object, bool(*Mutator)(string_view, 
 
 	strDest = Object;
 
-	if (HasPathPrefix(Object) || !Mutator(NTPath(Object), strDest))
+	if (HasPathPrefix(Object) || !Mutator(nt_path(Object), strDest))
 		return string(Object);
 
 	switch (ParsePath(strDest))
@@ -414,7 +414,7 @@ void PrepareDiskPath(string &strPath, bool CheckFullPath)
 	// elevation not required during cosmetic operation
 	SCOPED_ACTION(elevation::suppress);
 
-	ReplaceSlashToBackslash(strPath);
+	path::inplace::normalize_separators(strPath);
 	const auto DoubleSlash = strPath[1] == L'\\';
 	remove_duplicates(strPath, L'\\');
 	if(DoubleSlash)

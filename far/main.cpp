@@ -417,6 +417,26 @@ static bool is_arg(string_view const Str)
 	return !Str.empty() && any_of(Str.front(), L'-', L'/');
 }
 
+static void ShowVersion(bool const Direct)
+{
+	bool EnoughSpace{};
+
+	if (!Direct)
+	{
+		// Version, copyright, empty line, command line, keybar
+		if (const auto SpaceNeeded = 5; !DoWeReallyHaveToScroll(SpaceNeeded))
+		{
+			EnoughSpace = true;
+			console.SetCursorPosition({ 0, ScrY - (SpaceNeeded - 1) });
+		}
+	}
+
+	std::wcout <<
+		build::version_string() << L'\n' <<
+		build::copyright() << L"\n\n"sv.substr(Direct || EnoughSpace? 1 : 0) <<
+		std::endl;
+}
+
 static std::optional<int> ProcessServiceModes(std::span<const wchar_t* const> const Args)
 {
 	const auto isArg = [&](string_view const Name)
@@ -456,7 +476,7 @@ static std::optional<int> ProcessServiceModes(std::span<const wchar_t* const> co
 
 	if (Args.size() == 1 && (isArg(L"?") || isArg(L"h")))
 	{
-		ControlObject::ShowVersion();
+		ShowVersion(true);
 		show_help();
 		return EXIT_SUCCESS;
 	}
@@ -887,6 +907,9 @@ static int mainImpl(std::span<const wchar_t* const> const Args)
 	}
 
 	InitConsole();
+	Global->ScrBuf->FillBuf();
+	ShowVersion(false);
+	Global->ScrBuf->FillBuf();
 
 	SCOPE_EXIT
 	{
@@ -964,6 +987,10 @@ static void handle_exception_final(function_ref<bool()> const Handler)
 	throw;
 }
 
+#ifdef _DEBUG
+static void premain();
+#endif
+
 static int wmain_seh()
 {
 	os::set_error_mode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX | SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOGPFAULTERRORBOX);
@@ -986,6 +1013,10 @@ static int wmain_seh()
 	{
 		return *Result;
 	}
+#endif
+
+#ifdef _DEBUG
+	premain();
 #endif
 
 #ifdef __SANITIZE_ADDRESS__
@@ -1164,5 +1195,11 @@ TEST_CASE("Args")
 			}
 		}, i.Validator);
 	}
+}
+#endif
+
+#ifdef _DEBUG
+static void premain()
+{
 }
 #endif
