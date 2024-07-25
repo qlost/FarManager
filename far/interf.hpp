@@ -158,7 +158,6 @@ void ShowCursor();
 void SetInitialCursorType();
 void GetCursorType(bool& Visible, size_t& Size);
 void MoveRealCursor(int X,int Y);
-void ScrollScreen(int Count);
 bool DoWeReallyHaveToScroll(short Rows);
 
 struct position_parser_state
@@ -207,7 +206,6 @@ void SetColor(int Color);
 void SetColor(PaletteColors Color);
 void SetColor(const FarColor& Color);
 void SetRealColor(const FarColor& Color);
-void ClearScreen(const FarColor& Color);
 const FarColor& GetColor();
 
 void Box(rectangle Where, const FarColor& Color,int Type);
