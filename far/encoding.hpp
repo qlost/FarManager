@@ -166,6 +166,11 @@ namespace encoding
 		[[nodiscard]] static string get_chars(std::string_view Str, diagnostics* Diagnostics = {});
 	};
 
+	struct ascii
+	{
+		[[nodiscard]] static string get_chars(std::string_view Str);
+	};
+
 	[[nodiscard]] std::string_view get_signature_bytes(uintptr_t Cp);
 
 	class writer
@@ -281,11 +286,7 @@ public:
 	[[nodiscard]] auto lf() const { return m_Lf; }
 
 private:
-	static char to(uintptr_t Codepage, wchar_t WideChar)
-	{
-		char Char;
-		return encoding::get_bytes(Codepage, { &WideChar, 1 }, { &Char, 1 })? Char : WideChar;
-	}
+	static char to(uintptr_t Codepage, wchar_t WideChar);
 
 	char
 		m_Cr{'\r'},

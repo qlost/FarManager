@@ -765,7 +765,6 @@ public:
 		{
 			LOGWARNING(L"{}"sv, e);
 		}
-
 	}
 
 private:
@@ -1084,7 +1083,7 @@ static string get_uptime()
 	if (!os::chrono::get_process_creation_time(GetCurrentProcess(), CreationTime))
 		return os::last_error().to_string();
 
-	return ConvertDurationToHMS(os::chrono::nt_clock::now() - CreationTime);
+	return duration_to_string_hms(os::chrono::nt_clock::now() - CreationTime);
 }
 
 static auto memory_status()
@@ -2170,10 +2169,15 @@ signal_handler::~signal_handler()
 extern "C" void _invalid_parameter(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t);
 #endif
 #else
+WARNING_PUSH()
+WARNING_DISABLE_CLANG("-Wmissing-noreturn")
+
 static void _invalid_parameter(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t)
 {
 	os::process::terminate(STATUS_INVALID_CRUNTIME_PARAMETER);
 }
+
+WARNING_POP()
 #endif
 
 static void invalid_parameter_handler_impl(const wchar_t* const Expression, const wchar_t* const Function, const wchar_t* const File, unsigned int const Line, uintptr_t const Reserved)
