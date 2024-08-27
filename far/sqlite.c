@@ -51,11 +51,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 WARNING_PUSH(3)
 
 WARNING_DISABLE_MSC(4018) // '>': signed / unsigned mismatch
+WARNING_DISABLE_MSC(4391) // 'signature' : incorrect return type for intrinsic function, expected 'type'
 WARNING_DISABLE_MSC(4668) // 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
 WARNING_DISABLE_MSC(5105) // macro expansion producing 'defined' has undefined behavior
 WARNING_DISABLE_MSC(4191) // 'operator/operation' : unsafe conversion from 'type of expression' to 'type required'
 
 WARNING_DISABLE_GCC("-Wpedantic")
+WARNING_DISABLE_GCC("-Wcast-align")
 WARNING_DISABLE_GCC("-Wcast-function-type")
 WARNING_DISABLE_GCC("-Wcast-qual")
 WARNING_DISABLE_GCC("-Wdouble-promotion")
@@ -64,6 +66,7 @@ WARNING_DISABLE_GCC("-Wimplicit-fallthrough")
 WARNING_DISABLE_GCC("-Wmisleading-indentation")
 WARNING_DISABLE_GCC("-Wmissing-declarations")
 WARNING_DISABLE_GCC("-Wredundant-decls")
+WARNING_DISABLE_GCC("-Wstringop-overread")
 WARNING_DISABLE_GCC("-Wundef")
 WARNING_DISABLE_GCC("-Wunused-but-set-variable")
 #ifdef _DEBUG

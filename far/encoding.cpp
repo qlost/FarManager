@@ -332,6 +332,12 @@ size_t MultibyteCodepageDecoder::GetChar(std::string_view const Str, wchar_t& Ch
 	}
 }
 
+char raw_eol::to(uintptr_t Codepage, wchar_t WideChar)
+{
+	char Char;
+	return encoding::get_bytes(Codepage, { &WideChar, 1 }, { &Char, 1 })? Char : WideChar;
+}
+
 static size_t utf8_get_bytes(string_view Str, std::span<char> Buffer);
 
 static size_t get_bytes_impl(uintptr_t const Codepage, string_view const Str, std::span<char> Buffer, encoding::diagnostics* const Diagnostics)
@@ -590,6 +596,13 @@ string encoding::utf8_or_ansi::get_chars(std::string_view const Str, diagnostics
 		Ansi;
 
 	return encoding::get_chars(Encoding, Str, Diagnostics);
+}
+
+string encoding::ascii::get_chars(std::string_view const Str)
+{
+	assert(std::ranges::all_of(Str, [](char const Char) { return Char < 128; }));
+
+	return { ALL_CONST_RANGE(Str) };
 }
 
 std::string_view encoding::get_signature_bytes(uintptr_t Cp)

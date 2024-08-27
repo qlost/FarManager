@@ -143,13 +143,11 @@ static string printable_string(string_view const Str)
 
 static string printable_wide_string(void const* const Data, size_t const Size)
 {
-	ASAN_UNPOISON_MEMORY_REGION(Data, Size);
 	return printable_string({ static_cast<const wchar_t*>(Data), Size / sizeof(wchar_t) });
 }
 
 static string printable_ansi_string(void const* const Data, size_t const Size)
 {
-	ASAN_UNPOISON_MEMORY_REGION(Data, Size);
 	return printable_string(encoding::ansi::get_chars({ static_cast<const char*>(Data), Size }));
 }
 
@@ -284,6 +282,9 @@ public:
 
 		m_AllocatedMemorySize += Block->TotalSize;
 		m_AllocatedPayloadSize += Block->DataSize;
+
+		++m_OverallAllocations;
+		m_OverallSize += Block->DataSize;
 	}
 
 	void unregister_block(memory_block const* const Block)
@@ -316,6 +317,11 @@ private:
 
 	void print_summary() const
 	{
+		if constexpr ((false))
+		{
+			std::wcout << far::format(L"\nAllocations: {}\nSize: {}\n"sv, m_OverallAllocations, m_OverallSize);
+		}
+
 		if (!m_AllocatedMemorySize)
 			return;
 
@@ -362,7 +368,7 @@ private:
 			Message = concat(
 				L"--------------------------------------------------------------------------------\n"sv,
 				str(Data), L", "sv, format_type(i->AllocationType, Size),
-				L"\nData: "sv, BlobToHexString({ static_cast<std::byte const*>(Data), std::min(Size, Width / 3) }, L' '),
+				L"\nData: "sv, BlobToHexString(view_bytes(Data, std::min(Size, Width / 3)), L' '),
 				L"\nAnsi: "sv, printable_ansi_string(Data, std::min(Size, Width)),
 				L"\nWide: "sv, printable_wide_string(Data, std::min(Size, Width * sizeof(wchar_t))),
 				L"\nStack:\n"sv);
@@ -386,10 +392,15 @@ private:
 
 	os::critical_section m_CS;
 
+	// These can go up and down and should be 0 in the end
 	intptr_t m_CallNewDeleteVector{};
 	intptr_t m_CallNewDeleteScalar{};
 	size_t m_AllocatedMemorySize{};
 	size_t m_AllocatedPayloadSize{};
+
+	// These can only grow and can be used for a rough performance estimation
+	size_t m_OverallAllocations{};
+	size_t m_OverallSize{};
 
 	bool m_Enabled{true};
 };
@@ -416,14 +427,14 @@ static void* debug_allocator(size_t const size, std::align_val_t Alignment, allo
 
 			Block->end_marker() = EndMarker;
 
+			const auto Data = Block->data();
+			assert(is_aligned(Data, static_cast<size_t>(Alignment)));
+
 			{
 				SCOPED_ACTION(std::scoped_lock)(Checker);
 				Checker.register_block(Block);
 				poison_block(Block);
 			}
-
-			const auto Data = Block->data();
-			assert(is_aligned(Data, static_cast<size_t>(Alignment)));
 
 			return Data;
 		}

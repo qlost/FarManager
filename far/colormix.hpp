@@ -54,9 +54,9 @@ namespace colors
 	{
 		constexpr inline uint8_t
 			nt_mask = 0xf,
-			nt_last = 15,
-			nt_size = nt_last + 1,
-			cube_first = nt_last + 1,
+			nt_size = 16,
+			nt_last = nt_size - 1,
+			cube_first = nt_size,
 			cube_size = 6,
 			cube_count = cube_size * cube_size * cube_size,
 			cube_last = cube_first + cube_count - 1,
@@ -120,8 +120,8 @@ namespace colors
 
 	FarColor merge(FarColor Bottom, FarColor Top);
 
-	using nt_palette_t = std::array<COLORREF, index::nt_size>;
-	nt_palette_t const& nt_palette();
+	using palette_t = std::array<COLORREF, 256>;
+	palette_t const& default_palette();
 
 	// TODO: Rename these uniformly
 	WORD FarColorToConsoleColor(const FarColor& Color);
@@ -144,9 +144,9 @@ namespace colors
 			g(G),
 			b(B)
 		{
-			assert(R < 6);
-			assert(G < 6);
-			assert(B < 6);
+			assert(R < index::cube_size);
+			assert(G < index::cube_size);
+			assert(B < index::cube_size);
 		}
 
 		explicit(false) constexpr rgb6(uint8_t const Color) noexcept:
