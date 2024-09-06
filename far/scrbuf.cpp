@@ -256,6 +256,9 @@ static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccess
 	if (!Is256ColorAvailable)
 		return false;
 
+	// This is ultimately dead code in the current ecosystem:
+	// Windows added support for 256 and TrueColor at the same time, so it's either everything or nothing.
+	// But just in case.
 	if (Index <= cube_last)
 	{
 		const auto CubeIndex = Index - cube_first;
@@ -284,16 +287,8 @@ static void apply_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, co
 	Color = colors::merge(Color, TrueShadow);
 }
 
-void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
+static void bake_shadows(matrix<FAR_CHAR_INFO>& Buffer, std::span<rectangle const> const WriteRegions)
 {
-	if (!is_visible(Where))
-		return;
-
-	SCOPED_ACTION(std::scoped_lock)(CS);
-
-	fix_coordinates(Where);
-
-	const auto CharWidthEnabled = char_width::is_enabled();
 	const auto IsTrueColorAvailable = console.IsVtActive() || console.ExternalRendererLoaded();
 	const auto Is256ColorAvailable = IsTrueColorAvailable;
 
@@ -303,73 +298,45 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 		TrueShadowBack{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x80'000000 }, { 0x00'000000 } },
 		TrueShadowUndl{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x00'000000 }, { 0x80'000000 } };
 
+	for (const auto& i: WriteRegions)
+	{
+		for_submatrix(Buffer, i, [&](FAR_CHAR_INFO& Cell)
+		{
+			if (IsTrueColorAvailable)
+			{
+				if (Cell.Reserved0 != 1)
+					return;
+
+				// We have TrueColor, so just fill whatever is there with half-transparent black.
+				Cell.Attributes = colors::merge(Cell.Attributes, TrueShadowFull);
+			}
+			else
+			{
+				if (Cell.Reserved0 != 1)
+					return;
+
+				apply_shadow(Cell.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
+				apply_shadow(Cell.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
+				apply_shadow(Cell.Attributes, &FarColor::UnderlineColor, FCF_FG_UNDERLINE_INDEX, TrueShadowUndl, Is256ColorAvailable);
+			}
+		});
+	}
+}
+
+void ScreenBuf::ApplyShadow(rectangle Where)
+{
+	if (!is_visible(Where))
+		return;
+
+	SCOPED_ACTION(std::scoped_lock)(CS);
+
+	fix_coordinates(Where);
+
+	const auto CharWidthEnabled = char_width::is_enabled();
+
 	for_submatrix(Buf, Where, [&](FAR_CHAR_INFO& Element, point const Point)
 	{
-		if (IsLegacy)
-		{
-			// This piece is for usage with repeated Message() calls.
-			// It generates a stable shadow that does not fade to black when reapplied over and over.
-			// We really, really should ditch the Message pattern.
-			Element.Attributes.IsBgIndex()?
-				colors::set_index_value(Element.Attributes.BackgroundColor, F_BLACK) :
-				colors::set_color_value(Element.Attributes.BackgroundColor, 0);
-
-			const auto apply_shadow = [](COLORREF& ColorRef, bool const IsIndex)
-			{
-				if (IsIndex)
-				{
-					auto Color = colors::index_value(ColorRef);
-
-					if (Color <= colors::index::nt_last)
-					{
-						if (Color == F_LIGHTGRAY)
-							Color = F_DARKGRAY;
-						else if (const auto Mask = FOREGROUND_INTENSITY; Color != Mask)
-							Color &= ~Mask;
-					}
-					else if (Color <= colors::index::cube_last)
-					{
-						colors::rgb6 rgb(Color);
-
-						rgb.r = std::min<uint8_t>(rgb.r, 2);
-						rgb.g = std::min<uint8_t>(rgb.g, 2);
-						rgb.b = std::min<uint8_t>(rgb.b, 2);
-
-						Color = rgb;
-					}
-					else
-					{
-						Color = std::min<uint8_t>(Color, colors::index::grey_first + colors::index::grey_count / 2);
-					}
-
-					colors::set_index_value(ColorRef, Color);
-				}
-				else
-				{
-					const auto Mask = 0x808080;
-					auto Color = colors::color_value(ColorRef);
-
-					if (Color != Mask)
-						Color &= ~Mask;
-
-					colors::set_color_value(ColorRef, Color);
-				}
-			};
-
-			apply_shadow(Element.Attributes.ForegroundColor, Element.Attributes.IsFgIndex());
-			apply_shadow(Element.Attributes.UnderlineColor, Element.Attributes.IsUnderlineIndex());
-		}
-		else if (IsTrueColorAvailable)
-		{
-			// We have TrueColor, so just fill whatever is there with half-transparent black.
-			Element.Attributes = colors::merge(Element.Attributes, TrueShadowFull);
-		}
-		else
-		{
-			apply_shadow(Element.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
-			apply_shadow(Element.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
-			apply_shadow(Element.Attributes, &FarColor::UnderlineColor, FCF_FG_UNDERLINE_INDEX, TrueShadowUndl, Is256ColorAvailable);
-		}
+		Element.Reserved0 = 1;
 
 		if (CharWidthEnabled)
 			invalidate_broken_pairs_in_cache(Buf, Shadow, Where, Point);
@@ -558,7 +525,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 		if (!SBFlags.Check(SBFLAGS_FLUSHED))
 		{
 			std::vector<rectangle> WriteList;
-			bool Changes=false;
 
 			if (m_ClearTypeFix == BSTATE_CHECKED)
 			{
@@ -584,7 +550,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 					if (WriteRegion.bottom >= WriteRegion.top)
 					{
 						WriteList.emplace_back(WriteRegion);
-						Changes=true;
 					}
 				}
 			}
@@ -606,7 +571,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 							WriteRegion.top = std::min(WriteRegion.top, static_cast<int>(I));
 							WriteRegion.right = std::max(WriteRegion.right, static_cast<int>(J));
 							WriteRegion.bottom = std::max(WriteRegion.bottom, static_cast<int>(I));
-							Changes=true;
 							Started=true;
 						}
 						else if (Started && static_cast<int>(I) > WriteRegion.bottom && static_cast<int>(J) >= WriteRegion.left)
@@ -669,26 +633,35 @@ void ScreenBuf::Flush(flush_type FlushType)
 				}
 			}
 
-			if (Changes)
+			if (!WriteList.empty())
 			{
 				if (IsConsoleViewportSizeChanged())
 				{
 					// We must draw something, but canvas has been changed, drawing on it will make things only worse
-					Changes = false;
+					WriteList.clear();
 					GenerateWINDOW_BUFFER_SIZE_EVENT();
 				}
 			}
 
-			if (Changes)
+			if (!WriteList.empty())
 			{
-				// WriteOutput can make changes to the buffer to patch DBSC collisions,
-				// which means that the screen output will effectively be different from Shadow
-				// and certain areas won't be updated properly.
-				// To address this, we allow it to write into the buffer and pass Shadow instead:
-
 				Shadow = Buf;
 
-				console.WriteOutputGather(Shadow, WriteList);
+				// TODO
+				// Legalize shadows as a FarColor flag and move this to console layer?
+				bake_shadows(Buf, WriteList);
+
+				console.WriteOutputGather(Buf, WriteList);
+
+				// TODO
+				// WriteOutput can make changes to the buffer to patch DBSC collisions,
+				// which means that the screen output will effectively be different from Shadow
+				// and certain areas won't be updated properly in certain corner cases.
+
+				// No easy way to fix it without falling into a flickering loop of constant redraw,
+				// so just ignore and revert for now.
+				Buf = Shadow;
+
 				console.Commit();
 			}
 
