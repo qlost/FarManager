@@ -468,7 +468,7 @@ static string_view ProcessMetasymbol(string_view const CurStr, subst_data& Subst
 					[&](os::fs::find_data const& i)
 					{
 						const auto Data = std::invoke(Selector, i);
-						return Quote? quote(Data) : quote_space(Data);
+						return Quote? quote(Data) : Data;
 					})
 			)
 		);
