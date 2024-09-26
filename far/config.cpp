@@ -2481,7 +2481,7 @@ void Options::Save(bool Manual)
 	filters::Save(Manual);
 	SavePanelModes(Manual);
 	SaveSortLayers(Manual);
-	Global->CtrlObject->Macro.SaveMacros(Manual);
+	Global->CtrlObject->Macro.SaveMacros();
 }
 
 enum
