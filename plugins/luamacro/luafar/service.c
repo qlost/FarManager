@@ -33,6 +33,7 @@ extern int luaopen_unicode(lua_State *L);
 extern int luaopen_utf8(lua_State *L);
 extern int luaopen_upackage(lua_State *L);
 extern int luaopen_win(lua_State *L);
+extern int luaopen_lpeg(lua_State *L);
 
 extern int  luaB_dofileW(lua_State *L);
 extern int  luaB_loadfileW(lua_State *L);
@@ -2697,6 +2698,16 @@ static int far_GetPluginDirList(lua_State *L)
 		}
 	}
 	lua_pushnil(L);
+	return 1;
+}
+
+static int SavedScreen_tostring (lua_State *L)
+{
+	void **pp = (void**)luaL_checkudata(L, 1, SavedScreenType);
+	if (*pp)
+		lua_pushfstring(L, "%s (%p)", SavedScreenType, *pp);
+	else
+		lua_pushfstring(L, "%s (freed)", SavedScreenType);
 	return 1;
 }
 
@@ -6695,6 +6706,8 @@ static int luaopen_far(lua_State *L)
 	luaL_newmetatable(L, SavedScreenType);
 	lua_pushcfunction(L, far_FreeScreen);
 	lua_setfield(L, -2, "__gc");
+	lua_pushcfunction(L, SavedScreen_tostring);
+	lua_setfield(L, -2, "__tostring");
 
 	return 0;
 }
@@ -6743,6 +6756,7 @@ static const luaL_Reg lualibs[] =
 	{"unicode",       luaopen_unicode},
 	{"utf8",          luaopen_utf8},
 	{"win",           luaopen_win},
+	{"lpeg",          luaopen_lpeg},
 	{NULL, NULL}
 };
 
@@ -6833,6 +6847,7 @@ static const luaL_Reg lualibs_extra[] =
 	{"unicode",       luaopen_unicode},
 	{"utf8",          luaopen_utf8},
 	{"win",           luaopen_win},
+	{"lpeg",          luaopen_lpeg},
 	{NULL, NULL}
 };
 
