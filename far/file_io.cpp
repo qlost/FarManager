@@ -91,7 +91,7 @@ void save_file_with_replace(string_view const FileName, os::fs::attributes const
 		// ReplaceFileW handles DAC, but just in case if it can't for whatever reason (see M#3730):
 		SecurityDescriptor = os::fs::get_file_security(FileName, DACL_SECURITY_INFORMATION);
 		if (SecurityDescriptor)
-			SecurityAttributes.lpSecurityDescriptor = SecurityDescriptor.data();
+			SecurityAttributes.lpSecurityDescriptor = SecurityDescriptor.get();
 	}
 
 	{
@@ -146,9 +146,14 @@ void save_file_with_replace(string_view const FileName, os::fs::attributes const
 			throw far_exception(L"Can't replace the file"sv);
 	}
 
-	// No error checking - non-critical
-	if (!os::fs::set_file_attributes(FileName, NewAttributes))
+	// OS inherits certain attributes from the parent directory, we need to preserve them
+	if (const auto ActualAttributes = os::fs::get_file_attributes(FileName); ActualAttributes != INVALID_FILE_ATTRIBUTES)
 	{
-		LOGWARNING(L"set_file_attributes({}): {}"sv, FileName, os::last_error());
+		// Set explicitly only if needed
+		if (!flags::check_all(ActualAttributes, NewAttributes))
+		{
+			if (!os::fs::set_file_attributes(FileName, ActualAttributes | NewAttributes))
+				LOGWARNING(L"set_file_attributes({}): {}"sv, FileName, os::last_error());
+		}
 	}
 }

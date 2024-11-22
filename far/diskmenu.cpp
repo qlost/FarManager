@@ -195,7 +195,7 @@ static void AddPluginItems(VMenu2 &ChDisk, int Pos, int DiskCount, bool SetSelec
 #endif // NO_WRAPPER
 					LIF_NONE;
 
-				MenuInitItems.push_back({ std::move(strPluginText), Flags, HotKey, { pPlugin, Uuid } });
+				MenuInitItems.emplace_back(std::move(strPluginText), Flags, HotKey, plugin_item{ pPlugin, Uuid });
 			}
 		}
 	}
@@ -1391,6 +1391,8 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 		{
 			const auto IsActive = Owner->IsFocused();
 			const auto NewPanel = Owner->Parent()->ChangePanel(Owner, panel_type::FILE_PANEL, TRUE, FALSE);
+			// BUGBUG gh-674 make sure to recreate FS watcher
+			// SetCurDir below should do that
 			NewPanel->SetCurDir(strNewCurDir, true);
 			NewPanel->Show();
 
