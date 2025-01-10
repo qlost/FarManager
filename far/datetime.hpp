@@ -55,16 +55,13 @@ constexpr inline struct
 	operator uint16_t() const { return static_cast<uint16_t>(time_none); }
 	operator uint32_t() const { return time_none; }
 
+	bool operator==(auto const Component) const { return Component == static_cast<decltype(Component)>(time_none); }
+
 private:
 	enum { time_none = std::numeric_limits<time_component>::max() };
 
 }
 time_none;
-
-constexpr bool is_time_none(auto const Component)
-{
-	return Component == static_cast<decltype(Component)>(time_none);
-}
 
 os::chrono::time parse_time(string_view Date, string_view Time, int DateFormat);
 os::chrono::time_point ParseTimePoint(string_view Date, string_view Time, int DateFormat);
@@ -80,7 +77,7 @@ FullYear:
    Windows supports years 1601 through 30827.
 */
 // (date, time)
-std::tuple<string, string> time_point_to_string(os::chrono::time_point Point, int TimeLength, int FullYear, bool Brief = false, bool TextMonth = false);
+std::tuple<string, string> time_point_to_string(os::chrono::time_point Point, int TimeLength, int FullYear, bool Brief = false, bool TextMonth = false, os::chrono::time_point CurrentTime = {});
 
 // (days, time)
 std::tuple<string, string> duration_to_string(os::chrono::duration Duration);

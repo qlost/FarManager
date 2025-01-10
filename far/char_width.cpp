@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 #include "console.hpp"
 #include "locale.hpp"
+#include "log.hpp"
 
 // Platform:
 
@@ -421,8 +422,8 @@ namespace
 		static std::unordered_map<char_width::codepoint, codepoint_width> SlowCache;
 
 		// The static array above is 0-initialized by default, so we need to adjust accordingly
-		auto to_raw = [](codepoint_width const Width){ return static_cast<uint8_t>(std::to_underlying(Width) + 1); };
-		auto from_raw = [](uint8_t const Width){ return static_cast<codepoint_width>(Width - 1); };
+		const auto to_raw = [](codepoint_width const Width){ return static_cast<uint8_t>(std::to_underlying(Width) + 1); };
+		const auto from_raw = [](uint8_t const Width){ return static_cast<codepoint_width>(Width - 1); };
 
 		if (ClearCacheOnly)
 		{
@@ -551,5 +552,23 @@ namespace char_width
 		// Mathematical Bold Fraktur Small A, U+1D586, half-width
 		static const auto Result = console.GetWidthPreciseExpensive(U'𝖆');
 		return Result > 1;
+	}
+
+	bool is_grapheme_clusters_on()
+	{
+		static const auto Result = []
+		{
+			if (const auto IsOn = console.is_grapheme_clusters_on(); IsOn)
+			{
+				LOGDEBUG(L"Grapheme clusters (VT): {}"sv, *IsOn);
+				return *IsOn;
+			}
+
+			const auto IsOn = console.GetWidthPreciseExpensive(L"à"sv) == 1;
+			LOGDEBUG(L"Grapheme clusters (heuristics): {}"sv, IsOn);
+			return IsOn;
+		}();
+
+		return Result;
 	}
 }
