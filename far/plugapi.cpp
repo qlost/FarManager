@@ -168,7 +168,7 @@ auto cpp_try(callable_type const& Callable, source_location const& Location = so
 {
 	using return_type = typename function_traits<callable_type>::result_type;
 
-	const auto& handle_exception = [&] /*[[noreturn]]*/ (const auto& Handler, auto&&... Args)
+	const auto handle_exception = [&] /*[[noreturn]]*/ (const auto& Handler, auto&&... Args)
 	{
 		if (Handler(FWD(Args)..., nullptr, Location))
 			if (use_terminate_handler())
@@ -1224,7 +1224,6 @@ intptr_t WINAPI apiMessageFn(const UUID* PluginId, const UUID* Id, unsigned long
 
 		const DWORD InternalFlags =
 			((Flags & FMSG_WARNING)? MSG_WARNING : 0) |
-			((Flags & FMSG_KEEPBACKGROUND)? MSG_KEEPBACKGROUND : 0) |
 			((Flags & FMSG_LEFTALIGN)? MSG_LEFTALIGN : 0);
 
 		return static_cast<intptr_t>(Message(
