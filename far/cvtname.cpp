@@ -100,7 +100,7 @@ static void MixToFullPath(string& strPath)
 			if (Pos + 2 == strPath.size() || path::is_separator(strPath[Pos + 2]))
 			{
 				//Calculate subdir name offset
-				size_t n = strPath.find_last_of(L"\\/"sv, Pos-2);
+				size_t n = strPath.find_last_of(path::separators, Pos-2);
 				n = (n == string::npos || n < DirOffset) ? DirOffset : n+1;
 
 				//fragment "..\" or "../"
@@ -185,7 +185,6 @@ static void MixToFullPath(const string_view stPath, string& Dest, const string_v
 	case root_type::win32nt_drive_letter: //"\\?\whatever"
 	case root_type::unc_remote:
 	case root_type::volume:
-	case root_type::pipe:
 	case root_type::unknown_rootlike:
 		blIgnore=true;
 		PathOffset = 0;
@@ -235,7 +234,7 @@ std::optional<wchar_t> get_volume_drive(string_view const VolumePath)
 	string VolumeName;
 	const os::fs::enum_drives Enumerator(os::fs::get_logical_drives());
 
-	const auto ItemIterator = std::find_if(ALL_CONST_RANGE(Enumerator), [&](const wchar_t i)
+	const auto ItemIterator = std::ranges::find_if(Enumerator, [&](const wchar_t i)
 	{
 		return os::fs::GetVolumeNameForVolumeMountPoint(os::fs::drive::get_win32nt_root_directory(i), VolumeName) && equal_icase(VolumeName, SrcVolumeName);
 	});
@@ -333,7 +332,7 @@ static string ConvertName(string_view const Object, bool(*Mutator)(string_view, 
 
 	strDest = Object;
 
-	if (HasPathPrefix(Object) || !Mutator(NTPath(Object), strDest))
+	if (HasPathPrefix(Object) || !Mutator(nt_path(Object), strDest))
 		return string(Object);
 
 	switch (ParsePath(strDest))
@@ -415,7 +414,7 @@ void PrepareDiskPath(string &strPath, bool CheckFullPath)
 	// elevation not required during cosmetic operation
 	SCOPED_ACTION(elevation::suppress);
 
-	ReplaceSlashToBackslash(strPath);
+	path::inplace::normalize_separators(strPath);
 	const auto DoubleSlash = strPath[1] == L'\\';
 	remove_duplicates(strPath, L'\\');
 	if(DoubleSlash)

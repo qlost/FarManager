@@ -68,11 +68,12 @@ namespace detail
 	class locale
 	{
 	public:
-		locale() = default;
+		explicit locale(bool Invariant = false);
 
+		bool is_invariant() const;
 		bool is_cjk() const;
 		date_type date_format() const;
-		int digits_grouping() const;
+		unsigned digits_grouping() const;
 		wchar_t date_separator() const;
 		wchar_t time_separator() const;
 		wchar_t decimal_separator() const;
@@ -85,9 +86,10 @@ namespace detail
 	private:
 		void refresh() const;
 
+		bool m_IsInvariant;
 		mutable bool m_IsCJK{};
 		mutable date_type m_DateFormat{ date_type::mdy };
-		mutable int m_DigitsGrouping{};
+		mutable unsigned m_DigitsGrouping{};
 		mutable wchar_t m_DateSeparator{};
 		mutable wchar_t m_TimeSeparator{};
 		mutable wchar_t m_DecimalSeparator{};
@@ -100,5 +102,7 @@ namespace detail
 }
 
 NIFTY_DECLARE(detail::locale, locale);
+
+detail::locale const& invariant_locale();
 
 #endif // LOCALE_HPP_C358EF79_F894_425E_B689_C4F4131DBE76

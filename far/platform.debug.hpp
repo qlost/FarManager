@@ -39,7 +39,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/function_ref.hpp"
-#include "common/range.hpp"
 
 // External:
 
@@ -49,8 +48,11 @@ class map_file;
 
 namespace os::debug
 {
-	bool debugger_present();
-	void breakpoint(bool Always = true);
+	// TODO: std
+	bool is_debugger_present();
+	void breakpoint();
+	void breakpoint_if_debugging();
+
 	void print(const wchar_t* Str);
 	void print(string const& Str);
 	void set_thread_name(const wchar_t* Name);
@@ -66,7 +68,7 @@ namespace os::debug
 	constexpr NTSTATUS EH_EXCEPTION_NUMBER = 0xE06D7363; // 'msc'
 
 	EXCEPTION_POINTERS exception_information();
-	EXCEPTION_POINTERS fake_exception_information(unsigned Code);
+	EXCEPTION_POINTERS fake_exception_information(unsigned Code, bool Continuable = false);
 
 	// Symbols should be initialized before calling these.
 	// Use tracer.*, they do exactly that.
@@ -82,6 +84,7 @@ namespace os::debug
 		{
 			string_view Name;
 			size_t Displacement{};
+			bool IsFake{};
 		};
 
 		struct location
@@ -96,10 +99,9 @@ namespace os::debug
 		void clean();
 
 		void get(
-			string_view ModuleName,
-			span<stack_frame const> BackTrace,
+			std::span<stack_frame const> BackTrace,
 			std::unordered_map<uintptr_t, map_file>& MapFiles,
-			function_ref<void(uintptr_t, string_view, bool, symbol, location)> Consumer
+			function_ref<void(uintptr_t, uintptr_t, string_view, bool, symbol, location)> Consumer
 		);
 	}
 

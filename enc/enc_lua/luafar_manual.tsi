@@ -348,1028 +348,6 @@ mtime=3624033776
 </article>
 </node>
 <node>
-id=149
-lv=0
-dt=Text
-nm=What's new in this version
-mtime=3541947364
-<article>
-#_<markdown>
-#_
-</article>
-</node>
-<node>
-id=400
-lv=1
-dt=Text
-nm=Version 2.8.0
-ctime=3505938627
-mtime=3505938647
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.GetDriveType`](398.html)
-#_1. [`far.GetLogicalDriveStrings`](397.html)
-#_
-#_###Extended functions
-#_1. [`far.AdvControl`](153.html): `ACTL_KEYMACRO`: field `AKey` added
-#_1. [`far.GetPluginInfo`](105.html): field `SysId` added.
-#_1. [`far.OpenPlugin`](109.html): handles `OPEN_FROMMACRO`
-#_1. [`far.PluginsControl`](334.html): `PCTL_FORCEDLOADPLUGIN` added.
-#_1. [`far.SendDlgMessage`](71.html): (a) `DM_LISTGETDATA` fixed,
-#_   (b) `DM_LISTSETDATA` implemented.
-#_
-#_###Bug fixes
-#_1. [`far.DialogRun`](379.html): errors in the dialog procedure
-#_   were ignored (did not prevent the script from normal run flow).
-#_1. [`far.SetRegKey`](73.html): data corruption with
-#_   `(DataType=="string")`.
-#_
-#_@@@
-#_{dm_listgetdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetdata.html
-#_{dm_listsetdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsetdata.html
-#_{open_frommacro}: http://api.farmanager.com/ru/structures/openinfo.html#OPEN_FROMMACRO
-#_{pctl_forcedloadplugin}: http://api.farmanager.com/ru/service_functions/pluginscontrol.html#PCTL_FORCEDLOADPLUGIN
-#_
-</article>
-</node>
-<node>
-id=396
-lv=1
-dt=Text
-nm=Version 2.7.0
-ctime=3504008153
-mtime=3612528603
-<article>
-#_<markdown>
-#_
-#_* The first LuaFAR version that compiles for both 32
-#_  and 64-bit DLLs.
-#_* Generic plugin [customization](494.html):
-#_  added a new parameter `ENV_PREFIX`.
-#_* Source code: all C++ files were rewritten in C.
-#_
-#_###Added functions
-#_1. [`far.CtrlSetCaseSensitiveSort`](395.html)
-#_1. [`far.EnumSystemCodePages`](394.html)
-#_1. [`far.GetACP`](391.html)
-#_1. [`far.GetCPInfo`](393.html)
-#_1. [`far.GetOEMCP`](392.html)
-#_
-#_###Extended functions
-#_1. [`far.SendDlgMessage`](71.html): `DM_GETCONSTTEXTPTR` added.
-#_1. [`far.MultiByteToWideChar`](370.html): *flags* parameter added.
-#_1. [`LF_RunDefaultScript`](130.html): plugin DLL's name can have a suffix that is ignored in searching the default script.
-#_
-#_###Modified functions
-#_1. Implementation of [`far.OemToUtf8`](256.html) and [`far.Utf8ToOem`](257.html) changed.
-#_
-#_###Bug fixes
-#_1. Fixes related to 64-bit compilation.
-#_
-#_@@@
-#_{dm_getconsttextptr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getconsttextptr.html
-#_
-</article>
-</node>
-<node>
-id=387
-lv=1
-dt=Text
-nm=Version 2.6.0
-ctime=3499339019
-mtime=3612528784
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`regex:gsub`](386.html)
-#_1. [`LF_InitLuaState`](385.html)
-#_1. [`luaopen_luaplug`](496.html)
-#_
-#_###Modified functions
-#_1. [`far.Editor`](21.html) -- default values for `StartLine`, `StartChar` made `-1` (was: `0`).
-#_1. [`far.GetPluginInfo`](105.html) -- field `DiskMenuNumbers` removed from the returned table, as it does not exist in Far builds `>= 2.0.1692`.
-#_
-#_
-</article>
-</node>
-<node>
-id=383
-lv=1
-dt=Text
-nm=Version 2.5.0
-ctime=3492942340
-mtime=3498897310
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.CtrlGetPanelFormat`](381.html)
-#_1. [`far.CtrlGetPanelHostFile`](382.html)
-#_1. [`far.DialogInit`](378.html)
-#_1. [`far.DialogRun`](379.html)
-#_1. [`far.DialogFree`](380.html)
-#_1. [`regex:bracketscount`](377.html)
-#_
-#_###Extended functions
-#_1. [`far.AdvControl`](153.html) -- added `ACTL_PROGRESSNOTIFY`.
-#_
-#_###Modified functions
-#_1. All [reqular expression functions](273.html) renamed to lower case.
-#_1. [`far.gsub`](270.html) - "invalid capture number" error in the
-#_   replace pattern is detected before entering the search/replace loop.
-#_1. [`LF_RunDefaultScript`](130.html) - better error handling.
-#_
-#_###Bug fixes
-#_1. [`far.gsub`](270.html) - fix crash (poorly handled `%` at the end
-#_   of the replace string).
-#_1. [`far.GetDlgItem`](54.html), [`far.SendDlgMessage`](71.html)
-#_   (`DM_GETDLGITEM`) - fix crash with invalid item number.
-#_
-#_###Misc
-#_1. `LF_GetMinFarVersionW` function is removed.
-#_2. New setting `MINFARVERSION` in the [generic plugin's](214.html)
-#_   makefile.
-#_
-#_@@@
-#_{actl_progressnotify}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_PROGRESSNOTIFY
-#_{dm_getdlgitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdlgitem.html
-#_
-</article>
-</node>
-<node>
-id=375
-lv=1
-dt=Text
-nm=Version 2.4.0
-ctime=3489519174
-mtime=3489519189
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.MultiByteToWideChar`](370.html)
-#_1. [`far.CreateDir`](372.html) (works with UTF-8 names)
-#_1. [`far.RemoveDir`](373.html) (works with UTF-8 names)
-#_
-#_###Extended functions
-#_1. [`far.EditorSetParam`](140.html) - 2-nd parameter can be boolean.
-#_
-#_###Modified functions
-#_1. [`far.ViewerSetPosition`](142.html) - actual value of `StartPos`
-#_   is returned (number; was: boolean).
-#_
-#_###Bug fixes
-#_1. [`far.EditorSetParam`](140.html) - `ESPT_GETWORDDIV` did not work.
-#_1. [`far.AdvControl`](153.html) - `ACTL_GETSYSWORDDIV` did not work.
-#_
-#_###Misc
-#_1. Version information is embedded into the DLL (`.rc` file added).
-#_
-#_@@@
-#_{espt_getworddiv}: http://api.farmanager.com/ru/structures/editorsetparameter.html#ESPT_GETWORDDIV
-#_
-</article>
-</node>
-<node>
-id=369
-lv=1
-dt=Text
-nm=Version 2.3.0
-ctime=3487755221
-mtime=3487755239
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.GetConsoleScreenBufferInfo`](359.html)
-#_1. [`far.Timer`](346.html)
-#_1. [`far.GetCustomData`](364.html) (experimental)
-#_1. [`far.CopyFile`](360.html) (works with UTF-8 names)
-#_1. [`far.DeleteFile`](361.html) (works with UTF-8 names)
-#_1. [`far.MoveFile`](362.html) (works with UTF-8 names)
-#_1. [`far.RenameFile`](363.html) (works with UTF-8 names)
-#_
-#_###Extended functions
-#_1. [`far.Message`](65.html) - standard button combinations supported.
-#_1. [`far.AdvControl`](153.html) - added `ACTL_GETFARRECT`,
-#_   `ACTL_GETCURSORPOS`, `ACTL_SETCURSORPOS`.
-#_
-#_###Modified functions
-#_1. [`far.Editor`](21.html) - autodetect code page if not specified.
-#_1. [`far.Viewer`](77.html) - autodetect code page if not specified.
-#_1. [`far.EditorGetSelection`](30.html) - API (table fields) changed.
-#_
-#_###Bug fixes
-#_1. [`far.EditorGetString`](31.html) - work with strings containing
-#_   nuls.
-#_1. [`far.Gsub`](270.html) - fix crash (a missing `lua_pop` call).
-#_1. [`far.Gsub`](270.html) - fix ignoring errors in replace function.
-#_1. [`far.Message`](65.html) - fix to work with Far 2.0 builds 1564+.
-#_1. [`far.SendDlgMessage`](71.html) (`DM_LISTGETCURPOS`) - returned
-#_   `nil` when `SendDlgMessage` returned `0`.
-#_1. [`far.ViewerSetPosition`](142.html) - fix case with extra
-#_   arguments.
-#_
-#_@@@
-#_{actl_getcursorpos}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETCURSORPOS
-#_{actl_getfarrect}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETFARRECT
-#_{actl_setcursorpos}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETCURSORPOS
-#_{dm_listgetcurpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetcurpos.html
-#_{senddlgmessage}: http://api.farmanager.com/ru/service_functions/senddlgmessage.html
-#_
-</article>
-</node>
-<node>
-id=345
-lv=1
-dt=Text
-nm=Version 2.2.0
-ctime=3482049351
-mtime=3482049368
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.CtrlClearSelection`](330.html)
-#_1. [`far.CtrlGetCmdLineSelection`](331.html)
-#_1. [`far.CtrlIsActivePanel`](320.html)
-#_1. [`far.CtrlSetCmdLineSelection`](332.html)
-#_1. [`far.LoadFile`](338.html)
-#_1. [`far.LoadLib`](342.html)
-#_1. [`far.PluginsControl`](334.html)
-#_1. [`far.ProcessSynchroEvent`](319.html)
-#_1. [`far.Require`](343.html)
-#_1. [`far.XLat`](335.html)
-#_1. [File Filter Control](322.html) - a function and 4 methods
-#_1. [`uio`](344.html) library
-#_
-#_###Extended functions
-#_1. [`far.AdvControl`](153.html) - `ACTL_KEYMACRO` -
-#_   added support for `MCMD_CHECKMACRO`
-#_1. [`far.AdvControl`](153.html) - `ACTL_SYNCHRO` added
-#_1. [`far.OpenFilePlugin`](108.html) - return value `-2`
-#_   is passed on to Far unchanged (see Far API)
-#_1. [`far.OpenPlugin`](109.html) - return value `0` is passed
-#_   on to Far unchanged (see Far API)
-#_1. [`far.ProcessDialogEvent`](221.html) - second return added
-#_1. [`far.SendDlgMessage`](71.html) - `DM_GETDIALOGINFO` added
-#_
-#_###Modified functions
-#_1. [`far.CtrlGetCmdLinePos`](6.html) - position made 1-based
-#_1. [`far.CtrlSetCmdLinePos`](12.html) - position made 1-based
-#_1. [`far.EditorSetTitle](45.html) - `nil` argument is allowed
-#_1. [`far.ProcessKey`](114.html) - API changed: made closer to Far API
-#_1. [`far.SendDlgMessage`](71.html): changed return values for
-#_   `DM_RESIZEDIALOG` and `DM_MOVEDIALOG`.
-#_1. [`LF_LuaOpen`](129.html) - API changed: type of the 3-rd parameter
-#_1. [Regular expression](273.html) functions: the optimisation stage
-#_   is skipped now, as it is too slow.
-#_
-#_@@@
-#_{actl_synchro}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SYNCHRO
-#_{dm_getdialoginfo}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdialoginfo.html
-#_{dm_movedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_movedialog.html
-#_{dm_resizedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_resizedialog.html
-#_
-</article>
-</node>
-<node>
-id=317
-lv=1
-dt=Text
-nm=Version 2.1.0
-ctime=3478898780
-mtime=3478898797
-<article>
-#_<markdown>
-#_
-#_###Added functions
-#_1. [`far.ConvertPath`](284.html)
-#_1. [`far.EditorUndoRedo`](283.html)
-#_1. [`far.GetVirtualKeys`](315.html)
-#_1. [`far.MakeMenuItems`](280.html)
-#_1. [`far.Show`](282.html)
-#_
-#_###Extended functions
-#_1. [`far.AdvControl`](153.html) -- commands `ACTL_QUIT`,
-#_   `ACTL_SETPROGRESSSTATE` and `ACTL_SETPROGRESSVALUE` added.
-#_1. [`far.Dialog`](20.html) -- more conforming processing of the
-#_   following events:
-#_   [`DN_CTLCOLORDLGLIST`](286.html), [`DN_DRAWDLGITEM`](287.html),
-#_   [`DN_EDITCHANGE`](288.html), [`DN_GETDIALOGINFO`](305.html),
-#_   [`DN_HELP`](289.html), [`DN_MOUSECLICK`](290.html),
-#_   [`DN_MOUSEEVENT`](291.html), [`DN_RESIZECONSOLE`](292.html).
-#_1. [`far.Menu`](64.html) -- *checked* property of a menu item can
-#_   be a string (only its first character is used).
-#_
-#_###Modified functions
-#_1. [`LF_LuaOpen`](129.html)
-#_
-#_@@@
-#_{actl_quit}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_QUIT
-#_{actl_setprogressstate}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETPROGRESSSTATE
-#_{actl_setprogressvalue}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETPROGRESSVALUE
-#_
-</article>
-</node>
-<node>
-id=281
-lv=1
-dt=Text
-nm=Version 2.0.1
-ctime=3476605589
-mtime=3476605606
-<article>
-#_<markdown>
-#_
-#_1. **Selene Unicode** library: fixed a serious bug in the
-#_   function `gmatch`.
-#_
-</article>
-</node>
-<node>
-id=278
-lv=1
-dt=Text
-nm=Version 2.0.0
-ctime=3476017157
-mtime=3476017221
-<article>
-#_<markdown>
-#_
-#_This is the first release of the **Unicode LuaFAR** -
-#_intended for use by plugins working with Unicode Far (Far 2.0).
-#_
-</article>
-</node>
-<node>
-id=255
-lv=2
-dt=Text
-nm=What's new in Unicode version
-<article>
-#_<markdown>
-#_
-#_### Passing string arguments and returning string values
-#_
-#_The functions of the Unicode LuaFAR library assume string
-#_arguments and string return values to be in the **UTF-8**
-#_encoding. (There are a few exceptions from this rule, mostly
-#_when strings are used to exchange binary data).
-#_
-#_### Removed functions
-#_
-#_1. `far.ConvertNameToReal`
-#_1. `far.CtrlGetPanelShortInfo`
-#_1. `far.DetectCharTable`
-#_1. `far.EditorEditorToOEM`
-#_1. `far.EditorLower`
-#_1. `far.EditorOEMToEditor`
-#_1. `far.EditorStrCmp`
-#_1. `far.EditorStriCmp`
-#_1. `far.EditorUpper`
-#_1. `far.ExpandEnvironmentStr`
-#_1. `far.GetCharTable`
-#_
-#_### Changed structures and functions
-#_
-#_1. [`FindData`](90.html)
-#_1. [`PluginPanelItem`](85.html)
-#_1. [`ViewerInfo.CurMode`](133.html)
-#_1. [`far.AdvControl`](153.html)
-#_1. [`far.CtrlGetPanelInfo`](7.html)
-#_1. [`far.CtrlSetSelection`](14.html)
-#_1. [`far.CtrlSetSortOrder`](148.html)
-#_1. [`far.Editor`](21.html)
-#_1. [`far.EditorGetInfo`](29.html)
-#_1. [`far.OpenFilePlugin`](108.html)
-#_1. [`far.Viewer`](77.html)
-#_1. [`far.ViewerGetInfo`](132.html)
-#_1. [`LF_LuaOpen`](129.html)
-#_
-#_### Added functions
-#_
-#_1. [`far.CompareString`](274.html)
-#_1. [`far.CtrlGetColumnTypes`](258.html)
-#_1. [`far.CtrlGetColumnWidths`](259.html)
-#_1. [`far.CtrlGetCurrentPanelItem`](252.html)
-#_1. [`far.CtrlGetPanelDir`](260.html)
-#_1. [`far.CtrlGetPanelItem`](253.html)
-#_1. [`far.CtrlGetSelectedPanelItem`](254.html)
-#_1. [`far.EditorGetFileName`](261.html)
-#_1. [`far.Find`](271.html)
-#_1. [`far.GetCurrentDirectory`](262.html)
-#_1. [`far.Gmatch`](269.html)
-#_1. [`far.Gsub`](270.html)
-#_1. [`far.Match`](272.html)
-#_1. [`far.OemToUtf8`](256.html)
-#_1. [`far.Regex`](266.html)
-#_1. [`far.Utf8ToOem`](257.html)
-#_1. [`far.Utf16ToUtf8`](264.html)
-#_1. [`far.Utf8ToUtf16`](265.html)
-#_1. [`far.wcscmp`](275.html)
-#_
-</article>
-</node>
-<node>
-id=263
-lv=1
-dt=Text
-nm=Version 1.0.1
-<article>
-#_<markdown>
-#_
-#_* [`far.CtrlGetPanelInfo`](7.html) and
-#_  [`far.CtrlGetPanelShortInfo`](8.html): fields `ItemsNumber`
-#_  and `SelectedItemsNumber` added to the return table.
-#_* [`far.Menu`](64.html): fields `grayed` and `hidden` added to
-#_  menu item.
-#_* Several bug fixes.
-#_
-</article>
-</node>
-<node>
-id=248
-lv=1
-dt=Text
-nm=Version 1.0.0
-mtime=3601969207
-<article>
-#_<markdown>
-#_
-#_###Important:
-#_* This version of LuaFAR adds functions and constants from
-#_  FAR 1.75 API, that are not present in FAR 1.70 API.
-#_*  LuaFAR plugins that make no use of this API will work
-#_   fine under FAR 1.70. However, the library itself does no
-#_   verification of whether some feature is supported by the
-#_   running FAR version - it is the plugin's responsibility.
-#_
-#_###Changes:
-#_
-#_1. [Auxiliary files](154.html): *farkeys.lua* and
-#_   *farcolor.lua* updated to FAR 1.75 build 2614.
-#_1. [`far.AdvControl`](153.html): `ACTL_REDRAWALL` command
-#_   supported.
-#_1. [`far.CtrlGetUserScreen`](228.html): service function
-#_   added.
-#_1. [`far.EditorAddStackBookmark`](223.html): service
-#_   function added.
-#_1. [`far.EditorClearStackBookmarks`](224.html): service
-#_   function added.
-#_1. [`far.EditorDeleteStackBookmark`](225.html): service
-#_   function added.
-#_1. [`far.EditorGetStackBookmarks`](230.html): service
-#_   function added.
-#_1. [`far.EditorNextStackBookmark`](227.html): service
-#_   function added.
-#_1. [`far.EditorPrevStackBookmark`](226.html): service
-#_   function added.
-#_1. [`far.GetFlags`](57.html): added new flags, covering FAR
-#_   API up to FAR 1.75 build 2614.
-#_1. [`far.Message`](65.html)
-#_   * new flag '`o`' added.
-#_   * removed hard limit of message box sizes.
-#_1. [`far.OpenPlugin`](109.html): added support for opening
-#_   plugin from dialogs.
-#_1. [`far.ProcessDialogEvent`](221.html): exported function
-#_   added.
-#_1. [`far.ProcessEditorEvent`](110.html): `EE_GOTFOCUS` and
-#_   `EE_KILLFOCUS` commands supported.
-#_1. [`far.ProcessViewerEvent`](127.html): `VE_GOTFOCUS` and
-#_   `VE_KILLFOCUS` commands supported.
-#_1. [`far.SendDlgMessage`](71.html): `DM_GETCOMBOBOXEVENT`,
-#_   `DM_GETEDITPOSITION`, `DM_SETCOMBOBOXEVENT` and
-#_   `DM_SETEDITPOSITION` commands supported.
-#_1. [`far.ViewerSetMode`](229.html): service function added.
-#_1. [`far.AdvControl`](153.html) (`ACTL_GETFARVERSION`):
-#_   result can be obtained either as a string, or as 3 numbers.
-#_1. [`far.LuafarVersion`](191.html):
-#_   result can be obtained either as a string, or as 3 numbers.
-#_
-#_@@@
-#_{actl_redrawall}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_REDRAWALL
-#_{dm_getcomboboxevent}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcomboboxevent.html
-#_{dm_geteditposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_geteditposition.html
-#_{dm_setcomboboxevent}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setcomboboxevent.html
-#_{dm_seteditposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_seteditposition.html
-#_{ee_gotfocus}: http://api.farmanager.com/ru/structures/processeditoreventinfo.html#EE_GOTFOCUS
-#_{ee_killfocus}: http://api.farmanager.com/ru/structures/processeditoreventinfo.html#EE_KILLFOCUS
-#_{ve_gotfocus}: http://api.farmanager.com/ru/structures/processviewereventinfo.html#VE_GOTFOCUS
-#_{ve_killfocus}: http://api.farmanager.com/ru/structures/processviewereventinfo.html#VE_KILLFOCUS
-#_
-</article>
-</node>
-<node>
-id=231
-lv=1
-dt=Text
-nm=Version 0.9.0
-mtime=3601969228
-<article>
-#_<markdown>
-#_###Service Functions added:
-#_1. [`far.DefDlgProc`](219.html)
-#_
-#_###FAR Standard Functions added:
-#_
-#_1. [`far.ConvertNameToReal`](198.html)
-#_1. [`far.FarRecursiveSearch`](211.html)
-#_1. [`far.GetPathRoot`](199.html)
-#_1. [`far.GetReparsePointInfo`](200.html)
-#_1. [`far.LIsAlpha`](201.html)
-#_1. [`far.LIsAlphanum`](202.html)
-#_1. [`far.LIsLower`](203.html)
-#_1. [`far.LIsUpper`](204.html)
-#_1. [`far.LLowerBuf`](205.html)
-#_1. [`far.LUpperBuf`](206.html)
-#_1. [`far.MkLink`](208.html)
-#_1. [`far.MkTemp`](207.html)
-#_1. [`far.TruncPathStr`](209.html)
-#_1. [`far.TruncStr`](210.html)
-#_
-#_###Other functions added:
-#_
-#_1. [`far.FileTimeToSystemTime`](215.html)
-#_1. [`far.GetFileInfo`](213.html)
-#_1. [`far.GetSystemTime`](217.html)
-#_1. [`far.GetTimeZoneInformation`](212.html)
-#_1. [`far.SystemTimeToFileTime`](216.html)
-#_
-#_###Changes:
-#_
-#_1. [`FindData`](90.html) structure: some fields changed.
-#_1. [`PluginPanelItem`](85.html) structure: one field changed.
-#_1. [`far.Dialog`](20.html) function: changed meaning of `DlgProc`
-#_   return values.
-#_1. The [generic LuaFAR plugin](214.html) will export only functions
-#_   listed explicitly in the makefile.
-#_
-#_@@@
-#_{dlgproc}: http://api.farmanager.com/ru/defs/dlgproc.html
-#_
-</article>
-</node>
-<node>
-id=232
-lv=1
-dt=Text
-nm=Version 0.8.0
-mtime=3601969238
-<article>
-#_<markdown>
-#_The following new functions were added:
-#_
-#_1. [`far.FarInputRecordToKey`](186.html)
-#_1. [`far.LStricmp`](188.html)
-#_1. [`far.LStrnicmp`](189.html)
-#_1. [`far.LuafarVersion`](191.html)
-#_1. [`far.ProcessName`](190.html)
-#_1. [`far.SetEnv`](192.html)
-#_
-#_The following functions were enhanced:
-#_
-#_1. [`far.GetRegKey`](61.html), [`far.SetRegKey`](73.html):
-#_   added support of `REG_EXPAND_SZ` and `REG_MULTI_SZ` data types.
-#_
-#_
-</article>
-</node>
-<node>
-id=234
-lv=1
-dt=Text
-nm=Version 0.7.2
-mtime=3601969246
-<article>
-#_<markdown>
-#_1. [`far.CPluginStartupInfo`](185.html) - new function added
-#_
-#_
-</article>
-</node>
-<node>
-id=236
-lv=1
-dt=Text
-nm=Version 0.7
-mtime=3601969255
-<article>
-#_<markdown>
-#_1. [`far.SendDlgMessage`](71.html) - fixed and extended
-#_   (practically all message types are supported).
-#_
-#_2. [`far.Dialog`](20.html) - added support for the following
-#_   controls: `DI_LISTBOX` and `DI_COMBOBOX`
-#_
-#_@@@
-#_{di_combobox}: http://api.farmanager.com/ru/dialogapi/controls/di_combobox.html
-#_{di_listbox}: http://api.farmanager.com/ru/dialogapi/controls/di_listbox.html
-#_
-</article>
-</node>
-<node>
-id=237
-lv=1
-dt=Text
-nm=Version 0.6
-mtime=3601969261
-<article>
-#_<markdown>
-#_1. [`far.AdvControl](153.html) - added
-#_1. [`far.GetEnv`](152.html) - added
-#_1. [`far.ProcessEditorInput`](111.html) - extended
-#_1. [farcolor.lua](154.html) - module added
-#_1. [Lua BitOp](143.html) - library updated to version 1.0.1
-#_
-#_
-</article>
-</node>
-<node>
-id=238
-lv=1
-dt=Text
-nm=Version 0.5.1
-<article>
-#_<markdown>
-#_
-#_1. Added virtual keys that formerly were not available (keys with
-#_   punctuation marks).
-#_
-#_
-</article>
-</node>
-<node>
-id=239
-lv=1
-dt=Text
-nm=Version 0.5
-<article>
-#_<markdown>
-#_### What's added in LuaFAR 0.5:
-#_
-#_ 1.   [Lua BitOp library](143.html)
-#_ 1.   [`far.CtrlCheckPanelsExist`](145.html)
-#_ 1.   [`far.CtrlSetNumericSort`](146.html)
-#_ 1.   [`far.CtrlSetSortMode`](147.html)
-#_ 1.   [`far.CtrlSetSortOrder`](148.html)
-#_ 1.   [`far.EditorGetBookmarks`](136.html)
-#_ 1.   [`far.EditorProcessKey`](138.html)
-#_ 1.   [`far.EditorSetKeyBar`](139.html)
-#_ 1.   [`far.EditorSetParam`](140.html)
-#_ 1.   [`far.EditorTurnOffMarkingBlock`](137.html)
-#_ 1.   [`far.OnError`](150.html)
-#_ 1.   [`far.ViewerGetInfo`](132.html)
-#_ 1.   [`far.ViewerQuit`](134.html)
-#_ 1.   [`far.ViewerRedraw`](135.html)
-#_ 1.   [`far.ViewerSelect`](144.html)
-#_ 1.   [`far.ViewerSetKeyBar`](141.html)
-#_ 1.   [`far.ViewerSetPosition`](142.html)
-#_
-#_
-</article>
-</node>
-<node>
-id=119
-lv=0
-dt=Text
-nm=Incompatibilities with the Previous Version
-mtime=3509098722
-<article>
-#_<markdown>
-#_LuaFAR 3.0 is incompatible with versions 2.x in numerous aspects, due to the move from Far 2 API to Far 3 API.
-</article>
-</node>
-<node>
-id=388
-lv=1
-dt=Text
-nm=Version 2.6.0
-ctime=3499339086
-mtime=3499339103
-<article>
-#_<markdown>
-#_1. [`far.GetPluginInfo`](105.html) -- field `DiskMenuNumbers` removed from the returned table, as it does not exist in Far builds `>= 2.0.1692`.
-#_
-#_
-</article>
-</node>
-<node>
-id=384
-lv=1
-dt=Text
-nm=Version 2.5.0
-ctime=3492945419
-mtime=3498897344
-<article>
-#_<markdown>
-#_1. `far.Find` -- renamed to [`far.find`](271.html)
-#_1. `far.Gmatch` -- renamed to [`far.gmatch`](269.html)
-#_1. `far.Gsub` -- renamed to [`far.gsub`](270.html)
-#_1. `far.Match` -- renamed to [`far.match`](272.html)
-#_1. `far.Regex` -- renamed to [`far.regex`](266.html)
-#_1. `LF_GetMinFarVersionW` -- removed.
-#_
-</article>
-</node>
-<node>
-id=376
-lv=1
-dt=Text
-nm=Version 2.4.0
-ctime=3489519274
-mtime=3489519286
-<article>
-#_<markdown>
-#_
-#_1. [`far.ViewerSetPosition`](142.html) - real start position number
-#_   is returned (was: boolean).
-#_
-</article>
-</node>
-<node>
-id=371
-lv=1
-dt=Text
-nm=Version 2.3.0
-ctime=3487877655
-mtime=3487877668
-<article>
-#_<markdown>
-#_
-#_1. [`far.EditorGetSelection`](30.html) - API (table fields) changed.
-#_1. [`far.Message`](65.html) - flags `'d'` and `'o'` are deprecated
-#_   and no more supported.
-#_
-</article>
-</node>
-<node>
-id=358
-lv=1
-dt=Text
-nm=Version 2.2.0
-ctime=3482350713
-mtime=3482350727
-<article>
-#_<markdown>
-#_
-#_1. [`LF_LuaOpen`](129.html) - API changed (type of the 3-rd parameter).
-#_   **All LuaFAR plugins (except ANSI ones) must be rebuilt to work
-#_   with this version.**
-#_1. [`far.CtrlGetCmdLinePos`](6.html) - position is 1-based
-#_1. [`far.CtrlSetCmdLinePos`](12.html) - position is 1-based
-#_1. [`far.ProcessKey`](114.html) - API changed: made closer to Far API
-#_1. [`far.SendDlgMessage`](71.html) - `DM_RESIZEDIALOG` - return
-#_   value is a table
-#_1. [`far.SendDlgMessage`](71.html) - `DM_MOVEDIALOG` - return
-#_   value is a table
-#_
-#_@@@
-#_{dm_movedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_movedialog.html
-#_{dm_resizedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_resizedialog.html
-#_
-</article>
-</node>
-<node>
-id=316
-lv=1
-dt=Text
-nm=Version 2.1.0
-ctime=3478898588
-mtime=3478898609
-<article>
-#_<markdown>
-#_
-#_#### Dialog Messages:
-#_
-#_1. **`DM_LISTADDSTR`** - return value is 1-based
-#_1. **`DM_LISTDELETE`** - `StartIndex` is 1-based
-#_1. **`DM_LISTFINDSTRING`** - `StartIndex` and return value are 1-based;
-#_   a *nil* is returned if no match found
-#_1. **`DM_LISTGETCURPOS`** - `SelectPos` and `TopPos` are 1-based
-#_1. **`DM_LISTGETITEM`** - `ItemIndex` is 1-based
-#_1. **`DM_LISTINFO`** - `SelectPos` and `TopPos` are 1-based
-#_1. **`DM_LISTINSERT`** - `Index` is 1-based; a *nil* is returned on
-#_   failure
-#_1. **`DM_LISTUPDATE`** - `Index` is 1-based; a *boolean* is returned
-#_1. **`DM_LISTSETCURPOS`** - `SelectPos` and `TopPos` are 1-based
-#_
-#_#### Dialog Events:
-#_
-#_1. **`DN_LISTCHANGE`** - `Param2` is 1-based
-#_1. **`DN_LISTHOTKEY`** - `Param2` is 1-based
-#_
-#_@@@
-#_{dm_listaddstr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listaddstr.html
-#_{dm_listdelete}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listdelete.html
-#_{dm_listfindstring}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listfindstring.html
-#_{dm_listgetcurpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetcurpos.html
-#_{dm_listgetitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetitem.html
-#_{dm_listinfo}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listinfo.html
-#_{dm_listinsert}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listinsert.html
-#_{dm_listsetcurpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsetcurpos.html
-#_{dm_listupdate}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listupdate.html
-#_{dn_listchange}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_listchange.html
-#_{dn_listhotkey}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_listhotkey.html
-#_
-</article>
-</node>
-<node>
-id=279
-lv=1
-dt=Text
-nm=Version 2.0.0
-ctime=3476017361
-mtime=3476017375
-<article>
-#_<markdown>
-#_
-#_1. When some *flags* value passed to LuaFAR API is of table type,
-#_   it should be a dictionary (was: an array).<br>
-#_   **NOTE:** This change breaks many existing scripts, which must
-#_   be fixed in order to work with the new flags format.<br>
-#_   **Example:**<br>
-#_   Was: `{"DIF_BOXCOLOR", "DIF_SEPARATOR"}`<br>
-#_   Now: `{DIF_BOXCOLOR=1, DIF_SEPARATOR=1}`
-#_
-#_2. There are many incompatibilities with the non-Unicode LuaFAR
-#_   versions. See [What's new in Unicode version](255.html).
-#_
-#_@@@
-#_{dif_boxcolor}: http://api.farmanager.com/ru/dialogapi/flags/dif_boxcolor.html
-#_{dif_separator}: http://api.farmanager.com/ru/dialogapi/flags/dif_separator.html
-#_
-</article>
-</node>
-<node>
-id=249
-lv=1
-dt=Text
-nm=Version 1.0.0
-<article>
-#_<markdown>
-#_
-#_1. [`ViewerInfo.CurMode`](133.html): member `TypeWrap`
-#_   renamed to `WordWrap`.
-#_
-</article>
-</node>
-<node>
-id=240
-lv=1
-dt=Text
-nm=Version 0.9.0
-<article>
-#_<markdown>
-#_
-#_1. [`FindData`](90.html) structure:<br>
-#_   - Field **`dwFileAttributes`** (integer) replaced by field
-#_     **`FileAttributes`** (string).
-#_   - Fields **`nFileSizeLow`** and **`nFileSizeHigh`**
-#_     replaced by field **`FileSize`**.
-#_   - Field **`cFileName`** renamed to **`FileName`**
-#_   - Field **`cAlternateFileName`** renamed to **`AlternateFileName`**
-#_   - Fields **`LastWriteTimeL`** and **`LastWriteTimeH`** replaced
-#_     by field **`LastWriteTime`**
-#_   - Fields **`LastAccessTimeL`** and **`LastAccessTimeH`** replaced
-#_     by field **`LastAccessTime`**
-#_   - Fields **`CreationTimeL`** and **`CreationTimeH`** replaced
-#_     by field **`CreationTime`**
-#_1. [`PluginPanelItem`](85.html) structure:<br>
-#_   - Fields **`PackSize`** and **`PackSizeHigh`**
-#_     replaced by field **`PackSize`**.
-#_1. [`far.Dialog`](20.html) function:<br>
-#_   - Changed meaning of `DlgProc` return values.
-#_
-#_@@@
-#_{dlgproc}: http://api.farmanager.com/ru/defs/dlgproc.html
-#_
-</article>
-</node>
-<node>
-id=241
-lv=1
-dt=Text
-nm=Version 0.8.0
-<article>
-#_<markdown>
-#_No new incompatibilities introduced.
-#_
-#_
-</article>
-</node>
-<node>
-id=242
-lv=1
-dt=Text
-nm=Version 0.7.2
-<article>
-#_<markdown>
-#_This is a bug-fix release; no new incompatibilities introduced.
-#_
-#_
-</article>
-</node>
-<node>
-id=243
-lv=1
-dt=Text
-nm=Version 0.7
-<article>
-#_<markdown>
-#_1. [`far.DeleteRegKey`](18.html),
-#_   [`far.GetRegKey`](61.html),
-#_   [`far.SetRegKey`](73.html):
-#_   the `Key` argument is treated as relative to the FAR registry
-#_   key (which is usually `HKEY_CURRENT_USER\Software\Far`).
-#_
-#_1. Function `far.GetDlgItems` is removed.
-#_   Use [`far.GetDlgItem`](54.html) in cycle instead.
-#_
-</article>
-</node>
-<node>
-id=244
-lv=1
-dt=Text
-nm=Version 0.6
-<article>
-#_<markdown>
-#_1. [`far.Menu`](64.html): 1-st argument must be a table.
-#_1. [`far.Menu`](64.html): field *text* in break key tables renamed to
-#_   *BreakKey*.
-#_
-</article>
-</node>
-<node>
-id=245
-lv=1
-dt=Text
-nm=Version 0.5.1
-<article>
-#_<markdown>
-#_1. Changed string representations of "virtual key codes" (Win32):
-#_   removed `"VK_"` prefix, e.g., `"VK_TAB" -> "TAB"`. This change
-#_   affects the following functions:
-#_   *   [far.ExtractKey](51.html)
-#_   *   [far.Menu](64.html)
-#_   *   [far.ProcessEditorInput](111.html)
-#_   *   [far.ProcessKey](114.html)
-#_
-#_
-</article>
-</node>
-<node>
-id=246
-lv=1
-dt=Text
-nm=Version 0.5
-<article>
-#_<markdown>
-#_
-#_1. Function [`LF_LuaOpen`](129.html):
-#_    * Name of an environment variable to process made a parameter
-#_      (was: `LUA_INIT`)
-#_    * Function prepends \<plugin directory\>\?.lua; to `package.path`
-#_    * File `%FARHOME%\luafar_init.lua` is not run (and is not
-#_      treated as a special file anymore)
-#_
-#_2. Functions `far.band`, `far.bnot`, `far.bor` and `far.bxor`
-#_   were removed. Instead, [Lua BitOp library](143.html) is included.
-#_
-</article>
-</node>
-<node>
-id=247
-lv=1
-dt=Text
-nm=Version 0.4
-<article>
-#_1. far.EditorGetSelection:
-#_     **Info.BlockType**: was string, now integer
-#_
-#_2. far.GetPluginInfo:
-#_     **PluginInfo.Flags**: was table, now integer
-#_
-#_3. far.GetFindData, far.GetFiles, far.DeleteFiles, far.MakeDirectory,
-#_   far.ProcessHostFile, far.PutFiles, far.SetDirectory:
-#_     **OpMode**: was table, now integer
-#_
-#_4. far.Menu: every menu item must be table type
-#_   (was: if it's not a table then it's assumed to be a menu separator).
-#_
-#_5. far.Menu: the ["text"] field of an item is always treated as a string
-#_   (was: if it's a number, then GetMsg(n) was called).
-#_
-#_@@@
-#_{getmsg}: http://api.farmanager.com/ru/service_functions/getmsg.html
-#_
-</article>
-</node>
-<node>
 id=92
 lv=0
 dt=Text
@@ -1507,19 +485,9 @@ id=109
 lv=2
 dt=Text
 nm=export.Open
-mtime=3610442975
+mtime=3910412951
 <article>
 #_ret = export.Open (OpenFrom, Guid, Item)
-#_
-#_**Definitions:**
-#_  **"int64"**
-#_    Type of userdata, produced by `bit64` library.
-#_  **"binary"**
-#_    By convention, it is a string enclosed in a table as its first element.
-#_    The string is intended to be passed to and from without conversions UTF-8 <-> UTF-16LE.
-#_  **"panel"**
-#_    By convention, it is a panel handle (any non-false Lua value) enclosed in a table
-#_    as its first element. The table must contain the field ["type"]="panel".
 #_
 #_**Parameters:**
 #_  OpenFrom: integer
@@ -1564,6 +532,16 @@ mtime=3610442975
 #_  Return value of -1 can be used with *OpenFrom* == OPEN_ANALYSE,
 #_  when the plugin does actions other than opening a panel, to tell
 #_  Far that the file has already been processed.
+#_
+#_**Definitions:**
+#_  **"int64"**
+#_    Type of userdata, produced by `bit64` library.
+#_  **"binary"**
+#_    By convention, it is a string enclosed in a table as its first element.
+#_    The string is intended to be passed to and from without conversions UTF-8 <-> UTF-16LE.
+#_  **"panel"**
+#_    By convention, it is a panel handle (any non-false Lua value) enclosed in a table
+#_    as its first element. The table must contain the field ["type"]="panel".
 #_
 #_**Far API used:**
 #_  OpenW, OpenInfo
@@ -2404,11 +1382,21 @@ nm=Common functions
 </article>
 </node>
 <node>
-id=153
+id=571
 lv=2
 dt=Text
+nm=Advanced Control
+ctime=3936004770
+mtime=3936004770
+<article>
+</article>
+</node>
+<node>
+id=153
+lv=3
+dt=Text
 nm=far.AdvControl
-mtime=3618304216
+mtime=3936010544
 <article>
 #_Result = far.AdvControl (Command, Param1, Param2)
 #_
@@ -2420,90 +1408,538 @@ mtime=3618304216
 #_**Returns:**
 #_  Result:   *(depends on Command)*
 #_
-#_**Details:**
-#_
-#_ACTL_COMMIT,
-#_ACTL_GETWINDOWCOUNT,
-#_ACTL_PROGRESSNOTIFY,
-#_ACTL_QUIT,
-#_ACTL_REDRAWALL:
-#_    Result:  integer
-#_
-#_ACTL_GETFARHWND:
-#_    Result:  light userdata
-#_
-#_ACTL_SETCURRENTWINDOW,
-#_ACTL_SYNCHRO:
-#_    Param1:  integer
-#_    Result:  integer
-#_
-#_ACTL_WAITKEY:
-#_    Param2:  table `tInputRecord`, or string (e.g. "CtrlF12"), or nil (for any key)
-#_    Result:  integer
-#_
-#_ACTL_GETCOLOR:
-#_    Param1:  integer
-#_    Result:  table `tFarColor`, or nil
-#_
-#_ACTL_GETARRAYCOLOR:
-#_    Result:  table (array of `tFarColor` tables)
-#_
-#_ACTL_GETFARMANAGERVERSION:
-#_    Param1:  boolean (optional)
-#_    Result:  string (e.g. "3.0.0.2040.0"), if Param==false;
-#_             5 numbers (e.g. 3,0,0,2040,0), if Param==true;
-#_
-#_ACTL_GETWINDOWINFO:
-#_    Param1:  window number; 1-based integer (optional; default=0)
-#_    Result:  table (see its fields below), or nil.
-#_        Type:      integer
-#_        Id:        userdata (if Type is WTYPE_DIALOG or WTYPE_VMENU), or integer
-#_        Pos:       integer (1-based)
-#_        Flags:     flags
-#_        TypeName:  string
-#_        Name:      string
-#_
-#_ACTL_SETARRAYCOLOR:
-#_    Param2:  table (see its fields below;
-#_             its array part contains colors
-#_             (each color can be supplied as either a `tFarColor` table or a number)
-#_        Flags:       flags
-#_        StartIndex:  integer
-#_    Result:  integer    
-#_
-#_ACTL_SETPROGRESSSTATE:
-#_    Param1:  flags
-#_    Result:  integer    
-#_
-#_ACTL_SETPROGRESSVALUE:
-#_    Param2:  table (see its fields below)
-#_        Completed, Total:  numbers
-#_    Result:  integer    
-#_
-#_ACTL_GETFARRECT:
-#_    Result:  table (see its fields below), or nil
-#_        Left, Top, Right, Bottom: integers
-#_
-#_ACTL_GETCURSORPOS:
-#_    Result:  table (see its fields below), or nil
-#_        X, Y: integers
-#_
-#_ACTL_SETCURSORPOS:
-#_    Param2:  table (see its fields below)
-#_        X, Y: integers
-#_    Result:  integer    
-#_
-#_ACTL_GETWINDOWTYPE:
-#_    Result:  table (see its fields below), or nil
-#_        Type: integer
-#_
 #_**Far API used:**
 #_  AdvControl
 #_
 #_@@@
+#_{advcontrol}: http://api.farmanager.com/ru/service_functions/advcontrol.html
+#_
+</article>
+</node>
+<node>
+id=572
+lv=4
+dt=Text
+nm=ACTL_COMMIT
+ctime=3936005095
+mtime=3936009086
+<article>
+#_Result = far.AdvControl (ACTL_COMMIT)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_commit}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_COMMIT
+#_
+</article>
+</node>
+<node>
+id=582
+lv=4
+dt=Text
+nm=ACTL_GETARRAYCOLOR
+ctime=3936005309
+mtime=3936010034
+<article>
+#_Result = far.AdvControl (ACTL_GETARRAYCOLOR)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   table (array of `tFarColor` tables)
+#_
+#_@@@
 #_[tFarColor]: 427.html
+#_
+#_{actl_getarraycolor}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETARRAYCOLOR
+#_
+</article>
+</node>
+<node>
+id=581
+lv=4
+dt=Text
+nm=ACTL_GETCOLOR
+ctime=3936005286
+mtime=3936009976
+<article>
+#_Result = far.AdvControl (ACTL_GETCOLOR, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   integer
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   table `tFarColor`, or nil
+#_
+#_@@@
+#_[tFarColor]: 427.html
+#_
+#_{actl_getcolor}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETCOLOR
+#_
+</article>
+</node>
+<node>
+id=589
+lv=4
+dt=Text
+nm=ACTL_GETCURSORPOS
+ctime=3936005443
+mtime=3936010317
+<article>
+#_Result = far.AdvControl (ACTL_GETCURSORPOS)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:  table (see its fields below), or nil
+#_             X, Y: integers
+#_
+#_@@@
+#_{actl_getcursorpos}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETCURSORPOS
+#_
+</article>
+</node>
+<node>
+id=577
+lv=4
+dt=Text
+nm=ACTL_GETFARHWND
+ctime=3936005201
+mtime=3936009831
+<article>
+#_Result = far.AdvControl (ACTL_GETFARHWND)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   light userdata
+#_
+#_@@@
+#_{actl_getfarhwnd}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETFARHWND
+#_
+</article>
+</node>
+<node>
+id=583
+lv=4
+dt=Text
+nm=ACTL_GETFARMANAGERVERSION
+ctime=3936005324
+mtime=3936010062
+<article>
+#_Result = far.AdvControl (ACTL_GETFARMANAGERVERSION, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   boolean (optional)
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:  string (e.g. "3.0.0.2040.0"), if Param1==false;
+#_           5 numbers (e.g. 3,0,0,2040,0), if Param1==true;
+#_
+#_@@@
+#_{actl_getfarmanagerversion}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETFARMANAGERVERSION
+#_
+</article>
+</node>
+<node>
+id=588
+lv=4
+dt=Text
+nm=ACTL_GETFARRECT
+ctime=3936005424
+mtime=3936010262
+<article>
+#_Result = far.AdvControl (ACTL_GETFARRECT)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:  table (see its fields below), or nil
+#_             Left, Top, Right, Bottom: integers
+#_
+#_@@@
+#_{actl_getfarrect}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETFARRECT
+#_
+</article>
+</node>
+<node>
+id=573
+lv=4
+dt=Text
+nm=ACTL_GETWINDOWCOUNT
+ctime=3936005127
+mtime=3936009129
+<article>
+#_Result = far.AdvControl (ACTL_GETWINDOWCOUNT)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_getwindowcount}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETWINDOWCOUNT
+#_
+</article>
+</node>
+<node>
+id=584
+lv=4
+dt=Text
+nm=ACTL_GETWINDOWINFO
+ctime=3936005340
+mtime=3936010559
+<article>
+#_Result = far.AdvControl (ACTL_GETWINDOWINFO, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   window number; 1-based integer (optional; default=0)
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:  table (see its fields below), or nil.
+#_      Type:      integer
+#_      Id:        userdata (if Type is WTYPE_DIALOG or WTYPE_VMENU), or integer
+#_      Pos:       integer (1-based)
+#_      Flags:     flags
+#_      TypeName:  string
+#_      Name:      string
+#_
+#_@@@
+#_{actl_getwindowinfo}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETWINDOWINFO
+#_{wtype_dialog}: http://api.farmanager.com/ru/structures/windowtype.html#WTYPE_DIALOG
+#_{wtype_vmenu}: http://api.farmanager.com/ru/structures/windowtype.html#WTYPE_VMENU
+#_
+</article>
+</node>
+<node>
+id=591
+lv=4
+dt=Text
+nm=ACTL_GETWINDOWTYPE
+ctime=3936005473
+mtime=3936010377
+<article>
+#_Result = far.AdvControl (ACTL_GETWINDOWTYPE)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   table (see its fields below), or nil
+#_              Type: integer
+#_
+#_@@@
+#_{actl_getwindowtype}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETWINDOWTYPE
+#_
+</article>
+</node>
+<node>
+id=574
+lv=4
+dt=Text
+nm=ACTL_PROGRESSNOTIFY
+ctime=3936005143
+mtime=3936009712
+<article>
+#_Result = far.AdvControl (ACTL_PROGRESSNOTIFY)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_progressnotify}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_PROGRESSNOTIFY
+#_
+</article>
+</node>
+<node>
+id=576
+lv=4
+dt=Text
+nm=ACTL_QUIT
+ctime=3936005189
+mtime=3936009800
+<article>
+#_Result = far.AdvControl (ACTL_QUIT, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   integer
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_quit}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_QUIT
+#_
+</article>
+</node>
+<node>
+id=575
+lv=4
+dt=Text
+nm=ACTL_REDRAWALL
+ctime=3936005164
+mtime=3936009761
+<article>
+#_Result = far.AdvControl (ACTL_REDRAWALL)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_redrawall}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_REDRAWALL
+#_
+</article>
+</node>
+<node>
+id=585
+lv=4
+dt=Text
+nm=ACTL_SETARRAYCOLOR
+ctime=3936005366
+mtime=3936010169
+<article>
+#_Result = far.AdvControl (ACTL_SETARRAYCOLOR, Param1, Param2)
+#_
+#_**Parameters:**
+#_  Param1:  N/A
+#_  Param2:  table (see its fields below;
+#_             Flags:       flags
+#_             StartIndex:  integer
+#_           Its array part contains colors (each color can be
+#_           supplied as either a `tFarColor` table or a number)
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_[tFarColor]: 427.html
+#_
+#_{actl_setarraycolor}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETARRAYCOLOR
+#_
+</article>
+</node>
+<node>
+id=578
+lv=4
+dt=Text
+nm=ACTL_SETCURRENTWINDOW
+ctime=3936005227
+mtime=3936009881
+<article>
+#_Result = far.AdvControl (ACTL_SETCURRENTWINDOW, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   integer
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_setcurrentwindow}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETCURRENTWINDOW
+#_
+</article>
+</node>
+<node>
+id=590
+lv=4
+dt=Text
+nm=ACTL_SETCURSORPOS
+ctime=3936005458
+mtime=3936010346
+<article>
+#_Result = far.AdvControl (ACTL_SETCURSORPOS, Param1, Param2)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   table (see its fields below)
+#_              X, Y: integers
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_setcursorpos}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETCURSORPOS
+#_
+</article>
+</node>
+<node>
+id=586
+lv=4
+dt=Text
+nm=ACTL_SETPROGRESSSTATE
+ctime=3936005382
+mtime=3936010200
+<article>
+#_Result = far.AdvControl (ACTL_SETPROGRESSSTATE, Param1)
+#_
+#_**Parameters:**
+#_  Param1:   flags
+#_  Param2:   N/A
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_setprogressstate}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETPROGRESSSTATE
+#_
+</article>
+</node>
+<node>
+id=587
+lv=4
+dt=Text
+nm=ACTL_SETPROGRESSVALUE
+ctime=3936005404
+mtime=3936010225
+<article>
+#_Result = far.AdvControl (ACTL_SETPROGRESSVALUE, Param1, Param2)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   table (see its fields below)
+#_              Completed, Total:  numbers
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
+#_{actl_setprogressvalue}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SETPROGRESSVALUE
+#_
+</article>
+</node>
+<node>
+id=579
+lv=4
+dt=Text
+nm=ACTL_SYNCHRO
+ctime=3936005255
+mtime=3940507744
+<article>
+#_**Syntax 1**
+#_**--------**
+#_  Result = far.AdvControl (ACTL_SYNCHRO, Param1)
+#_
+#_  **Parameters:**
+#_    Param1:   integer
+#_    Param2:   N/A
+#_
+#_  **Returns:**
+#_    Result:   integer
+#_
+#_
+#_**Syntax 2**
+#_**--------**
+#_  Result = far.AdvControl (ACTL_SYNCHRO, Handler, ...)
+#_
+#_  **Parameters:**
+#_    Handler:  function
+#_    ...:      0 or more Lua values of any type
+#_
+#_  **Returns:**
+#_    Result:   integer
+#_
+#_  **Description:**
+#_     When Far Manager gets control it will call *Handler*
+#_     passing it the extra arguments (if any)
+#_
+#_@@@
+#_{actl_synchro}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SYNCHRO
+#_
+</article>
+</node>
+<node>
+id=580
+lv=4
+dt=Text
+nm=ACTL_WAITKEY
+ctime=3936005270
+mtime=3936018950
+<article>
+#_Result = far.AdvControl (ACTL_WAITKEY, Param1, Param2)
+#_
+#_**Parameters:**
+#_  Param1:   N/A
+#_  Param2:   table `tInputRecord`, or string (e.g. "CtrlF12"), or nil (for any key)
+#_
+#_**Returns:**
+#_  Result:   integer
+#_
+#_@@@
 #_[tInputRecord]: 187.html
 #_
+#_{actl_waitkey}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_WAITKEY
+#_
+</article>
+</node>
+<node>
+id=567
+lv=3
+dt=Text
+nm=actl namespace
+ctime=3917945155
+mtime=3939576259
+<article>
+#_This is an alternative interface to FAR's advanced control commands.
+#_It is shorter and more expressive, e.g. the following 2 calls do the
+#_same thing:
+#_    1) info = far.AdvControl("ACTL_GETWINDOWINFO", 2)
+#_    2) info = actl.GetWindowInfo(2)
+#_
+#_**actl** is a global table containing those alternative functions.
+#_Below is a table of correspondence between **ACTL_** messages
+#_and functions from the **actl** table:
+#_
+#_  Commit                  ACTL_COMMIT
+#_  GetArrayColor           ACTL_GETARRAYCOLOR
+#_  GetColor                ACTL_GETCOLOR
+#_  GetCursorPos            ACTL_GETCURSORPOS
+#_  GetFarHwnd              ACTL_GETFARHWND
+#_  GetFarManagerVersion    ACTL_GETFARMANAGERVERSION
+#_  GetFarRect              ACTL_GETFARRECT
+#_  GetWindowCount          ACTL_GETWINDOWCOUNT
+#_  GetWindowInfo           ACTL_GETWINDOWINFO
+#_  GetWindowType           ACTL_GETWINDOWTYPE
+#_  ProgressNotify          ACTL_PROGRESSNOTIFY
+#_  Quit                    ACTL_QUIT
+#_  RedrawAll               ACTL_REDRAWALL
+#_  SetArrayColor           ACTL_SETARRAYCOLOR
+#_  SetCurrentWindow        ACTL_SETCURRENTWINDOW
+#_  SetCursorPos            ACTL_SETCURSORPOS
+#_  SetProgressState        ACTL_SETPROGRESSSTATE
+#_  SetProgressValue        ACTL_SETPROGRESSVALUE
+#_  Synchro                 ACTL_SYNCHRO
+#_  Waitkey                 ACTL_WAITKEY
+#_
+#_@@@
 #_{actl_commit}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_COMMIT
 #_{actl_getarraycolor}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETARRAYCOLOR
 #_{actl_getcolor}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_GETCOLOR
@@ -2525,8 +1961,6 @@ mtime=3618304216
 #_{actl_synchro}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_SYNCHRO
 #_{actl_waitkey}: http://api.farmanager.com/ru/service_functions/advcontrol.html#ACTL_WAITKEY
 #_{advcontrol}: http://api.farmanager.com/ru/service_functions/advcontrol.html
-#_{wtype_dialog}: http://api.farmanager.com/ru/structures/windowtype.html#WTYPE_DIALOG
-#_{wtype_vmenu}: http://api.farmanager.com/ru/structures/windowtype.html#WTYPE_VMENU
 #_
 </article>
 </node>
@@ -2610,12 +2044,12 @@ id=60
 lv=2
 dt=Text
 nm=far.GetPluginDirList
-mtime=3608362125
+mtime=3907594909
 <article>
 #_list = far.GetPluginDirList (handle, Dir)
 #_
 #_**Parameters:**
-#_  handle:       panel handle, or nil
+#_  handle:       panel handle
 #_  Dir:          string
 #_
 #_**Returns:**
@@ -2833,7 +2267,7 @@ lv=2
 dt=Text
 nm=far.ColorDialog
 ctime=3511465011
-mtime=3602277807
+mtime=3909242213
 <article>
 #_OutColor = far.ColorDialog (InColor, Flags)
 #_
@@ -2842,10 +2276,7 @@ mtime=3602277807
 #_  Flags:    flags (optional)
 #_
 #_**Returns:**
-#_  OutColor: table `tFarColor`, integer, or nil
-#_
-#_**Note:**
-#_  Type of *OutColor* is the same as that of *InColor*.
+#_  OutColor: table `tFarColor`, or nil
 #_
 #_**Far API used:**
 #_  ColorDialog
@@ -2890,9 +2321,9 @@ id=20
 lv=2
 dt=Text
 nm=far.Dialog
-mtime=3646474948
+mtime=3907614581
 <article>
-#_result = far.Dialog (Guid,X1,Y1,X2,Y2,HelpTopic,Items,Flags,fDlgProc)
+#_result = far.Dialog (Guid,X1,Y1,X2,Y2,HelpTopic,Items,Flags,fDlgProc,Param)
 #_
 #_**Parameters:**
 #_  Same parameters as in `far.DialogInit`
@@ -2953,12 +2384,12 @@ lv=2
 dt=Text
 nm=far.DialogInit
 ctime=3490426716
-mtime=3646474866
+mtime=3911132065
 <article>
-#_hDlg = far.DialogInit (Guid,X1,Y1,X2,Y2,HelpTopic,Items,Flags,fDlgProc)
+#_hDlg = far.DialogInit (Guid,X1,Y1,X2,Y2,HelpTopic,Items,Flags,DlgProc,Param)
 #_
 #_**Parameters:**
-#_  Guid:      string
+#_  Guid:      string, or nil
 #_  X1:        integer
 #_  Y1:        integer
 #_  X2:        integer
@@ -2966,7 +2397,8 @@ mtime=3646474866
 #_  HelpTopic: string, or nil
 #_  Items:     table (array of `tFarDialogItem`)
 #_  Flags:     flags
-#_  fDlgProc:  function (`dialog event handler`), or nil
+#_  DlgProc:   function (`dialog event handler`), or nil
+#_  Param:     any Lua value (optional)
 #_
 #_**Returns:**
 #_  hDlg:      userdata (or nil in case of failure)
@@ -3153,7 +2585,7 @@ id=71
 lv=2
 dt=Text
 nm=far.SendDlgMessage
-mtime=3835879532
+mtime=3921264341
 <article>
 #_Result = far.SendDlgMessage (hDlg, Msg, Param1, Param2)
 #_    or
@@ -3329,7 +2761,7 @@ mtime=3835879532
 #_    Result:  table
 #_
 #_DM_SETCHECK:
-#_    Param2:  flag
+#_    Param2:  flag or boolean
 #_    Result:  integer
 #_
 #_DM_SETCURSORPOS:
@@ -3371,10 +2803,12 @@ mtime=3835879532
 #_    Param2:  `tInputRecord` or string
 #_    Result:  integer
 #_
-#_DM_GETDLGDATA,
+#_DM_GETDLGDATA:
+#_    Result: the dialog data (can be any Lua value)
+#_
 #_DM_SETDLGDATA:
-#_  These operations are not implemented as they are used internally by LuaFAR.
-#_  Param1 and Param2 are ignored; nil is returned.
+#_    Param1: any Lua value
+#_    Result: any Lua value (the previous data)
 #_
 #_**Far API used:**
 #_  SendDlgMessage
@@ -3391,6 +2825,167 @@ mtime=3835879532
 #_{dm_enableredraw}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_enableredraw.html
 #_{dm_enable}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_enable.html
 #_{dm_getcheck}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcheck.html
+#_{dm_getconsttextptr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getconsttextptr.html
+#_{dm_getcursorpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcursorpos.html
+#_{dm_getcursorsize}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcursorsize.html
+#_{dm_getdialoginfo}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdialoginfo.html
+#_{dm_getdialogtitle}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdialogtitle.html
+#_{dm_getdlgdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdlgdata.html
+#_{dm_getdlgitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdlgitem.html
+#_{dm_getdlgrect}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdlgrect.html
+#_{dm_getdropdownopened}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getdropdownopened.html
+#_{dm_geteditposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_geteditposition.html
+#_{dm_getfocus}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getfocus.html
+#_{dm_getitemdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getitemdata.html
+#_{dm_getitemposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getitemposition.html
+#_{dm_getselection}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getselection.html
+#_{dm_gettext}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_gettext.html
+#_{dm_key}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_key.html
+#_{dm_listaddstr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listaddstr.html
+#_{dm_listadd}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listadd.html
+#_{dm_listdelete}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listdelete.html
+#_{dm_listfindstring}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listfindstring.html
+#_{dm_listgetcurpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetcurpos.html
+#_{dm_listgetdatasize}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetdatasize.html
+#_{dm_listgetdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetdata.html
+#_{dm_listgetitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgetitem.html
+#_{dm_listgettitles}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listgettitles.html
+#_{dm_listinfo}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listinfo.html
+#_{dm_listinsert}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listinsert.html
+#_{dm_listsetcurpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsetcurpos.html
+#_{dm_listsetdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsetdata.html
+#_{dm_listsettitles}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsettitles.html
+#_{dm_listset}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listset.html
+#_{dm_listsort}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listsort.html
+#_{dm_listupdate}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_listupdate.html
+#_{dm_movedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_movedialog.html
+#_{dm_redraw}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_redraw.html
+#_{dm_resizedialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_resizedialog.html
+#_{dm_set3state}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_set3state.html
+#_{dm_setcheck}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setcheck.html
+#_{dm_setcomboboxevent}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setcomboboxevent.html
+#_{dm_setcursorpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setcursorpos.html
+#_{dm_setcursorsize}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setcursorsize.html
+#_{dm_setdlgdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setdlgdata.html
+#_{dm_setdlgitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setdlgitem.html
+#_{dm_setdropdownopened}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setdropdownopened.html
+#_{dm_seteditposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_seteditposition.html
+#_{dm_setfocus}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setfocus.html
+#_{dm_sethistory}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_sethistory.html
+#_{dm_setitemdata}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setitemdata.html
+#_{dm_setitemposition}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setitemposition.html
+#_{dm_setmaxtextlength}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setmaxtextlength.html
+#_{dm_setinputnotify}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setmouseeventnotify.html
+#_{dm_setmouseeventnotify}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setmouseeventnotify.html
+#_{dm_setselection}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_setselection.html
+#_{dm_settextptr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_settextptr.html
+#_{dm_settext}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_settext.html
+#_{dm_showdialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_showdialog.html
+#_{dm_showitem}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_showitem.html
+#_{dm_user}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_user.html
+#_{senddlgmessage}: http://api.farmanager.com/ru/service_functions/senddlgmessage.html
+#_{dn_btnclick}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_btnclick.html
+#_{dn_dragged}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_dragged.html
+#_{dn_drawdialog}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_drawdialog.html
+#_{dn_drawdialogdone}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_drawdialogdone.html
+#_{dn_dropdownopened}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_dropdownopened.html
+#_{dn_controlinput}: http://api.farmanager.com/ru/dialogapi/dmsg/dn_controlinput.html
+#_
+</article>
+</node>
+<node>
+id=566
+lv=3
+dt=Text
+nm=Methods of dialog handle
+ctime=3917897670
+mtime=3917898379
+<article>
+#_Besides passing the dialog handle as a parameter to `far.SendDlgMessage`
+#_there is an alternative way: using dialog handle methods. The latter
+#_is shorter and more expressive, e.g. the following 2 calls do the same
+#_thing:
+#_    1) `far.SendDlgMessage`(hDlg, "DM_SETTEXT", item2, "Hello")
+#_    2) hDlg:SetText(item2, "Hello")
+#_
+#_Below is a table of correspondence between dialog messages
+#_and dialog handle methods:
+#_
+#_  AddHistory              DM_ADDHISTORY
+#_  Close                   DM_CLOSE
+#_  EditUnchangedFlag       DM_EDITUNCHANGEDFLAG
+#_  Enable                  DM_ENABLE
+#_  EnableRedraw            DM_ENABLEREDRAW
+#_  GetCheck                DM_GETCHECK
+#_  GetComboboxEvent        DM_GETCOMBOBOXEVENT
+#_  GetConstTextPtr         DM_GETCONSTTEXTPTR
+#_  GetCursorPos            DM_GETCURSORPOS
+#_  GetCursorSize           DM_GETCURSORSIZE
+#_  GetDialogInfo           DM_GETDIALOGINFO
+#_  GetDialogTitle          DM_GETDIALOGTITLE
+#_  GetDlgData              DM_GETDLGDATA
+#_  GetDlgItem              DM_GETDLGITEM
+#_  GetDlgRect              DM_GETDLGRECT
+#_  GetDropdownOpened       DM_GETDROPDOWNOPENED
+#_  GetEditPosition         DM_GETEDITPOSITION
+#_  GetFocus                DM_GETFOCUS
+#_  GetItemData             DM_GETITEMDATA
+#_  GetItemPosition         DM_GETITEMPOSITION
+#_  GetSelection            DM_GETSELECTION
+#_  GetText                 DM_GETTEXT
+#_  Key                     DM_KEY
+#_  ListAdd                 DM_LISTADD
+#_  ListAddStr              DM_LISTADDSTR
+#_  ListDelete              DM_LISTDELETE
+#_  ListFindString          DM_LISTFINDSTRING
+#_  ListGetCurPos           DM_LISTGETCURPOS
+#_  ListGetData             DM_LISTGETDATA
+#_  ListGetDataSize         DM_LISTGETDATASIZE
+#_  ListGetItem             DM_LISTGETITEM
+#_  ListGetTitles           DM_LISTGETTITLES
+#_  ListInfo                DM_LISTINFO
+#_  ListInsert              DM_LISTINSERT
+#_  ListSet                 DM_LISTSET
+#_  ListSetCurPos           DM_LISTSETCURPOS
+#_  ListSetData             DM_LISTSETDATA
+#_  ListSetTitles           DM_LISTSETTITLES
+#_  ListSort                DM_LISTSORT
+#_  ListUpdate              DM_LISTUPDATE
+#_  MoveDialog              DM_MOVEDIALOG
+#_  Redraw                  DM_REDRAW
+#_  ResizeDialog            DM_RESIZEDIALOG
+#_  Set3State               DM_SET3STATE
+#_  SetCheck                DM_SETCHECK
+#_  SetComboboxEvent        DM_SETCOMBOBOXEVENT
+#_  SetCursorPos            DM_SETCURSORPOS
+#_  SetCursorSize           DM_SETCURSORSIZE
+#_  SetDlgData              DM_SETDLGDATA
+#_  SetDlgItem              DM_SETDLGITEM
+#_  SetDropdownOpened       DM_SETDROPDOWNOPENED
+#_  SetEditPosition         DM_SETEDITPOSITION
+#_  SetFocus                DM_SETFOCUS
+#_  SetHistory              DM_SETHISTORY
+#_  SetInputNotify          DM_SETINPUTNOTIFY
+#_  SetItemData             DM_SETITEMDATA
+#_  SetItemPosition         DM_SETITEMPOSITION
+#_  SetMaxTextLength        DM_SETMAXTEXTLENGTH
+#_  SetSelection            DM_SETSELECTION
+#_  SetText                 DM_SETTEXT
+#_  SetTextPtr              DM_SETTEXTPTR
+#_  ShowDialog              DM_SHOWDIALOG
+#_  ShowItem                DM_SHOWITEM
+#_  User                    DM_USER
+#_
+#_@@@
+#_[far.SendDlgMessage]: 71.html
+#_
+#_{dm_addhistory}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_addhistory.html
+#_{dm_close}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_close.html
+#_{dm_editunchangedflag}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_editunchangedflag.html
+#_{dm_enableredraw}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_enableredraw.html
+#_{dm_enable}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_enable.html
+#_{dm_getcheck}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcheck.html
+#_{dm_getcomboboxevent}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcomboboxevent.html
 #_{dm_getconsttextptr}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getconsttextptr.html
 #_{dm_getcursorpos}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcursorpos.html
 #_{dm_getcursorsize}: http://api.farmanager.com/ru/dialogapi/dmsg/dm_getcursorsize.html
@@ -4748,7 +4343,7 @@ id=31
 lv=2
 dt=Text
 nm=editor.GetString
-mtime=3682770766
+mtime=3921827714
 <article>
 #_**Note:**
 #_  This function is an extension over its prototype in Far API.
@@ -4774,10 +4369,11 @@ mtime=3682770766
 #_
 #_**Description:**
 #_  The function's behavior depends on its *Mode* argument:
-#_  Mode:  0 = returns: table LineInfo;        changes current position: no
-#_         1 = returns: table LineInfo;        changes current position: yes
-#_         2 = returns: StringText,StringEOL;  changes current position: yes
-#_         3 = returns: StringText,StringEOL;  changes current position: no
+#_  Mode:  0 = returns: table LineInfo;            changes current position: no
+#_         1 = returns: table LineInfo;            changes current position: yes
+#_         2 = returns: StringText,StringEOL;      changes current position: yes
+#_         3 = returns: StringText,StringEOL;      changes current position: no
+#_         4 = returns: SelStart,SelEnd,StringLength; changes cur. position: no
 #_
 #_  Modes 1 and 2 have a side effect: the current line position in the Editor
 #_  is set to *StringNumber*.
@@ -6408,15 +6004,15 @@ id=134
 lv=2
 dt=Text
 nm=viewer.Quit
-mtime=3507624360
+mtime=3939312062
 <article>
-#_viewer.Quit (ViewerID)
+#_result = viewer.Quit (ViewerID)
 #_
 #_**Parameters:**
 #_  ViewerID: integer, or nil
 #_
 #_**Returns:**
-#_  nothing
+#_  result:   boolean
 #_
 #_**Far API used:**
 #_  ViewerControl, VCTL_QUIT
@@ -7637,6 +7233,82 @@ nm=Far Standard Functions
 </article>
 </node>
 <node>
+id=560
+lv=2
+dt=Text
+nm=far.CheckMask
+ctime=3909321682
+mtime=3909321895
+<article>
+#_Result = far.CheckMask (Mask, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Flags: flags  (PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
+id=561
+lv=2
+dt=Text
+nm=far.CmpName
+ctime=3909321696
+mtime=3909321862
+<article>
+#_Result = far.CmpName (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags  (combination of PN_SKIPPATH, PN_CASEINSENSITIVE
+#_                 and PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
+id=562
+lv=2
+dt=Text
+nm=far.CmpNameList
+ctime=3909321707
+mtime=3909321923
+<article>
+#_Result = far.CmpNameList (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags  (combination of PN_SKIPPATH, PN_CASEINSENSITIVE
+#_                 and PN_SHOWERRORMESSAGE; default=0)
+#_
+#_**Returns:**
+#_  Result: boolean
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
 id=284
 lv=2
 dt=Text
@@ -7690,6 +7362,30 @@ mtime=3602447964
 </article>
 </node>
 <node>
+id=568
+lv=2
+dt=Text
+nm=far.DetectCodePage
+ctime=3919783582
+mtime=3919797819
+<article>
+#_codepage = far.DetectCodePage (filename)
+#_
+#_**Parameters:**
+#_  filename:  string
+#_
+#_**Returns:**
+#_  codepage:  integer (or nil)
+#_
+#_**Far API used:**
+#_  DetectCodePage
+#_
+#_@@@
+#_{detectcodepage}: http://api.farmanager.com/ru/fsf/detectcodepage.html
+#_
+</article>
+</node>
+<node>
 id=509
 lv=2
 dt=Text
@@ -7738,6 +7434,31 @@ mtime=3602447969
 #_@@@
 #_{fffs_minsizeindex}: http://api.farmanager.com/ru/fsf/formatfilesize.html#FFFS_MINSIZEINDEX
 #_{formatfilesize}: http://api.farmanager.com/ru/fsf/formatfilesize.html
+#_
+</article>
+</node>
+<node>
+id=563
+lv=2
+dt=Text
+nm=far.GenerateName
+ctime=3909321759
+mtime=3909321979
+<article>
+#_Result = far.GenerateName (Mask, Name, Flags)
+#_
+#_**Parameters:**
+#_  Mask:  string
+#_  Name:  string
+#_  Flags: flags (default=0)
+#_
+#_**Returns:**
+#_  Result: string, or false
+#_
+#_**Far API used:**
+#_  FSF.ProcessName
+#_
+#_@@@
 #_
 </article>
 </node>
@@ -8665,6 +8386,37 @@ mtime=3524034062
 </article>
 </node>
 <node>
+id=564
+lv=3
+dt=Text
+nm=methods gmatch, gmatchW
+ctime=3911503627
+mtime=3911503828
+<article>
+#_for c1 [,c2 ...] in regex_object:gmatch (subj) do
+#_  ......
+#_end
+#_
+#_**Parameters:**
+#_  subj    :  string
+#_
+#_**Returns:**
+#_  c1,...  :  strings (there can be *false* in place of captures
+#_                     not participated in the match)
+#_
+#_**Note:**
+#_*regex_object:gmatchW* receives its 1-st argument
+#_and returns captures in UTF-16LE encoding.
+#_
+#_**Far API used:**
+#_  RegExpControl
+#_
+#_@@@
+#_{regexpcontrol}: http://api.farmanager.com/ru/service_functions/regexpcontrol.html
+#_
+</article>
+</node>
+<node>
 id=386
 lv=3
 dt=Text
@@ -8933,11 +8685,11 @@ lv=2
 dt=Text
 nm=far.GetLuafarVersion
 ctime=3792338906
-mtime=3792339365
+mtime=3940520281
 <article>
 #_strVersion = far.GetLuafarVersion()
 #_  or
-#_major,minor,revision,build = far.LuafarVersion(true)
+#_major,minor,revision,build = far.GetLuafarVersion(true)
 #_
 #_**Returns:**
 #_  strVersion: string
@@ -9331,7 +9083,7 @@ mtime=3651736631
 #_
 #_**Description:**
 #_  A table containing GUIDs of various Far Manager dialogs and menus.
-#_  This table is auto-generated from file *DlgGuid.hpp* at the build time.
+#_  This table is auto-generated from file *uuids.far.dialogs.hpp* at the build time.
 #_
 #_  GUIDs are given in upper-case text representation, e.g.
 #_    FindFileId = '8C9EAD29-910F-4B24-A669-EDAFBA6ED964'
@@ -10109,6 +9861,30 @@ mtime=3504247079
 </article>
 </node>
 <node>
+id=569
+lv=3
+dt=Text
+nm=win.JoinPath
+ctime=3922434993
+mtime=3940098857
+<article>
+#_path = win.JoinPath (...)
+#_
+#_**Parameters:**
+#_  ... :  0 or more strings
+#_
+#_**Returns:**
+#_  path:  string
+#_
+#_**Note:**
+#_  Empty string arguments are ignored except the last
+#_  argument where it's treated as the path delimiter.
+#_
+#_@@@
+#_
+</article>
+</node>
+<node>
 id=362
 lv=3
 dt=Text
@@ -10166,6 +9942,33 @@ mtime=3484723622
 <article>
 #_<markdown>
 #_This function is an alias to [`win.MoveFile`](362.html).
+#_
+</article>
+</node>
+<node>
+id=565
+lv=3
+dt=Text
+nm=win.ReplaceFile
+ctime=3915668129
+mtime=3915668880
+<article>
+#_result = win.ReplaceFile (replaced, replacement [, backup] [, flags])
+#_
+#_**Parameters:**
+#_  replaced:     string
+#_  replacement:  string
+#_  backup:       string (optional)
+#_  flags:        integer (optional)
+#_                  0x01: REPLACEFILE_WRITE_THROUGH
+#_                  0x02: REPLACEFILE_IGNORE_MERGE_ERRORS
+#_                  0x04: REPLACEFILE_IGNORE_ACL_ERRORS
+#_
+#_**Returns:**
+#_  result:  true (or: nil, errormessage)
+#_
+#_**Windows API used:**
+#_  ReplaceFileW
 #_
 </article>
 </node>
@@ -11459,26 +11262,33 @@ lv=3
 dt=Text
 nm=win.Uuid
 ctime=3505937334
-mtime=3508317882
+mtime=3914408261
 <article>
-#_There are 3 actions available, depending on arguments.
+#_There are different actions available, depending on arguments.
 #_All arguments and return values are strings.
 #_
-#_**ret = win.Uuid ()**
-#_  Generate a new (binary) UUID
+#_**ret = win.Uuid()**
+#_  Generate a new UUID in binary representation
+#_
+#_**ret = win.Uuid("U")**
+#_  Generate a new UUID in upper-case text representation
+#_
+#_**ret = win.Uuid("L")**
+#_  Generate a new UUID in lower-case text representation
 #_
 #_**ret = win.Uuid (binUUID)**
-#_  Convert a UUID to string representation
+#_  Convert a binary UUID to text representation
 #_
-#_**ret = win.Uuid (strUUID)**
-#_  Convert a string UUID representation to binary
+#_**ret = win.Uuid (textUUID)**
+#_  Convert a text UUID to binary representation
 #_
 #_
 #_**Note:**
-#_If the function is given a string argument, it checks its length.
-#_When the length is 16, the function makes conversion from binary
-#_to string GUID representation, otherwise it tries to convert from
-#_string GUID representation to binary one.
+#_For the latter 2 cases the algorithm is as follows:
+#_- The length of the string argument is checked.
+#_  When it is 16, the function makes conversion from binary
+#_  to text representation, otherwise it tries to convert
+#_  from text representation to binary one.
 #_
 </article>
 </node>
@@ -11695,11 +11505,9 @@ lv=2
 dt=Text
 nm=utf8.dump
 ctime=3776451293
-mtime=3776486873
+mtime=3911018421
 <article>
-#_**Note:**
-#_  This is an added function, not present in the original luautf8 library.
-#_  See `string.dump` for reference.
+#_This is the same function as `string.dump`.
 #_
 #_@@@
 #_[string.dump]: http://www.lua.org/manual/5.1/manual.html#pdf-string.dump
@@ -11724,16 +11532,51 @@ mtime=3776486954
 </article>
 </node>
 <node>
+id=570
+lv=2
+dt=Text
+nm=utf8.reformat
+ctime=3922998217
+mtime=3923000028
+<article>
+#_result = utf8.reformat (pattern, ...)
+#_
+#_**Parameters:**
+#_  pattern : string
+#_  ...     : 0 or more additional arguments
+#_
+#_**Returns:**
+#_  result  : string
+#_
+#_**Description:**
+#_  This function is similar to utf8.format except for char '{' which must
+#_  be written as '%{'.
+#_  
+#_  {1}, {2}, etc. in the pattern are substituted by values corresponding
+#_  to parameters' numbers in the '%s' format.
+#_
+#_  If the number in curly braces is followed by a ':' then this part becomes
+#_  a "%" in the format string. E.g. {3:04d} is replaced by value of the 3-rd
+#_  parameter in the '%04d' format.
+#_
+#_**Note:**
+#_  This is an added function, not present in the original luautf8 library.
+#_
+#_**Example:**
+#_  reformat('Wrong count: {3:10} {1} {3} and {2:.4f}. Ok: %{ %06d %s and %s }',
+#_           111, 222, 'three')
+#_
+</article>
+</node>
+<node>
 id=540
 lv=2
 dt=Text
 nm=utf8.rep
 ctime=3776451304
-mtime=3776487967
+mtime=3911018452
 <article>
-#_**Note:**
-#_  This is an added function, not present in the original luautf8 library.
-#_  See `string.rep` for reference.
+#_This is the same function as `string.rep`.
 #_
 #_@@@
 #_[string.rep]: http://www.lua.org/manual/5.1/manual.html#pdf-string.rep
@@ -11769,6 +11612,19 @@ mtime=3887368189
 #_  This is an added function, not present in the original **luautf8** library.
 #_  It was introduced in LuaFAR before utf8.isvalid/utf8.invalidoffset got available in lua-utf8, and now is rather obsolete.
 #_  Left for compatibility.
+</article>
+</node>
+<node>
+id=593
+lv=1
+dt=Text
+nm=lpeg
+ctime=3937670947
+mtime=3937670954
+<article>
+#_<markdown>
+#_See the documentation [here](https://www.inf.puc-rio.br/~roberto/lpeg/).
+#_
 </article>
 </node>
 <node>
@@ -13012,6 +12868,77 @@ mtime=3776336416
 #_LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #_OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #_SOFTWARE.
+</article>
+</node>
+<node>
+id=592
+lv=1
+dt=Text
+nm=LPeg
+ctime=3937670870
+mtime=3937670904
+<article>
+#_Home page: https://www.inf.puc-rio.br/~roberto/lpeg/
+#_
+#_License
+#_
+#_Copyright © 2007-2023 Lua.org, PUC-Rio.
+#_
+#_Permission is hereby granted, free of charge, to any person
+#_obtaining a copy of this software and associated documentation
+#_files (the "Software"), to deal in the Software without
+#_restriction, including without limitation the rights to use,
+#_copy, modify, merge, publish, distribute, sublicense, and/or
+#_sell copies of the Software, and to permit persons to whom the
+#_Software is furnished to do so, subject to the following
+#_conditions:
+#_
+#_The above copyright notice and this permission notice shall be
+#_included in all copies or substantial portions of the Software.
+#_
+#_THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#_EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+#_OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+#_NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+#_HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+#_WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#_FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+#_OTHER DEALINGS IN THE SOFTWARE.
+#_
+</article>
+</node>
+<node>
+id=594
+lv=1
+dt=Text
+nm=MoonScript
+ctime=3944241244
+mtime=3944241434
+<article>
+#_<markdown>
+#_
+#_## License (MIT)
+#_
+#_Copyright (C) 2020 by Leaf Corcoran
+#_
+#_Permission is hereby granted, free of charge, to any person obtaining a copy
+#_of this software and associated documentation files (the "Software"), to deal
+#_in the Software without restriction, including without limitation the rights
+#_to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#_copies of the Software, and to permit persons to whom the Software is
+#_furnished to do so, subject to the following conditions:
+#_
+#_The above copyright notice and this permission notice shall be included in
+#_all copies or substantial portions of the Software.
+#_
+#_THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#_IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#_FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#_AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#_LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#_OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+#_THE SOFTWARE.
+#_
 </article>
 </node>
 <node>

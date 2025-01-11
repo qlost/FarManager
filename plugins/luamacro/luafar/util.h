@@ -22,8 +22,10 @@ _CRTIMP unsigned int __cdecl __MINGW_NOTHROW _control87 (unsigned int unNew, uns
 /* convert a stack index to positive */
 #define abs_index(L,i) ((i)>0 || (i)<=LUA_REGISTRYINDEX ? (i):lua_gettop(L)+(i)+1)
 
-#define LUAFAR_TIMER_CALL  0x1
-#define LUAFAR_TIMER_UNREF 0x2
+#define SYNCHRO_COMMON      0x0
+#define SYNCHRO_TIMER_CALL  0x1
+#define SYNCHRO_TIMER_UNREF 0x2
+#define SYNCHRO_FUNCTION    0x4
 
 typedef struct
 {
@@ -45,8 +47,10 @@ typedef struct
 typedef struct
 {
 	TTimerData *timerData;
-	int regAction;
+	int type;
 	int data;
+	int ref;
+	int narg;
 } TSynchroData;
 
 typedef struct
@@ -57,6 +61,7 @@ typedef struct
 	BOOL              isOwned;
 	BOOL              wasError;
 	BOOL              isModal;
+	int               dataRef;
 } TDialogData;
 
 int   GetAttrFromTable(lua_State *L);
@@ -73,6 +78,8 @@ TDialogData* NewDialogData(lua_State* L, struct PluginStartupInfo *Info, HANDLE 
                            BOOL isOwned);
 int GetFarColor(lua_State *L, int pos, struct FarColor* Color);
 void PushFarColor(lua_State *L, const struct FarColor* Color);
+HANDLE OptHandle(lua_State *L);
+void FillPluginPanelItem(lua_State *L, struct PluginPanelItem *pi, int CollectorPos);
 
 typedef struct
 {

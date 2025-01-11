@@ -50,15 +50,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-/* $ 09.10.2000 IS
-    Генерация нового имени по маске
-    (взял из ShellCopy::ShellCopyConvertWildcards)
-*/
-// На основе имени файла (SrcName) и маски (Mask) генерируем новое имя
-// SelectedFolderNameLength - длина каталога. Например, есть
-// каталог dir1, а в нем файл file1. Нужно сгенерировать имя по маске для dir1.
-// Параметры могут быть следующими: Src="dir1", SelectedFolderNameLength=0
-// или Src="dir1\\file1", а SelectedFolderNameLength=4 (длина "dir1")
 string ConvertWildcards(string_view const SrcName, string_view const Mask)
 {
 	const auto WildName = PointToName(Mask);
@@ -71,7 +62,7 @@ string ConvertWildcards(string_view const SrcName, string_view const Mask)
 	Result.reserve(SrcName.size());
 	Result = Mask.substr(0, Mask.size() - WildName.size());
 
-	const auto BeforeNameLength = Result.empty()? 0 : SrcName.size() - SrcNamePart.size();
+	const auto BeforeNameLength = Result.empty()? SrcName.size() - SrcNamePart.size() : 0;
 
 	auto WildPtr = WildName;
 
@@ -196,9 +187,9 @@ bool CmpName(string_view pattern, string_view str, const bool skippath, const bo
 				if (pattern.size() == 2 && pattern[1]==L'*')
 					return true;
 
-				if (std::none_of(ALL_CONST_RANGE(pattern), [](wchar_t Char) { return contains(L"*?["sv, Char); }))
+				if (std::ranges::none_of(pattern, [](wchar_t Char) { return contains(L"*?["sv, Char); }))
 				{
-					const auto RDotIt = std::find(ALL_CONST_REVERSE_RANGE(str), L'.');
+					const auto RDotIt = std::ranges::find(str | std::views::reverse, L'.');
 					const auto DotIt = RDotIt == str.crend()? str.cend() : (RDotIt + 1).base();
 
 					if (pattern.size() == 1)

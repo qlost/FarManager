@@ -45,8 +45,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common.hpp"
 #include "common/function_ref.hpp"
-#include "common/range.hpp"
 #include "common/smart_ptr.hpp"
+#include "common/source_location.hpp"
 #include "common/utility.hpp"
 
 // External:
@@ -59,8 +59,6 @@ class Plugin;
 class language;
 class PluginsCacheConfig;
 class listener;
-
-std::exception_ptr& GlobalExceptionPtr();
 
 enum export_index
 {
@@ -151,7 +149,7 @@ public:
 	auto ExportsNames() const { return m_ExportsNames; }
 
 protected:
-	span<const export_name> m_ExportsNames;
+	std::span<const export_name> m_ExportsNames;
 	PluginManager* const m_owner;
 	UUID m_Id{};
 };
@@ -210,11 +208,13 @@ namespace detail
 	struct ExecuteStruct
 	{
 		auto& operator=(intptr_t value) { Result = value; return *this; }
-		auto& operator=(HANDLE value) { Result = reinterpret_cast<intptr_t>(value); return *this; }
+		auto& operator=(HANDLE value) { Result = std::bit_cast<intptr_t>(value); return *this; }
 		explicit(false) operator intptr_t() const { return Result; }
 		explicit(false) operator void*() const { return ToPtr(Result); }
 		explicit(false) operator bool() const { return Result != 0; }
+
 		intptr_t Result;
+		source_location m_Location;
 	};
 }
 
@@ -275,10 +275,8 @@ public:
 
 	bool has(export_index id) const { return Exports[id] != nullptr; }
 
-	template<typename T>
-	bool has(const T& es) const
+	bool has(const std::derived_from<detail::ExecuteStruct> auto& es) const
 	{
-		static_assert(std::derived_from<T, detail::ExecuteStruct>);
 		return has(es.export_id);
 	}
 
@@ -297,11 +295,11 @@ public:
 
 	bool Load();
 	void NotifyExit();
-	bool Unload(bool bExitFAR = false);
+	bool Unload(bool bExitFAR);
 	bool LoadData();
 	bool LoadFromCache(const os::fs::find_data &FindData);
 	bool SaveToCache();
-	bool IsPanelPlugin();
+	bool IsPanelPlugin() const;
 	bool Active() const {return m_Activity != 0; }
 	void AddDialog(const window_ptr& Dlg);
 	bool RemoveDialog(const window_ptr& Dlg);
@@ -315,9 +313,10 @@ protected:
 	template<export_index Export, bool Native = true>
 	struct ExecuteStruct: detail::ExecuteStruct
 	{
-		explicit ExecuteStruct(intptr_t FallbackValue = 0)
+		explicit ExecuteStruct(intptr_t FallbackValue = 0, source_location const& Location = source_location::current())
 		{
 			Result = FallbackValue;
+			m_Location = Location;
 		}
 
 		static constexpr inline auto export_id = Export;
@@ -332,13 +331,13 @@ protected:
 		ExecuteFunctionImpl(T::export_id, [&]
 		{
 			using function_type = typename T::type;
-			const auto Function = reinterpret_cast<function_type>(Exports[T::export_id]);
+			const auto Function = std::bit_cast<function_type>(Exports[T::export_id]);
 
 			if constexpr (std::is_void_v<std::invoke_result_t<function_type, args...>>)
 				Function(FWD(Args)...);
 			else
 				es = Function(FWD(Args)...);
-		});
+		}, es.m_Location);
 	}
 
 	virtual void Prologue() {}
@@ -363,13 +362,12 @@ private:
 	void increase_activity();
 	void decrease_activity();
 
-	template<typename T>
-	void SetInstance(T* Object) const
+	void SetInstance(auto* Object) const
 	{
 		Object->Instance = m_Instance->opaque();
 	}
 
-	void ExecuteFunctionImpl(export_index ExportId, function_ref<void()> Callback);
+	void ExecuteFunctionImpl(export_index ExportId, function_ref<void()> Callback, source_location const& Location);
 
 	string strTitle;
 	string strDescription;

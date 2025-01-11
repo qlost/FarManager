@@ -161,7 +161,7 @@ public:
 	const unordered_string_set* GetFilteredExtensions() const override;
 	int GetCurrentPos() const override;
 	bool FindPartName(string_view Name, int Next, int Direct = 1) override;
-	bool GetPlainString(string& Dest, int ListPos) const override;
+	bool GetPlainString(string& Dest, int ListPos, os::chrono::time_point CurrentTime) const override;
 	bool GoToFile(long idxItem) override;
 	bool GoToFile(string_view Name, bool OnlyPartName = false) override;
 	long FindFile(string_view Name, bool OnlyPartName = false) override;
@@ -177,7 +177,7 @@ public:
 	void EditFilter() override;
 	bool FileInFilter(size_t idxItem) override;
 	bool FilterIsEnabled() override;
-	void ReadDiz(span<PluginPanelItem> Items = {}) override;
+	void ReadDiz(std::span<PluginPanelItem> Items = {}) override;
 	void DeleteDiz(string_view Name, string_view ShortName) override;
 	void FlushDiz() override;
 	string GetDizName() const override;
@@ -202,6 +202,7 @@ public:
 	void GoHome(string_view Drive) override;
 	bool GetSelectedFirstMode() const override;
 	void on_swap() override;
+	void dispose() override;
 
 	const FileListItem* GetItem(size_t Index) const;
 	const FileListItem* GetLastSelectedItem() const;
@@ -288,13 +289,13 @@ private:
 	void PrepareStripes(const std::vector<column>& Columns);
 	void PrepareViewSettings(int ViewMode);
 	void PluginDelete();
-	void PutDizToPlugin(FileList *DestPanel, span<PluginPanelItem> ItemList, bool Delete, bool Move, DizList *SrcDiz) const;
+	void PutDizToPlugin(FileList *DestPanel, std::span<PluginPanelItem> ItemList, bool Delete, bool Move, DizList *SrcDiz) const;
 	void PluginGetFiles(const string& DestPath, bool Move);
 	void PluginToPluginFiles(bool Move);
 	void PluginHostGetFiles();
 	void PluginPutFilesToNew();
 	int PluginPutFilesToAnother(bool Move, panel_ptr AnotherPanel);
-	void PluginClearSelection(span<PluginPanelItem> ItemList);
+	void PluginClearSelection(std::span<PluginPanelItem> ItemList);
 	void ProcessCopyKeys(unsigned Key);
 	void ReadSortGroups(bool UpdateFilterCurrentTime = true);
 	int ProcessOneHostFile(const FileListItem* Item);
@@ -317,7 +318,7 @@ private:
 		 Открывающий и закрывающий символ, которые используются для показа
 		 имени, которое не помещается в панели. По умолчанию - фигурные скобки.
 	*/
-	wchar_t openBracket[2]{L'{'}, closeBracket[2]{L'}'};
+	wchar_t openBracket{L'{'}, closeBracket{L'}'};
 
 	string strOriginalCurDir;
 	string strPluginDizName;
@@ -355,10 +356,8 @@ private:
 		decltype(auto) data() const { return Items.data(); }
 		decltype(auto) resize(size_t Size) { return Items.resize(Size); }
 		decltype(auto) reserve(size_t Size) { return Items.reserve(Size); }
-		template<typename... args>
-		decltype(auto) emplace_back(args&&... Args) { return Items.emplace_back(FWD(Args)...); }
-		template<typename T>
-		decltype(auto) push_back(T&& Value) { return Items.push_back(FWD(Value)); }
+		decltype(auto) emplace_back(auto&&... Args) { return Items.emplace_back(FWD(Args)...); }
+		decltype(auto) push_back(auto&& Value) { return Items.push_back(FWD(Value)); }
 	private:
 		std::vector<FileListItem> Items;
 		plugin_panel* m_Plugin{};

@@ -38,7 +38,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
-#include "common/utility.hpp"
 
 // External:
 
@@ -56,24 +55,15 @@ namespace os::memory
 			};
 		}
 
-		template<class T>
-		class ptr: public base<std::unique_ptr<T, detail::deleter>>
-		{
-			using ptr::base_ctor::base_ctor;
-		};
-
-		template<class T>
-		ptr(T*) -> ptr<T>;
-
-		template<class T>
-		ptr<T> to_ptr(T* Ptr)
-		{
-			return ptr<T>{ Ptr };
-		}
+		template<typename T>
+		using ptr = std::unique_ptr<T, detail::deleter>;
 	}
 
 	[[nodiscard]]
 	bool is_pointer(const void* Address);
+
+	[[nodiscard]]
+	bool is_pointer(uintptr_t Address);
 
 	void enable_low_fragmentation_heap();
 }

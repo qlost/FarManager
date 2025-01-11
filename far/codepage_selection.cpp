@@ -36,6 +36,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "codepage_selection.hpp"
 
 // Internal:
+#include "codepage.hpp"
 #include "encoding.hpp"
 #include "vmenu2.hpp"
 #include "keys.hpp"
@@ -297,9 +298,9 @@ size_t codepages::GetCodePageInsertPosition(uintptr_t codePage, size_t start, si
 		}
 	};
 
-	const auto iRange = irange(start, start + length);
-	const auto Pos = std::find_if(CONST_RANGE(iRange, i) { return GetCodePage(i) >= codePage; });
-	return Pos != iRange.cend()? *Pos : start + length;
+	const auto iRange = std::views::iota(start, start + length);
+	const auto Pos = std::ranges::find_if(iRange, [&](size_t const i){ return GetCodePage(i) >= codePage; });
+	return Pos != iRange.end()? *Pos : start + length;
 }
 
 static string_view unicode_codepage_name(uintptr_t const Codepage)
@@ -307,8 +308,8 @@ static string_view unicode_codepage_name(uintptr_t const Codepage)
 	switch (Codepage)
 	{
 	case CP_UTF8:       return L"UTF-8"sv;
-	case CP_UNICODE:    return L"UTF-16 (Little endian)"sv;
-	case CP_REVERSEBOM: return L"UTF-16 (Big endian)"sv;
+	case CP_UTF16LE:    return L"UTF-16 (Little endian)"sv;
+	case CP_UTF16BE:    return L"UTF-16 (Big endian)"sv;
 	default:            return {};
 	}
 }
@@ -373,8 +374,8 @@ void codepages::AddCodePages(DWORD codePages)
 	//
 	AddSeparator(msg(lng::MGetCodePageUnicode));
 	AddStandardCodePage(unicode_codepage_name(CP_UTF8), CP_UTF8, -1, true);
-	AddStandardCodePage(unicode_codepage_name(CP_UNICODE), CP_UNICODE);
-	AddStandardCodePage(unicode_codepage_name(CP_REVERSEBOM), CP_REVERSEBOM);
+	AddStandardCodePage(unicode_codepage_name(CP_UTF16LE), CP_UTF16LE);
+	AddStandardCodePage(unicode_codepage_name(CP_UTF16BE), CP_UTF16BE);
 
 	// other codepages
 	//
@@ -598,7 +599,7 @@ intptr_t codepages::EditDialogProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, v
 
 			if (Param1 == EDITCP_OK)
 			{
-				strCodePageName = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EDITCP_EDIT, nullptr));
+				strCodePageName = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, EDITCP_EDIT, nullptr));
 			}
 			// Если имя кодовой страницы пустое, то считаем, что имя не задано
 			if (strCodePageName.empty())
@@ -647,7 +648,7 @@ void codepages::EditCodePageName()
 
 	EditDialog[EDITCP_EDIT].strHistory = L"CodePageName"sv;
 
-	const auto Dlg = Dialog::create(EditDialog, &codepages::EditDialogProc, this);
+	const auto Dlg = Dialog::create(EditDialog, std::bind_front(&codepages::EditDialogProc, this));
 	Dlg->SetPosition({ -1, -1, 54, 7 });
 	Dlg->SetHelp(L"EditCodePageNameDlg"sv);
 	Dlg->Process();
@@ -760,7 +761,7 @@ size_t codepages::FillCodePagesList(Dialog* Dlg, size_t controlId, uintptr_t cod
 		FarListInfo info{ sizeof(info) };
 		Dlg->SendMessage(DM_LISTINFO, control, &info);
 
-		for (const auto& i: irange(info.ItemsNumber))
+		for (const auto i: std::views::iota(0uz, info.ItemsNumber))
 		{
 			if (GetListItemCodePage(i) == codePage)
 			{
@@ -776,15 +777,6 @@ size_t codepages::FillCodePagesList(Dialog* Dlg, size_t controlId, uintptr_t cod
 
 	// Возвращаем число избранных таблиц символов
 	return favoriteCodePages;
-}
-
-bool codepages::IsCodePageSupported(uintptr_t CodePage, size_t MaxCharSize)
-{
-	if (CodePage == CP_DEFAULT || IsStandardCodePage(CodePage))
-		return true;
-
-	const auto Info = GetCodePageInfo(CodePage);
-	return Info && Info->MaxCharSize <= MaxCharSize;
 }
 
 std::optional<cp_info> codepages::GetInfo(uintptr_t CodePage)
@@ -870,7 +862,7 @@ F8CP::F8CP(bool viewer):
 					cp = 0;
 			}
 
-			if (cp && codepages::IsCodePageSupported(cp, viewer ? 2:20) && !used_cps.contains(cp))
+			if (cp && IsCodePageSupported(cp, viewer? 2 : 20) && !used_cps.contains(cp))
 			{
 				m_F8CpOrder.emplace_back(cp);
 				used_cps.emplace(cp);
@@ -894,7 +886,7 @@ F8CP::F8CP(bool viewer):
 
 uintptr_t F8CP::NextCP(uintptr_t cp) const
 {
-	auto curr = std::find(ALL_CONST_RANGE(m_F8CpOrder), cp);
+	auto curr = std::ranges::find(m_F8CpOrder, cp);
 	return curr != m_F8CpOrder.cend() && ++curr != m_F8CpOrder.cend()? *curr : *m_F8CpOrder.cbegin();
 }
 

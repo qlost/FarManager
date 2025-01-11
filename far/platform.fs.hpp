@@ -67,7 +67,7 @@ namespace os::fs
 			void operator()(HANDLE Handle) const noexcept;
 		};
 
-		struct find_notification_handle_closer
+		struct find_nt_handle_closer
 		{
 			void operator()(HANDLE Handle) const noexcept;
 		};
@@ -81,7 +81,7 @@ namespace os::fs
 	using find_handle = os::detail::handle_t<detail::find_handle_closer>;
 	using find_file_handle = os::detail::handle_t<detail::find_file_handle_closer>;
 	using find_volume_handle = os::detail::handle_t<detail::find_volume_handle_closer>;
-	using find_notification_handle = os::detail::handle_t<detail::find_notification_handle_closer>;
+	using find_nt_handle = os::detail::handle_t<detail::find_nt_handle_closer>;
 
 	using drives_set = std::bitset<26>;
 
@@ -218,6 +218,24 @@ namespace os::fs
 		mutable find_volume_handle m_Handle;
 	};
 
+	class [[nodiscard]] enum_devices: public enumerator<enum_devices, string_view>
+	{
+		IMPLEMENTS_ENUMERATOR(enum_devices);
+
+	public:
+		explicit enum_devices(string_view Object);
+
+	private:
+		[[nodiscard]]
+		bool get(bool Reset, string_view& Value) const;
+
+		UNICODE_STRING m_Object;
+		mutable find_nt_handle m_Handle;
+		mutable char_ptr m_Buffer;
+		mutable std::optional<size_t> m_Index{};
+		mutable ULONG m_Context{};
+	};
+
 	class file
 	{
 	public:
@@ -228,8 +246,7 @@ namespace os::fs
 
 		explicit file(handle&& Handle);
 
-		template<typename... args> requires (sizeof...(args) > 1)
-		explicit file(args&&... Args)
+		explicit file(auto&&... Args)
 		{
 			(void)Open(FWD(Args)...);
 		}
@@ -406,6 +423,11 @@ namespace os::fs
 
 	[[nodiscard]]
 	bool is_not_empty_directory(string_view Object);
+
+	bool is_file_name_too_long(string_view LongName);
+	bool is_directory_name_too_long(string_view LongName);
+
+	bool shorten(string_view Name, string& ShortName, function_ref<bool(string_view)> IsTooLong);
 
 	class current_directory_guard
 	{
@@ -589,19 +611,13 @@ namespace os::fs
 	bool move_to_recycle_bin(string_view Object);
 
 	[[nodiscard]]
-	bool get_disk_size(string_view Path, unsigned long long* TotalSize, unsigned long long* TotalFree, unsigned long long* UserFree);
+	bool get_disk_size(string_view Path, unsigned long long* UserTotal, unsigned long long* TotalFree, unsigned long long* UserFree);
 
 	[[nodiscard]]
 	bool GetFileTimeSimple(string_view FileName, chrono::time_point* CreationTime, chrono::time_point* LastAccessTime, chrono::time_point* LastWriteTime, chrono::time_point* ChangeTime);
 
 	[[nodiscard]]
 	bool get_find_data(string_view FileName, find_data& FindData, bool ScanSymLink = true);
-
-	[[nodiscard]]
-	find_notification_handle find_first_change_notification(string_view PathName, bool WatchSubtree, DWORD NotifyFilter);
-
-	[[nodiscard]]
-	bool find_next_change_notification(find_notification_handle const& Handle);
 
 	[[nodiscard]]
 	bool IsDiskInDrive(string_view Root);

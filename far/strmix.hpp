@@ -51,12 +51,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class RegExp;
 struct RegExpMatch;
-struct named_regex_match;
+class regex_match;
+class named_regex_match;
 
 namespace legacy
 {
-	wchar_t* QuoteSpace(wchar_t* Str);
-	wchar_t* InsertQuotes(wchar_t* Str);
 	wchar_t* QuoteSpaceOnly(wchar_t* Str);
 }
 
@@ -88,9 +87,23 @@ inline void replace(string& Str, string_view const Find, string_view const Repla
 	ReplaceStrings(Str, Find, Replace, false);
 }
 
+inline auto replace(string_view const Str, string_view const Find, string_view const Replace)
+{
+	string Copy(Str);
+	replace(Copy, Find, Replace);
+	return Copy;
+}
+
 inline void replace_icase(string& Str, string_view const Find, string_view const Replace)
 {
 	ReplaceStrings(Str, Find, Replace, true);
+}
+
+inline auto replace_icase(string_view const Str, string_view const Find, string_view const Replace)
+{
+	string Copy(Str);
+	replace_icase(Copy, Find, Replace);
+	return Copy;
 }
 
 void remove_duplicates(string& Str, wchar_t Char, bool IgnoreCase = false);
@@ -100,8 +113,7 @@ class [[nodiscard]] wrapped_text : public enumerator<wrapped_text, string_view>
 	IMPLEMENTS_ENUMERATOR(wrapped_text);
 
 public:
-	template<typename string_type>
-	explicit wrapped_text(string_type&& Str, size_t const Width):
+	explicit wrapped_text(auto&& Str, size_t const Width):
 		m_Str(FWD(Str)),
 		m_Tail(m_Str),
 		m_Width(Width? Width : m_Tail.size())
@@ -123,16 +135,21 @@ void PrepareUnitStr();
 string FileSizeToStr(unsigned long long FileSize, int WidthWithSign = -1, unsigned long long ViewFlags = COLFLAGS_GROUPDIGITS);
 
 [[nodiscard]]
+string FileSizeToStrInvariant(unsigned long long FileSize, int WidthWithSign = -1, unsigned long long ViewFlags = COLFLAGS_GROUPDIGITS);
+
+[[nodiscard]]
 bool CheckFileSizeStringFormat(string_view FileSizeStr);
 
 [[nodiscard]]
 unsigned long long ConvertFileSizeString(string_view FileSizeStr);
 
 [[nodiscard]]
-string ReplaceBrackets(string_view SearchStr, string_view ReplaceStr, span<RegExpMatch const> Match, const named_regex_match* NamedMatch, int& CurPos, int& SearchLength);
+string ReplaceBrackets(string_view SearchStr, string_view ReplaceStr, std::span<RegExpMatch const> Match, const named_regex_match* NamedMatch);
 
 [[nodiscard]]
 string GroupDigits(unsigned long long Value);
+[[nodiscard]]
+string GroupDigitsInvariant(unsigned long long Value);
 
 [[nodiscard]]
 inline bool IsWordDiv(string_view const WordDiv, wchar_t const Chr)
@@ -146,8 +163,6 @@ bool FindWordInString(string_view Str, size_t CurPos, size_t& Begin, size_t& End
 namespace legacy
 {
 	wchar_t* truncate_left(wchar_t* Str, int MaxLength);
-	wchar_t* truncate_center(wchar_t* Str, int MaxLength);
-	wchar_t* truncate_right(wchar_t* Str, int MaxLength);
 	wchar_t* truncate_path(wchar_t* Str, int MaxLength);
 }
 
@@ -192,7 +207,7 @@ bool SearchString(
 	string_view Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	std::vector<RegExpMatch>& Match,
+	regex_match& Match,
 	named_regex_match* NamedMatch,
 	int& CurPos,
 	search_replace_string_options options,
@@ -206,7 +221,7 @@ bool SearchAndReplaceString(
 	string_view Needle,
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
-	std::vector<RegExpMatch>& Match,
+	regex_match& Match,
 	named_regex_match* NamedMatch,
 	string& ReplaceStr,
 	int& CurPos,
@@ -225,7 +240,7 @@ namespace detail
 {
 	template<typename flags_type>
 	[[nodiscard]]
-	auto FlagsToString(unsigned long long Flags, span<std::pair<flags_type, string_view> const> const From, wchar_t Separator = L' ')
+	auto FlagsToString(unsigned long long Flags, std::span<std::pair<flags_type, string_view> const> const From, wchar_t Separator = L' ')
 	{
 		string strFlags;
 		for (const auto& [Value, Name]: From)
@@ -246,7 +261,7 @@ namespace detail
 
 	template<typename flags_type>
 	[[nodiscard]]
-	auto StringToFlags(string_view const strFlags, span<std::pair<flags_type, string_view> const> const From, const string_view Separators = L"|;, "sv)
+	auto StringToFlags(string_view const strFlags, std::span<std::pair<flags_type, string_view> const> const From, const string_view Separators = L"|;, "sv)
 	{
 		flags_type Flags{};
 
@@ -258,7 +273,7 @@ namespace detail
 			if (i.empty())
 				continue;
 
-			const auto ItemIterator = std::find_if(CONST_RANGE(From, j) { return equal_icase(i, j.second); });
+			const auto ItemIterator = std::ranges::find_if(From, [&](auto const& j){ return equal_icase(i, j.second); });
 			if (ItemIterator != From.end())
 				Flags |= ItemIterator->first;
 		}
@@ -268,13 +283,13 @@ namespace detail
 }
 
 [[nodiscard]]
-auto FlagsToString(unsigned long long const Flags, span_like auto const& From, wchar_t const Separator = L' ')
+auto FlagsToString(unsigned long long const Flags, std::ranges::contiguous_range auto const& From, wchar_t const Separator = L' ')
 {
 	return detail::FlagsToString(Flags, span(From), Separator);
 }
 
 [[nodiscard]]
-auto StringToFlags(string_view const strFlags, span_like auto const& From, string_view const Separators = L"|;, "sv)
+auto StringToFlags(string_view const strFlags, std::ranges::contiguous_range auto const& From, string_view const Separators = L"|;, "sv)
 {
 	return detail::StringToFlags(strFlags, span(From), Separators);
 }

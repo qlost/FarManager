@@ -43,6 +43,9 @@
 <?define Guid.RestoreOldPluginSettings.cmd = "4D0EAB15-49AE-4EA9-8AEE-D3764AF5648D" ?>
 <?define Guid.SaveOldPluginSettings.cmd = "6CCDB7C8-427C-485F-9C92-9328DBEBD716" ?>
 
+<?define Guid.sqlite3.dll = "C73AD0B0-8769-43D6-BCAC-F8835417D9A5" ?>
+<?define Guid.sqlite3.map = "30532F63-E28A-4AB0-959C-3D5B34375BC2" ?>
+
 <?define Guid.Far.VisualElementsManifest.xml = "7ED27C25-814C-40C3-9FB0-5CE37856DEF8" ?>
 <?define Guid.VisualElements.large.png = "5F6A5001-4CDE-471D-BE38-1729FFB71F11" ?>
 <?define Guid.VisualElements.small.png = "682DA675-C4BB-4A81-AC40-36940A7F5511" ?>
@@ -131,6 +134,7 @@
 <?define Guid.Panel.Search.CtrlIns.lua = "71A09EF7-1AEF-408E-BC67-A2A011216657" ?>
 <?define Guid.ShiftBS.lua = "D9C2AB23-6DC2-408E-9192-87C2F113188C" ?>
 <?define Guid.ShiftTab.lua = "D0CE372A-263F-4DEE-B4DD-C2A2B53FD9E6" ?>
+<?define Guid.SwapHorizontalScrollDirection.lua = "0782F84D-32F3-48C7-B107-098E79473515" ?>
 <?define Guid.Symlink.lua = "4702F78F-07E1-4C55-A464-FA6598C3F649" ?>
 <?define Guid.UppercaseFolders.lua = "AA9B1595-E162-4B64-957B-20D9C23620B1" ?>
 <?define Guid.View.CtrlUpDown.lua = "20944403-38BD-481D-A82F-9359415B1394" ?>
@@ -351,6 +355,8 @@
 <?define Guid.colorere.lng = "7E43B038-6F2B-1014-82E0-C7D03160BF23" ?>
 <?define Guid.colorerr.hlf = "7E43B13D-6F2B-1014-B3A6-CA6454D7BB35" ?>
 <?define Guid.colorerr.lng = "7E43B23B-6F2B-1014-A826-B7FEC55BD05D" ?>
+<?define Guid.colorerpol.hlf = "9DAD6774-F9A3-4792-8D9F-E0516F0ADB38" ?>
+<?define Guid.colorerpol.lng = "2A8343D6-828F-40ED-89A4-B5896F96FD1C" ?>
 <?define Guid.colorer.map = "7E43B318-6F2B-1014-BCDF-ED5FBD399001" ?>
 <?define Guid.hrcsettings.xml = "7E43B417-6F2B-1014-93F6-A53AE0A32D4A" ?>
 <?define Guid.Plugin.Colorer.lua = "2849CDA6-2F8A-46C1-97B9-1FA94FE9CCC3" ?>
@@ -426,13 +432,16 @@
 
 <?define Guid.ChangeLog_11 = "77BB0583-6AE6-46F9-A47A-6FA6DDECC26F" ?>
 <?define Guid.NetBox.dll = "169B3A95-BDFE-434A-BB3C-DA9A6261C472" ?>
+<?define Guid.NetBox.map = "E76DFED7-E146-4189-B6F8-8C87E3C54D5D" ?>
 <?define Guid.NetBoxEng.lng = "3220C93B-564C-4244-A290-1011D47732CA" ?>
 <?define Guid.NetBoxRus.lng = "60DEBD31-D334-4DA1-836C-48869F61ADC1" ?>
 <?define Guid.NetBoxPol.lng = "93AF75E4-ADA8-4F06-BCD9-5617A2E59940" ?>
+<?define Guid.NetBoxSpa.lng = "E281D5FB-2AB9-47EC-9510-CFC95FA64CE1" ?>
 <?define Guid.README.md = "D1107AA5-233C-4C88-930F-C430B1FCABF8" ?>
 <?define Guid.README.RU.md = "24A54023-554D-47E9-976E-E1C46FBAEB6E" ?>
 <?define Guid.README.PL.md = "4AFF41A4-6379-4E74-A727-CD415AD88C09" ?>
 <?define Guid.LICENSE.txt = "81CC76B7-0455-43B8-86CD-A43E83EFF064" ?>
+<?define Guid.cacert.pem = "C12C5D8C-5802-4008-B120-1914B679B20E" ?>
 
 <?define Guid.changelog_12 = "AB53A84B-0106-4720-A3FB-0695B6C65715" ?>
 <?define Guid.HlfViewer.dll = "34BEBB3F-3AC1-4C85-ABE3-FB33A7E0D2C3" ?>
@@ -566,10 +575,9 @@
 <?define Guid.lm_pol.lng = "C3069057-FDB6-491D-B012-A29886A4B628" ?>
 <?define Guid.luamacro.example.ini = "E782F2C0-4B28-49A5-83FF-31E1FD086862" ?>
 <?define Guid.lua51.dll = "31F36739-E199-4FA9-BD95-E08D99C54F27" ?>
- 
-<?define Guid.lpeg.dll = "924E63FA-359B-4E4B-98B3-D04502466DEF" ?>
 <?define Guid.luafar3.dll = "51D92B8C-EFB1-47A7-98FA-AD3BB73BBDD8" ?>
 <?define Guid.luafar3.map = "931D33C2-2675-4DC7-8A57-DF8A12B263ED" ?>
+
 <?define Guid.DlgBuilder.hpp = "8E572810-F31E-476C-A67E-3679CFDDF510" ?>
 <?define Guid.farcolor.hpp = "09214A8A-A57C-42EB-9E74-FA95E5006BFD" ?>
 <?define Guid.plugin.hpp = "E736C600-248A-445F-8EC5-2646A8D586E7" ?>
@@ -578,5 +586,6 @@
 <?define Guid.luafar_manual.chm = "9E0DBDE0-F13A-487E-8378-FB9508909A81" ?>
 <?define Guid.macroapi_manual.ru.chm = "8DC9669E-9A90-4115-96C3-00B61990220B" ?>
 <?define Guid.macroapi_manual.en.chm = "74588035-C3BF-45DC-BA3C-23B809D5B361" ?>
+<?define Guid.macroapi_manual.pl.chm = "8104A326-8182-81F8-81E1-81144A899D3D" ?>
 <?define Guid.FarEncyclopedia.ru.chm = "45E1F734-6A8B-4CA8-BB3A-1310028BEB7A" ?>
 </Include>

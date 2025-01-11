@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "encoding.hpp"
 #include "eol.hpp"
 #include "log.hpp"
+#include "wm_listener.hpp"
 
 // Platform:
 #include "platform.chrono.hpp"
@@ -47,7 +48,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/enum_substrings.hpp"
-#include "common/range.hpp"
 #include "common/string_utils.hpp"
 
 // External:
@@ -164,15 +164,22 @@ namespace os::clipboard
 	bool open()
 	{
 		// Clipboard is a shared resource
-		const size_t Attempts = 5;
+		const auto Attempts = 5uz;
+		const auto Delay = 100ms;
 
-		for (const auto& i: irange(Attempts))
+		const auto ServiceWindow = wm_listener::service_window();
+		const auto NewOwner = ServiceWindow? ServiceWindow : console.GetWindow();
+
+		error_state Error;
+
+		for (const auto i: std::views::iota(0uz, Attempts))
 		{
-			// TODO: this is bad, we should use a real window handle
-			if (OpenClipboard(console.GetWindow()))
+			if (OpenClipboard(NewOwner))
 				return true;
 
-			const auto Error = last_error();
+			Error = last_error();
+
+			LOGDEBUG(L"OpenClipboard(): {}"sv, Error);
 
 			if (Error.Win32Error == ERROR_ACCESS_DENIED)
 			{
@@ -186,12 +193,10 @@ namespace os::clipboard
 				}
 			}
 
-			LOGDEBUG(L"OpenClipboard(): {}"sv, Error);
-
-			os::chrono::sleep_for((i + 1) * 50ms);
+			chrono::sleep_for((i + 1) * Delay);
 		}
 
-		LOGERROR(L"OpenClipboard(): {}"sv, last_error());
+		LOGERROR(L"OpenClipboard(): {}"sv, Error);
 		return false;
 	}
 
@@ -440,7 +445,7 @@ namespace os::clipboard
 		if (DataView.empty())
 			return false;
 
-		const auto DataSize = static_cast<size_t>(std::find(ALL_CONST_RANGE(DataView), '\0') - DataView.cbegin());
+		const auto DataSize = static_cast<size_t>(std::ranges::find(DataView, '\0') - DataView.cbegin());
 
 		Data = DataView.substr(0, DataSize);
 
@@ -458,18 +463,11 @@ namespace os::clipboard
 
 	static unsigned get_locale_codepage(LCID const Locale)
 	{
-		unsigned Acp;
-		const int SizeInChars = sizeof(Acp) / sizeof(wchar_t);
+		int Acp;
 
-		if (GetLocaleInfo(
-			Locale,
-				LOCALE_IDEFAULTANSICODEPAGE |
-				LOCALE_RETURN_NUMBER,
-			reinterpret_cast<wchar_t*>(&Acp),
-			SizeInChars
-		) != SizeInChars)
+		if (!get_locale_value(Locale, LOCALE_IDEFAULTANSICODEPAGE, Acp))
 		{
-			LOGWARNING(L"GetLocaleInfo(LOCALE_IDEFAULTANSICODEPAGE): {}"sv, last_error());
+			LOGWARNING(L"get_locale_value(LOCALE_IDEFAULTANSICODEPAGE): {}"sv, last_error());
 			return 0;
 		}
 
@@ -526,7 +524,7 @@ namespace os::clipboard
 			return;
 
 		// If it's pure ASCII, our job here is done.
-		if (std::all_of(ALL_CONST_RANGE(Data), [](wchar_t const Char){ return Char < 128; }))
+		if (std::ranges::all_of(Data, [](wchar_t const Char){ return Char < 128; }))
 			return;
 
 		const auto ClipboardLocale = get_locale();
@@ -560,7 +558,7 @@ namespace os::clipboard
 		encoding::diagnostics Diagnostics;
 		auto RecodedData = encoding::ansi::get_chars(AnsiData, &Diagnostics);
 
-		if (Diagnostics.ErrorPosition || Diagnostics.IncompleteBytes)
+		if (Diagnostics.ErrorPosition)
 			return;
 
 		if (RecodedData == Data)
@@ -580,7 +578,7 @@ namespace os::clipboard
 		}
 
 		const string_view DataView(TextPtr.get(), TextPtr.size / sizeof(*TextPtr));
-		return static_cast<size_t>(std::find(ALL_CONST_RANGE(DataView), L'\0') - DataView.cbegin());
+		return static_cast<size_t>(std::ranges::find(DataView, L'\0') - DataView.cbegin());
 	}
 
 	template<typename char_type>
@@ -666,7 +664,7 @@ namespace os::clipboard
 
 		const std::string_view OemDataView(ClipData.get(), ClipData.size / sizeof(*ClipData));
 
-		const auto OemDataSize = static_cast<size_t>(std::find(ALL_CONST_RANGE(OemDataView), '\0') - OemDataView.cbegin());
+		const auto OemDataSize = static_cast<size_t>(std::ranges::find(OemDataView, '\0') - OemDataView.cbegin());
 		encoding::oem::get_chars(OemDataView.substr(0, OemDataSize), Data);
 		return true;
 	}

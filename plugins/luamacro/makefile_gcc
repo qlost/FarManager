@@ -1,6 +1,5 @@
 NAME = luamacro
-
-LUAVER = 51
+VERSION_LUASDK = 20241113
 
 SRCS = \
 	luafar/luaplug.c \
@@ -49,7 +48,7 @@ endif
 
 USERLIBS = \
 	$(OBJDIR)/luafar3.lib \
-	luasdk/$(DIRBIT)/lua$(LUAVER).lib \
+	luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.lib \
 
 USERTARGETS = \
 	lualib \
@@ -66,18 +65,20 @@ FAR_DIRNAME=Release
 else
 FAR_DIRNAME=Debug
 endif
-FAR_WORKDIR := $(FARDIR)\$(FAR_DIRNAME).$(DIRBIT).gcc
+FAR_WORKDIR := $(FARDIR)\$(FAR_DIRNAME).$(BITPREFIX)$(DIRBIT).$(DIRSUFFIX)
 endif
 
 .PHONY: lualib
 lualib:
-	@$(MAKE) -f makefile_lib_gcc $(MK_FLAGS) DLLDIR=$(FAR_WORKDIR) LUAVER=$(LUAVER)
+	@$(MAKE) -f makefile_lib_gcc $(MK_FLAGS) DLLDIR=$(FAR_WORKDIR)
 
 .PHONY: lualegacy
 lualegacy:
+ifndef ARM
 ifeq ($(DIRBIT),32)
 	@$(MKDIR) $(FAR_WORKDIR)/Legacy
-	@$(CP) luasdk/32/legacy/lua51.dll $(FAR_WORKDIR)/Legacy
+	@$(CP) luasdk/$(VERSION_LUASDK)/32/legacy/lua51.dll $(FAR_WORKDIR)/Legacy
+endif
 endif
 
 .PHONY: clean

@@ -228,10 +228,13 @@ local CmpFuncs = {
                function (a,b) return LStricmp(a.description,b.description) > 0 end, "3↑", "3↓" },
 }
 
-local Data = mf.mload("LuaMacro", "MacroBrowser")
-local SortKey = Data and Data.SortKey or "C+F1"
-local InvSort = Data and Data.InvSort or 1
-local ShowOnlyActive = Data and Data.ShowOnlyActive
+local Data = mf.mload("LuaMacro", "MacroBrowser") or {}
+local SortKey = Data.SortKey
+local InvSort = Data.InvSort
+local ShowOnlyActive = Data.ShowOnlyActive
+
+if SortKey ~= "C+F1" and SortKey ~= "C+F2" and SortKey ~= "C+F3" then SortKey = "C+F1" end
+if InvSort ~= 1 and InvSort ~= 2 then InvSort = 1 end
 
 local function ShowHelp()
   far.Message(
@@ -438,7 +441,7 @@ local function MenuLoop()
 
   local bkeys = {
     {BreakKey="F1"}, {BreakKey="F3"}, {BreakKey="F4"}, {BreakKey="A+F4"}, {BreakKey="C+H"},
-    {BreakKey="C+PRIOR"}, {BreakKey="C+R"},
+    {BreakKey="C+PRIOR"}, {BreakKey="C+R"}, {BreakKey="S+F4"}
   }
   for k in pairs(CmpFuncs) do bkeys[#bkeys+1] = {BreakKey=k} end
 
@@ -550,7 +553,7 @@ local function MenuLoop()
       ShowOnlyActive = not ShowOnlyActive
       props.SelectIndex = nil
     ----------------------------------------------------------------------------
-    elseif (BrKey=="F4" or BrKey=="A+F4") and items[pos] then -- edit
+    elseif (BrKey=="F4" or BrKey=="A+F4" or BrKey=="S+F4") and items[pos] then -- edit
       local m = items[pos].macro
       if m.FileName then
         local isMoonScript = string.find(m.FileName, "[nN]", -1)
@@ -558,7 +561,7 @@ local function MenuLoop()
         if isMoonScript then
           startline = utils.GetMoonscriptLineNumber(m.FileName,startline) or startline
         end
-        if BrKey=="A+F4" then -- modal editor
+        if BrKey=="A+F4" or BrKey=="S+F4" then -- modal editor
           editor.Editor(m.FileName,nil,nil,nil,nil,nil,nil,startline,nil,65001)
         elseif BrKey=="F4" then -- non-modal editor
           local a = far.MacroGetArea()

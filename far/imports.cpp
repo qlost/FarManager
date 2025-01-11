@@ -53,10 +53,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace imports_detail
 {
-	imports::imports()
-	{
-	}
-
 	void* imports::get_pointer_impl(os::rtdl::module const& Module, const char* Name)
 	{
 		// imports is the lowest level. Everything else depends on it, including logging.
@@ -86,12 +82,12 @@ namespace imports_detail
 		};
 
 		const auto LastError = os::last_error();
-		LOGWARNING(L"{}::{}: {}"sv, Module.name(), encoding::utf8::get_chars(Name), LastError);
+		LOGWARNING(L"{}::{}: {}"sv, Module.name(), encoding::ascii::get_chars(Name), LastError);
 	}
 
 	void imports::log_usage(std::string_view const Name)
 	{
-		LOGWARNING(L"Stub call to {}"sv, encoding::ansi::get_chars(Name));
+		LOGWARNING(L"Stub call to {}"sv, encoding::ascii::get_chars(Name));
 	}
 
 	void imports::do_le()  { SetLastError(ERROR_CALL_NOT_IMPLEMENTED); }

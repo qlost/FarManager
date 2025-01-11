@@ -1,10 +1,16 @@
 NAME=luafar3
-LUAVER=51
-LUA=$(WINE_CMD)$(strip $(call os_name, luasdk/32/lua.exe))
+VERSION_LUASDK=20241113
+
+ifdef SYS_LUA
+LUA=lua
+else
+LUA=$(WINE_CMD)$(strip $(call os_name, luasdk/$(VERSION_LUASDK)/32/lua.exe))
+endif
 
 SRCS = \
 	luafar/bit64.c \
 	luafar/exported.c \
+	luafar/farhost.c \
 	luafar/flags.c \
 	luafar/keysandcolors.c \
 	luafar/lflua.c \
@@ -15,25 +21,26 @@ SRCS = \
 	luafar/service.c \
 	luafar/slnunico.c \
 	luafar/lutf8lib.c \
-	luafar/uliolib$(LUAVER).c \
-	luafar/uloadlib$(LUAVER).c \
+	luafar/uliolib51.c \
+	luafar/uloadlib51.c \
 	luafar/ustring.c \
 	luafar/util.c \
 	luafar/win.c \
-
-ifeq ($(LUAVER),52)
-SRCS += luafar/compat52.c
-endif
+	luafar/LPeg/lpcap.c \
+	luafar/LPeg/lpcode.c \
+	luafar/LPeg/lpcset.c \
+	luafar/LPeg/lpprint.c \
+	luafar/LPeg/lptree.c \
+	luafar/LPeg/lpvm.c \
 
 USERLIBS = \
-	luasdk/$(DIRBIT)/lua$(LUAVER).lib \
+	luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.lib \
 	-Wl,--out-implib,$(OBJDIR)/luafar3.lib \
 
 USERC = \
 	-Iluasdk/include \
 	-DBUILD_DLL \
-	-DWINVER=0x500 \
-	-DLUADLL=\"lua$(LUAVER).dll\" \
+	-DLUADLL=\"lua51.dll\" \
 	-Wno-cast-function-type \
 	-Wno-cast-qual \
 	-Wno-format-nonliteral \
@@ -57,24 +64,31 @@ USERC += \
 
 endif
 
+USERTARGETS = luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll
+
 RC_NAME = luafar/$(NAME)
 DEF_NAME = -
 
 include ../makefile_gcc_def_inc
 
 DOCS = \
-	luasdk/$(DIRBIT)/lua$(LUAVER).dll \
-	luasdk/$(DIRBIT)/lpeg.dll \
+	luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll \
 
 include ../makefile_gcc_target_inc
 
-luafar/flags.c: $(COMINC)/plugin.hpp luafar/makeflags.lua
+luafar/flags.c: $(COMINC)/plugin.hpp luafar/makeflags.lua luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll
 	@echo generating $@
 	@$(LUA) luafar/makeflags.lua $(COMINC)/plugin.hpp > $@
 
-luafar/keysandcolors.c: luafar/makefarkeys.lua $(COMINC)/farcolor.hpp $(FARDIR)/uuids.far.dialogs.hpp
+luafar/keysandcolors.c: luafar/makefarkeys.lua $(COMINC)/farcolor.hpp $(FARDIR)/uuids.far.dialogs.hpp luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll
 	@echo generating $@
 	@$(LUA) luafar/makefarkeys.lua $(COMINC)/farcolor.hpp $(FARDIR)/uuids.far.dialogs.hpp $@
+
+$(LUA): luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll
+luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.lib: luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll
+luasdk/$(VERSION_LUASDK)/$(BITPREFIX)$(DIRBIT)/lua51.dll:
+	@echo Downloading 7-Zip binaries
+	curl -o luasdk/LuaSDK-$(VERSION_LUASDK).zip https://raw.githubusercontent.com/FarGroup/thirdparty/master/LuaSDK-$(VERSION_LUASDK).zip && unzip luasdk/LuaSDK-$(VERSION_LUASDK).zip -d luasdk/$(VERSION_LUASDK)
 
 clean::
 	@$(RM) $(DLLDIR)/lua*.* $(OBJS) $(DEPS)

@@ -54,9 +54,10 @@ namespace colors
 	{
 		constexpr inline uint8_t
 			nt_mask = 0xf,
-			nt_last = 15,
-			nt_size = nt_last + 1,
-			cube_first = nt_last + 1,
+			nt_size = 16,
+			nt_first = 0,
+			nt_last = nt_size - 1,
+			cube_first = nt_size,
 			cube_size = 6,
 			cube_count = cube_size * cube_size * cube_size,
 			cube_last = cube_first + cube_count - 1,
@@ -64,6 +65,19 @@ namespace colors
 			grey_last = 255,
 			grey_count = grey_last - grey_first + 1;
 	}
+
+	struct single_color
+	{
+		COLORREF Value{};
+		bool IsIndex{};
+
+		bool operator==(single_color const&) const = default;
+
+		static single_color foreground(FarColor const& Color);
+		static single_color background(FarColor const& Color);
+		static single_color underline(FarColor const& Color);
+		static single_color default_color();
+	};
 
 	uint8_t  index_bits(COLORREF Colour);
 	COLORREF color_bits(COLORREF Colour);
@@ -105,10 +119,10 @@ namespace colors
 
 	size_t color_hash(const FarColor& Value);
 
-	FarColor merge(const FarColor& Bottom, const FarColor& Top);
+	FarColor merge(FarColor Bottom, FarColor Top);
 
-	using nt_palette_t = std::array<COLORREF, index::nt_size>;
-	nt_palette_t nt_palette();
+	using palette_t = std::array<COLORREF, 256>;
+	palette_t const& default_palette();
 
 	// TODO: Rename these uniformly
 	WORD FarColorToConsoleColor(const FarColor& Color);
@@ -118,7 +132,7 @@ namespace colors
 	uint8_t ConsoleIndex16to256(uint8_t Color);
 	const FarColor& PaletteColorToFarColor(PaletteColors ColorIndex);
 	const FarColor* StoreColor(const FarColor& Value);
-	COLORREF ARGB2ABGR(int Color);
+	COLORREF ARGB2ABGR(COLORREF Color);
 	// ([[T]FFFFFFFF][:[T]BBBBBBBB])
 	string_view ExtractColorInNewFormat(string_view Str, FarColor& Color, bool& Stop);
 
@@ -126,17 +140,17 @@ namespace colors
 	{
 		rgb6() = default;
 
-		constexpr rgb6(uint8_t const R, uint8_t const G, uint8_t const B):
+		constexpr rgb6(uint8_t const R, uint8_t const G, uint8_t const B) noexcept:
 			r(R),
 			g(G),
 			b(B)
 		{
-			assert(R < 6);
-			assert(G < 6);
-			assert(B < 6);
+			assert(R < index::cube_size);
+			assert(G < index::cube_size);
+			assert(B < index::cube_size);
 		}
 
-		explicit(false) constexpr rgb6(uint8_t const Color):
+		explicit(false) constexpr rgb6(uint8_t const Color) noexcept:
 			r((Color - index::nt_size) / (index::cube_size * index::cube_size)),
 			g((Color - index::nt_size - r * index::cube_size * index::cube_size) / index::cube_size),
 			b(Color - index::nt_size - r * index::cube_size * index::cube_size - g * index::cube_size)
@@ -144,7 +158,7 @@ namespace colors
 			assert(index::cube_first <= Color && Color <= index::cube_last);
 		}
 
-		explicit(false) constexpr operator uint8_t() const
+		explicit(false) constexpr operator uint8_t() const noexcept
 		{
 			return
 				index::nt_size +
@@ -161,6 +175,15 @@ namespace colors
 
 	[[nodiscard]]
 	unsigned long long ColorStringToFlags(string_view Flags);
+
+	COLORREF resolve_default(COLORREF Color, bool IsForeground);
+	FarColor resolve_defaults(FarColor const& Color);
+	FarColor unresolve_defaults(FarColor const& Color);
+	COLORREF default_colorref();
+	FarColor default_color();
+	bool is_default(COLORREF Color);
+	void store_default_color(FarColor const& Color);
+	void invalidate_cache();
 }
 
 template<>

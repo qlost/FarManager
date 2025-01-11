@@ -126,7 +126,7 @@ namespace os::process
 			return imports.NtWow64ReadVirtualMemory64 && NT_SUCCESS(imports.NtWow64ReadVirtualMemory64(Process, BaseAddress, Buffer, Size, NumberOfBytesRead));
 		else
 #endif
-			return ReadProcessMemory(Process, reinterpret_cast<void*>(BaseAddress), Buffer, Size, NumberOfBytesRead) != FALSE;
+			return ReadProcessMemory(Process, std::bit_cast<void*>(BaseAddress), Buffer, Size, NumberOfBytesRead) != FALSE;
 	}
 
 	static auto subsystem_to_type(int const Subsystem)
@@ -237,12 +237,33 @@ namespace os::process
 		}
 	}
 
+	static auto get_process_subsystem_from_handle(HANDLE const Process)
+	{
+#ifdef _M_IX86
+		if (IsWow64Process())
+			return image_type::unknown;
+
+		const auto HandleValue = std::bit_cast<uintptr_t>(Process);
+
+		if (HandleValue & 0b01)
+			return image_type::console; // VDM
+
+		if (HandleValue & 0b10)
+			return image_type::graphical; // WOW32
+#endif
+
+		return image_type::unknown;
+	}
+
 	image_type get_process_subsystem(HANDLE const Process)
 	{
 		if (const auto Type = get_process_subsystem_from_memory(Process); Type != image_type::unknown)
 			return Type;
 
 		if (const auto Type = get_process_subsystem_from_module(Process); Type != image_type::unknown)
+			return Type;
+
+		if (const auto Type = get_process_subsystem_from_handle(Process); Type != image_type::unknown)
 			return Type;
 
 		return image_type::unknown;
@@ -380,7 +401,7 @@ namespace os::process
 			return 0;
 		}
 
-		for (const auto& i: span(Info->ProcessIdList, Info->NumberOfProcessIdsInList))
+		for (const auto& i: std::span(Info->ProcessIdList, Info->NumberOfProcessIdsInList))
 		{
 			const auto Name = get_process_name(i);
 			version::file_version Version;
@@ -410,7 +431,7 @@ namespace os::process
 
 			if (any_of(Result, STATUS_INFO_LENGTH_MISMATCH, STATUS_BUFFER_OVERFLOW, STATUS_BUFFER_TOO_SMALL))
 			{
-				m_Info.reset(ReturnSize? ReturnSize : grow_exp_noshrink(m_Info.size(), {}));
+				m_Info.reset(ReturnSize? ReturnSize : grow_exp(m_Info.size(), {}));
 				continue;
 			}
 
@@ -423,21 +444,26 @@ namespace os::process
 
 	bool enum_processes::get(bool Reset, enum_process_entry& Value) const
 	{
+		constexpr auto InvalidOffset = static_cast<size_t>(-1);
+
 		if (m_Info.empty())
 			return false;
 
 		if (Reset)
 			m_Offset = 0;
+		else if (m_Offset == InvalidOffset)
+			return false;
 
 		const auto& Info = view_as<SYSTEM_PROCESS_INFORMATION>(m_Info.data(), m_Offset);
 
-		if (!Info.NextEntryOffset)
-			return false;
-
-		Value.Pid = static_cast<DWORD>(reinterpret_cast<uintptr_t>(Info.UniqueProcessId));
+		Value.Pid = static_cast<DWORD>(std::bit_cast<uintptr_t>(Info.UniqueProcessId));
 		Value.Name = { Info.ImageName.Buffer, Info.ImageName.Length / sizeof(wchar_t) };
 		Value.Threads = { view_as<SYSTEM_THREAD_INFORMATION const*>(&Info, sizeof(Info)), Info.NumberOfThreads };
-		m_Offset += Info.NextEntryOffset;
+
+		if (Info.NextEntryOffset)
+			m_Offset += Info.NextEntryOffset;
+		else
+			m_Offset = InvalidOffset;
 
 		return true;
 	}
@@ -459,7 +485,7 @@ namespace os::process
 
 		// "I say we take off and nuke the entire site from orbit. It’s the only way to be sure."
 		TerminateProcess(GetCurrentProcess(), ExitCode);
-		UNREACHABLE;
+		std::unreachable();
 	}
 
 	[[noreturn]]

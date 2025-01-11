@@ -296,17 +296,17 @@ history_return_type History::ProcessMenu(string& strStr, UUID* const Uuid, strin
 					}
 				}
 
-				SYSTEMTIME SavedTime;
+				os::chrono::local_time SavedTime;
 				utc_to_local(i.Time, SavedTime);
-				if(LastDay != SavedTime.wDay || LastMonth != SavedTime.wMonth || LastYear != SavedTime.wYear)
+				if(LastDay != SavedTime.Day || LastMonth != SavedTime.Month || LastYear != SavedTime.Year)
 				{
-					LastDay = SavedTime.wDay;
-					LastMonth = SavedTime.wMonth;
-					LastYear = SavedTime.wYear;
+					LastDay = SavedTime.Day;
+					LastMonth = SavedTime.Month;
+					LastYear = SavedTime.Year;
 					MenuItemEx Separator;
 					Separator.Flags = LIF_SEPARATOR;
 					string Time;
-					std::tie(Separator.Name, Time) = ConvertDate(i.Time, 8, 1);
+					std::tie(Separator.Name, Time) = time_point_to_string(i.Time, 8, 1);
 					HistoryMenu.AddItem(Separator);
 				}
 				strRecord += i.Name;
@@ -352,7 +352,7 @@ history_return_type History::ProcessMenu(string& strStr, UUID* const Uuid, strin
 			SetUpMenuPos=false;
 		}
 
-		HistoryMenu.Redraw();
+		HistoryMenu.Show();
 
 		MenuExitCode=HistoryMenu.Run([&](const Manager::Key& RawKey)
 		{

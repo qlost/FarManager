@@ -65,6 +65,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="char_width.cpp" />
     <ClCompile Include="clipboard.cpp" />
     <ClCompile Include="cmdline.cpp" />
+    <ClCompile Include="codepage.cpp" />
     <ClCompile Include="codepage_selection.cpp" />
     <ClCompile Include="color_picker.cpp" />
     <ClCompile Include="color_picker_256.cpp" />
@@ -150,6 +151,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="lockscrn.cpp" />
     <ClCompile Include="log.cpp" />
     <ClCompile Include="macro.cpp" />
+    <ClCompile Include="macroapi.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="manager.cpp" />
     <ClCompile Include="map_file.cpp" />
@@ -204,10 +206,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="setattr.cpp" />
     <ClCompile Include="setcolor.cpp" />
     <ClCompile Include="shortcuts.cpp" />
-    <ClCompile Include="sqlite.c">
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <ForcedIncludeFiles>disabled_warnings.hpp</ForcedIncludeFiles>
-    </ClCompile>
     <ClCompile Include="sqlitedb.cpp" />
     <ClCompile Include="stddlg.cpp" />
     <ClCompile Include="string_sort.cpp" />
@@ -243,6 +241,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="char_width.hpp" />
     <ClInclude Include="clipboard.hpp" />
     <ClInclude Include="cmdline.hpp" />
+    <ClInclude Include="codepage.hpp" />
     <ClInclude Include="codepage_selection.hpp" />
     <ClInclude Include="color_picker.hpp" />
     <ClInclude Include="color_picker_common.hpp" />
@@ -255,9 +254,6 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\2d\point.hpp" />
     <ClInclude Include="common\2d\rectangle.hpp" />
     <ClInclude Include="common\view\enumerate.hpp" />
-    <ClInclude Include="common\view\reverse.hpp" />
-    <ClInclude Include="common\view\select.hpp" />
-    <ClInclude Include="common\view\where.hpp" />
     <ClInclude Include="common\view\zip.hpp" />
     <ClInclude Include="common\algorithm.hpp" />
     <ClInclude Include="common\base64.hpp" />
@@ -268,6 +264,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\enum_substrings.hpp" />
     <ClInclude Include="common\enum_tokens.hpp" />
     <ClInclude Include="common\enumerator.hpp" />
+    <ClInclude Include="common\expected.hpp" />
     <ClInclude Include="common\from_string.hpp" />
     <ClInclude Include="common\function_ref.hpp" />
     <ClInclude Include="common\function_traits.hpp" />
@@ -283,10 +280,11 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\null_iterator.hpp" />
     <ClInclude Include="common\placement.hpp" />
     <ClInclude Include="common\preprocessor.hpp" />
-    <ClInclude Include="common\range.hpp" />
     <ClInclude Include="common\scope_exit.hpp" />
     <ClInclude Include="common\singleton.hpp" />
     <ClInclude Include="common\smart_ptr.hpp" />
+    <ClInclude Include="common\source_location.hpp" />
+    <ClInclude Include="common\span.hpp" />
     <ClInclude Include="common\string_utils.hpp" />
     <ClInclude Include="common\type_traits.hpp" />
     <ClInclude Include="common\utility.hpp" />
@@ -368,7 +366,9 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="lockscrn.hpp" />
     <ClInclude Include="log.hpp" />
     <ClInclude Include="macro.hpp" />
+    <ClInclude Include="macroapi.hpp" />
     <ClInclude Include="macroopcode.hpp" />
+    <ClInclude Include="macrovalues.hpp" />
     <ClInclude Include="manager.hpp" />
     <ClInclude Include="map_file.hpp" />
     <ClInclude Include="memcheck.hpp" />
@@ -438,6 +438,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="stddlg.hpp" />
     <ClInclude Include="string_sort.hpp" />
     <ClInclude Include="string_utils.hpp" />
+    <ClInclude Include="stack_allocator.hpp" />
     <ClInclude Include="strmix.hpp" />
     <ClInclude Include="taskbar.hpp" />
     <ClInclude Include="testing.hpp" />
@@ -460,48 +461,14 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="xlat.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="farcolor.hpp">
+    <CustomBuild Include="farcolor.hpp;plugin.hpp">
       <Message>Transforming %(Identity) to redistributable form...</Message>
-      <Command>$(M4Cmd) -DINPUT=%(Identity) headers.m4 &gt; Include\farcolor.hpp</Command>
-      <AdditionalInputs>headers.m4;farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>Include\%(Identity);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="plugin.hpp">
-      <Message>Transforming %(Identity) to redistributable form...</Message>
-      <Command>$(M4Cmd) -DINPUT=%(Identity) headers.m4 &gt; Include\plugin.hpp</Command>
+      <Command>$(M4Cmd) -DINPUT=%(Identity) headers.m4 &gt; Include\%(Identity)</Command>
       <AdditionalInputs>headers.m4;farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
       <Outputs>Include\%(Identity);%(Outputs)</Outputs>
     </CustomBuild>
     <CopyFileToFolders Include="Far.exe.example.ini" />
-    <CustomBuild Include="copyright.inc.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>$(M4Cmd) %(Identity) &gt; $(BootstrapDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(BootstrapDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="Far.exe.manifest.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>$(M4Cmd) %(Identity) &gt; $(BootstrapDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(BootstrapDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="far.rc.inc.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>$(M4Cmd) %(Identity) &gt; $(BootstrapDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(BootstrapDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="farlang.templ.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>$(M4Cmd) %(Identity) &gt; $(BootstrapDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(BootstrapDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="farversion.inc.m4">
+    <CustomBuild Include="copyright.inc.m4;Far.exe.manifest.m4;far.rc.inc.m4;farlang.templ.m4;farversion.inc.m4">
       <FileType>Document</FileType>
       <Message>Compiling %(Identity)...</Message>
       <Command>$(M4Cmd) %(Identity) &gt; $(BootstrapDir)%(FileName)</Command>
@@ -515,56 +482,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
       <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
       <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
     </CustomBuild>
-    <CustomBuild Include="FarEng.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarRus.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarHun.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarPol.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarGer.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarUkr.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarCze.hlf.m4">
-      <FileType>Document</FileType>
-      <Message>Compiling %(Identity)...</Message>
-      <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
-      <AdditionalInputs>farversion.m4;vbuild.m4;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs>$(OutDir)%(FileName);%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="FarSky.hlf.m4">
+    <CustomBuild Include="*.hlf.m4">
       <FileType>Document</FileType>
       <Message>Compiling %(Identity)...</Message>
       <Command>tools\gawk -f scripts\mkhlf.awk %(Identity) | $(M4Cmd) &gt; $(OutDir)%(FileName)</Command>
@@ -583,14 +501,8 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
       <ExcludedFromBuild Condition="'$(Platform)'!='Win32' and '$(Platform)'!='x64'">true</ExcludedFromBuild>
     </MASM>
     <CopyFileToFolders Include="changelog" />
-    <None Include="Far.ico" />
-    <None Include="Far.black.ico" />
-    <None Include="Far.hack.ico" />
-    <None Include="Far.mono.ico" />
-    <None Include="Far.msg.ico" />
+    <None Include="*.ico" />
     <None Include="far.natjmc" />
-    <None Include="Far.red.ico" />
-    <None Include="Far.log.ico" />
     <None Include="farversion.m4" />
     <None Include="headers.m4" />
     <None Include="vbuild.m4" />
@@ -607,6 +519,9 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ProjectReference Include="common_test.vcxproj">
       <Project>{459C0A10-7D18-4623-9FA9-1D5B6A587D40}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="sqlite.vcxproj">
+      <Project>{7FFC46F3-7C9F-4849-AA03-44F47F616212}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ProjectDir)..\_build\vc\config\common.targets" />

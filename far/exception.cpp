@@ -44,12 +44,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.debug.hpp"
 
 // Common:
+#include "common/source_location.hpp"
 #include "common/string_utils.hpp"
 
 // External:
 #include "format.hpp"
 
 //----------------------------------------------------------------------------
+
+string source_location_to_string(source_location const& Location)
+{
+	return far::format(
+		L"{}, {}({})"sv,
+		encoding::utf8::get_chars(Location.function_name()),
+		encoding::utf8::get_chars(Location.file_name()),
+		Location.line());
+}
 
 namespace detail
 {
@@ -60,13 +70,17 @@ namespace detail
 			far::format(L"far_base_exception: {}"sv, full_message());
 	}
 
-	far_base_exception::far_base_exception(bool const CaptureErrors, string_view const Message, std::string_view const Function, std::string_view const File, int const Line):
-		error_state_ex(CaptureErrors? os::last_error(): os::error_state{}, Message, CaptureErrors? errno : 0),
-		m_Function(Function),
-		m_Location(far::format(L"{}({})"sv, encoding::utf8::get_chars(File), Line)),
-		m_FullMessage(far::format(L"{} ({}, {})"sv, Message, encoding::utf8::get_chars(m_Function), m_Location))
+	far_base_exception::far_base_exception(error_state_ex ErrorState, source_location const& Location):
+		error_state_ex(std::move(ErrorState)),
+		m_Location(Location),
+		m_FullMessage(m_Location.function_name()? far::format(L"{} ({})"sv, What, source_location_to_string(m_Location)) : What)
 	{
 		LOGTRACE(L"{}"sv, *this);
+	}
+
+	far_std_exception::far_std_exception(string_view const Message, bool const CaptureErrors, source_location const& Location):
+		far_std_exception({ CaptureErrors? os::last_error() : error_state{}, Message, CaptureErrors? errno : 0 }, Location)
+	{
 	}
 
 	std::string far_std_exception::convert_message(string_view const Message)
@@ -76,7 +90,7 @@ namespace detail
 
 	break_into_debugger::break_into_debugger()
 	{
-		os::debug::breakpoint(false);
+		os::debug::breakpoint_if_debugging();
 	}
 }
 
@@ -119,7 +133,7 @@ string error_state_ex::to_string() const
 
 string formattable<std::exception>::to_string(std::exception const& e)
 {
-	return with_exception_stacktrace(far::format(L"std::exception: {}"sv, encoding::utf8::get_chars(e.what())));
+	return with_exception_stacktrace(far::format(L"std::exception: {}"sv, encoding::utf8_or_ansi::get_chars(e.what())));
 }
 
 string unknown_exception_t::to_string()

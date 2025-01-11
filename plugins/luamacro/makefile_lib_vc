@@ -1,8 +1,8 @@
 NAME=luafar3
-LUA_VER=51
-USERCPP=/Iluasdk/include /DBUILD_DLL /DWINVER=0x500 /DLUADLL=\"lua$(LUA_VER).dll\"
+VERSION_LUASDK=20241113
+USERCPP=/Iluasdk/include /DBUILD_DLL /DLUADLL=\"lua51.dll\"
 !ifndef LUA
-LUA=luasdk\32\lua.exe
+LUA=luasdk\$(VERSION_LUASDK)\32\lua.exe
 !endif
 
 GEN_IMPLIB=1
@@ -13,12 +13,12 @@ DEF_NAME=
 !include ..\makefile_vc_def_inc
 
 DOCS = \
-	luasdk\$(DIRBIT)\lua$(LUA_VER).dll \
-	luasdk\$(DIRBIT)\lpeg.dll \
+	luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll \
 
 LINK_OBJS = \
 $(INTDIR)\bit64.obj \
 $(INTDIR)\exported.obj \
+$(INTDIR)\farhost.obj \
 $(INTDIR)\flags.obj \
 $(INTDIR)\keysandcolors.obj \
 $(INTDIR)\lflua.obj \
@@ -34,8 +34,14 @@ $(INTDIR)\uloadlib51.obj \
 $(INTDIR)\ustring.obj \
 $(INTDIR)\util.obj \
 $(INTDIR)\win.obj \
+$(INTDIR)\lptree.obj \
+$(INTDIR)\lpcap.obj \
+$(INTDIR)\lpcode.obj \
+$(INTDIR)\lpcset.obj \
+$(INTDIR)\lpprint.obj \
+$(INTDIR)\lpvm.obj \
 
-LINK_LIBS=$(LINK_LIBS) luasdk\$(DIRBIT)\lua$(LUA_VER).lib
+LINK_LIBS=$(LINK_LIBS) luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.lib
 
 !include ..\makefile_vc_target_inc
 
@@ -51,10 +57,29 @@ $(LINK_OBJS): luafar\flags.c luafar\keysandcolors.c
 	@$(CC) $(CPPFLAGS) { $< }
 !endif
 
-luafar\flags.c: $(COMINC)\plugin.hpp luafar\makeflags.lua
+!ifndef __MAKE__
+{luafar\LPeg}.c{$(INTDIR)}.obj::
+	$(CC) @<<
+	$(CPPFLAGS) $<
+<<
+!else
+{luafar\LPeg}.c{$(INTDIR)}.obj:
+	@$(CC) $(CPPFLAGS) { $< }
+!endif
+
+luafar\flags.c: $(COMINC)\plugin.hpp luafar\makeflags.lua luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll
 	@echo generating flags.c
 	@$(LUA) luafar\makeflags.lua $(COMINC)\plugin.hpp > luafar\flags.c
 
-luafar\keysandcolors.c: luafar\makefarkeys.lua $(COMINC)\farcolor.hpp $(FARDIR)\uuids.far.dialogs.hpp
+luafar\keysandcolors.c: luafar\makefarkeys.lua $(COMINC)\farcolor.hpp $(FARDIR)\uuids.far.dialogs.hpp luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll
 	@echo generating keysandcolors.c
 	@$(LUA) luafar\makefarkeys.lua $(COMINC)\farcolor.hpp $(FARDIR)\uuids.far.dialogs.hpp $@
+
+!ifndef POWERSHELL
+POWERSHELL=powershell
+!endif
+$(LUA): luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll
+luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.lib: luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll
+luasdk\$(VERSION_LUASDK)\$(BITPREFIX)$(DIRBIT)\lua51.dll:
+	@echo Downloading Lua binaries
+	$(POWERSHELL) -c "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/FarGroup/thirdparty/master/LuaSDK-$(VERSION_LUASDK).zip' -OutFile 'luasdk\LuaSDK-$(VERSION_LUASDK).zip'; Expand-Archive luasdk\LuaSDK-$(VERSION_LUASDK).zip -DestinationPath luasdk\$(VERSION_LUASDK)

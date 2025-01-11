@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
+#include "common/algorithm.hpp"
 #include "common/bytes_view.hpp"
 #include "common/string_utils.hpp"
 
@@ -51,27 +52,38 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace
 {
+	constexpr auto succeeded(LSTATUS const Code)
+	{
+		return Code == ERROR_SUCCESS;
+	}
+
+	constexpr auto failed(LSTATUS const Code)
+	{
+		return !succeeded(Code);
+	}
+
 	constexpr bool is_string_type(DWORD Type)
 	{
 		return Type == REG_SZ || Type == REG_EXPAND_SZ || Type == REG_MULTI_SZ;
 	}
 
-	bool query_value(const HKEY Key, const string_view Name, DWORD* const Type, void* const Data, size_t* const Size)
+	LSTATUS query_value(const HKEY Key, const string_view Name, DWORD* const Type, void* const Data, size_t* const Size)
 	{
 		DWORD dwSize = Size? static_cast<DWORD>(*Size) : 0;
 		const auto Result = RegQueryValueEx(Key, null_terminated(Name).c_str(), nullptr, Type, static_cast<BYTE*>(Data), Size? &dwSize : nullptr);
 		if (Size)
 		{
+			assert(Key != HKEY_PERFORMANCE_DATA);
 			*Size = dwSize;
 		}
-		return Result == ERROR_SUCCESS;
+		return Result;
 	}
 
-	bool query_value(const HKEY Key, const string_view Name, DWORD& Type, bytes& Value)
+	LSTATUS query_value(const HKEY Key, const string_view Name, DWORD& Type, bytes& Value)
 	{
 		size_t Size = 0;
-		if (!query_value(Key, Name, nullptr, nullptr, &Size))
-			return false;
+		if (const auto Result = query_value(Key, Name, nullptr, nullptr, &Size); failed(Result))
+			return Result;
 
 		Value.resize(Size);
 		return query_value(Key, Name, &Type, Value.data(), &Size);
@@ -84,11 +96,18 @@ namespace os::reg
 	const key key::current_user = key(HKEY_CURRENT_USER);
 	const key key::local_machine = key(HKEY_LOCAL_MACHINE);
 
-	key key::open(const key& Key, const string_view SubKey, const DWORD SamDesired)
+	exception::exception(error const& Error, source_location const& Location):
+		far_exception({{ static_cast<DWORD>(Error.Code), STATUS_SUCCESS }, Error.What }, Location)
+	{}
+
+	result<key> key::open(string_view const SubKeyName, DWORD const SamDesired) const
 	{
-		key Result;
 		HKEY HKey;
-		Result.m_Key.reset(RegOpenKeyEx(Key.native_handle(), null_terminated(SubKey).c_str(), 0, SamDesired, &HKey) == ERROR_SUCCESS? HKey : nullptr);
+		if (const auto Result = RegOpenKeyEx(native_handle(), null_terminated(SubKeyName).c_str(), 0, SamDesired, &HKey); failed(Result))
+			return error{ far::format(L"RegOpenKeyEx({})"sv, SubKeyName), Result };
+
+		key Result;
+		Result.m_Key.reset(HKey);
 		return Result;
 	}
 
@@ -102,12 +121,22 @@ namespace os::reg
 		return m_Key.get();
 	}
 
-	bool key::enum_keys(size_t Index, string& Name) const
+	enum_key key::enum_keys() const
 	{
-		return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> const Buffer)
+		return enum_key(*this);
+	}
+
+	enum_value key::enum_values() const
+	{
+		return enum_value(*this);
+	}
+
+	bool key::enum_keys_impl(size_t Index, string& Name) const
+	{
+		return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> const Buffer)
 		{
 			auto RetSize = static_cast<DWORD>(Buffer.size());
-			switch (RegEnumKeyEx(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, {}, {}, {}))
+			switch (const auto Result = RegEnumKeyEx(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, {}, {}, {}))
 			{
 			case ERROR_SUCCESS:
 				return RetSize;
@@ -116,18 +145,21 @@ namespace os::reg
 				// We don't know how much
 				return RetSize * 2;
 
-			default:
+			case ERROR_NO_MORE_ITEMS:
 				return DWORD{};
+
+			default:
+				throw exception({ L"RegEnumKeyEx"s, Result });
 			}
 		});
 	}
 
-	bool key::enum_values(size_t Index, value& Value) const
+	bool key::enum_values_impl(size_t Index, value& Value) const
 	{
-		if (!detail::ApiDynamicStringReceiver(Value.m_Name, [&](span<wchar_t> const Buffer)
+		if (!detail::ApiDynamicStringReceiver(Value.m_Name, [&](std::span<wchar_t> const Buffer)
 		{
 			auto RetSize = static_cast<DWORD>(Buffer.size());
-			switch (RegEnumValue(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, &Value.m_Type, {}, {}))
+			switch (const auto Result = RegEnumValue(native_handle(), static_cast<DWORD>(Index), Buffer.data(), &RetSize, {}, &Value.m_Type, {}, {}))
 			{
 			case ERROR_SUCCESS:
 				return RetSize;
@@ -136,8 +168,11 @@ namespace os::reg
 				// We don't know how much
 				return RetSize * 2;
 
-			default:
+			case ERROR_NO_MORE_ITEMS:
 				return DWORD{};
+
+			default:
+				throw exception({ L"RegEnumValue"s, Result });
 			}
 		}))
 			return false;
@@ -146,55 +181,59 @@ namespace os::reg
 		return true;
 	}
 
-	bool key::get(const string_view Name) const
+	bool key::exits(const string_view Name) const
 	{
-		return query_value(native_handle(), Name, nullptr, nullptr, nullptr);
+		return succeeded(query_value(native_handle(), Name, {}, {}, {}));
 	}
 
-	bool key::get(const string_view Name, string& Value) const
+	result<string> key::get_string(const string_view Name) const
 	{
 		bytes Buffer;
 		DWORD Type;
-		if (!query_value(native_handle(), Name, Type, Buffer) || !is_string_type(Type))
-			return false;
+		if (const auto Result = query_value(native_handle(), Name, Type, Buffer); failed(Result))
+			return error{ far::format(L"query_value({})"sv, Name), Result };
 
-		Value.assign(view_as<const wchar_t*>(Buffer.data()), Buffer.size() / sizeof(wchar_t));
-		if (Value.ends_with(L'\0'))
-		{
-			Value.pop_back();
-		}
-		return true;
+		if (!is_string_type(Type))
+			return error{ far::format(L"Bad value type: {}, expected REG[_EXPAND|_MULTI]_SZ"sv, Type) };
+
+		const auto Data = std::bit_cast<const wchar_t*>(Buffer.data());
+		const auto Size = Buffer.size() / sizeof(wchar_t);
+		const auto IsNullTerminated = Data[Size - 1] == L'\0';
+		return string(Data, Size - IsNullTerminated);
 	}
 
-	bool key::get(const string_view Name, unsigned int& Value) const
+	result<string> key::get_string(string_view const SubKeyName, string_view const Name) const
+	{
+		const auto SubKey = open(SubKeyName, KEY_QUERY_VALUE);
+		if (!SubKey)
+			return SubKey.error();
+
+		return SubKey->get_string(Name);
+	}
+
+	result<uint32_t> key::get_dword(const string_view Name) const
 	{
 		bytes Buffer;
 		DWORD Type;
-		if (!query_value(native_handle(), Name, Type, Buffer) || Type != REG_DWORD)
-			return false;
+		if (const auto Result = query_value(native_handle(), Name, Type, Buffer); failed(Result))
+			return error{ far::format(L"query_value({})"sv, Name), Result };
 
-		Value = 0;
+		if (Type != REG_DWORD)
+			return error{ far::format(L"Bad value type: {}, expected REG_DWORD"sv, Type) };
+
+		unsigned Value = 0;
 		const auto ValueBytes = edit_bytes(Value);
 		std::copy_n(Buffer.cbegin(), std::min(Buffer.size(), ValueBytes.size()), ValueBytes.begin());
-		return true;
+		return Value;
 	}
 
-	bool key::get(const string_view Name, unsigned long long& Value) const
+	result<uint32_t> key::get_dword(string_view const SubKeyName, string_view const Name) const
 	{
-		bytes Buffer;
-		DWORD Type;
-		if (!query_value(native_handle(), Name, Type, Buffer) || Type != REG_QWORD)
-			return false;
+		const auto SubKey = open(SubKeyName, KEY_QUERY_VALUE);
+		if (!SubKey)
+			return SubKey.error();
 
-		Value = 0;
-		const auto ValueBytes = edit_bytes(Value);
-		std::copy_n(Buffer.cbegin(), std::min(Buffer.size(), ValueBytes.size()), ValueBytes.begin());
-		return true;
-	}
-
-	key::operator bool() const
-	{
-		return m_Key.operator bool();
+		return SubKey->get_dword(Name);
 	}
 
 	key::key(HKEY Key):
@@ -204,7 +243,9 @@ namespace os::reg
 
 	void key::hkey_deleter::operator()(HKEY Key) const noexcept
 	{
-		// TODO: do not try to close predefined keys?
+		if (any_of(Key, HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE))
+			return;
+
 		RegCloseKey(Key);
 	}
 
@@ -222,29 +263,12 @@ namespace os::reg
 
 	string value::get_string() const
 	{
-		if (!is_string_type(m_Type))
-			throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"Bad value type: {}, expected REG[_EXPAND|_MULTI]_SZ"sv, m_Type));
-
-		string Result;
-		return m_Key->get(m_Name, Result)? Result : L""s;
+		return *m_Key->get_string(m_Name);
 	}
 
-	unsigned int value::get_unsigned() const
+	uint32_t value::get_dword() const
 	{
-		if (m_Type != REG_DWORD)
-			throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"Bad value type: {}, expected REG_DWORD"sv, m_Type));
-
-		unsigned int Result;
-		return m_Key->get(m_Name, Result)? Result : 0;
-	}
-
-	unsigned long long value::get_unsigned_64() const
-	{
-		if (m_Type != REG_QWORD)
-			throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"Bad value type: {}, expected REG_QWORD"sv, m_Type));
-
-		unsigned long long Result;
-		return m_Key->get(m_Name, Result)? Result : 0;
+		return *m_Key->get_dword(m_Name);
 	}
 
 	//-------------------------------------------------------------------------
@@ -254,20 +278,12 @@ namespace os::reg
 	{
 	}
 
-	enum_key::enum_key(const key& Key, const string_view SubKey, const REGSAM Sam):
-		// BUGBUG check result
-		m_Key(key::open(Key, SubKey, KEY_ENUMERATE_SUB_KEYS | Sam))
-	{
-	}
-
 	bool enum_key::get(bool Reset, value_type& Value) const
 	{
 		if (Reset)
 			m_Index = 0;
 
-		const auto& Key = m_KeyRef? *m_KeyRef : m_Key;
-
-		return Key && Key.enum_keys(m_Index++, Value);
+		return m_KeyRef->enum_keys_impl(m_Index++, Value);
 	}
 
 	//-------------------------------------------------------------------------
@@ -277,20 +293,12 @@ namespace os::reg
 	{
 	}
 
-	enum_value::enum_value(const key& Key, const string_view SubKey, const REGSAM Sam):
-		// BUGBUG check result
-		m_Key(key::open(Key, SubKey, KEY_QUERY_VALUE | Sam))
-	{
-	}
-
 	bool enum_value::get(bool Reset, value_type& Value) const
 	{
 		if (Reset)
 			m_Index = 0;
 
-		const auto& Key = m_KeyRef? *m_KeyRef : m_Key;
-
-		return Key && Key.enum_values(m_Index++, Value);
+		return m_KeyRef->enum_values_impl(m_Index++, Value);
 	}
 }
 
@@ -301,34 +309,20 @@ namespace os::reg
 TEST_CASE("platform.reg")
 {
 	{
-		os::reg::enum_key const Keys(os::reg::key::current_user);
-		REQUIRE(!Keys.empty());
+		REQUIRE(!os::reg::key::current_user.enum_keys().empty());
 	}
 
 	{
-		os::reg::enum_key const Keys(os::reg::key::current_user, L"SOFTWARE"sv);
-		REQUIRE(!Keys.empty());
+		const auto Key = os::reg::key::current_user.open(L"SOFTWARE"sv, KEY_ENUMERATE_SUB_KEYS);
+		REQUIRE(!Key->enum_keys().empty());
 	}
 
 	{
-		const auto Key = os::reg::key::open(os::reg::key::current_user, L"SOFTWARE"sv, KEY_ENUMERATE_SUB_KEYS);
-		os::reg::enum_key const Keys(Key);
-		REQUIRE(!Keys.empty());
-	}
+		const auto Key = os::reg::key::local_machine.open(L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"sv, KEY_QUERY_VALUE);
+		REQUIRE(!Key->enum_values().empty());
 
-	{
-		os::reg::enum_value const Values(os::reg::key::current_user, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"sv);
-		REQUIRE(!Values.empty());
-	}
-
-	{
-		const auto Key = os::reg::key::open(os::reg::key::local_machine, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"sv, KEY_QUERY_VALUE);
-		os::reg::enum_value const Values(Key);
-		REQUIRE(!Values.empty());
-
-		string Value;
-		REQUIRE(Key.get(L"Shell"sv, Value));
-		REQUIRE(!Value.empty());
+		const auto Value = Key->get_string(L"Shell"sv);
+		REQUIRE(!Value->empty());
 	}
 }
 #endif

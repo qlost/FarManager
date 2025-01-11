@@ -36,12 +36,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 // Internal:
+#include "codepage.hpp"
 
 // Platform:
 
 // Common:
 #include "common/bytes_view.hpp"
-#include "common/range.hpp"
 #include "common/utility.hpp"
 
 // External:
@@ -50,38 +50,41 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace encoding
 {
-	struct diagnostics
+	enum class is_utf8
 	{
+		no,
+		yes,
+		yes_ascii
+	};
+
+	class diagnostics
+	{
+	public:
 		enum: unsigned
 		{
-			error_position = 0_bit,
-			incomplete_bytes = 1_bit,
+			no_translation = 0_bit,
+			not_enough_data = 1_bit,
 
 			all = ~0u
 		};
 
-		unsigned EnabledDiagnostics{ all };
+		explicit diagnostics(unsigned Diagnostics = all);
+
+		void clear();
+
+		unsigned EnabledDiagnostics;
 		std::optional<size_t> ErrorPosition;
-		size_t IncompleteBytes{};
+		size_t PartialInput{};
+		size_t PartialOutput{};
+
+		void set_is_utf8(is_utf8 IsUtf8);
+		is_utf8 get_is_utf8() const;
+
+	private:
+		is_utf8 m_IsUtf8{is_utf8::yes_ascii};
 	};
 
-	namespace codepage
-	{
-		namespace detail
-		{
-			struct utf8 { [[nodiscard]] static uintptr_t id(); };
-			struct ansi { [[nodiscard]] static uintptr_t id(); };
-			struct oem  { [[nodiscard]] static uintptr_t id(); };
-		}
-
-		[[nodiscard]] inline uintptr_t utf8() { return detail::utf8::id(); }
-		[[nodiscard]] inline uintptr_t ansi() { return detail::ansi::id(); }
-		[[nodiscard]] inline uintptr_t oem()  { return detail::oem::id(); }
-
-		[[nodiscard]] uintptr_t normalise(uintptr_t Codepage);
-	}
-
-	[[nodiscard]] size_t get_bytes(uintptr_t Codepage, string_view Str, span<char> Buffer, diagnostics* Diagnostics = {});
+	[[nodiscard]] size_t get_bytes(uintptr_t Codepage, string_view Str, std::span<char> Buffer, diagnostics* Diagnostics = {});
 	void get_bytes(uintptr_t Codepage, string_view Str, std::string& Buffer, diagnostics* Diagnostics = {});
 	[[nodiscard]] std::string get_bytes(uintptr_t Codepage, string_view Str, diagnostics* Diagnostics = {});
 
@@ -89,9 +92,9 @@ namespace encoding
 
 	//-------------------------------------------------------------------------
 
-	[[nodiscard]] size_t get_chars(uintptr_t Codepage, std::string_view Str, span<wchar_t> Buffer, diagnostics* Diagnostics = {});
+	[[nodiscard]] size_t get_chars(uintptr_t Codepage, std::string_view Str, std::span<wchar_t> Buffer, diagnostics* Diagnostics = {});
 	void get_chars(uintptr_t Codepage, std::string_view Str, string& Buffer, diagnostics* Diagnostics = {});
-	[[nodiscard]] size_t get_chars(uintptr_t Codepage, bytes_view Str, span<wchar_t> Buffer, diagnostics* Diagnostics = {});
+	[[nodiscard]] size_t get_chars(uintptr_t Codepage, bytes_view Str, std::span<wchar_t> Buffer, diagnostics* Diagnostics = {});
 	void get_chars(uintptr_t Codepage, bytes_view Str, string& Buffer, diagnostics* Diagnostics = {});
 	[[nodiscard]] string get_chars(uintptr_t Codepage, std::string_view Str, diagnostics* Diagnostics = {});
 	[[nodiscard]] string get_chars(uintptr_t Codepage, bytes_view Str, diagnostics* Diagnostics = {});
@@ -106,13 +109,11 @@ namespace encoding
 
 	namespace detail
 	{
-		namespace cp = codepage;
-
 		template<typename T>
 		class codepage
 		{
 		public:
-			[[nodiscard]] static auto get_bytes(string_view const Str, span<char> const Buffer, diagnostics* const Diagnostics = {})
+			[[nodiscard]] static auto get_bytes(string_view const Str, std::span<char> const Buffer, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_bytes(T::id(), Str, Buffer, Diagnostics);
 			}
@@ -132,42 +133,42 @@ namespace encoding
 				return encoding::get_bytes_count(T::id(), Str, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars(std::string_view const Str, span<wchar_t> const Buffer, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars(std::string_view const Str, std::span<wchar_t> const Buffer, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Buffer, Diagnostics);
 			}
 
-			static auto get_chars(std::string_view const Str, string& Buffer, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			static auto get_chars(std::string_view const Str, string& Buffer, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Buffer, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars(bytes_view const Str, span<wchar_t> const Buffer, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars(bytes_view const Str, std::span<wchar_t> const Buffer, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Buffer, Diagnostics);
 			}
 
-			static auto get_chars(bytes_view const Str, string& Buffer, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			static auto get_chars(bytes_view const Str, string& Buffer, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Buffer, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars(std::string_view const Str, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars(std::string_view const Str, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars(bytes_view const Str, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars(bytes_view const Str, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars(T::id(), Str, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars_count(std::string_view const Str, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars_count(std::string_view const Str, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars_count(T::id(), Str, Diagnostics);
 			}
 
-			[[nodiscard]] static auto get_chars_count(bytes_view const Str, diagnostics* const Diagnostics = {}, size_t* IncompleteBytes = {})
+			[[nodiscard]] static auto get_chars_count(bytes_view const Str, diagnostics* const Diagnostics = {})
 			{
 				return encoding::get_chars_count(T::id(), Str, Diagnostics);
 			}
@@ -178,6 +179,16 @@ namespace encoding
 	using ansi = detail::codepage<codepage::detail::ansi>;
 	using oem = detail::codepage<codepage::detail::oem>;
 
+	struct utf8_or_ansi
+	{
+		[[nodiscard]] static string get_chars(std::string_view Str, diagnostics* Diagnostics = {});
+	};
+
+	struct ascii
+	{
+		[[nodiscard]] static string get_chars(std::string_view Str);
+	};
+
 	[[nodiscard]] std::string_view get_signature_bytes(uintptr_t Cp);
 
 	class writer
@@ -186,8 +197,7 @@ namespace encoding
 		NONCOPYABLE(writer);
 		writer(std::ostream& Stream, uintptr_t Codepage, bool AddSignature = true, bool IgnoreEncodingErrors = false);
 
-		template<typename... args>
-		void write(string_view Str, const args&... Args)
+		void write(string_view Str, const auto&... Args)
 		{
 			write_impl(Str);
 			(..., write_impl(Args));
@@ -203,7 +213,7 @@ namespace encoding
 		bool m_IgnoreEncodingErrors;
 	};
 
-	bool is_valid_utf8(std::string_view Str, bool PartialContent, bool& PureAscii);
+	is_utf8 is_valid_utf8(std::string_view Str, bool PartialContent);
 
 	inline constexpr wchar_t bom_char      = L'﻿'; // Zero Length Space
 	inline constexpr wchar_t replace_char  = L'�'; // Replacement
@@ -222,15 +232,7 @@ namespace encoding
 	}
 }
 
-void swap_bytes(const void* Src, void* Dst, size_t SizeInBytes);
-
-[[nodiscard]] bool IsVirtualCodePage(uintptr_t cp);
-[[nodiscard]] bool IsUnicodeCodePage(uintptr_t cp);
-[[nodiscard]] bool IsStandardCodePage(uintptr_t cp);
-[[nodiscard]] bool IsUnicodeOrUtfCodePage(uintptr_t cp);
-[[nodiscard]] bool IsNoFlagsCodepage(uintptr_t cp);
-
-[[nodiscard]] string ShortReadableCodepageName(uintptr_t cp);
+void swap_bytes(void const* Src, void* Dst, size_t SizeInBytes, size_t ElementSize);
 
 //#############################################################################
 
@@ -259,18 +261,22 @@ private:
 
 namespace Utf8
 {
-	// returns the number of decoded chars, 1 or 2. Moves StrIterator and FullyConsumedIterator forward:
-	// StrIterator: including incomplete characters
-	// FullyConsumedIterator: only fully decoded characters. If it's not the same as StrIterator, you might want to drop the results and try again
+	// Returns the number of decoded chars, 1 or 2. Moves StrIterator forward
+	// When there is not enough data to decode the whole character:
+	// - First will have the the first raw byte embedded
+	// - StrIterator will be advanced by one
+	// - Diagnostics will be set accordingly
+	// You might want to drop the result or continue decoding the tail as embedded raw bytes
 	[[nodiscard]] size_t get_char(
 		std::string_view::const_iterator& StrIterator,
-		std::string_view::const_iterator& FullyConsumedIterator,
 		std::string_view::const_iterator StrEnd,
 		wchar_t& First,
-		wchar_t& Second
+		wchar_t& Second,
+		encoding::diagnostics& Diagnostics
 	);
+
 	// returns the number of decoded chars, up to Buffer.size(). Stops on buffer overflow. Tail contains the number of unprocessed bytes.
-	[[nodiscard]] size_t get_chars(std::string_view Str, span<wchar_t> Buffer, int& Tail);
+	[[nodiscard]] size_t get_chars(std::string_view Str, std::span<wchar_t> Buffer, int& Tail);
 }
 
 //#############################################################################
@@ -278,49 +284,24 @@ namespace Utf8
 class [[nodiscard]] raw_eol
 {
 public:
-	raw_eol(): m_Cr('\r'), m_Lf('\n') {}
-	explicit raw_eol(uintptr_t Codepage): m_Cr(to(Codepage, L'\r')), m_Lf(to(Codepage, L'\n')) {}
-
-	template<class T>
-	[[nodiscard]] T cr() const { return value<T>(L'\r', m_Cr); }
-
-	template<class T>
-	[[nodiscard]] T lf() const { return value<T>(L'\n', m_Lf); }
-
-private:
-	static char to(uintptr_t Codepage, wchar_t WideChar)
+	explicit raw_eol(uintptr_t const Codepage)
 	{
-		char Char;
-		return encoding::get_bytes(Codepage, { &WideChar, 1 }, { &Char, 1 })? Char : WideChar;
-	}
-
-	template<typename T>
-	static T value(
-		[[maybe_unused]] wchar_t const WideChar,
-		[[maybe_unused]] char const Char
-	)
-	{
-		if constexpr (std::same_as<T, wchar_t>)
-			return WideChar;
-		else
+		if (!IsUtfCodePage(Codepage))
 		{
-			static_assert(std::same_as<T, char>);
-			return Char;
+			m_Cr = to(Codepage, m_Cr);
+			m_Lf = to(Codepage, m_Lf);
 		}
 	}
 
-	const char m_Cr;
-	const char m_Lf;
-};
+	[[nodiscard]] auto cr() const { return m_Cr; }
+	[[nodiscard]] auto lf() const { return m_Lf; }
 
-struct cp_info
-{
-	string Name;
-	unsigned char MaxCharSize;
-};
+private:
+	static char to(uintptr_t Codepage, wchar_t WideChar);
 
-using cp_map = std::unordered_map<unsigned, cp_info>;
-[[nodiscard]] const cp_map& InstalledCodepages();
-[[nodiscard]] cp_info const* GetCodePageInfo(uintptr_t cp);
+	char
+		m_Cr{'\r'},
+		m_Lf{'\n'};
+};
 
 #endif // ENCODING_HPP_44AE7032_AF79_4A6F_A2ED_529BC1A38758

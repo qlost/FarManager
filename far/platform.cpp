@@ -49,13 +49,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.fs.hpp"
 #include "platform.memory.hpp"
 #include "platform.reg.hpp"
+#include "platform.version.hpp"
 
 // Common:
 #include "common/algorithm.hpp"
 #include "common/from_string.hpp"
-#include "common/range.hpp"
 #include "common/string_utils.hpp"
-#include "common/view/where.hpp"
 
 // External:
 #include "format.hpp"
@@ -68,7 +67,7 @@ namespace os
 	{
 		static bool ApiDynamicStringReceiverImpl(
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable,
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable,
 			function_ref<bool(size_t ReturnedSize, size_t AllocatedSize)> const Condition
 		)
 		{
@@ -76,7 +75,7 @@ namespace os
 				buffer<wchar_t>(),
 				Callable,
 				Condition,
-				[&](span<wchar_t const> const Buffer)
+				[&](std::span<wchar_t const> const Buffer)
 				{
 					Destination.assign(Buffer.data(), Buffer.size());
 				}
@@ -85,7 +84,7 @@ namespace os
 
 		bool ApiDynamicStringReceiver(
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable
 		)
 		{
 			return ApiDynamicStringReceiverImpl(
@@ -106,7 +105,7 @@ namespace os
 		bool ApiDynamicErrorBasedStringReceiver(
 			DWORD const ExpectedErrorCode,
 			string& Destination,
-			function_ref<size_t(span<wchar_t> WritableBuffer)> const Callable)
+			function_ref<size_t(std::span<wchar_t> WritableBuffer)> const Callable)
 		{
 			return ApiDynamicStringReceiverImpl(
 				Destination,
@@ -131,12 +130,12 @@ namespace os
 
 			default:
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"WaitForSingleobject returned {}"sv, Result));
+				throw far_fatal_exception(far::format(L"WaitForSingleobject returned {}"sv, Result));
 			}
 		}
 
 		[[nodiscard]]
-		static std::optional<size_t> multi_wait(span<HANDLE const> const Handles, bool const WaitAll, std::optional<std::chrono::milliseconds> Timeout = {})
+		static std::optional<size_t> multi_wait(std::span<HANDLE const> const Handles, bool const WaitAll, std::optional<std::chrono::milliseconds> Timeout = {})
 		{
 			assert(!Handles.empty());
 			assert(Handles.size() <= MAXIMUM_WAIT_OBJECTS);
@@ -154,7 +153,7 @@ namespace os
 			else
 			{
 				// Abandoned or error
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"WaitForMultipleObjects returned {}"sv, Result));
+				throw far_fatal_exception(far::format(L"WaitForMultipleObjects returned {}"sv, Result));
 			}
 		}
 
@@ -173,12 +172,12 @@ namespace os
 			return *multi_wait(Handles, false);
 		}
 
-		std::optional<size_t> handle_implementation::wait_any(span<HANDLE const> const Handles, std::optional<std::chrono::milliseconds> const Timeout)
+		std::optional<size_t> handle_implementation::wait_any(std::chrono::milliseconds const Timeout, span<HANDLE const> const Handles)
 		{
 			return multi_wait(Handles, false, Timeout);
 		}
 
-		bool handle_implementation::wait_all(span<HANDLE const> const Handles, std::optional<std::chrono::milliseconds> const Timeout)
+		bool handle_implementation::wait_all(std::chrono::milliseconds const Timeout, span<HANDLE const> const Handles)
 		{
 			return multi_wait(Handles, true, Timeout).has_value();
 		}
@@ -225,7 +224,7 @@ constexpr struct
 		LastError,
 		LastStatus;
 }
-pdb_offsets
+teb_offsets
 {
 #ifdef _WIN64
 	0x68,
@@ -238,12 +237,12 @@ pdb_offsets
 
 NTSTATUS get_last_nt_status(void const* Teb)
 {
-	return view_as<NTSTATUS>(Teb, pdb_offsets.LastStatus);
+	return view_as<NTSTATUS>(Teb, teb_offsets.LastStatus);
 }
 
 DWORD get_last_error(void const* const Teb)
 {
-	return view_as<DWORD>(Teb, pdb_offsets.LastError);
+	return view_as<DWORD>(Teb, teb_offsets.LastError);
 }
 
 NTSTATUS get_last_nt_status()
@@ -284,7 +283,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 		(Nt? GetModuleHandle(L"ntdll.dll") : nullptr),
 		ErrorCode,
 		0,
-		edit_as<wchar_t*>(&ptr_setter(Buffer)),
+		std::bit_cast<wchar_t*>(&ptr_setter(Buffer)),
 		0,
 		nullptr);
 
@@ -295,7 +294,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 	}
 
 	string Result(Buffer.get(), Size);
-	std::replace_if(ALL_RANGE(Result), IsEol, L' ');
+	std::ranges::replace_if(Result, IsEol, L' ');
 	inplace::trim_right(Result);
 
 	return Result;
@@ -303,7 +302,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 
 static string postprocess_error_string(unsigned const ErrorCode, string&& Str)
 {
-	std::replace_if(ALL_RANGE(Str), IsEol, L' ');
+	std::ranges::replace_if(Str, IsEol, L' ');
 	inplace::trim_right(Str);
 	return far::format(L"0x{:0>8X} - {}"sv, ErrorCode, Str.empty() ? L"Unknown error"sv : Str);
 }
@@ -364,7 +363,7 @@ string error_state::to_string() const
 		StrNtError,
 	};
 
-	return join(L", "sv, where(Errors, [](string_view const Str){ return !Str.empty(); }));
+	return join(L", "sv, Errors | std::views::filter([](string_view const Str){ return !Str.empty(); }));
 }
 
 error_state last_error()
@@ -384,7 +383,7 @@ bool WNetGetConnection(const string_view LocalName, string &RemoteName)
 	// is running in a different logon session than the application that made the connection.
 	// However, it may fail with ERROR_NOT_CONNECTED for non-network too, in this case Buffer will not be initialised.
 	// Deliberately initialised with an empty string to fix that.
-	Buffer.front() = {};
+	Buffer[0] = {};
 	auto Size = static_cast<DWORD>(Buffer.size());
 	const null_terminated C_LocalName(LocalName);
 	auto Result = ::WNetGetConnection(C_LocalName.c_str(), Buffer.data(), &Size);
@@ -412,7 +411,7 @@ bool get_locale_value(LCID const LcId, LCTYPE const Id, string& Value)
 	last_error_guard ErrorGuard;
 	SetLastError(ERROR_SUCCESS);
 
-	if (detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](span<wchar_t> Buffer)
+	if (detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](std::span<wchar_t> Buffer)
 	{
 		const auto ReturnedSize = GetLocaleInfo(LcId, Id, Buffer.data(), static_cast<int>(Buffer.size()));
 		return ReturnedSize? ReturnedSize - 1 : 0;
@@ -435,14 +434,14 @@ bool get_locale_value(LCID const LcId, LCTYPE const Id, string& Value)
 
 bool get_locale_value(LCID const LcId, LCTYPE const Id, int& Value)
 {
-	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, edit_as<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
+	return GetLocaleInfo(LcId, Id | LOCALE_RETURN_NUMBER, std::bit_cast<wchar_t*>(&Value), sizeof(Value) / sizeof(wchar_t)) != 0;
 }
 
 string GetPrivateProfileString(string_view const AppName, string_view const KeyName, string_view const Default, string_view const FileName)
 {
 	string Value;
 
-	if (!detail::ApiDynamicStringReceiver(Value, [&](span<wchar_t> const Buffer)
+	if (!detail::ApiDynamicStringReceiver(Value, [&](std::span<wchar_t> const Buffer)
 	{
 		const auto Size = ::GetPrivateProfileString(null_terminated(AppName).c_str(), null_terminated(KeyName).c_str(), null_terminated(Default).c_str(), Buffer.data(), static_cast<DWORD>(Buffer.size()), null_terminated(FileName).c_str());
 		return Size == Buffer.size() - 1? Buffer.size() * 2 : Size;
@@ -457,8 +456,7 @@ string GetPrivateProfileString(string_view const AppName, string_view const KeyN
 	if (encoding::ansi::get_chars(AnsiBytes) != Value)
 		return Value;
 
-	bool PureAscii{};
-	if (!encoding::is_valid_utf8(AnsiBytes, false, PureAscii) || PureAscii)
+	if (const auto IsUtf8 = encoding::is_valid_utf8(AnsiBytes, false); IsUtf8 != encoding::is_utf8::yes)
 		return Value;
 
 	return encoding::utf8::get_chars(AnsiBytes);
@@ -472,7 +470,7 @@ bool GetWindowText(HWND Hwnd, string& Text)
 	last_error_guard ErrorGuard;
 	SetLastError(ERROR_SUCCESS);
 
-	if (detail::ApiDynamicStringReceiver(Text, [&](span<wchar_t> Buffer)
+	if (detail::ApiDynamicStringReceiver(Text, [&](std::span<wchar_t> Buffer)
 	{
 		const size_t Length = ::GetWindowTextLength(Hwnd);
 
@@ -540,7 +538,7 @@ DWORD GetAppPathsRedirectionFlag()
 
 bool GetDefaultPrinter(string& Printer)
 {
-	return detail::ApiDynamicStringReceiver(Printer, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Printer, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (::GetDefaultPrinter(Buffer.data(), &Size))
@@ -563,7 +561,7 @@ bool GetComputerName(string& Name)
 
 bool GetComputerNameEx(COMPUTER_NAME_FORMAT NameFormat, string& Name)
 {
-	return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (!::GetComputerNameEx(NameFormat, Buffer.data(), &Size) && GetLastError() != ERROR_MORE_DATA)
@@ -585,7 +583,7 @@ bool GetUserName(string& Name)
 
 bool GetUserNameEx(EXTENDED_NAME_FORMAT NameFormat, string& Name)
 {
-	return detail::ApiDynamicStringReceiver(Name, [&](span<wchar_t> Buffer)
+	return detail::ApiDynamicStringReceiver(Name, [&](std::span<wchar_t> Buffer)
 	{
 		auto Size = static_cast<DWORD>(Buffer.size());
 		if (!::GetUserNameEx(NameFormat, Buffer.data(), &Size) && GetLastError() != ERROR_MORE_DATA)
@@ -615,7 +613,7 @@ HKL make_hkl(int32_t const Layout)
 	// For an unknown reason HKLs must be promoted as signed integers on x64:
 	// 0x1NNNNNNN -> 0x000000001NNNNNNN
 	// 0xFNNNNNNN -> 0xFFFFFFFFFNNNNNNN
-	return reinterpret_cast<HKL>(static_cast<intptr_t>(extract_integer<WORD, 1>(Layout)? Layout : make_integer<int32_t, uint16_t>(Layout, Layout)));
+	return std::bit_cast<HKL>(static_cast<intptr_t>(extract_integer<WORD, 1>(Layout)? Layout : make_integer<int32_t, uint16_t>(Layout, Layout)));
 }
 
 HKL make_hkl(string_view const LayoutStr)
@@ -628,7 +626,88 @@ HKL make_hkl(string_view const LayoutStr)
 	return {};
 }
 
-std::vector<HKL> get_keyboard_layout_list()
+static auto get_keyboard_layout_list_registry_ctf()
+{
+	std::vector<HKL> Result;
+
+	const auto CtfSortOrderPath = L"SOFTWARE\\Microsoft\\CTF\\SortOrder"sv;
+
+	struct language_item
+	{
+		size_t Index;
+		uint32_t Id;
+		string IdStr;
+	};
+
+	std::vector<language_item> Languages;
+
+	const auto LanguageKey = os::reg::key::current_user.open(far::format(L"{}\\Language"sv, CtfSortOrderPath), KEY_QUERY_VALUE);
+	if (!LanguageKey)
+		return Result;
+
+	for (const auto& IndexStr: LanguageKey->enum_values())
+	{
+		try
+		{
+			const auto Index = from_string<size_t>(IndexStr.name());
+			const auto LanguageIdStr = IndexStr.get_string();
+			const auto LanguageId = from_string<uint32_t>(LanguageIdStr, {}, 16);
+			Languages.emplace_back(Index, LanguageId, LanguageIdStr);
+		}
+		catch (far_exception const& e)
+		{
+			LOGWARNING(L"{}"sv, e);
+		}
+	}
+
+	std::ranges::sort(Languages, {}, & language_item::Index);
+
+	struct layout_item
+	{
+		size_t Index;
+		uint32_t Id;
+	};
+
+	std::vector<layout_item> Layouts;
+
+	for (const auto& Language: Languages)
+	{
+		Layouts.clear();
+
+		// GUID_TFCAT_TIP_KEYBOARD
+		const auto LayoutsKey = os::reg::key::current_user.open(far::format(L"{}\\AssemblyItem\\0x{:08X}\\{{34745C63-B2F0-4784-8B67-5E12C8701A31}}"sv, CtfSortOrderPath, Language.Id), KEY_ENUMERATE_SUB_KEYS);
+		if (!LayoutsKey)
+			continue;
+
+		for (const auto& IndexStr: LayoutsKey->enum_keys())
+		{
+			try
+			{
+				const auto Index = from_string<size_t>(IndexStr);
+				const auto Layout = LayoutsKey->get_dword(IndexStr, L"KeyboardLayout"sv);
+
+				// Seems to be IME
+				if (!*Layout && !extract_integer<uint16_t, 1>(Language.Id))
+					Layouts.emplace_back(Index, make_integer<uint32_t, uint16_t>(Language.Id, Language.Id));
+				else
+					Layouts.emplace_back(Index, *Layout);
+			}
+			catch (far_exception const& e)
+			{
+				LOGWARNING(L"{}"sv, e);
+			}
+		}
+
+		std::ranges::sort(Layouts, {}, &layout_item::Index);
+		const auto [First, Last] = std::ranges::unique(Layouts, {}, &layout_item::Id);
+		Layouts.erase(First, Last);
+		std::ranges::transform(Layouts, std::back_inserter(Result), [](layout_item const& i){ return os::make_hkl(i.Id); });
+	}
+
+	return Result;
+}
+
+static auto get_keyboard_layout_list_api()
 {
 	std::vector<HKL> Result;
 
@@ -636,18 +715,28 @@ std::vector<HKL> get_keyboard_layout_list()
 	{
 		Result.resize(LayoutNumber);
 		Result.resize(GetKeyboardLayoutList(LayoutNumber, Result.data())); // if less than expected
-
-		return Result;
+	}
+	else
+	{
+		LOGWARNING(L"GetKeyboardLayoutList(): {}"sv, os::last_error());
 	}
 
-	// GetKeyboardLayoutList can fail in telnet mode, which is, technically, a right thing to do.
-	// However, we still need to map the keys.
-	// The code below emulates it in the hope that your client and server layouts are more or less similar.
-	LOGWARNING(L"GetKeyboardLayoutList(): {}"sv, os::last_error());
+	return Result;
+}
+
+static auto get_keyboard_layout_list_registry_base()
+{
+	std::vector<HKL> Result;
+
+	const auto PreloadKey = reg::key::current_user.open(L"Keyboard Layout\\Preload"sv, KEY_QUERY_VALUE);
+	if (!PreloadKey)
+		return Result;
+
+	const auto SubstitutesKey = reg::key::current_user.open(L"Keyboard Layout\\Substitutes"sv, KEY_QUERY_VALUE);
 
 	Result.reserve(10);
-	string LayoutStr, LayoutIdStr;
-	for (const auto& i: os::reg::enum_value(os::reg::key::current_user, L"Keyboard Layout\\Preload"sv))
+
+	for (const auto& i: PreloadKey->enum_values())
 	{
 		try
 		{
@@ -658,17 +747,20 @@ std::vector<HKL> get_keyboard_layout_list()
 			const auto Preload = from_string<uint32_t>(PreloadStr, {}, 16);
 			const auto PrimaryLanguageId = extract_integer<uint16_t, 0>(Preload);
 
-			const auto LayoutValue = os::reg::key::current_user.get(L"Keyboard Layout\\Substitutes"sv, PreloadStr, LayoutStr)?
-				from_string<uint32_t>(LayoutStr, {}, 16) :
-				Preload;
+			std::optional<string> LayoutStr;
+
+			if (SubstitutesKey)
+				if (auto SubstitutedValueStr = SubstitutesKey->get_string(PreloadStr))
+					LayoutStr = std::move(*SubstitutedValueStr);
+
+			const auto LayoutValue = LayoutStr? from_string<uint32_t>(*LayoutStr, {}, 16) : Preload;
 
 			const auto SecondaryLanguageId = extract_integer<uint16_t, 0>(LayoutValue);
 
-			const string_view LayoutView = LayoutValue == Preload? PreloadStr : LayoutStr;
+			const string_view LayoutView = LayoutValue == Preload? PreloadStr : *LayoutStr;
 
-			const auto LayoutId = os::reg::key::local_machine.get(concat(L"SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\"sv, LayoutView), L"Layout Id"sv, LayoutIdStr)?
-				from_string<int>(LayoutIdStr, {}, 16) :
-				0;
+			const auto LayoutIdStr = reg::key::local_machine.get_string(concat(L"SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\"sv, LayoutView), L"Layout Id"sv);
+			const auto LayoutId = LayoutIdStr? from_string<int>(*LayoutIdStr, {}, 16) : 0;
 
 			const auto FinalLayout = make_integer<uint32_t, uint16_t>(PrimaryLanguageId, LayoutId? (LayoutId & 0xfff) | 0xf000 : SecondaryLanguageId);
 
@@ -680,10 +772,153 @@ std::vector<HKL> get_keyboard_layout_list()
 		}
 	}
 
-	if (Result.empty())
-		Result.emplace_back(make_hkl(0x04090409)); // Fallback to US
+	return Result;
+}
+
+static auto default_keyboard_layout()
+{
+	if (HKL DefaultLayout; SystemParametersInfo(SPI_GETDEFAULTINPUTLANG, 0, &DefaultLayout, 0))
+		return DefaultLayout;
+
+	return GetKeyboardLayout(0);
+}
+
+static auto keyboard_layout_list_hr(std::span<HKL const> const List)
+{
+	string Result;
+
+	const auto is_ime     = [](HKL const i){ return (std::bit_cast<intptr_t>(i) & 0xF000'0000) == 0xE000'0000; };
+	const auto is_special = [](HKL const i){ return (std::bit_cast<intptr_t>(i) & 0xF000'0000) == 0xF000'0000; };
+
+	const auto LayoutsPath = L"SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts"sv;
+
+	std::unordered_map<short, string> SpecialLayouts;
+
+	if (std::ranges::any_of(List, is_special))
+	{
+		if (const auto LayoutsKey = reg::key::local_machine.open(LayoutsPath, KEY_ENUMERATE_SUB_KEYS))
+		{
+			for (const auto& Key: LayoutsKey->enum_keys())
+			{
+				const auto LayoutIdStr = reg::key::local_machine.get_string(concat(LayoutsPath, L"\\", Key), L"Layout Id"sv);
+				if (!LayoutIdStr)
+					continue;
+
+				short LayoutId;
+				if (!from_string(*LayoutIdStr, LayoutId, {}, 16))
+					continue;
+
+				SpecialLayouts.try_emplace(LayoutId, Key);
+			}
+		}
+	}
+
+	for (const auto& Layout: List)
+	{
+		const auto LayoutValue = static_cast<uint32_t>(std::bit_cast<intptr_t>(Layout));
+
+		// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout
+		// The low word contains a Language Identifier for the input language
+		// and the high word contains a device handle to the physical layout of the keyboard.
+		const auto InputLangugeId = extract_integer<uint16_t, 0>(LayoutValue);
+		const auto LayoutHandle = extract_integer<uint16_t, 1>(LayoutValue);
+
+		const auto LayoutKey =
+			is_special(Layout)? SpecialLayouts[LayoutHandle & 0xFFF] :
+			far::format(L"{:08X}"sv, is_ime(Layout)? LayoutValue : LayoutHandle);
+
+		const auto Locale = MAKELCID(InputLangugeId, SORT_DEFAULT);
+
+		string LanguageName;
+
+		if (!get_locale_value(Locale, LOCALE_SENGLISHDISPLAYNAME, LanguageName)) // >= Windows 7
+			if (!get_locale_value(Locale, LOCALE_SLOCALIZEDDISPLAYNAME, LanguageName)) // < Windows 7
+				LanguageName = far::format(L"{:08X}"sv, Locale);
+
+		const auto LayoutName = reg::key::local_machine.get_string(concat(LayoutsPath, L"\\", LayoutKey), L"Layout Text"sv);
+
+		far::format_to(Result, L"\n{:08X} {} / {}"sv, LayoutValue, LanguageName, LayoutName? *LayoutName : LayoutKey);
+	}
 
 	return Result;
+}
+
+static std::vector<HKL> try_get_keyboard_list(function_ref<std::vector<HKL>()> Callable)
+{
+	try
+	{
+		return Callable();
+	}
+	catch (far_exception const& e)
+	{
+		LOGWARNING(L"{}", e);
+		return {};
+	}
+}
+
+std::vector<HKL> get_keyboard_layout_list()
+{
+	auto Result = try_get_keyboard_list(get_keyboard_layout_list_registry_ctf);
+
+	if (Result.empty())
+		Result = try_get_keyboard_list(get_keyboard_layout_list_api);
+
+	if (Result.empty())
+		Result = try_get_keyboard_list(get_keyboard_layout_list_registry_base);
+
+	// Only the CTF method returns layouts in the correct order.
+	// We want to prioritise the default layout, because InitKeysArray uses the first match strategy,
+	// and this is likely what the user expects.
+	const auto DefaultLayout = default_keyboard_layout();
+
+	if (const auto Iterator = std::ranges::find(Result, DefaultLayout); Iterator != Result.end())
+		std::ranges::rotate(Result.begin(), Iterator, Iterator + 1);
+	else
+		Result.insert(Result.begin(), DefaultLayout);
+
+	LOGINFO(L"Detected keyboard layouts:{}\n"sv, keyboard_layout_list_hr(Result));
+
+	return Result;
+}
+
+int to_unicode(
+	unsigned const VirtKey,
+	unsigned const ScanCode,
+	BYTE const* const KeyState,
+	span<wchar_t> const Buffer,
+	unsigned const Flags,
+	HKL const Hkl)
+{
+	const auto Call = [&](unsigned const ExtraFlags = 0)
+	{
+		return ToUnicodeEx(VirtKey, ScanCode, KeyState, Buffer.data(), static_cast<int>(Buffer.size()), Flags | ExtraFlags, Hkl);
+	};
+
+	// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicodeex
+	// If bit 2 is set, keyboard state is not changed (Windows 10, version 1607 and newer)
+	static const auto FastPath = version::is_win10_1607_or_later();
+	if (FastPath)
+		return Call(2_bit);
+
+	// http://www.siao2.com/2005/01/19/355870.aspx
+	// You can keep calling ToUnicode with the same info until it is cleared out
+	// and then call it one more time to put the state back where it was if you had never typed anything
+	if (const auto Count = Call(); Count != 2 || Buffer[0] != Buffer[1])
+		return Count;
+
+	return Call();
+}
+
+bool is_dead_key(KEY_EVENT_RECORD const& Key, HKL const Layout)
+{
+	BYTE KeyState[256]{};
+	KeyState[VK_CONTROL] = Key.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)? 0b10000000 : 0;
+	KeyState[VK_MENU] = Key.dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)? 0b10000000 : 0;
+	KeyState[VK_SHIFT] = Key.dwControlKeyState & SHIFT_PRESSED? 0b10000000 : 0;
+	KeyState[VK_CAPITAL] = Key.dwControlKeyState & CAPSLOCK_ON? 0b00000001 : 0;
+
+	wchar_t Buffer[2];
+	return to_unicode(Key.wVirtualKeyCode, Key.wVirtualScanCode, KeyState, Buffer, 0, Layout) < 0;
 }
 
 bool is_interactive_user_session()
@@ -703,14 +938,15 @@ bool is_interactive_user_session()
 	}
 
 	// An invisible window station suggests that we aren't interactive.
-	return flags::check_all(Flags.dwFlags, WSF_VISIBLE);
+	return flags::check_one(Flags.dwFlags, WSF_VISIBLE);
 }
 
 namespace rtdl
 	{
 		void module::module_deleter::operator()(HMODULE Module) const
 		{
-			FreeLibrary(Module);
+			if (!FreeLibrary(Module))
+				LOGWARNING(L"FreeLibrary({}): {}"sv, static_cast<void const*>(Module), os::last_error());
 		}
 
 		module::module(string_view const Name, bool const AlternativeLoad):
@@ -751,15 +987,15 @@ namespace rtdl
 			}
 
 			if (!*m_module && Mandatory)
-				throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"Error loading {}: {}"sv, m_name, last_error()));
+				throw far_fatal_exception(far::format(L"Error loading {}: {}"sv, m_name, last_error()));
 
 			return m_module->get();
 		}
 
-		void* module::get_proc_address(const char* const Name) const
+		FARPROC module::get_proc_address(const char* const Name) const
 		{
 			const auto& Module = get_module(true);
-			return reinterpret_cast<void*>(::GetProcAddress(Module, Name));
+			return ::GetProcAddress(Module, Name);
 		}
 
 		opaque_function_pointer::opaque_function_pointer(const module& Module, const char* Name):
@@ -780,7 +1016,7 @@ namespace rtdl
 			if (const auto Pointer = *m_Pointer; Pointer || !Mandatory)
 				return Pointer;
 
-			throw MAKE_FAR_FATAL_EXCEPTION(far::format(L"{}!{} is missing: {}"sv, m_Module->name(), encoding::ansi::get_chars(m_Name), last_error()));
+			throw far_fatal_exception(far::format(L"{}!{} is missing: {}"sv, m_Module->name(), encoding::ascii::get_chars(m_Name), last_error()));
 		}
 	}
 
@@ -803,21 +1039,16 @@ TEST_CASE("platform.string.receiver")
 {
 	const auto api_function = [](size_t const EmulatedSize, wchar_t* const Buffer, size_t const BufferSize)
 	{
-		string Data;
-		Data.resize(EmulatedSize);
-		std::iota(ALL_RANGE(Data), L'\1');
+		if (BufferSize < EmulatedSize + 1)
+			return EmulatedSize + 1;
 
-		if (BufferSize < Data.size() + 1)
-			return Data.size() + 1;
-
-		*copy_string(Data, Buffer) = {};
-
-		return Data.size();
+		*std::ranges::transform(std::views::iota(0uz, EmulatedSize), Buffer, [](int const Value) { return static_cast<wchar_t>(Value + 1); }).out = {};
+		return EmulatedSize;
 	};
 
 	const auto validate = [](string const& Data)
 	{
-		for (const auto& i: irange(Data.size()))
+		for (const auto i: std::views::iota(0uz, Data.size()))
 		{
 			if (Data[i] != i + 1)
 				return false;
@@ -840,7 +1071,7 @@ TEST_CASE("platform.string.receiver")
 	for (const auto& i: Tests)
 	{
 		string Data;
-		REQUIRE((i != 0) == os::detail::ApiDynamicStringReceiver(Data, [&](span<wchar_t> const Buffer)
+		REQUIRE((i != 0) == os::detail::ApiDynamicStringReceiver(Data, [&](std::span<wchar_t> const Buffer)
 		{
 			return api_function(i, Buffer.data(), Buffer.size());
 		}));

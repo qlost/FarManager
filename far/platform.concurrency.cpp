@@ -60,7 +60,7 @@ namespace os::concurrency
 {
 	string detail::make_name(string_view const Namespace, string_view const HashPart, string_view const TextPart)
 	{
-		auto Str = concat(Namespace, str(hash_range(ALL_CONST_RANGE(HashPart))), L'_', TextPart);
+		auto Str = concat(Namespace, str(hash_range(HashPart)), L'_', TextPart);
 		ReplaceBackslashToSlash(Str);
 		return Str;
 	}
@@ -93,22 +93,8 @@ namespace os::concurrency
 
 	void thread::finalise()
 	{
-		if (!joinable())
-			return;
-
-		switch (m_Mode)
-		{
-		case mode::join:
+		if (joinable())
 			join();
-			return;
-
-		case mode::detach:
-			detach();
-			return;
-
-		default:
-			UNREACHABLE;
-		}
 	}
 
 	thread& thread::operator=(thread&& rhs) noexcept
@@ -116,9 +102,6 @@ namespace os::concurrency
 		finalise();
 
 		handle::operator=(std::move(rhs));
-
-		m_Mode = rhs.m_Mode;
-		rhs.m_Mode = {};
 
 		m_ThreadId = rhs.m_ThreadId;
 		rhs.m_ThreadId = {};
@@ -154,15 +137,15 @@ namespace os::concurrency
 	void thread::check_joinable() const
 	{
 		if (!joinable())
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Thread is not joinable"sv);
+			throw far_fatal_exception(L"Thread is not joinable"sv);
 	}
 
 	void thread::starter_impl(proc_type Proc, void* Param)
 	{
-		reset(reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0, Proc, Param, 0, &m_ThreadId)));
+		reset(std::bit_cast<HANDLE>(_beginthreadex(nullptr, 0, Proc, Param, 0, &m_ThreadId)));
 
 		if (!*this)
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Can't create thread"sv);
+			throw far_fatal_exception(L"Can't create thread"sv);
 	}
 
 
@@ -184,7 +167,7 @@ namespace os::concurrency
 	void mutex::unlock() const
 	{
 		if (!ReleaseMutex(native_handle()))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"ReleaseMutex failed"sv);
+			throw far_fatal_exception(L"ReleaseMutex failed"sv);
 	}
 
 
@@ -281,14 +264,14 @@ namespace os::concurrency
 	{
 		check_valid();
 		if (!SetEvent(get()))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"SetEvent failed"sv);
+			throw far_fatal_exception(L"SetEvent failed"sv);
 	}
 
 	void event::reset() const
 	{
 		check_valid();
 		if (!ResetEvent(get()))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"ResetEvent failed"sv);
+			throw far_fatal_exception(L"ResetEvent failed"sv);
 	}
 
 	void event::associate(OVERLAPPED& o) const
@@ -301,7 +284,7 @@ namespace os::concurrency
 	{
 		if (!*this)
 		{
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Event is not initialized properly"sv);
+			throw far_fatal_exception(L"Event is not initialized properly"sv);
 		}
 	}
 
@@ -314,7 +297,7 @@ namespace os::concurrency
 	void timer::initialise_impl(std::chrono::milliseconds const DueTime, std::chrono::milliseconds Period)
 	{
 		if (!CreateTimerQueueTimer(&ptr_setter(m_Timer), {}, &wrapper, m_Callable.get(), DueTime / 1ms, Period / 1ms, WT_EXECUTEDEFAULT))
-			throw MAKE_FAR_FATAL_EXCEPTION(L"CreateTimerQueueTimer failed"sv);
+			throw far_fatal_exception(L"CreateTimerQueueTimer failed"sv);
 	}
 
 	void timer::timer_closer::operator()(HANDLE const Handle) const
@@ -350,9 +333,8 @@ TEMPLATE_TEST_CASE("platform.concurrency.locking", "", os::critical_section, os:
 	std::atomic_int Cookie;
 	TestType Lock1, Lock2;
 
-	os::event const Event(os::event::type::automatic, os::event::state::nonsignaled);
+	os::event const Event(os::event::type::manual, os::event::state::nonsignaled);
 	os::thread const Thread(
-		os::thread::mode::join,
 		[&]
 		{
 			SCOPED_ACTION(std::scoped_lock)(Lock2);
@@ -384,7 +366,6 @@ TEST_CASE("platform.concurrency.thread.forwarding")
 	{
 		const auto Magic = 42;
 		os::thread Thread(
-			os::thread::mode::join,
 			[Ptr = std::make_unique<int>(Magic)](auto&& Param)
 			{
 				REQUIRE(*Ptr * 2 == *Param);

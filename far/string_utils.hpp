@@ -39,7 +39,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
-#include "common/range.hpp"
 
 // External:
 
@@ -70,8 +69,8 @@ bool is_lower(wchar_t Char);
 
 namespace inplace
 {
-	void upper(span<wchar_t> Str);
-	void lower(span<wchar_t> Str);
+	void upper(std::span<wchar_t> Str);
+	void lower(std::span<wchar_t> Str);
 
 	void upper(wchar_t& Char);
 	void lower(wchar_t& Char);
@@ -100,12 +99,7 @@ string lower(string_view Str);
 
 struct [[nodiscard]] string_comparer_icase
 {
-#ifdef __cpp_lib_generic_unordered_lookup
 	using is_transparent = void;
-	using generic_key = string_view;
-#else
-	using generic_key = string;
-#endif
 
 	[[nodiscard]]
 	size_t operator()(wchar_t Char) const;
@@ -220,7 +214,7 @@ using fuzzy_ic_searcher = fuzzy_searcher<icase_searcher>;
 
 using searchers = std::variant
 <
-	bool, // Just to make it default-constructible
+	std::monostate, // Just to make it default-constructible
 	exact_searcher,
 	icase_searcher,
 	fuzzy_cs_searcher,

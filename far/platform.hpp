@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/function_ref.hpp"
 #include "common/smart_ptr.hpp"
+#include "common/span.hpp"
 #include "common/utility.hpp"
 
 // External:
@@ -72,9 +73,9 @@ namespace os
 		[[nodiscard]]
 		bool ApiDynamicReceiver(
 			buffer_type&& Buffer,
-			function_ref<size_t(span<value_type<buffer_type>> WritableBuffer)> const Receiver,
+			function_ref<size_t(std::span<std::ranges::range_value_t<buffer_type>> WritableBuffer)> const Receiver,
 			function_ref<bool(size_t ReturnedSize, size_t AllocatedSize)> const Condition,
-			function_ref<void(span<value_type<buffer_type> const> ReadableBuffer)> const Assigner
+			function_ref<void(std::span<std::ranges::range_value_t<buffer_type> const> ReadableBuffer)> const Assigner
 		)
 		{
 			size_t Size = Receiver({ Buffer.data(), Buffer.size() });
@@ -93,10 +94,16 @@ namespace os
 		}
 
 		[[nodiscard]]
-		bool ApiDynamicStringReceiver(string& Destination, function_ref<size_t(span<wchar_t> WritableBuffer)> Callable);
+		bool ApiDynamicStringReceiver(string& Destination, function_ref<size_t(std::span<wchar_t> WritableBuffer)> Callable);
 
 		[[nodiscard]]
-		bool ApiDynamicErrorBasedStringReceiver(DWORD ExpectedErrorCode, string& Destination, function_ref<size_t(span<wchar_t> WritableBuffer)> Callable);
+		bool ApiDynamicErrorBasedStringReceiver(DWORD ExpectedErrorCode, string& Destination, function_ref<size_t(std::span<wchar_t> WritableBuffer)> Callable);
+
+		template<typename type>
+		concept handle_like = std::same_as<type, HANDLE> || requires(type t)
+		{
+			t.native_handle();
+		};
 
 		class handle_implementation
 		{
@@ -107,19 +114,52 @@ namespace os
 			static bool is_signaled(HANDLE Handle, std::chrono::milliseconds Timeout = 0ms);
 
 			[[nodiscard]]
-			static std::optional<size_t> wait_any(span<HANDLE const> Handles, std::optional<std::chrono::milliseconds> Timeout);
+			static std::optional<size_t> wait_any(std::chrono::milliseconds Timeout, span<HANDLE const> Handles);
+
+			static auto wait_any(std::chrono::milliseconds const Timeout, handle_like auto const&... Args)
+			{
+				return wait_any(Timeout, { native_handle(Args)... });
+			}
 
 			[[nodiscard]]
 			static size_t wait_any(span<HANDLE const> Handles);
 
+			static auto wait_any(handle_like auto const&... Args)
+			{
+				return wait_any({ native_handle(Args)... });
+			}
+
 			[[nodiscard]]
-			static bool wait_all(span<HANDLE const> Handles, std::optional<std::chrono::milliseconds> Timeout);
+			static bool wait_all(std::chrono::milliseconds Timeout, span<HANDLE const> Handles);
+
+			static auto wait_all(std::chrono::milliseconds const Timeout, handle_like auto const&... Args)
+			{
+				return wait_all(Timeout, { native_handle(Args)... });
+			}
 
 			static void wait_all(span<HANDLE const> Handles);
+
+			static auto wait_all(handle_like auto const&... Args)
+			{
+				return wait_all({ native_handle(Args)... });
+			}
 
 		protected:
 			[[nodiscard]]
 			static HANDLE normalise(HANDLE Handle);
+
+		private:
+			[[nodiscard]]
+			static HANDLE native_handle(HANDLE const Handle)
+			{
+				return Handle;
+			}
+
+			[[nodiscard]]
+			static HANDLE native_handle(auto const& Handle)
+			{
+				return Handle.native_handle();
+			}
 		};
 
 		template<class deleter>
@@ -305,7 +345,7 @@ namespace os
 			[[nodiscard]]
 			T GetProcAddress(const char* name) const
 			{
-				return reinterpret_cast<T>(get_proc_address(name));
+				return std::bit_cast<T>(get_proc_address(name));
 			}
 
 			[[nodiscard]]
@@ -318,7 +358,7 @@ namespace os
 			[[nodiscard]]
 			HMODULE get_module(bool Mandatory) const;
 
-			void* get_proc_address(const char* Name) const;
+			FARPROC get_proc_address(const char* Name) const;
 
 			struct module_deleter
 			{
@@ -364,7 +404,7 @@ namespace os
 			using opaque_function_pointer::opaque_function_pointer;
 
 			[[nodiscard]]
-			explicit(false) operator raw_function_pointer() const { return reinterpret_cast<raw_function_pointer>(get_pointer(true)); }
+			explicit(false) operator raw_function_pointer() const { return std::bit_cast<raw_function_pointer>(get_pointer(true)); }
 		};
 	}
 
@@ -395,6 +435,9 @@ namespace os
 	HKL make_hkl(int32_t Layout);
 	HKL make_hkl(string_view LayoutStr);
 	std::vector<HKL> get_keyboard_layout_list();
+
+	int to_unicode(unsigned VirtKey, unsigned ScanCode, BYTE const* KeyState, span<wchar_t> Buffer, unsigned Flags, HKL Hkl);
+	bool is_dead_key(KEY_EVENT_RECORD const& Key, HKL Layout);
 
 	bool is_interactive_user_session();
 }

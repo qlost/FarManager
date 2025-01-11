@@ -168,10 +168,15 @@ private:
 	int GetModeDependentLineSize() const;
 
 	wchar_t ZeroChar() const;
-	size_t MaxViewLineSize() const { return ViOpt.MaxLineSize; }
+	int MaxViewLineSize() const { return ViOpt.MaxLineSize; }
 	size_t MaxViewLineBufferSize() const { return ViOpt.MaxLineSize + 15; }
-	int CalculateMaxBytesPerLineByScreenWidth() const;
-	void AdjustBytesPerLine(int Amount);
+	void ChangeHexModeBytesPerLine(int Amount);
+	void AdjustHexModeBytesPerLineToViewWidth();
+
+	// Shift applies to the viewport. E.g., negative Shift moves viewport to the left,
+	// towards the left content edge or towards the beginning of the file.
+	void HorizontalScroll(int Shift);
+	void RollContents(long long OffsetInChars);
 
 	friend class FileViewer;
 
@@ -215,7 +220,7 @@ private:
 	long long FileSize{};
 	long long LastSelectPos{}, LastSelectSize{-1};
 
-	long long LeftPos{};
+	long long LeftPos{}; // Left viewport edge relative to left content edge; must be non-negative
 	bool LastPage{};
 	long long SelectPos{}, SelectSize{-1}, ManualSelectPos{-1};
 	DWORD SelectFlags{};
@@ -234,7 +239,10 @@ private:
 	std::list<ViewerUndoData> UndoData;
 
 	int LastKeyUndo{};
-	int Width{}, XX2{};  // используется при расчете ширины при скролбаре
+	// используется при расчете ширины при скролбаре
+	int ScrollbarAdjustedWidth{};
+	int ScrollbarAdjustedRight{};
+
 	int ViewerID;
 	bool OpenFailed{};
 	bool bVE_READ_Sent{};
@@ -307,8 +315,8 @@ private:
 	std::vector<wchar_t> ReadBuffer;
 	F8CP f8cps{true};
 	std::optional<bool> m_GotoHex;
-	int m_PrevXX2{};
-	size_t m_BytesPerLine{ 16 };
+	int m_HexModePrevScrollbarAdjustedWidth{};
+	int m_HexModeBytesPerLine{ 16 };
 };
 
 class ViewerContainer

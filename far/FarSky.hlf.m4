@@ -47,9 +47,9 @@
 
 @Contents
 $^#Manažér súborov a archívov#
-`$^#'FULLVERSION`#'
+$^#M4_MACRO_GET(FULLVERSION)#
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
+$^#Copyright © 2000-M4_MACRO_GET(COPYRIGHTYEAR) Far Group#
  ~Help file index~@Index@
  ~Ako používať nápovedu~@Help@
 
@@ -2773,7 +2773,7 @@ saved path.
  Prompt elements can be highlighted with #colors#.
 
  Format:
- #([[T]FFFFFFFF][:[T]BBBBBBBB])#, where:
+ #([[T]FFFFFFFF][:[T]BBBBBBBB][:style[:[T]UUUUUUUU]])#, where:
 
   #FFFFFFFF#
   Foreground color in aarrggbb format or index in the console palette.
@@ -2781,13 +2781,32 @@ saved path.
   #BBBBBBBB#
   Background color in aarrggbb format or index in the console palette.
 
+  #style#
+  One or more text styles, separated by spaces:
+  #bold#
+  #italic#
+  #overline#
+  #strikeout#
+  #faint#
+  #blink#
+  #inverse#
+  #invisible#
+  #underline#
+  #underline_double#
+  #underline_curly#
+  #underline_dot#
+  #underline_dash#
+
+  #UUUUUUUU#
+  Underline color in aarrggbb format or index in the console palette.
+
   #T#
-  "TrueColor" flag. If absent, value is treated as the console palette index (0-F):
+  "TrueColor" flag. If absent, value is treated as the console palette index (00-FF):
 
   \00 \11 \22 \33 \44 \55 \66 \77 \88 \99 \AA \BB \CC \DD \EE \FF \-
   0123456789ABCDEF
 
- If foreground or background color is omitted, the corresponding default value will be used.
+ If a color is omitted, the corresponding default value will be used.
 
  Examples:
 
@@ -2828,14 +2847,19 @@ $ #Zabudovaný prezerač: control keys#
  #Ctrl+Shift+Left#    Show the leftmost column
  #Ctrl+Shift+Right#   Show the rightmost column of all lines currently visible on the screen
 
- In the #hex# and #dump# ~view modes~@ViewerMode@, #Ctrl+Left# and
-#Ctrl+Right# keys shift the content within the window one byte at a time
-in the corresponding direction.
+ The following additional keys work in #dump# and #hex# modes:
 
- In the #hex# ~view mode~@ViewerMode@, #Alt+Left# and #Alt+Right# key
-combinations decrease or increase the number of bytes displayed on each
-row by one byte, respectively. #Ctrl+Alt+Left# and #Ctrl+Alt+Right# key
-combinations adjust the number of displayed bytes by 16 at a time.
+ #Ctrl+Left#          ^<wrap>Shift all characters (#dump# mode) or bytes (#hex# mode) to the right
+moving the last character (byte) of a row to the first position of the next row
+ #Ctrl+Right#         Shift all characters (#dump# mode) or bytes (#hex# mode) to the left
+moving the first character (byte) of a row to the last position of the previous row
+
+ The following additional keys work in #hex mode#:
+
+ #Alt+Left#           ^<wrap>Decrement the number of bytes per row
+ #Alt+Right#          Inrement the number of bytes per row
+ #Ctrl+Alt+Left#      Decrease the number of bytes per row to the nearest multiple of 16-bytes
+ #Ctrl+Alt+Right#     Increase the number of bytes per row to the nearest multiple of 16-bytes
 
  Viewer commands
 
@@ -2938,9 +2962,11 @@ of the base mode (#dump# or #text#) most recently selected in the
 #View mode# menu. Note: #F4# and #F2# switch #hex# mode to different
 modes.
 
+ See also the full list of ~viewer commands~@Viewer@.
+
  #Text# mode
 
- In the #text# mode, viewer renders file content interpreting byte
+ In the #text# mode viewer renders file content interpreting byte
 sequences as character strings using the encoding defined by the current
 code page. (Note that some encodings can use more than one byte
 to represent a character.) Byte sequences invalid in the current
@@ -2973,7 +2999,8 @@ are split into several screen rows even in #truncate# mode.
 
  #Dump# mode
 
- In the #dump# mode, viewer renders file content character by character
+ In the #dump# mode there is no notion of a text line.
+The viewer renders file content character by character
 without regard of line breaks or control codes which are treated
 as ordinary characters. The characters are displayed on screen rows from
 left to right. After reaching the end of the row, the next character
@@ -2996,30 +3023,22 @@ the positions of continuation bytes are filled with the #›# characters
  Code page 1200 (UTF-16): each screen position represents two
 consecutive bytes starting at an even offset in the file.
 
- In the #dump# mode, there is no notion of a text line. Instead
-of horizontal scrolling (cf. #text# #truncate# mode), the text
-is shifted one character at a time. The #Ctrl+Right# key combination
-shifts all characters to the left; the first character on a row becomes
-the last on the previous row. The #Ctrl+Left# key combination shifts all
-characters to the right moving the last character of a row to the first
-positions of the next row. The text “flows” from row to row. The #Right#
-and #Left# keys are ignored.
-
  #Hex# mode (hexadecimal codes)
 
- In the #hex# mode, viewer renders file content 16 bytes per screen
-row, with the hexadecimal offset of the first byte of each row at the
-left, followed by the hexadecimal representation of the bytes, followed
-by the character representation.
+ In the #hex# mode viewer renders hexadecimal representation of the
+bytes in the file. Each row starts with the hexadecimal offset of the
+first byte and ends with the character representation of the bytes
+of the row.
 
- The rendition depends on the encoding defined by the current code
-page. For single-byte encodings (e.g. all ANSI code pages), the bytes
-on each row are represented by 16 double-digit hex values followed by 16
-characters. For UTF-8 encoding, the bytes are represented the same way,
-while the characters are displayed at the positions of the leading bytes
-of the UTF-8 sequences with the positions of continuation bytes being
-filled with the #›# characters (code point U+203A). For UTF-16(BE)
-encodings the hex values are followed by eight characters. For example:
+ The rendition depends on the encoding defined by the current code page.
+For single-byte encodings (e.g. all ANSI code pages), the bytes on each
+row are represented by the sequence of double-digit hex values followed
+by the character sequence of the same length. For UTF-8 encoding, the
+bytes are represented the same way, while the characters are displayed
+at the positions of the leading bytes of the UTF-8 sequences with the
+positions of continuation bytes being filled with the #›# characters
+(code point U+203A). For UTF-16(BE) encodings, each pair of double-digit
+hex values is represented by one character. For example:
 
  Code page 1252 (ANSI - Latin I)
 
@@ -3046,21 +3065,6 @@ encodings the hex values are followed by eight characters. For example:
  \1b00000000C2: 35 04 3C 04 3F 04 3B 04 │ 4F 04 40 04 2C 00 20 00  емпляр, \-
  \1b00000000D2: 34 04 30 04 2E 00 0D 00 │ 0A 00                    да.♪◙   \-
 @+
-
- The #Ctrl+Right# key combination shifts all bytes to the left; the
-first byte on a row becomes the last on the previous row. The
-#Ctrl+Left# key combination shifts all bytes to the right moving the
-last byte of a row to the first positions of the next row. Unlike
-in #dump# mode, the content is shifted by a byte, not by a character.
-
- The #Alt+Right# key combination increases the number of bytes displayed
-on each row by one byte. The #Ctrl+Alt+Right# key combination increases
-the number of bytes by 16 at a time. The #Alt+Left# key combination
-decreases the number of bytes displayed on each row by one byte. The
-#Ctrl+Alt+Left# key combination decreases the number of bytes by 16 at
-a time.
-
- The #Right# and #Left# keys are ignored.
 
 
 @ViewerGotoPos
@@ -3429,6 +3433,9 @@ $ #Editor: All matching entries menu#
 
  #Ctrl+Enter#, #Ctrl+Left mouse click#
  Go to the position of the found text.
+
+ #Ctrl+Numpad5#
+ Vertically align all found entries.
 
  #Gray +#
  Add session bookmark with the current position.
@@ -4392,16 +4399,21 @@ $ #Color Picker#
 
  The foreground and the background colors can be either:
  - one of the 16 colors from the standard Windows Console pallete,
- - one of the 256 colors from the Xterm pallette, or
+ - one of the 256 colors from the ANSI pallette, or
  - one of the 16 million colors from the RGB color space.
 
  The standard 16-color palette is available in the dialog.
  To access the ~256-color palette~@ColorPicker256@ and the ~RGB color space~@ColorPickerRGB@ use the corresponding buttons.
 
+ #Default# is the color used by your terminal when no colors are specified explicitly, e.g. \(800000:800000) C:\> \-.
+ Usually it is one of the palette colors, e.g. \(7:0)silver on black\-, but not necessarily: some terminals could handle it differently, e.g. render as translucent.
+
  The color value is also represented in the hexadecimal form for convenience, where:
  - #AA______# - the alpha channel, representing the degree of transparency from fully transparent (00) to fully opaque (FF).
  - #______##### - the palette index from 00 to FF.
  - #__RRGGBB# - the red, green and blue channels in the RGB color space, from 00 to FF each.
+
+ Palette indices 00-0F are arranged in Windows/DOS/CGA/IBM PC order, not ANSI (e.g. color ##1 is blue, not red).
 
  When the color is not fully opaque, the previous color in the logical Z-order is taken into account.
 
@@ -4411,14 +4423,18 @@ $ #Color Picker#
  Default:   \(7:0) Example \-
  Bold:      \(7:0:bold) Example \-
  Italic:    \(7:0:italic) Example \-
- Underline: \(7:0:underline) Example \-
- Double:    \(7:0:underline2) Example \-
  Overline:  \(7:0:overline) Example \-
  Strikeout: \(7:0:strikeout) Example \-
  Faint:     \(7:0:faint) Example \-
  Blink:     \(7:0:blink) Example \-
  Inverse:   \(7:0:inverse) Example \-
  Invisible: \(7:0:invisible) Example \-
+ Underline:
+   Single:  \(7:0:underline) Example \-
+   Double:  \(7:0:underline_double) Example \-
+   Curly:   \(7:0:underline_curly) Example \-
+   Dotted:  \(7:0:underline_dot) Example \-
+   Dashed:  \(7:0:underline_dash) Example \-
 
  The preview section below displays the final result.
 
@@ -4432,7 +4448,7 @@ You can find more about it ~here~@https://docs.microsoft.com/en-us/windows/conso
 
 @ColorPicker256
 $ #256 Color Picker#
- This dialog allows to pick a color from the 256-color Xterm pallette.
+ This dialog allows to pick a color from the 256-color ANSI pallette.
 
  The first 16 colors are the same as the standard palette and are available in the ~main dialog~@ColorPicker@.
 

@@ -88,7 +88,7 @@ CFLAGS = $(CFLAGS)\
 CPPFLAGS = $(CPPFLAGS)\
 	$(CFLAGS)\
 	/EHsc\
-	/std:c++20\
+	/std:c++latest\
 	/Zc:__cplusplus,externConstexpr,inline,preprocessor,throwingNew\
 	/D "_ENABLE_EXTENDED_ALIGNED_STORAGE"\
 	/D "_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1"\
@@ -157,12 +157,12 @@ LINKFLAGS = $(LINKFLAGS) /safeseh
 ULINKFLAGS = $(ULINKFLAGS) -RS
 !endif # DEBUG
 LINKFLAGS = $(LINKFLAGS) /machine:i386
-ULINKFLAGS = $(ULINKFLAGS) -Tpe -W5.1 -V5.1
+ULINKFLAGS = $(ULINKFLAGS) -W5.1 -V5.1
 OS_VERSION = 5.0
 MASM = ml
 !elseif "$(BUILD_PLATFORM)" == "AMD64"
 LINKFLAGS = $(LINKFLAGS) /machine:amd64
-ULINKFLAGS = $(ULINKFLAGS) -Tpe+ -V5.2 -W5.2
+ULINKFLAGS = $(ULINKFLAGS) -V5.2 -W5.2
 OS_VERSION = 5.2
 MASM = ml64
 AFLAGS=$(AFLAGS) /D "X64"
@@ -212,5 +212,6 @@ LINK_LIBS =\
 	version.lib\
 	userenv.lib\
 	comdlg32.lib\
+	imm32.lib\
 	wbemuuid.lib\
 

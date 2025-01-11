@@ -72,7 +72,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/algorithm.hpp"
 #include "common/from_string.hpp"
-#include "common/view/select.hpp"
 
 // External:
 #include "format.hpp"
@@ -121,9 +120,9 @@ public:
 		return equal_icase(HelpStr, rhs.HelpStr);
 	}
 
-	bool operator<(const HelpRecord& rhs) const
+	auto operator<=>(const HelpRecord& rhs) const
 	{
-		return string_sort::less(HelpStr, rhs.HelpStr);
+		return string_sort::compare(HelpStr, rhs.HelpStr);
 	}
 };
 
@@ -184,7 +183,7 @@ private:
 	bool GetTopic(int realX, int realY, string& strTopic) const;
 	void MoveToReference(int Forward, int CurScreen);
 	void ReadDocumentsHelp(int TypeIndex);
-	void Search(const os::fs::file& HelpFile, uintptr_t nCodePage);
+	void Search(lang_file& HelpFile);
 	bool JumpTopic(string_view Topic);
 	bool JumpTopic();
 	int CanvasHeight() const { return ObjHeight() - 1 - 1; }
@@ -225,9 +224,9 @@ private:
 	SearchReplaceDlgParams m_SearchDlgParams;
 };
 
-static bool GetOptionsParam(const os::fs::file& LangFile, string_view const KeyName, string& Value, unsigned CodePage)
+static bool GetOptionsParam(lang_file& LangFile, string_view const KeyName, string& Value)
 {
-	return GetLangParam(LangFile, L"Options "sv + KeyName, Value, CodePage);
+	return GetLangParam(LangFile, L"Options "sv + KeyName, Value);
 }
 
 Help::Help(private_tag):
@@ -290,7 +289,7 @@ void Help::init(string_view const Topic, string_view const Mask, unsigned long l
 	}
 
 	if (HelpList.empty())
-		throw MAKE_FAR_KNOWN_EXCEPTION(concat(msg(lng::MHelpTopicNotFound), L'\n', StackData.strHelpTopic));
+		throw far_known_exception(concat(msg(lng::MHelpTopicNotFound), L'\n', StackData.strHelpTopic));
 
 	InitKeyBar();
 	SetMacroMode(MACROAREA_HELP);
@@ -329,7 +328,7 @@ bool Help::ReadHelp(string_view const Mask)
 		return true;
 	}
 
-	const auto [HelpFile, Name, HelpFileCodePage] = OpenLangFile(strPath, Mask.empty()? Global->HelpFileMask : Mask, Global->Opt->strHelpLanguage);
+	auto HelpFile = OpenLangFile(strPath, Mask.empty()? Global->HelpFileMask : Mask, Global->Opt->strHelpLanguage);
 	if (!HelpFile)
 	{
 		ErrorHelp = true;
@@ -353,11 +352,11 @@ bool Help::ReadHelp(string_view const Mask)
 		return false;
 	}
 
-	strFullHelpPathName = HelpFile.GetName();
+	strFullHelpPathName = HelpFile.File.GetName();
 
 	string strReadStr;
 
-	if (GetOptionsParam(HelpFile, L"TabSize"sv, strReadStr, HelpFileCodePage))
+	if (GetOptionsParam(HelpFile, L"TabSize"sv, strReadStr))
 	{
 		unsigned UserTabSize;
 		if (from_string(strReadStr, UserTabSize))
@@ -377,12 +376,12 @@ bool Help::ReadHelp(string_view const Mask)
 		}
 	}
 
-	if (GetOptionsParam(HelpFile, L"CtrlColorChar"sv, strReadStr, HelpFileCodePage))
+	if (GetOptionsParam(HelpFile, L"CtrlColorChar"sv, strReadStr))
 		m_CtrlColorChar = strReadStr.front();
 	else
 		m_CtrlColorChar = 0;
 
-	if (GetOptionsParam(HelpFile, L"CtrlStartPosChar"sv, strReadStr, HelpFileCodePage))
+	if (GetOptionsParam(HelpFile, L"CtrlStartPosChar"sv, strReadStr))
 		strCtrlStartPosChar = strReadStr;
 	else
 		strCtrlStartPosChar.clear();
@@ -390,7 +389,7 @@ bool Help::ReadHelp(string_view const Mask)
 	/* $ 29.11.2001 DJ
 	   запомним, чего там написано в PluginContents
 	*/
-	if (!GetLangParam(HelpFile, L"PluginContents"sv, strCurPluginContents,  HelpFileCodePage))
+	if (!GetLangParam(HelpFile, L"PluginContents"sv, strCurPluginContents))
 		strCurPluginContents.clear();
 
 	string strTabSpace(CtrlTabSize, L' ');
@@ -399,7 +398,7 @@ bool Help::ReadHelp(string_view const Mask)
 
 	if (StackData.strHelpTopic == FoundContents)
 	{
-		Search(HelpFile, HelpFileCodePage);
+		Search(HelpFile);
 		return true;
 	}
 
@@ -420,11 +419,11 @@ bool Help::ReadHelp(string_view const Mask)
 	int MI=0;
 	string strMacroArea;
 
-	os::fs::filebuf StreamBuffer(HelpFile, std::ios::in);
+	os::fs::filebuf StreamBuffer(HelpFile.File, std::ios::in);
 	std::istream Stream(&StreamBuffer);
 	Stream.exceptions(Stream.badbit | Stream.failbit); // BUGBUG, add try/catch
 
-	enum_lines EnumFileLines(Stream, HelpFileCodePage);
+	enum_lines EnumFileLines(Stream, HelpFile.Codepage, &HelpFile.TryUtf8);
 	auto FileIterator = EnumFileLines.begin();
 	const size_t StartSizeKeyName = 20;
 	size_t SizeKeyName = StartSizeKeyName;
@@ -494,7 +493,7 @@ bool Help::ReadHelp(string_view const Mask)
 
 			size_t LastKeySize = 0;
 
-			strReadStr = join(L"\n"sv, select(enum_tokens(strKeyName, L" "sv),
+			strReadStr = join(L"\n"sv, enum_tokens(strKeyName, L" "sv) | std::views::transform(
 				[&](const auto& i)
 				{
 					LastKeySize = i.size();
@@ -818,7 +817,7 @@ void Help::AddTitle(const string_view Title)
 
 void Help::HighlightsCorrection(string &strStr)
 {
-	if ((std::count(ALL_CONST_RANGE(strStr), L'#') & 1) && strStr.front() != L'$')
+	if ((std::ranges::count(strStr, L'#') & 1) && strStr.front() != L'$')
 		strStr.insert(0, 1, L'#');
 }
 
@@ -885,7 +884,7 @@ void Help::FastShow()
 	*/
 	CurColor = colors::PaletteColorToFarColor(COL_HELPTEXT);
 
-	for (const auto& i: irange(CanvasHeight()))
+	for (const auto i: std::views::iota(0, CanvasHeight()))
 	{
 		int StrPos;
 
@@ -1945,7 +1944,7 @@ void Help::MoveToReference(int Forward,int CurScreen)
 	FastShow();
 }
 
-void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
+void Help::Search(lang_file& HelpFile)
 {
 	FixCount=1;
 	StackData.TopStr=0;
@@ -1958,7 +1957,7 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 	bool TopicFound=false;
 	string strCurTopic, strEntryName;
 
-	std::vector<RegExpMatch> Match;
+	regex_match Match;
 	named_regex_match NamedMatch;
 	RegExp re;
 
@@ -1981,11 +1980,11 @@ void Help::Search(const os::fs::file& HelpFile,uintptr_t nCodePage)
 	searchers Searchers;
 	const auto& Searcher = init_searcher(Searchers, m_SearchDlgParams.CaseSensitive.value(), m_SearchDlgParams.Fuzzy.value(), m_SearchDlgParams.SearchStr);
 
-	os::fs::filebuf StreamBuffer(HelpFile, std::ios::in);
+	os::fs::filebuf StreamBuffer(HelpFile.File, std::ios::in);
 	std::istream Stream(&StreamBuffer);
 	Stream.exceptions(Stream.badbit | Stream.failbit); // BUGBUG, add try/catch
 
-	for (const auto& i: enum_lines(Stream, nCodePage))
+	for (const auto& i: enum_lines(Stream, HelpFile.Codepage, &HelpFile.TryUtf8))
 	{
 		auto Str = trim_right(i.Str);
 
@@ -2061,7 +2060,7 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 			ContentsName = L"PluginContents"sv;
 			break;
 		default:
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Unsupported index"sv);
+			throw far_fatal_exception(L"Unsupported index"sv);
 	}
 
 	AddTitle(Title);
@@ -2077,12 +2076,12 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 			{
 				string_view Path = i->ModuleName();
 				CutToSlash(Path);
-				const auto [HelpFile, HelpLangName, HelpFileCodePage] = OpenLangFile(Path, Global->HelpFileMask, Global->Opt->strHelpLanguage);
+				auto HelpFile = OpenLangFile(Path, Global->HelpFileMask, Global->Opt->strHelpLanguage);
 				if (!HelpFile)
 					continue;
 
 				string strEntryName;
-				if (!GetLangParam(HelpFile, ContentsName, strEntryName, HelpFileCodePage))
+				if (!GetLangParam(HelpFile, ContentsName, strEntryName))
 					continue;
 
 				AddLine(far::format(L"   ~{}~@{}@"sv, strEntryName, help::make_link(Path, HelpContents)));
@@ -2091,11 +2090,11 @@ void Help::ReadDocumentsHelp(int TypeIndex)
 			break;
 		}
 		default:
-			throw MAKE_FAR_FATAL_EXCEPTION(L"Unsupported index"sv);
+			throw far_fatal_exception(L"Unsupported index"sv);
 	}
 
 	// сортируем по алфавиту
-	std::sort(HelpList.begin()+1, HelpList.end());
+	std::ranges::sort(HelpList | std::views::drop(1));
 }
 
 void Help::SetScreenPosition()

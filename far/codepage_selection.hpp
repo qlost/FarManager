@@ -41,7 +41,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/singleton.hpp"
-#include "common/view/select.hpp"
 
 // External:
 
@@ -76,7 +75,6 @@ public:
 	size_t FillCodePagesList(Dialog* Dlg, size_t controlId, uintptr_t codePage, bool allowAuto, bool allowAll, bool allowDefault, bool allowChecked, bool bViewOnly);
 	void FillCodePagesList(std::vector<DialogBuilderListItem> &List, bool allowAuto, bool allowAll, bool allowDefault, bool allowChecked, bool bViewOnly);
 
-	static bool IsCodePageSupported(uintptr_t CodePage, size_t MaxCharSize = static_cast<size_t>(-1));
 	static std::optional<cp_info> GetInfo(uintptr_t CodePage);
 	static string FormatName(uintptr_t CodePage);
 	static string UnsupportedCharacterMessage(wchar_t Char);
@@ -85,12 +83,10 @@ public:
 	static void DeleteFavorite(uintptr_t cp);
 	static auto GetFavoritesEnumerator()
 	{
-		return select(ConfigProvider().GeneralCfg()->ValuesEnumerator<long long>(FavoriteCodePagesKey()),
-			[t = std::pair<unsigned long, long long>{}](const auto& i) mutable -> auto&
+		return ConfigProvider().GeneralCfg()->ValuesEnumerator<long long>(FavoriteCodePagesKey()) | std::views::transform(
+		[](const auto& i)
 		{
-			// All this magic is to keep reference semantics to make analysers happy.
-			t = { std::stoul(i.first), i.second };
-			return t;
+			return std::pair{ std::stoul(i.first), i.second };
 		});
 	}
 

@@ -31,21 +31,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef FAR_USE_INTERNALS
-#define FAR_USE_INTERNALS
-#endif // END FAR_USE_INTERNALS
-#ifdef FAR_USE_INTERNALS
-#include "disable_warnings_in_std_begin.hpp"
-//----------------------------------------------------------------------------
-#endif // END FAR_USE_INTERNALS
 #include <memory>
 #include <utility>
 
 #include <windows.h>
-#ifdef FAR_USE_INTERNALS
-//----------------------------------------------------------------------------
-#include "disable_warnings_in_std_end.hpp"
-#endif // END FAR_USE_INTERNALS
+#include <winnls.h>
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wmissing-prototypes"
@@ -60,14 +50,14 @@ static T GetFunctionPointer(const wchar_t* ModuleName, const char* FunctionName,
 	return Address? reinterpret_cast<T>(reinterpret_cast<void*>(Address)) : Replacement;
 }
 
-#define WRAPPER(name) name ## Wrapper
-#define CREATE_FUNCTION_POINTER(ModuleName, FunctionName)\
-static const auto Function = GetFunctionPointer(ModuleName, #FunctionName, &implementation::FunctionName)
+#define WRAPPER(name) Wrapper_ ## name
+#define CREATE_AND_RETURN(ModuleName, ...) \
+	static const auto FunctionPointer = GetFunctionPointer(ModuleName, __func__ + sizeof("Wrapper_") - 1, &implementation::impl); \
+	return FunctionPointer(__VA_ARGS__)
 
 namespace modules
 {
 	static const wchar_t kernel32[] = L"kernel32";
-	static const wchar_t ntdll[] = L"ntdll";
 }
 
 static void* XorPointer(void* Ptr)
@@ -93,14 +83,13 @@ extern "C" PVOID WINAPI WRAPPER(EncodePointer)(PVOID Ptr)
 {
 	struct implementation
 	{
-		static PVOID WINAPI EncodePointer(PVOID Ptr)
+		static PVOID WINAPI impl(PVOID Ptr)
 		{
 			return XorPointer(Ptr);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, EncodePointer);
-	return Function(Ptr);
+	CREATE_AND_RETURN(modules::kernel32, Ptr);
 }
 
 // DecodePointer(VC2010)
@@ -108,14 +97,13 @@ extern "C" PVOID WINAPI WRAPPER(DecodePointer)(PVOID Ptr)
 {
 	struct implementation
 	{
-		static PVOID WINAPI DecodePointer(PVOID Ptr)
+		static PVOID WINAPI impl(PVOID Ptr)
 		{
 			return XorPointer(Ptr);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, DecodePointer);
-	return Function(Ptr);
+	CREATE_AND_RETURN(modules::kernel32, Ptr);
 }
 
 // GetModuleHandleExW (VC2012)
@@ -123,7 +111,7 @@ extern "C" BOOL WINAPI WRAPPER(GetModuleHandleExW)(DWORD Flags, LPCWSTR ModuleNa
 {
 	struct implementation
 	{
-		static BOOL WINAPI GetModuleHandleExW(DWORD Flags, LPCWSTR ModuleName, HMODULE *Module)
+		static BOOL WINAPI impl(DWORD Flags, LPCWSTR ModuleName, HMODULE *Module)
 		{
 			if (Flags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS)
 			{
@@ -159,290 +147,147 @@ extern "C" BOOL WINAPI WRAPPER(GetModuleHandleExW)(DWORD Flags, LPCWSTR ModuleNa
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, GetModuleHandleExW);
-	return Function(Flags, ModuleName, Module);
+	CREATE_AND_RETURN(modules::kernel32, Flags, ModuleName, Module);
 }
 
-namespace slist
-{
-	namespace implementation
-	{
-#ifdef _WIN64
-		// These stubs are here only to unify compilation, they shall never be needed on x64.
-		static void WINAPI InitializeSListHead(PSLIST_HEADER ListHead) {}
-		static PSLIST_ENTRY WINAPI InterlockedFlushSList(PSLIST_HEADER ListHead) { return nullptr; }
-		static PSLIST_ENTRY WINAPI InterlockedPopEntrySList(PSLIST_HEADER ListHead) { return nullptr; }
-		static PSLIST_ENTRY WINAPI InterlockedPushEntrySList(PSLIST_HEADER ListHead, PSLIST_ENTRY ListEntry) { return nullptr; }
-		static PSLIST_ENTRY WINAPI InterlockedPushListSListEx(PSLIST_HEADER ListHead, PSLIST_ENTRY List, PSLIST_ENTRY ListEnd, ULONG Count) { return nullptr; }
-		static PSLIST_ENTRY WINAPI RtlFirstEntrySList(PSLIST_HEADER ListHead) { return nullptr; }
-		static USHORT WINAPI QueryDepthSList(PSLIST_HEADER ListHead) { return 0; }
-#else
-		class critical_section
-		{
-		public:
-			critical_section() { InitializeCriticalSection(&m_Lock); }
-			~critical_section() { DeleteCriticalSection(&m_Lock); }
-
-			critical_section(const critical_section&) = delete;
-			critical_section(critical_section&&) = default;
-
-			critical_section& operator=(const critical_section&) = delete;
-			critical_section& operator=(critical_section&&) = default;
-
-			void lock() { EnterCriticalSection(&m_Lock); }
-			void unlock() { LeaveCriticalSection(&m_Lock); }
-
-		private:
-			CRITICAL_SECTION m_Lock;
-		};
-
-		struct service_entry: SLIST_ENTRY, critical_section
-		{
-			// InitializeSListHead might be called during runtime initialisation
-			// when operator new might not be ready yet (especially in presence of leak detectors)
-
-			void* operator new(size_t Size)
-			{
-				return malloc(Size);
-			}
-
-			void operator delete(void* Ptr)
-			{
-				free(Ptr);
-			}
-
-			service_entry* ServiceNext{};
-		};
-
-		class slist_lock
-		{
-		public:
-			explicit slist_lock(PSLIST_HEADER ListHead):
-				m_Entry(static_cast<service_entry&>(*ListHead->Next.Next))
-			{
-				m_Entry.lock();
-			}
-
-			~slist_lock()
-			{
-				m_Entry.unlock();
-			}
-
-			slist_lock(const slist_lock&) = delete;
-			slist_lock& operator=(const slist_lock&) = delete;
-
-		private:
-			service_entry& m_Entry;
-		};
-
-		class service_deleter
-		{
-		public:
-			~service_deleter()
-			{
-				while (m_Data.ServiceNext)
-				{
-					delete std::exchange(m_Data.ServiceNext, m_Data.ServiceNext->ServiceNext);
-				}
-			}
-
-			void add(service_entry* Entry)
-			{
-				m_Data.lock();
-				Entry->ServiceNext = m_Data.ServiceNext;
-				m_Data.ServiceNext = Entry;
-				m_Data.unlock();
-			}
-
-		private:
-			service_entry m_Data{};
-		};
-
-		static SLIST_ENTRY*& top(PSLIST_HEADER ListHead)
-		{
-			return ListHead->Next.Next->Next;
-		}
-
-		static void WINAPI InitializeSListHead(PSLIST_HEADER ListHead)
-		{
-			*ListHead = {};
-
-			const auto Entry = new service_entry();
-			ListHead->Next.Next = Entry;
-
-			static service_deleter Deleter;
-			Deleter.add(Entry);
-		}
-
-		static PSLIST_ENTRY WINAPI InterlockedFlushSList(PSLIST_HEADER ListHead)
-		{
-			slist_lock Lock(ListHead);
-
-			ListHead->Depth = 0;
-			return std::exchange(top(ListHead), nullptr);
-		}
-
-		static PSLIST_ENTRY WINAPI InterlockedPopEntrySList(PSLIST_HEADER ListHead)
-		{
-			slist_lock Lock(ListHead);
-
-			auto& Top = top(ListHead);
-			if (!Top)
-				return nullptr;
-
-			--ListHead->Depth;
-			return std::exchange(Top, Top->Next);
-		}
-
-		static PSLIST_ENTRY WINAPI InterlockedPushEntrySList(PSLIST_HEADER ListHead, PSLIST_ENTRY ListEntry)
-		{
-			slist_lock Lock(ListHead);
-
-			auto& Top = top(ListHead);
-
-			++ListHead->Depth;
-			ListEntry->Next = Top;
-			return std::exchange(Top, ListEntry);
-		}
-
-		static PSLIST_ENTRY WINAPI InterlockedPushListSListEx(PSLIST_HEADER ListHead, PSLIST_ENTRY List, PSLIST_ENTRY ListEnd, ULONG Count)
-		{
-			slist_lock Lock(ListHead);
-
-			auto& Top = top(ListHead);
-
-			ListHead->Depth += static_cast<WORD>(Count);
-			ListEnd->Next = Top;
-			return std::exchange(Top, List);
-		}
-
-		static PSLIST_ENTRY WINAPI RtlFirstEntrySList(PSLIST_HEADER ListHead)
-		{
-			slist_lock Lock(ListHead);
-
-			return top(ListHead);
-		}
-
-		static USHORT WINAPI QueryDepthSList(PSLIST_HEADER ListHead)
-		{
-			slist_lock Lock(ListHead);
-
-			return ListHead->Depth;
-		}
-#endif
-	}
-}
-
-// InitializeSListHead (VC2015)
+// VC2015
 extern "C" void WINAPI WRAPPER(InitializeSListHead)(PSLIST_HEADER ListHead)
 {
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, InitializeSListHead);
-	return Function(ListHead);
+	struct implementation
+	{
+		static void WINAPI impl(PSLIST_HEADER ListHead)
+		{
+			*ListHead = {};
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, ListHead);
 }
 
-// InterlockedFlushSList (VC2015)
+#ifndef _WIN64
+static bool atomic_assign(PSLIST_HEADER To, SLIST_HEADER const& New, SLIST_HEADER const& Old)
+{
+	return InterlockedCompareExchange64(
+		static_cast<LONG64*>(static_cast<void*>(&To->Alignment)),
+		New.Alignment,
+		Old.Alignment
+	) == static_cast<LONG64>(Old.Alignment);
+}
+#endif
+
 extern "C" PSLIST_ENTRY WINAPI WRAPPER(InterlockedFlushSList)(PSLIST_HEADER ListHead)
 {
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, InterlockedFlushSList);
-	return Function(ListHead);
+	struct implementation
+	{
+		static PSLIST_ENTRY WINAPI impl(PSLIST_HEADER ListHead)
+		{
+#ifdef _WIN64
+			// The oldest x64 OS (XP) already has SList, so this shall never be called.
+			DebugBreak();
+			return {};
+#else
+			if (!ListHead->Next.Next)
+				return {};
+
+			SLIST_HEADER OldHeader, NewHeader{};
+
+			do
+			{
+				OldHeader = *ListHead;
+				NewHeader.CpuId = OldHeader.CpuId;
+			}
+			while (!atomic_assign(ListHead, NewHeader, OldHeader));
+
+			return OldHeader.Next.Next;
+#endif
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, ListHead);
 }
 
-// InterlockedPopEntrySList (VC2015)
-extern "C" PSLIST_ENTRY WINAPI WRAPPER(InterlockedPopEntrySList)(PSLIST_HEADER ListHead)
-{
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, InterlockedPopEntrySList);
-	return Function(ListHead);
-}
-
-// InterlockedPushEntrySList (VC2015)
 extern "C" PSLIST_ENTRY WINAPI WRAPPER(InterlockedPushEntrySList)(PSLIST_HEADER ListHead, PSLIST_ENTRY ListEntry)
 {
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, InterlockedPushEntrySList);
-	return Function(ListHead, ListEntry);
+	struct implementation
+	{
+		static PSLIST_ENTRY WINAPI impl(PSLIST_HEADER ListHead, PSLIST_ENTRY ListEntry)
+		{
+#ifdef _WIN64
+			// The oldest x64 OS (XP) already has SList, so this shall never be called.
+			DebugBreak();
+			return {};
+#else
+			SLIST_HEADER OldHeader, NewHeader;
+			NewHeader.Next.Next = ListEntry;
+
+			do
+			{
+				OldHeader = *ListHead;
+				ListEntry->Next = OldHeader.Next.Next;
+				NewHeader.Depth = OldHeader.Depth + 1;
+				NewHeader.CpuId = OldHeader.CpuId;
+			}
+			while (!atomic_assign(ListHead, NewHeader, OldHeader));
+
+			return OldHeader.Next.Next;
+#endif
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, ListHead, ListEntry);
 }
 
-// InterlockedPushListSListEx (VC2015)
-extern "C" PSLIST_ENTRY WINAPI WRAPPER(InterlockedPushListSListEx)(PSLIST_HEADER ListHead, PSLIST_ENTRY List, PSLIST_ENTRY ListEnd, ULONG Count)
-{
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, InterlockedPushListSListEx);
-	return Function(ListHead, List, ListEnd, Count);
-}
-
-// RtlFirstEntrySList (VC2015)
-extern "C" PSLIST_ENTRY WINAPI WRAPPER(RtlFirstEntrySList)(PSLIST_HEADER ListHead)
-{
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::ntdll, RtlFirstEntrySList);
-	return Function(ListHead);
-}
-
-// QueryDepthSList (VC2015)
-extern "C" USHORT WINAPI WRAPPER(QueryDepthSList)(PSLIST_HEADER ListHead)
-{
-	using namespace slist;
-	CREATE_FUNCTION_POINTER(modules::kernel32, QueryDepthSList);
-	return Function(ListHead);
-}
-
-// GetNumaHighestNodeNumber (VC2017)
+// VC2017
 extern "C" BOOL WINAPI WRAPPER(GetNumaHighestNodeNumber)(PULONG HighestNodeNumber)
 {
 	struct implementation
 	{
-		static BOOL WINAPI GetNumaHighestNodeNumber(PULONG HighestNodeNumber)
+		static BOOL WINAPI impl(PULONG HighestNodeNumber)
 		{
 			*HighestNodeNumber = 0;
 			return TRUE;
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, GetNumaHighestNodeNumber);
-	return Function(HighestNodeNumber);
+	CREATE_AND_RETURN(modules::kernel32, HighestNodeNumber);
 }
 
-// GetLogicalProcessorInformation (VC2017)
+// VC2017
 extern "C" BOOL WINAPI WRAPPER(GetLogicalProcessorInformation)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION Buffer, PDWORD ReturnLength)
 {
 	struct implementation
 	{
-		static BOOL WINAPI GetLogicalProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION Buffer, PDWORD ReturnLength)
+		static BOOL WINAPI impl(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 			return FALSE;
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, GetLogicalProcessorInformation);
-	return Function(Buffer, ReturnLength);
+	CREATE_AND_RETURN(modules::kernel32, Buffer, ReturnLength);
 }
 
-// SetThreadStackGuarantee (VC2019)
+// VC2019
 extern "C" BOOL WINAPI WRAPPER(SetThreadStackGuarantee)(PULONG StackSizeInBytes)
 {
 	struct implementation
 	{
-		static BOOL WINAPI SetThreadStackGuarantee(PULONG StackSizeInBytes)
+		static BOOL WINAPI impl(PULONG)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 			return FALSE;
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, SetThreadStackGuarantee);
-	return Function(StackSizeInBytes);
+	CREATE_AND_RETURN(modules::kernel32, StackSizeInBytes);
 }
 
-// InitializeCriticalSectionEx (VC2019)
+// VC2019
 extern "C" BOOL WINAPI WRAPPER(InitializeCriticalSectionEx)(LPCRITICAL_SECTION CriticalSection, DWORD SpinCount, DWORD Flags)
 {
 	struct implementation
 	{
-		static int WINAPI InitializeCriticalSectionEx(LPCRITICAL_SECTION CriticalSection, DWORD SpinCount, DWORD Flags)
+		static int WINAPI impl(LPCRITICAL_SECTION CriticalSection, DWORD SpinCount, DWORD Flags)
 		{
 			InitializeCriticalSection(CriticalSection);
 			CriticalSection->SpinCount = Flags | SpinCount;
@@ -450,102 +295,190 @@ extern "C" BOOL WINAPI WRAPPER(InitializeCriticalSectionEx)(LPCRITICAL_SECTION C
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, InitializeCriticalSectionEx);
-	return Function(CriticalSection, SpinCount, Flags);
+	CREATE_AND_RETURN(modules::kernel32, CriticalSection, SpinCount, Flags);
 }
 
-// CompareStringEx (VC2019)
+static LCID locale_name_to_lcid(const wchar_t* LocaleName)
+{
+	if (!LocaleName)
+		return LOCALE_USER_DEFAULT;
+
+	if (!*LocaleName)
+		return LOCALE_INVARIANT;
+
+	if (!lstrcmp(LocaleName, LOCALE_NAME_SYSTEM_DEFAULT))
+		return LOCALE_SYSTEM_DEFAULT;
+
+	return LOCALE_USER_DEFAULT;
+}
+
+// VC2019
 extern "C" int WINAPI WRAPPER(CompareStringEx)(LPCWSTR LocaleName, DWORD CmpFlags, LPCWCH String1, int Count1, LPCWCH String2, int Count2, LPNLSVERSIONINFO VersionInformation, LPVOID Reserved, LPARAM Param)
 {
 	struct implementation
 	{
-		static int WINAPI CompareStringEx(LPCWSTR LocaleName, DWORD CmpFlags, LPCWCH String1, int Count1, LPCWCH String2, int Count2, LPNLSVERSIONINFO VersionInformation, LPVOID Reserved, LPARAM Param)
+		static int WINAPI impl(LPCWSTR LocaleName, DWORD CmpFlags, LPCWCH String1, int Count1, LPCWCH String2, int Count2, LPNLSVERSIONINFO, LPVOID, LPARAM)
 		{
-			return CompareStringW(LOCALE_USER_DEFAULT, CmpFlags, String1, Count1, String2, Count2);
+			return CompareStringW(locale_name_to_lcid(LocaleName), CmpFlags, String1, Count1, String2, Count2);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, CompareStringEx);
-	return Function(LocaleName, CmpFlags, String1, Count1, String2, Count2, VersionInformation, Reserved, Param);
+	CREATE_AND_RETURN(modules::kernel32, LocaleName, CmpFlags, String1, Count1, String2, Count2, VersionInformation, Reserved, Param);
 }
 
-// LCMapStringEx (VC2019)
+// VC2019
 extern "C" int WINAPI WRAPPER(LCMapStringEx)(LPCWSTR LocaleName, DWORD MapFlags, LPCWSTR SrcStr, int SrcCount, LPWSTR DestStr, int DestCount, LPNLSVERSIONINFO VersionInformation, LPVOID Reserved, LPARAM SortHandle)
 {
 	struct implementation
 	{
-		static int WINAPI CompareStringEx(LPCWSTR LocaleName, DWORD MapFlags, LPCWSTR SrcStr, int SrcCount, LPWSTR DestStr, int DestCount, LPNLSVERSIONINFO VersionInformation, LPVOID Reserved, LPARAM SortHandle)
+		static int WINAPI impl(LPCWSTR LocaleName, DWORD MapFlags, LPCWSTR SrcStr, int SrcCount, LPWSTR DestStr, int DestCount, LPNLSVERSIONINFO, LPVOID, LPARAM)
 		{
-			return LCMapStringW(LOCALE_USER_DEFAULT, MapFlags, SrcStr, SrcCount, DestStr, DestCount);
+			return LCMapStringW(locale_name_to_lcid(LocaleName), MapFlags, SrcStr, SrcCount, DestStr, DestCount);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, CompareStringEx);
-	return Function(LocaleName, MapFlags, SrcStr, SrcCount, DestStr, DestCount, VersionInformation, Reserved, SortHandle);
+	CREATE_AND_RETURN(modules::kernel32, LocaleName, MapFlags, SrcStr, SrcCount, DestStr, DestCount, VersionInformation, Reserved, SortHandle);
 }
 
-// SleepConditionVariableSRW (VC2022)
+// VC2022
 extern "C" BOOL WINAPI WRAPPER(SleepConditionVariableSRW)(PCONDITION_VARIABLE ConditionVariable, PSRWLOCK SRWLock, DWORD Milliseconds, ULONG Flags)
 {
 	struct implementation
 	{
-		static BOOL WINAPI SleepConditionVariableSRW(PCONDITION_VARIABLE ConditionVariable, PSRWLOCK SRWLock, DWORD Milliseconds, ULONG Flags)
+		static BOOL WINAPI impl(PCONDITION_VARIABLE, PSRWLOCK, DWORD, ULONG)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 			return FALSE;
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, SleepConditionVariableSRW);
-	return Function(ConditionVariable, SRWLock, Milliseconds, Flags);
+	CREATE_AND_RETURN(modules::kernel32, ConditionVariable, SRWLock, Milliseconds, Flags);
 }
 
-// WakeAllConditionVariable (VC2022)
+// VC2022
 extern "C" void WINAPI WRAPPER(WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVariable)
 {
 	struct implementation
 	{
-		static void WINAPI WakeAllConditionVariable(PCONDITION_VARIABLE ConditionVariable)
+		static void WINAPI impl(PCONDITION_VARIABLE)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, WakeAllConditionVariable);
-	return Function(ConditionVariable);
+	CREATE_AND_RETURN(modules::kernel32, ConditionVariable);
 }
 
-// AcquireSRWLockExclusive (VC2022)
+// VC2022
 extern "C" void WINAPI WRAPPER(AcquireSRWLockExclusive)(PSRWLOCK SRWLock)
 {
 	struct implementation
 	{
-		static void WINAPI AcquireSRWLockExclusive(PSRWLOCK SRWLock)
+		static void WINAPI impl(PSRWLOCK)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, AcquireSRWLockExclusive);
-	return Function(SRWLock);
+	CREATE_AND_RETURN(modules::kernel32, SRWLock);
 }
 
-// ReleaseSRWLockExclusive (VC2022)
+// VC2022
 extern "C" void WINAPI WRAPPER(ReleaseSRWLockExclusive)(PSRWLOCK SRWLock)
 {
 	struct implementation
 	{
-		static void WINAPI ReleaseSRWLockExclusive(PSRWLOCK SRWLock)
+		static void WINAPI impl(PSRWLOCK)
 		{
 			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 		}
 	};
 
-	CREATE_FUNCTION_POINTER(modules::kernel32, ReleaseSRWLockExclusive);
-	return Function(SRWLock);
+	CREATE_AND_RETURN(modules::kernel32, SRWLock);
 }
 
-#undef CREATE_FUNCTION_POINTER
+// VC2022
+extern "C" BOOLEAN WINAPI WRAPPER(TryAcquireSRWLockExclusive)(PSRWLOCK SRWLock)
+{
+	struct implementation
+	{
+		static BOOLEAN WINAPI impl(PSRWLOCK)
+		{
+			SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+			return FALSE;
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, SRWLock);
+}
+
+// VC2019
+extern "C" void WINAPI WRAPPER(InitializeSRWLock)(PSRWLOCK SRWLock)
+{
+	struct implementation
+	{
+		static void WINAPI impl(PSRWLOCK SRWLock)
+		{
+			*SRWLock = SRWLOCK_INIT;
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, SRWLock);
+}
+
+extern "C" DWORD WINAPI WRAPPER(FlsAlloc)(PFLS_CALLBACK_FUNCTION Callback)
+{
+	struct implementation
+	{
+		static DWORD WINAPI impl(PFLS_CALLBACK_FUNCTION)
+		{
+			return TlsAlloc();
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, Callback);
+}
+
+extern "C" PVOID WINAPI WRAPPER(FlsGetValue)(DWORD FlsIndex)
+{
+	struct implementation
+	{
+		static PVOID WINAPI impl(DWORD FlsIndex)
+		{
+			return TlsGetValue(FlsIndex);
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, FlsIndex);
+}
+
+extern "C" BOOL WINAPI WRAPPER(FlsSetValue)(DWORD FlsIndex, PVOID FlsData)
+{
+	struct implementation
+	{
+		static BOOL WINAPI impl(DWORD FlsIndex, PVOID FlsData)
+		{
+			return TlsSetValue(FlsIndex, FlsData);
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, FlsIndex, FlsData);
+}
+
+extern "C" BOOL WINAPI WRAPPER(FlsFree)(DWORD FlsIndex)
+{
+	struct implementation
+	{
+		static BOOL WINAPI impl(DWORD FlsIndex)
+		{
+			return TlsFree(FlsIndex);
+		}
+	};
+
+	CREATE_AND_RETURN(modules::kernel32, FlsIndex);
+}
+
+#undef CREATE_AND_RETURN
 #undef WRAPPER
 
 // disable VS2015 telemetry

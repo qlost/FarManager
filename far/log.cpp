@@ -43,6 +43,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "exception.hpp"
 #include "exception_handler.hpp"
 #include "farversion.hpp"
+#include "imports.hpp"
 #include "interf.hpp"
 #include "keyboard.hpp"
 #include "palette.hpp"
@@ -65,6 +66,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/scope_exit.hpp"
 
 // External:
+#include "format.hpp"
 
 //----------------------------------------------------------------------------
 
@@ -79,7 +81,7 @@ namespace
 
 	auto parameter(string_view const Name)
 	{
-		return concat(L"far.log."sv, Name);
+		return L"far.log."sv + Name;
 	}
 
 	auto get_parameter(string_view const Name)
@@ -89,7 +91,7 @@ namespace
 
 	auto sink_parameter(string_view const SinkName, string_view const Name)
 	{
-		return parameter(concat(L"sink."sv, SinkName, L'.', Name));
+		return parameter(far::format(L"sink.{}.{}"sv, SinkName, Name));
 	}
 
 	auto get_sink_parameter(string_view const SinkName, string_view const Name)
@@ -162,24 +164,23 @@ namespace
 		return Colors[std::to_underlying(Level) / logging::detail::step];
 	}
 
-	auto get_location(std::string_view const Function, std::string_view const File, int const Line)
-	{
-		return far::format(L"{}, {}({})"sv, encoding::utf8::get_chars(Function), encoding::utf8::get_chars(File), Line);
-	}
-
 	auto get_thread_id()
 	{
+		if (const auto ThreadName = os::debug::get_thread_name(GetCurrentThread()); !ThreadName.empty())
+			return far::format(L"{}|{}"sv, GetCurrentThreadId(), ThreadName);
+
 		return str(GetCurrentThreadId());
 	}
 
 	struct message
 	{
-		message(string&& Str, logging::level const Level, std::string_view const Function, std::string_view const File, int const Line, size_t const TraceDepth):
+		message(string&& Str, logging::level const Level, source_location const& Location, size_t const TraceDepth, bool const IsDebugMessage):
 			m_ThreadId(get_thread_id()),
 			m_LevelString(level_to_string(Level)),
 			m_Data(std::move(Str)),
-			m_Location(get_location(Function, File, Line)),
-			m_Level(Level)
+			m_Location(source_location_to_string(Location)),
+			m_Level(Level),
+			m_IsDebugMessage(IsDebugMessage)
 		{
 			std::tie(m_Date, m_Time) = format_datetime(os::chrono::now_utc());
 
@@ -187,7 +188,7 @@ namespace
 			{
 				m_Data += L"\nLog stack:\n"sv;
 
-				const auto FramesToSkip = 3; // log -> engine::log -> this ctor
+				const auto FramesToSkip = IsDebugMessage? 2 : 3; // [log] -> engine::log -> this ctor
 				tracer.current_stacktrace({}, [&](string_view const TraceLine)
 				{
 					append(m_Data, TraceLine, L'\n');
@@ -205,6 +206,7 @@ namespace
 		string m_Data;
 		string m_Location;
 		logging::level m_Level{ logging::level::off };
+		bool m_IsDebugMessage;
 	};
 
 	class sink
@@ -256,13 +258,16 @@ namespace
 	public:
 		void handle_impl(message const& Message) const
 		{
-			os::debug::print(concat(
-				L'[', Message.m_Time, L']',
-				L'[', Message.m_ThreadId, L']',
-				L'[', Message.m_LevelString, L']',
-				L' ', Message.m_Data, L' ',
-				L'[', Message.m_Location, L']',
-				L'\n'
+			if (Message.m_IsDebugMessage)
+				return;
+
+			os::debug::print(far::format(
+				L"[{}][{}][{}] {} [{}]\n"sv,
+				Message.m_Time,
+				Message.m_ThreadId,
+				Message.m_LevelString,
+				Message.m_Data,
+				Message.m_Location
 			));
 		}
 
@@ -289,10 +294,10 @@ namespace
 				{
 					CONSOLE_SCREEN_BUFFER_INFO csbi;
 					if (!get_console_screen_buffer_info(Buffer, &csbi))
-						throw MAKE_FAR_EXCEPTION(L"get_console_screen_buffer_info"sv);
+						throw far_exception(L"get_console_screen_buffer_info"sv);
 
 					if (!SetConsoleTextAttribute(Buffer, Color))
-						throw MAKE_FAR_EXCEPTION(L"SetConsoleTextAttributes"sv);
+						throw far_exception(L"SetConsoleTextAttributes"sv);
 
 					m_SavedAttributes = csbi.wAttributes;
 				}
@@ -312,7 +317,7 @@ namespace
 			{
 				DWORD Written;
 				if (!WriteConsole(Buffer, Str.data(), static_cast<DWORD>(Str.size()), &Written, {}))
-					throw MAKE_FAR_EXCEPTION(L"WriteConsole"sv);
+					throw far_exception(L"WriteConsole"sv);
 			};
 
 			const auto write = [&](string_view const Borders, WORD const Color, string_view const Str)
@@ -368,7 +373,7 @@ namespace
 
 				for (;;)
 				{
-					os::handle::wait_all({ console.GetInputHandle() });
+					os::handle::wait(console.GetInputHandle());
 
 					if (CheckForEscSilent())
 					{
@@ -461,7 +466,7 @@ namespace
 		{
 			os::fs::file File(make_filename(), GENERIC_WRITE, os::fs::file_share_read, nullptr, OPEN_ALWAYS);
 			if (!File)
-				throw MAKE_FAR_EXCEPTION(L"Can't create a log file"sv);
+				throw far_exception(L"Can't create a log file"sv);
 
 			LOGINFO(L"Logging to {}"sv, File.GetName());
 
@@ -479,52 +484,12 @@ namespace
 	class sink_pipe: public no_config, public discardable<true>
 	{
 	public:
-		void connect()
-		{
-			if (!PeekNamedPipe(m_Pipe.native_handle(), {}, 0, {}, {}, {}))
-				disconnect();
-
-			if (m_Connected)
-				return;
-
-			STARTUPINFO si{ sizeof(si) };
-			PROCESS_INFORMATION pi{};
-
-			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(far::format(L"\"{}\" {} {}"sv, m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
-			{
-				LOGERROR(L"{}"sv, os::last_error());
-				return;
-			}
-
-			os::handle(pi.hThread);
-			os::handle(pi.hProcess);
-
-			while (!ConnectNamedPipe(m_Pipe.native_handle(), {}) && GetLastError() != ERROR_PIPE_CONNECTED)
-			{
-				LOGWARNING(L"ConnectNamedPipe({}): {}"sv, m_PipeName, os::last_error());
-			}
-
-			m_Connected = true;
-		}
-
-		void disconnect()
-		{
-			if (!m_Connected)
-				return;
-
-			DisconnectNamedPipe(m_Pipe.native_handle());
-			m_Connected = false;
-		}
-
 		void handle_impl(message const& Message)
 		{
-			connect();
-
-			if (!m_Connected)
-				return;
-
 			try
 			{
+				connect();
+
 				pipe::write(
 					m_Pipe,
 					Message.m_Level,
@@ -546,18 +511,59 @@ namespace
 		static constexpr auto name = L"pipe"sv;
 
 	private:
+		void connect()
+		{
+			if (m_Pipe)
+			{
+				if (PeekNamedPipe(m_Pipe.native_handle(), {}, 0, {}, {}, {}))
+					return;
+
+				LOGWARNING(L"PeekNamedPipe({}): {}"sv, m_PipeName, os::last_error());
+				disconnect();
+			}
+
+			m_Pipe.reset(CreateNamedPipe(m_PipeName.c_str(), PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 0, 0, 0, {}));
+			if (!m_Pipe)
+				throw far_exception(far::format(L"CreateNamedPipe({})"sv, m_PipeName));
+
+			STARTUPINFO si{ sizeof(si) };
+			PROCESS_INFORMATION pi{};
+
+			if (!CreateProcess(m_ThisModule.c_str(), UNSAFE_CSTR(far::format(L"\"{}\" {} {}"sv, m_ThisModule, log_argument, m_PipeName)), {}, {}, false, CREATE_NEW_CONSOLE, {}, {}, &si, &pi))
+				throw far_exception(L"CreateProcess()"sv);
+
+			os::handle(pi.hThread);
+			os::handle(pi.hProcess);
+
+			if (!ConnectNamedPipe(m_Pipe.native_handle(), {}))
+			{
+				const auto Error = os::last_error();
+				if (Error.Win32Error != ERROR_PIPE_CONNECTED)
+					throw far_exception(error_state_ex{ Error, far::format(L"ConnectNamedPipe({})"sv, m_PipeName) });
+			}
+		}
+
+		void disconnect()
+		{
+			if (!m_Pipe)
+				return;
+
+			if (!DisconnectNamedPipe(m_Pipe.native_handle()))
+				LOGWARNING(L"DisconnectNamedPipe({}): {}"sv, m_PipeName, os::last_error());
+
+			m_Pipe = {};
+		}
+
 		string m_PipeName{ far::format(L"\\\\.\\pipe\\far_{}.log"sv, GetCurrentProcessId()) };
-		os::handle m_Pipe{ CreateNamedPipe(m_PipeName.c_str(), PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 0, 0, 0, {}) };
+		os::handle m_Pipe;
 		string m_ThisModule{ os::fs::get_current_process_file_name() };
-		bool m_Connected{};
 	};
 
 	template<typename impl>
 	class synchronized_impl: public impl
 	{
 	protected:
-		template<typename... args>
-		explicit synchronized_impl(args&&... Args):
+		explicit synchronized_impl(auto&&... Args):
 			impl(FWD(Args)...)
 		{}
 
@@ -574,10 +580,10 @@ namespace
 	class async_impl
 	{
 	protected:
-		template<typename... args>
-		explicit async_impl(bool const IsDiscardable, string_view const Name):
+		explicit async_impl(std::function<void(message&&)> Out, bool const IsDiscardable, string_view const Name):
+			m_Out(std::move(Out)),
 			m_IsDiscardable(IsDiscardable),
-			m_Thread(os::thread::mode::join, &async_impl::poll, this, Name)
+			m_Thread(&async_impl::poll, this, Name)
 		{
 		}
 
@@ -603,8 +609,6 @@ namespace
 	private:
 		const size_t QueueBufferSize = 8192;
 
-		virtual void out(message&& Message) = 0;
-
 		void poll(string_view const Name)
 		{
 			os::debug::set_thread_name(far::format(L"Log sink ({})"sv, Name));
@@ -616,7 +620,7 @@ namespace
 
 					for (;;)
 					{
-						if (os::handle::wait_any({ m_MessageEvent.native_handle(), m_FinishEvent.native_handle() }) != 0)
+						if (os::handle::wait_any(m_MessageEvent, m_FinishEvent) != 0)
 							return;
 
 						for (auto Messages = m_Messages.pop_all(); !Messages.empty(); Messages.pop())
@@ -624,7 +628,7 @@ namespace
 							if (m_IsDiscardable && m_FinishEvent.is_signaled())
 								return;
 
-							out(std::move(Messages.front()));
+							m_Out(std::move(Messages.front()));
 						}
 					}
 				},
@@ -637,7 +641,7 @@ namespace
 		os::synced_queue<message> m_Messages;
 		os::event m_MessageEvent { os::event::type::automatic, os::event::state::nonsignaled };
 		os::event m_FinishEvent { os::event::type::manual, os::event::state::nonsignaled };
-
+		std::function<void(message&&)> m_Out;
 		bool m_IsDiscardable;
 		os::thread m_Thread;
 	};
@@ -655,7 +659,7 @@ namespace
 		static constexpr auto mode = sink_mode::async;
 
 		explicit async(bool const IsDiscardable):
-			synchronized_impl<async_impl>(IsDiscardable, sink_type::name)
+			synchronized_impl([&](message const& Message){ sink_boilerplate<sink_type>::handle_impl(Message); }, IsDiscardable, sink_type::name)
 		{
 		}
 
@@ -663,12 +667,6 @@ namespace
 		void handle(message const& Message) override
 		{
 			this->handle_impl_synchronized(Message);
-		}
-
-		// async_impl
-		void out(message&& Message) override
-		{
-			return sink_boilerplate<sink_type>::handle_impl(std::move(Message));
 		}
 	};
 
@@ -702,7 +700,7 @@ namespace
 			for (const auto& i: enum_tokens(get_sink_parameter(name, L"sinks"sv), L",;"sv))
 			{
 				// No funny stuff
-				if (equal_icase(i, name) || SeenSinks.contains(string_comparer::generic_key{ i }))
+				if (equal_icase(i, name) || SeenSinks.contains(i))
 					continue;
 
 				const auto SinkMode = parse_sink_mode(get_sink_parameter(i, L"mode"sv));
@@ -798,6 +796,11 @@ namespace logging
 
 		~engine()
 		{
+			LOGINFO(L"Logger exit"sv);
+
+			if (m_VectoredHandler && imports.RemoveVectoredExceptionHandler)
+				imports.RemoveVectoredExceptionHandler(m_VectoredHandler);
+
 			s_Destroyed = true;
 		}
 
@@ -839,7 +842,7 @@ namespace logging
 				return true;
 
 			default:
-				UNREACHABLE;
+				std::unreachable();
 			}
 		}
 
@@ -856,18 +859,37 @@ namespace logging
 			}
 		}
 
-		void log(string&& Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
+		void log(string&& Str, level const Level, bool const IsDebugMessage, source_location const& Location)
 		{
+			thread_local size_t RecursionGuard{};
+			// Log can potentially log itself, directly or through other parts of the code.
+			// Allow one level of recursion for diagnostics
+			if (RecursionGuard > 1)
+				return;
+
+			++RecursionGuard;
+			SCOPE_EXIT{ --RecursionGuard; };
+
+			const auto TraceDepth = Level <= m_TraceLevel? m_TraceDepth : 0;
+
+			SCOPED_ACTION(os::last_error_guard);
+
 			if (m_Status == engine_status::in_progress)
 			{
-				m_QueuedMessages.push({ std::move(Str), Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
+				if (TraceDepth)
+					m_WithSymbols.emplace(L""sv);
+
+				m_QueuedMessages.push({ std::move(Str), Level, Location, TraceDepth, IsDebugMessage });
 				return;
 			}
 
 			if (!filter(Level))
 				return;
 
-			submit({ std::move(Str), Level, Function, File, Line, Level <= m_TraceLevel? m_TraceDepth : 0 });
+			if (TraceDepth)
+				m_WithSymbols.emplace(L""sv);
+
+			submit({ std::move(Str), Level, Location, TraceDepth, IsDebugMessage });
 		}
 
 		static void suppress()
@@ -927,6 +949,10 @@ namespace logging
 			m_Status = engine_status::in_progress;
 			SCOPE_EXIT{ m_Status = engine_status::complete; flush_queue(); };
 
+			m_VectoredHandler = imports.AddVectoredExceptionHandler?
+				imports.AddVectoredExceptionHandler(false, debug_print) :
+				nullptr;
+
 			SCOPED_ACTION(os::last_error_guard);
 
 			// No recursion if it's the helper process
@@ -945,13 +971,87 @@ namespace logging
 			m_Sink->handle(Message);
 		}
 
+		static void debug_print(void const* Ptr, size_t const Size, bool const IsUnicode) noexcept
+		{
+			const auto Level = level::debug;
+			if (!logging::filter(Level))
+				return;
+
+			try
+			{
+				log_engine.log(
+					far::format(
+						L"{}"sv,
+						IsUnicode?
+							string_view{ static_cast<wchar_t const*>(Ptr), Size } :
+							encoding::ansi::get_chars(std::string_view{ static_cast<char const*>(Ptr), Size })
+					),
+					Level,
+					true,
+					source_location::current()
+				);
+			}
+			catch (...)
+			{
+			}
+		}
+
+		static void debug_print_seh(void const* Ptr, size_t const Size, bool const IsUnicode) noexcept
+		{
+			return seh_try_no_ui(
+			[&]
+			{
+				return debug_print(Ptr, Size, IsUnicode);
+			},
+			[](DWORD)
+			{
+			});
+		}
+
+		static LONG NTAPI debug_print(EXCEPTION_POINTERS* const Pointers)
+		{
+			const auto& Record = *Pointers->ExceptionRecord;
+
+			switch (const auto Code = static_cast<NTSTATUS>(Record.ExceptionCode))
+			{
+			case DBG_PRINTEXCEPTION_WIDE_C:
+			case DBG_PRINTEXCEPTION_C:
+				{
+					if (Record.NumberParameters < 2 || !Record.ExceptionInformation[0] || !Record.ExceptionInformation[1])
+						break;
+
+					const auto IsUnicode = Code == DBG_PRINTEXCEPTION_WIDE_C;
+
+					if (thread_local bool IgnoreNextAnsiMessage; IgnoreNextAnsiMessage)
+					{
+						IgnoreNextAnsiMessage = false;
+						break;
+					}
+					else
+						IgnoreNextAnsiMessage = IsUnicode;
+
+					const auto Ptr = view_as<void const*>(Record.ExceptionInformation[1]);
+					const auto Size = static_cast<size_t>(Record.ExceptionInformation[0] - 1);
+
+					debug_print_seh(Ptr, Size, IsUnicode);
+				}
+				break;
+			}
+
+			return EXCEPTION_CONTINUE_SEARCH;
+		}
+
+		imports_nifty_objects::initialiser m_ImportsReference;
+		tracer_nifty_objects::initialiser m_TracerReference;
 		os::concurrency::critical_section m_CS;
-		std::unique_ptr<sink> m_Sink;
 		os::concurrency::synced_queue<message> m_QueuedMessages;
 		std::atomic<level> m_Level{ level::off };
 		level m_TraceLevel{ level::fatal };
 		size_t m_TraceDepth{ std::numeric_limits<size_t>::max() };
 		std::atomic<engine_status> m_Status{ engine_status::incomplete };
+		std::unique_ptr<sink> m_Sink;
+		void* m_VectoredHandler{};
+		std::optional<tracer_detail::tracer::with_symbols> m_WithSymbols;
 		static inline bool s_Destroyed;
 		static inline std::atomic_size_t s_Suppressed;
 	};
@@ -961,19 +1061,9 @@ namespace logging
 		return log_engine.filter(Level);
 	}
 
-	static thread_local size_t RecursionGuard{};
-
-	void log(string&& Str, level const Level, std::string_view const Function, std::string_view const File, int const Line)
+	void log(string&& Str, level const Level, source_location const& Location)
 	{
-		// Log can potentially log itself, directly or through other parts of the code.
-		// Allow one level of recursion for diagnostics
-		if (RecursionGuard > 1)
-			return;
-
-		++RecursionGuard;
-		SCOPE_EXIT{ --RecursionGuard; };
-
-		log_engine.log(std::move(Str), Level, Function, File, Line);
+		log_engine.log(std::move(Str), Level, false, Location);
 	}
 
 	void show()
@@ -993,14 +1083,13 @@ namespace logging
 
 	int main(string_view const PipeName)
 	{
+		console.UpdateMode(console.GetInputHandle(), ENABLE_EXTENDED_FLAGS | ENABLE_QUICK_EDIT_MODE, ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+
 		consoleicons::instance().set_icon(FAR_ICON_LOG);
 
-		console.SetTitle(concat(L"Far Log Viewer: "sv, PipeName));
+		console.SetTitle(L"Far Log Viewer: "sv + PipeName);
 		console.SetTextAttributes(colors::NtColorToFarColor(F_LIGHTGRAY | B_BLACK));
 
-		DWORD ConsoleMode = 0;
-		console.GetMode(console.GetInputHandle(), ConsoleMode);
-		console.SetMode(console.GetInputHandle(), ConsoleMode | ENABLE_EXTENDED_FLAGS | ENABLE_QUICK_EDIT_MODE);
 
 		os::fs::file PipeFile;
 
@@ -1008,7 +1097,7 @@ namespace logging
 		{
 			const auto ErrorState = os::last_error();
 
-			if (!ConsoleYesNo(L"Retry"sv, false, [&]{ std::wcerr << far::format(L"Can't open pipe {}: {}"sv, PipeName, ErrorState.Win32ErrorStr()) << std::endl; }))
+			if (!ConsoleYesNo(L"Retry"sv, false, [&]{ std::wcerr << far::format(L"Can't open pipe {}: {}"sv, PipeName, ErrorState) << std::endl; }))
 				return EXIT_FAILURE;
 		}
 
@@ -1028,17 +1117,37 @@ namespace logging
 			}
 			catch (far_exception const& e)
 			{
+				const auto pause = []
+				{
+					if (!os::is_interactive_user_session())
+						return;
+
+					// Q: Why not just system("pause") or cin.get() or whatever?
+					// A: We want to keep the log window open, but we don't want to do it ourselves,
+					//    because otherwise this log process stays alive, lingers in the background
+					//    and prevents you from recompiling the binary during development, which is annoying.
+					//    With this approach we basically transfer the console to cmd, so it's someone else's problem.
+
+					STARTUPINFO si{ sizeof(si) };
+					PROCESS_INFORMATION pi{};
+					if (CreateProcess({}, UNSAFE_CSTR(L"cmd.exe /c pause"s), {}, {}, false, 0, {}, {}, &si, &pi))
+					{
+						os::handle(pi.hThread);
+						os::handle(pi.hProcess);
+					}
+				};
+
 				if (e.Win32Error == ERROR_BROKEN_PIPE)
 				{
 					// If the last logged message was a warning or worse, the user probably wants to see it
 					if (Message.m_Level < level::info)
-						os::chrono::sleep_for(5s);
+						pause();
 
 					return EXIT_SUCCESS;
 				}
 
 				std::wcerr << far::format(L"Error reading pipe {}: {}"sv, PipeName, e) << std::endl;
-				os::chrono::sleep_for(5s);
+				pause();
 				return EXIT_FAILURE;
 			}
 
@@ -1116,7 +1225,6 @@ TEST_CASE("log.misc")
 {
 	REQUIRE(parameter(L"banana"sv) == L"far.log.banana"sv);
 	REQUIRE(sink_parameter(L"ham"sv, L"eggs"sv) == L"far.log.sink.ham.eggs"sv);
-	REQUIRE(get_location("banana"sv, "meow.cpp"sv, 123) == L"banana, meow.cpp(123)"sv);
 	REQUIRE(parse_sink_mode(L"sync"sv) == sink_mode::sync);
 	REQUIRE(parse_sink_mode(L"async"sv) == sink_mode::async);
 	REQUIRE(parse_sink_mode(L"whatever"sv) == sink_mode::async);

@@ -811,7 +811,7 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
     static const ExternalCodec defopts { L"", 1,9,0, 1,3,5,7,9, false };
 
     std::wstring method;
-    if (options.arc_type == c_7z)
+    if (options.arc_type == c_7z || options.arc_type == c_zip)
       method = options.method;
     else if (ArcAPI::formats().count(options.arc_type))
       method = ArcAPI::formats().at(options.arc_type).name;
@@ -947,6 +947,13 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
         }
       }
     }
+    else if (options.arc_type == c_zip) {
+      if (!ignore_method) {
+        names.push_back(L"0"); values.push_back(method);
+        ++n_01;
+      }
+      names.push_back(L"x"); values.push_back(level);
+    }
     else if (options.arc_type != c_bzip2 || level != 0) {
       names.push_back(L"x"); values.push_back(level);
     }
@@ -1018,6 +1025,9 @@ void Archive::set_properties(IOutArchive* out_arc, const UpdateOptions& options)
         continue;
 
       const auto str = i.get_str();
+      if (str.empty())
+        continue;
+
       string_to_integer(str, &wcstoull, i) || string_to_integer(str, &wcstoll, i);
     }
 
@@ -1196,7 +1206,7 @@ void Archive::create_dir(const std::wstring& dir_name, const std::wstring& dst_d
 
   UpdateOptions options;
   options.arc_type = arc_chain.back().type;
-  load_update_props();
+  load_update_props(options.arc_type);
   options.level = m_level;
   options.method = m_method;
   options.solid = m_solid;

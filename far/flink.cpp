@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "string_utils.hpp"
 #include "log.hpp"
 #include "exception.hpp"
+#include "encoding.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -204,7 +205,7 @@ static bool PrepareAndSetREPARSE_DATA_BUFFER(REPARSE_DATA_BUFFER& rdb, string_vi
 	case IO_REPARSE_TAG_MOUNT_POINT:
 		{
 			const auto PrintName = ConvertNameToFull(Target);
-			const auto SubstituteName = KernelPath(NTPath(PrintName));
+			const auto SubstituteName = kernel_path(nt_path(PrintName));
 			if (!FillREPARSE_DATA_BUFFER(rdb, PrintName, SubstituteName))
 			{
 				SetLastError(ERROR_INSUFFICIENT_BUFFER);
@@ -221,7 +222,7 @@ static bool PrepareAndSetREPARSE_DATA_BUFFER(REPARSE_DATA_BUFFER& rdb, string_vi
 
 			if (IsAbsolutePath(Target))
 			{
-				SubstituteNameBuffer = KernelPath(NTPath(SubstituteName));
+				SubstituteNameBuffer = kernel_path(nt_path(SubstituteName));
 				SubstituteName = SubstituteNameBuffer;
 				rdb.SymbolicLinkReparseBuffer.Flags = 0;
 			}
@@ -361,51 +362,76 @@ bool GetReparsePointInfo(string_view const Object, string& DestBuffer, LPDWORD R
 
 	const auto Extract = [&](const auto& Buffer)
 	{
-		const wchar_t* PathBuffer;
-		auto NameLength = Buffer.PrintNameLength / sizeof(wchar_t);
-
-		if (NameLength)
+		if (const auto NameLength = Buffer.PrintNameLength / sizeof(wchar_t))
 		{
-			PathBuffer = &Buffer.PathBuffer[Buffer.PrintNameOffset / sizeof(wchar_t)];
-		}
-		else
-		{
-			NameLength = Buffer.SubstituteNameLength / sizeof(wchar_t);
-			PathBuffer = &Buffer.PathBuffer[Buffer.SubstituteNameOffset / sizeof(wchar_t)];
+			DestBuffer.assign(Buffer.PathBuffer + Buffer.PrintNameOffset / sizeof(wchar_t), NameLength);
+			return true;
 		}
 
-		if (!NameLength)
-			return false;
+		if (const auto NameLength = Buffer.SubstituteNameLength / sizeof(wchar_t))
+		{
+			DestBuffer.assign(Buffer.PathBuffer + Buffer.SubstituteNameOffset / sizeof(wchar_t), NameLength);
+			return true;
+		}
 
-		DestBuffer.assign(PathBuffer, NameLength);
-		return true;
+		return false;
 	};
 
 	switch (rdb->ReparseTag)
 	{
 	case IO_REPARSE_TAG_SYMLINK:
+		if (rdb->ReparseDataLength < sizeof(rdb->SymbolicLinkReparseBuffer))
+			return false;
 		return Extract(rdb->SymbolicLinkReparseBuffer);
 
 	case IO_REPARSE_TAG_MOUNT_POINT:
+		if (rdb->ReparseDataLength < sizeof(rdb->MountPointReparseBuffer))
+			return false;
 		return Extract(rdb->MountPointReparseBuffer);
+
+	case IO_REPARSE_TAG_NFS:
+		{
+			constexpr auto NFS_SPECFILE_LNK = 0x014B4E4C;
+
+			struct NFS_REPARSE_DATA_BUFFER
+			{
+				ULONG64 Type;
+				WCHAR   DataBuffer[1];
+			};
+
+			if (rdb->ReparseDataLength < sizeof(NFS_REPARSE_DATA_BUFFER))
+				return false;
+
+			const auto& NfsReparseBuffer = view_as<NFS_REPARSE_DATA_BUFFER>(rdb->GenericReparseBuffer.DataBuffer);
+			if (NfsReparseBuffer.Type != NFS_SPECFILE_LNK)
+				return false;
+
+			DestBuffer.assign(NfsReparseBuffer.DataBuffer, (rdb->ReparseDataLength - sizeof(NfsReparseBuffer.Type)) / sizeof(wchar_t));
+			return true;
+		}
 
 	case IO_REPARSE_TAG_APPEXECLINK:
 		{
-			// Third string in the list is the target filename
+			// The current protocol version is 3. It is known that in all 3 versions the third string in the list is the target filename.
+			// Hopefully it stays like that in the future, but if no, the worse thing that could happen is a wrong string.
 			constexpr size_t FilenameIndex = 2;
 
 			struct APPEXECLINK_REPARSE_DATA_BUFFER
 			{
-				ULONG StringCount;
+				ULONG Version;
 				WCHAR StringList[1];
 			};
 
-			const auto& AppExecLinkReparseBuffer = view_as<APPEXECLINK_REPARSE_DATA_BUFFER>(&rdb->GenericReparseBuffer);
-			if (AppExecLinkReparseBuffer.StringCount <= FilenameIndex)
+			if (rdb->ReparseDataLength < sizeof(APPEXECLINK_REPARSE_DATA_BUFFER))
 				return false;
 
+			const auto& AppExecLinkReparseBuffer = view_as<APPEXECLINK_REPARSE_DATA_BUFFER>(rdb->GenericReparseBuffer.DataBuffer);
+
 			size_t Index = 0;
-			for (const auto& i: enum_substrings(AppExecLinkReparseBuffer.StringList))
+			const auto StringSize = (rdb->ReparseDataLength - sizeof(AppExecLinkReparseBuffer.Version)) / sizeof(*AppExecLinkReparseBuffer.StringList);
+			string_view const StringList{ AppExecLinkReparseBuffer.StringList, StringSize };
+
+			for (const auto& i: enum_substrings(StringList))
 			{
 				if (Index < FilenameIndex)
 				{
@@ -417,6 +443,44 @@ bool GetReparsePointInfo(string_view const Object, string& DestBuffer, LPDWORD R
 				return true;
 			}
 			return false;
+		}
+
+	case IO_REPARSE_TAG_LX_SYMLINK:
+		{
+			struct LX_SYMLINK_REPARSE_DATA_BUFFER
+			{
+				DWORD FileType;
+				char  PathBuffer[1];
+			};
+
+			if (rdb->ReparseDataLength < sizeof(LX_SYMLINK_REPARSE_DATA_BUFFER))
+				return false;
+
+			const auto& LxSymlinkReparseBuffer = view_as<LX_SYMLINK_REPARSE_DATA_BUFFER>(rdb->GenericReparseBuffer.DataBuffer);
+			DestBuffer = encoding::utf8::get_chars({ LxSymlinkReparseBuffer.PathBuffer, rdb->ReparseDataLength - sizeof(LxSymlinkReparseBuffer.FileType) });
+			return true;
+		}
+
+	case IO_REPARSE_TAG_WCI:
+	case IO_REPARSE_TAG_WCI_1:
+	case IO_REPARSE_TAG_WCI_LINK:
+	case IO_REPARSE_TAG_WCI_LINK_1:
+		{
+			struct WCI_REPARSE_DATA_BUFFER
+			{
+				ULONG Version;
+				ULONG Reserved;
+				GUID LookupGuid;
+				USHORT WciNameLength;
+				WCHAR WciName[1];
+			};
+
+			if (rdb->ReparseDataLength < sizeof(WCI_REPARSE_DATA_BUFFER))
+				return false;
+
+			const auto& WciReparseBuffer = view_as<WCI_REPARSE_DATA_BUFFER>(rdb->GenericReparseBuffer.DataBuffer);
+			DestBuffer.assign(WciReparseBuffer.WciName, WciReparseBuffer.WciNameLength / sizeof(wchar_t));
+			return true;
 		}
 
 	default:
@@ -556,8 +620,13 @@ bool GetVHDInfo(string_view const RootDirectory, string &strVolumePath, VIRTUAL_
 	if (!StorageDependencyInfo->NumberEntries)
 		return false;
 
+WARNING_PUSH()
+WARNING_DISABLE_GCC("-Warray-bounds")
+
 	if(StorageType)
 		*StorageType = StorageDependencyInfo->Version2Entries[0].VirtualStorageType;
+
+WARNING_POP()
 
 	// trick: ConvertNameToReal also converts \\?\{UUID} to drive letter, if possible.
 	strVolumePath = ConvertNameToReal(concat(StorageDependencyInfo->Version2Entries[0].HostVolumeName, StorageDependencyInfo->Version2Entries[0].DependentVolumeRelativePath));
@@ -693,13 +762,9 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	{
 	default: return {};
 
-	// Localised
-	case IO_REPARSE_TAG_MOUNT_POINT:                 return msg(lng::MListJunction);
-	case IO_REPARSE_TAG_SYMLINK:                     return msg(lng::MListSymlink);
-
-	// Generated
 #define TAG_STR(name) case IO_REPARSE_TAG_##name: return WIDE_SV(#name);
 	// MS tags:
+	TAG_STR(MOUNT_POINT)
 	TAG_STR(HSM)
 	TAG_STR(DRIVE_EXTENDER)
 	TAG_STR(HSM2)
@@ -708,6 +773,7 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	TAG_STR(CSV)
 	TAG_STR(DFS)
 	TAG_STR(FILTER_MANAGER)
+	TAG_STR(SYMLINK)
 	TAG_STR(IIS_CACHE)
 	TAG_STR(DFSR)
 	TAG_STR(DEDUP)
@@ -851,14 +917,16 @@ static string_view reparse_tag_to_string(DWORD ReparseTag)
 	}
 }
 
-bool reparse_tag_to_string(DWORD ReparseTag, string& Str)
+bool reparse_tag_to_string(DWORD ReparseTag, string& Str, bool const ShowUnknown)
 {
 	Str = reparse_tag_to_string(ReparseTag);
 
 	if (!Str.empty())
 		return true;
 
-	Str = far::format(L":{:0>8X}"sv, ReparseTag);
+	if (ShowUnknown)
+		Str = far::format(L":{:0>8X}"sv, ReparseTag);
+
 	return false;
 }
 
@@ -872,7 +940,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 	block_ptr<REPARSE_DATA_BUFFER> const Buffer(BufferSize);
 
 	{
-		char const ExpectedData[]
+		unsigned char const ExpectedData[]
 		{
 			// ReparseTag
 			0x03, 0x00, 0x00, 0xa0,
@@ -891,7 +959,6 @@ TEST_CASE("flink.fill.reparse.buffer")
 			// PathBuffer
 			0x5c, 0x00, 0x3f, 0x00, 0x3f, 0x00, 0x5c, 0x00, 0x63, 0x00, 0x3a, 0x00, 0x5c, 0x00, 0x77, 0x00, 0x69, 0x00, 0x6e, 0x00, 0x64, 0x00, 0x6f, 0x00, 0x77, 0x00, 0x73, 0x00, 0x00, 0x00,
 			0x63, 0x00, 0x3a, 0x00, 0x5c, 0x00, 0x77, 0x00, 0x69, 0x00, 0x6e, 0x00, 0x64, 0x00, 0x6f, 0x00, 0x77, 0x00, 0x73, 0x00, 0x00, 0x00,
-
 		};
 
 		static_assert(BufferSize >= std::size(ExpectedData));
@@ -907,11 +974,11 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameOffset == 30);
 		REQUIRE(Buffer->MountPointReparseBuffer.PrintNameLength == 20);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
+		REQUIRE(std::ranges::equal(ExpectedData, std::span(std::bit_cast<unsigned char const*>(Buffer.data()), std::size(ExpectedData))));
 	}
 
 	{
-		char const ExpectedData[]
+		unsigned char const ExpectedData[]
 		{
 			// ReparseTag
 			0x0c, 0x00, 0x00, 0xa0,
@@ -949,7 +1016,7 @@ TEST_CASE("flink.fill.reparse.buffer")
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.PrintNameLength == 20);
 		REQUIRE(Buffer->SymbolicLinkReparseBuffer.Flags == 0);
 
-		REQUIRE(std::equal(ALL_CONST_RANGE(ExpectedData), view_as<char const*>(Buffer.data())));
+		REQUIRE(std::ranges::equal(ExpectedData, std::span(std::bit_cast<unsigned char const*>(Buffer.data()), std::size(ExpectedData))));
 	}
 }
 
@@ -978,7 +1045,7 @@ TEST_CASE("reparse_tag_to_string")
 	string Str;
 	for (const auto& i: Tests)
 	{
-		REQUIRE(reparse_tag_to_string(i.Tag, Str) == i.Known);
+		REQUIRE(reparse_tag_to_string(i.Tag, Str, true) == i.Known);
 		REQUIRE(Str == i.Str);
 	}
 }

@@ -66,7 +66,7 @@ public:
 	void set_total_bytes(unsigned long long Value);
 	void add_total_bytes(unsigned long long Value);
 
-	void skip();
+	void skip(unsigned long long Size);
 	void next();
 	void undo();
 
@@ -82,15 +82,14 @@ private:
 	void SetCurrentProgress(unsigned long long CompletedSize, unsigned long long TotalSize);
 	void SetTotalProgress(unsigned long long CompletedSize, unsigned long long TotalSize);
 	void UpdateTime(unsigned long long SizeDone, unsigned long long SizeToGo);
+	size_t GetWidth(intptr_t Index);
 
 	std::chrono::steady_clock::time_point m_CopyStartTime;
 	taskbar::indeterminate m_TB;
 	wakeful m_Wakeful;
 
-	size_t m_CurrentBarSize;
 	int m_CurrentPercent{};
 
-	size_t m_TotalBarSize;
 	int m_TotalPercent{};
 
 	bool m_Move;
@@ -107,12 +106,14 @@ private:
 	string m_FilesCopied;
 	std::chrono::steady_clock::duration m_CalcTime{};
 
-	struct
+	struct files
 	{
 		size_t Copied{};
 		size_t Total{};
+
+		bool operator==(files const&) const = default;
 	}
-	m_Files;
+	m_Files, m_FilesLastRendered;
 
 	struct
 	{

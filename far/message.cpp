@@ -187,7 +187,7 @@ static message_result MessageImpl(
 	std::vector<string>&& Strings,
 	std::vector<string>&& Buttons,
 	const error_state_ex* const ErrorState,
-	span<string const> const Inserts,
+	std::span<string const> const Inserts,
 	string_view const HelpTopic,
 	Plugin* const PluginNumber,
 	const UUID* const Id
@@ -218,7 +218,7 @@ static message_result MessageImpl(
 		}
 	}
 
-	auto MaxLength = !Strings.empty()? std::max_element(ALL_CONST_RANGE(Strings), [](const auto& a, const auto &b) { return a.size() < b.size(); })->size() : 0;
+	auto MaxLength = !Strings.empty()? std::ranges::fold_left(Strings, 0uz, [](size_t const Value, string const& i){ return std::max(Value, i.size()); }) : 0;
 
 	string strClipText;
 
@@ -230,7 +230,7 @@ static message_result MessageImpl(
 		append(strClipText, Title, Eol, Eol);
 	}
 
-	size_t BtnLength = std::accumulate(ALL_CONST_RANGE(Buttons), size_t{}, [](size_t Result, const auto& i)
+	size_t BtnLength = std::ranges::fold_left(Buttons, 0uz, [](size_t Result, const auto& i)
 	{
 		return Result + HiStrlen(i) + 2 + 2 + 1; // "[ ", " ]", " "
 	});
@@ -405,11 +405,18 @@ static message_result MessageImpl(
 		clear_and_shrink(Strings);
 		clear_and_shrink(Buttons);
 
-		const auto Dlg = Dialog::create(MsgDlg, &message_context::DlgProc, &Context, &strClipText);
+		const auto Dlg = Dialog::create(MsgDlg, std::bind_front(&message_context::DlgProc, &Context), &strClipText);
 		if (Position.left == -1)
 			Position.left = 0;
 		if (Position.top == -1)
 			Position.top = 0;
+
+		// Make it "legally" centered:
+		Position.right = Position.width();
+		Position.left = -1;
+		Position.bottom = Position.height();
+		Position.top = -1;
+
 		Dlg->SetPosition(Position);
 		if(Id)
 			Dlg->SetId(*Id);
@@ -442,12 +449,9 @@ static message_result MessageImpl(
 	// *** Без Диалога! ***
 	HideCursor();
 
-	if (!(Flags & MSG_KEEPBACKGROUND))
-	{
-		SetScreen(Position, L' ', colors::PaletteColorToFarColor((Flags & MSG_WARNING)? COL_WARNDIALOGTEXT : COL_DIALOGTEXT));
-		DropShadow(Position, true);
-		Box({ Position.left + 3, Position.top + 1, Position.right - 3, Position.bottom - 1 }, colors::PaletteColorToFarColor((Flags & MSG_WARNING)? COL_WARNDIALOGBOX : COL_DIALOGBOX), DOUBLE_BOX);
-	}
+	SetScreen(Position, L' ', colors::PaletteColorToFarColor((Flags & MSG_WARNING)? COL_WARNDIALOGTEXT : COL_DIALOGTEXT));
+	DropShadow(Position);
+	Box({ Position.left + 3, Position.top + 1, Position.right - 3, Position.bottom - 1 }, colors::PaletteColorToFarColor((Flags & MSG_WARNING)? COL_WARNDIALOGBOX : COL_DIALOGBOX), DOUBLE_BOX);
 
 	SetColor((Flags & MSG_WARNING)?COL_WARNDIALOGTEXT:COL_DIALOGTEXT);
 
@@ -459,7 +463,7 @@ static message_result MessageImpl(
 		Text(concat(L' ', strTempTitle, L' '));
 	}
 
-	for (const auto& i: irange(Strings.size()))
+	for (const auto i: std::views::iota(0uz, Strings.size()))
 	{
 		const auto& SrcItem = Strings[i];
 
@@ -518,7 +522,7 @@ message_result Message(unsigned const Flags, string_view const Title, std::vecto
 {
 	std::vector<string> StrButtons;
 	StrButtons.reserve(Buttons.size());
-	std::transform(ALL_CONST_RANGE(Buttons), std::back_inserter(StrButtons), msg);
+	std::ranges::transform(Buttons, std::back_inserter(StrButtons), msg);
 
 	return MessageImpl(Flags, Title, std::move(Strings), std::move(StrButtons), nullptr, {}, HelpTopic, nullptr, Id);
 }
@@ -527,7 +531,7 @@ message_result Message(unsigned const Flags, const error_state_ex& ErrorState, s
 {
 	std::vector<string> StrButtons;
 	StrButtons.reserve(Buttons.size());
-	std::transform(ALL_CONST_RANGE(Buttons), std::back_inserter(StrButtons), msg);
+	std::ranges::transform(Buttons, std::back_inserter(StrButtons), msg);
 
 	return MessageImpl(Flags, Title, std::move(Strings), std::move(StrButtons), &ErrorState, Inserts, HelpTopic, nullptr, Id);
 }

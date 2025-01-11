@@ -45,6 +45,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/algorithm.hpp"
 
 // External:
+#include "format.hpp"
 
 //----------------------------------------------------------------------------
 
@@ -77,8 +78,7 @@ namespace color_picker_common
 		else
 			A = Size - 1 - A;
 
-		using std::swap;
-		swap(A, B);
+		std::ranges::swap(A, B);
 	}
 
 	template<typename cube>
@@ -133,8 +133,7 @@ namespace color_picker_common
 			}
 		}
 
-		using std::swap;
-		swap(Cube, NewCube);
+		std::ranges::swap(Cube, NewCube);
 	}
 
 	template<typename plane>
@@ -192,6 +191,11 @@ namespace color_picker_common
 	{
 		cube Cube;
 		uint8_t Slice{}, Index{};
+
+		auto slice_str() const
+		{
+			return far::format(L"{:X}"sv, Slice);
+		}
 	};
 
 	template<typename cube_data, typename dialog_items>
@@ -220,7 +224,7 @@ namespace color_picker_common
 
 			Dlg->SendMessage(DM_SETCHECK, dialog_items::cd_cube_first, ToPtr(BSTATE_3STATE));
 
-			for (const auto& i: irange(0, Cube.Cube.size()))
+			for (const auto i: std::views::iota(0uz, Cube.Cube.size()))
 			{
 				move_plane(NewPlane, Plane, Button, Cube.Slice, i);
 				Dlg->SendMessage(DM_REDRAW, 0, {});
@@ -259,7 +263,7 @@ namespace color_picker_common
 			return -1;
 
 		default:
-			UNREACHABLE;
+			std::unreachable();
 		}
 	}
 
@@ -292,7 +296,7 @@ namespace color_picker_common
 			return { &rgb::b, dialog_items::cd_text_b };
 
 		default:
-			UNREACHABLE;
+			std::unreachable();
 		}
 	}
 
@@ -375,8 +379,9 @@ namespace color_picker_common
 		{ DI_BUTTON,      {{x+6, y+1}, {0, y+1}}, DIF_NOBRACKETS, L"[►]"sv, }, \
 		{ DI_BUTTON,      {{x+3, y+2}, {0, y+2}}, DIF_NOBRACKETS, L"[▼]"sv, }, \
 		{ DI_BUTTON,      {{x+3, y+1}, {0, y+1}}, DIF_NOBRACKETS, L"[⌂]"sv, }, \
-		{ DI_BUTTON,      {{x+1, y+4}, {0, y+4}}, DIF_NOBRACKETS, L"[+]"sv, }, \
-		{ DI_BUTTON,      {{x+5, y+4}, {0, y+4}}, DIF_NOBRACKETS, L"[-]"sv, }
+		{ DI_BUTTON,      {{x+0, y+4}, {0, y+4}}, DIF_NOBRACKETS, L"[-]"sv, }, \
+		{ DI_TEXT,        {{x+4, y+4}, {0, y+4}},                           }, \
+		{ DI_BUTTON,      {{x+6, y+4}, {0, y+4}}, DIF_NOBRACKETS, L"[+]"sv, }
 
 
 #define SCROLL_CONTROL(x, y) \

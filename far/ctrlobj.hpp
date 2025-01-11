@@ -67,12 +67,11 @@ public:
 	ControlObject();
 	~ControlObject();
 
-	void Init(int DirCount);
+	void Init();
 	void close();
 	FilePanels *Cp() const;
 	window_ptr Panels() const;
 	void CreateDummyFilePanels();
-	static void ShowVersion(bool Direct = true);
 
 	KeyMacro Macro;
 	std::unique_ptr<highlight::configuration> HiFiles;

@@ -77,7 +77,16 @@ enum FLAGS_CLASS_EDITLINE
 	// явно не в диалоге юзается.
 	FEDITLINE_PARENT_SINGLELINE    = 21_bit,  // обычная строка ввода в диалоге
 	FEDITLINE_PARENT_MULTILINE     = 22_bit,  // для будущего Memo-Edit (DI_EDITOR или DIF_MULTILINE)
+
+	// eol storage
+	// We pack it into scrobj flags to not waste space in Edit class
+	FEDITLINE_EOL_DATA0            = 29_bit,
+	FEDITLINE_EOL_DATA1            = 30_bit,
+	FEDITLINE_EOL_DATA2            = 31_bit,
+	FEDITLINE_EOL_MASK = FEDITLINE_EOL_DATA0 | FEDITLINE_EOL_DATA1 | FEDITLINE_EOL_DATA2
 };
+
+static_assert(std::to_underlying(eol::eol_type::count) < 0b111);
 
 struct ColorItem
 {
@@ -120,8 +129,6 @@ public:
 	NONCOPYABLE(Edit);
 	MOVE_CONSTRUCTIBLE(Edit);
 
-	using delete_color_condition = function_ref<bool(const ColorItem&)>;
-
 	explicit Edit(window_ptr Owner);
 
 	bool ProcessKey(const Manager::Key& Key) override;
@@ -147,6 +154,8 @@ public:
 
 	string GetSelString() const;
 	int GetLength() const;
+
+	void ProcessMask(string_view Str, string_view Mask, size_t From);
 
 	void SetString(string_view Str, bool KeepSelection = false);
 	void InsertString(string_view Str);
@@ -176,9 +185,6 @@ public:
 	void SetEditorMode(bool Mode) {m_Flags.Change(FEDITLINE_EDITORMODE, Mode);}
 	bool ReplaceTabs();
 	void InsertTab();
-	void AddColor(const ColorItem& col);
-	void DeleteColor(delete_color_condition Condition);
-	bool GetColor(ColorItem& col, size_t Item) const;
 	void Xlat(bool All=false);
 	void SetDialogParent(DWORD Sets);
 	void SetCursorType(bool Visible, size_t Size);
@@ -223,7 +229,7 @@ private:
 
 	bool InsertKey(wchar_t Key);
 	bool RecurseProcessKey(int Key);
-	void ApplyColor(int XPos, int FocusedLeftPos, positions_cache& RealToVisual);
+	void ApplyColor(std::multiset<ColorItem> const& Colors, int XPos, int FocusedLeftPos, positions_cache& RealToVisual);
 	int GetNextCursorPos(int Position,int Where) const;
 	static bool CharInMask(wchar_t Char, wchar_t Mask);
 	bool ProcessCtrlQ();
@@ -233,6 +239,9 @@ private:
 	Editor* GetEditor() const;
 
 	bool is_valid_surrogate_pair_at(size_t Position) const;
+
+	eol::eol_type get_eol() const;
+	void set_eol(eol::eol_type Eol);
 
 protected:
 	// BUGBUG: the whole purpose of this class is to avoid zillions of casts in existing code by returning size() as int
@@ -246,19 +255,19 @@ protected:
 	};
 	edit_string m_Str;
 
-	// KEEP ALIGNED!
-	int m_CurPos{};
 private:
 	friend class DlgEdit;
 	friend class Editor;
 	friend class FileEditor;
 
+protected:
 	// KEEP ALIGNED!
-	std::multiset<ColorItem> ColorList;
+	int m_CurPos{};
+
+private:
 	int m_SelStart{-1};
 	int m_SelEnd{};
 	int LeftPos{};
-	eol m_Eol{eol::none};
 };
 
 #endif // EDIT_HPP_5A787FA0_4FFF_4A61_811F_F8BAEDEF241B

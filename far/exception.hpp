@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.hpp"
 
 // Common:
+#include "common/source_location.hpp"
 
 // External:
 
@@ -69,6 +70,8 @@ struct error_state_ex: public os::error_state
 	int Errno{};
 };
 
+string source_location_to_string(source_location const& Location);
+
 namespace detail
 {
 	class far_base_exception: public error_state_ex
@@ -76,27 +79,27 @@ namespace detail
 	public:
 		[[nodiscard]] const auto& message() const noexcept { return What; }
 		[[nodiscard]] const auto& full_message() const noexcept { return m_FullMessage; }
-		[[nodiscard]] const auto& function() const noexcept { return m_Function; }
 		[[nodiscard]] const auto& location() const noexcept { return m_Location; }
 		[[nodiscard]] string to_string() const;
 
 	protected:
-		far_base_exception(bool CaptureErrors, string_view Message, std::string_view Function, std::string_view File, int Line);
+		explicit far_base_exception(error_state_ex ErrorState, source_location const& Location);
 
 	private:
-		std::string m_Function;
-		string m_Location;
+		source_location m_Location;
 		string m_FullMessage;
 	};
 
 	class far_std_exception : public far_base_exception, public std::runtime_error
 	{
 	public:
-		template<typename... args>
-		explicit far_std_exception(args&&... Args):
-			far_base_exception(FWD(Args)...),
+		explicit far_std_exception(error_state_ex ErrorState, source_location const& Location = source_location::current()):
+			far_base_exception(std::move(ErrorState), Location),
 			std::runtime_error(convert_message(full_message()))
-		{}
+		{
+		}
+
+		explicit far_std_exception(string_view Message, bool CaptureErrors = true, source_location const& Location = source_location::current());
 
 	private:
 		[[nodiscard]] static std::string convert_message(string_view Message);
@@ -136,13 +139,12 @@ class far_exception: public detail::far_std_exception
  */
 class far_known_exception final: public far_exception
 {
-	using far_exception::far_exception;
+public:
+	explicit far_known_exception(string_view const Message, source_location const& Location = source_location::current()):
+		far_exception(Message, false, Location)
+	{
+	}
 };
-
-#define MAKE_EXCEPTION(ExceptionType, ...) ExceptionType(__VA_ARGS__, CURRENT_FUNCTION_NAME, CURRENT_FILE_NAME, __LINE__)
-#define MAKE_FAR_FATAL_EXCEPTION(...) MAKE_EXCEPTION(far_fatal_exception, true, __VA_ARGS__)
-#define MAKE_FAR_EXCEPTION(...) MAKE_EXCEPTION(far_exception, true, __VA_ARGS__)
-#define MAKE_FAR_KNOWN_EXCEPTION(...) MAKE_EXCEPTION(far_known_exception, false, __VA_ARGS__)
 
 template<typename T>
 struct formattable;

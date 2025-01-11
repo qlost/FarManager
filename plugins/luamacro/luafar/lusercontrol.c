@@ -2,7 +2,6 @@
 
 #include "ustring.h"
 #include "util.h"
-#include "compat52.h"
 
 #define TYPE_USERCONTROL "far_usercontrol"
 
@@ -37,7 +36,7 @@ static int uc_index(lua_State* L)
 {
 	TFarUserControl* fuc = CheckFarUserControl(L, 1);
 	const char* method = luaL_checkstring(L, 2);
-	if(!strcmp(method, "rawhandle"))
+	if (!strcmp(method, "rawhandle"))
 	{
 		lua_pushlightuserdata(L, fuc->VBuf);
 	}
@@ -58,7 +57,7 @@ static int uc_newindex(lua_State* L)
 	intptr_t index = CheckFarUserControlIndex(L, fuc, 2);
 	luaL_checktype(L, 3, LUA_TTABLE);
 	lua_getfield(L, 3, "Char");
-	if(lua_type(L, -1) == LUA_TNUMBER)
+	if (lua_type(L, -1) == LUA_TNUMBER)
 	{
 		fuc->VBuf[index].Char = (WCHAR)luaL_checkinteger(L, -1);
 	}
@@ -77,6 +76,7 @@ static int uc_newindex(lua_State* L)
 static TFarUserControl* push_far_usercontrol(lua_State* L, intptr_t X, intptr_t Y)
 {
 	TFarUserControl* fuc = (TFarUserControl*)lua_newuserdata(L, sizeof(TFarUserControl) + sizeof(struct FAR_CHAR_INFO)*(X*Y-1));
+	memset(fuc->VBuf, 0, sizeof(struct FAR_CHAR_INFO) * X * Y);
 	fuc->X = X;
 	fuc->Y = Y;
 	fuc->Size = X*Y;

@@ -59,7 +59,7 @@ enum:class lng:int
 
 
 MYes
-`l://Version: 'FULLVERSION`
+l:// Version: M4_MACRO_GET(FULLVERSION)
 l:
 "Да"
 "Yes"
@@ -1278,7 +1278,7 @@ MAltShiftF12
 
 MCtrlShiftF1
 l:
-l://Main CtrlShift
+l:// Main CtrlShift
 ""
 ""
 ""
@@ -2870,6 +2870,62 @@ upd:"Fullwidth-aware rendering"
 upd:"Рендерінг з урахуванням повної ширини"
 "Візуалізацыя з улікам поўнай шырыні"
 upd:"Fullwidth-aware rendering"
+
+MConfigFullWidthAwareRenderingGraphemeClustersDected1
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+"Wydaje się, że Twój terminal obsługuje klastry grapheme Unicode."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+upd:"It appears that your terminal supports Unicode grapheme clusters."
+
+MConfigFullWidthAwareRenderingGraphemeClustersDected2
+upd:"Unfortunately, Far does not support them yet."
+"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+"Niestety, Far jeszcze ich nie obsługuje."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+upd:"Unfortunately, Far does not support them yet."
+
+MConfigFullWidthAwareRenderingGraphemeClustersDected3
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+"Dla zachowania najlepszych wrażeń, zalecamy przełączenie na renderowanie oparte na punktach kodowych."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+upd:"For best experience it is recommended to switch to codepoint-based rendering."
+
+MConfigFullWidthAwareRenderingGraphemeClustersDected4
+upd:"Consult the documentation of your terminal for advice on how to do this."
+"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+"Sprawdź w dokumentacji terminala, aby dowiedzieć się jak to zrobić."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
+upd:"Consult the documentation of your terminal for advice on how to do this."
 
 MConfigClearType
 "Перер&исовка с поддержкой ClearType (может быть медленной)"
@@ -7591,7 +7647,7 @@ MEditF12
 
 MEditShiftF1
 l:
-l://Editor: Shift
+l:// Editor: Shift
 ""
 ""
 ""
@@ -7761,7 +7817,7 @@ MEditShiftF12
 
 MEditAltF1
 l:
-l://Editor: Alt
+l:// Editor: Alt
 ""
 ""
 ""
@@ -7931,7 +7987,7 @@ MEditAltF12
 
 MEditCtrlF1
 l:
-l://Editor: Ctrl
+l:// Editor: Ctrl
 ""
 ""
 ""
@@ -8101,7 +8157,7 @@ MEditCtrlF12
 
 MEditAltShiftF1
 l:
-l://Editor: AltShift
+l:// Editor: AltShift
 ""
 ""
 ""
@@ -8271,7 +8327,7 @@ MEditAltShiftF12
 
 MEditCtrlShiftF1
 l:
-l://Editor: CtrlShift
+l:// Editor: CtrlShift
 ""
 ""
 ""
@@ -9597,7 +9653,7 @@ MListEb
 "E"
 
 MListFileSize
-l:{3} replacement field can receive a sum of files & folders
+l:// {3} replacement field can receive a sum of files & folders
 "Байт: {0}, файлов: {1}, папок: {2}"
 "Bytes: {0}, files: {1}, folders: {2}"
 "Bajty: {0}, soubory: {1}, složky: {2}"
@@ -10125,7 +10181,7 @@ MViewF12
 
 MViewShiftF1
 l:
-l://Viewer: Shift
+l:// Viewer: Shift
 ""
 ""
 ""
@@ -10295,7 +10351,7 @@ MViewShiftF12
 
 MViewAltF1
 l:
-l://Viewer: Alt
+l:// Viewer: Alt
 ""
 ""
 ""
@@ -10465,7 +10521,7 @@ MViewAltF12
 
 MViewCtrlF1
 l:
-l://Viewer: Ctrl
+l:// Viewer: Ctrl
 ""
 ""
 ""
@@ -10635,7 +10691,7 @@ MViewCtrlF12
 
 MViewAltShiftF1
 l:
-l://Viewer: AltShift
+l:// Viewer: AltShift
 ""
 ""
 ""
@@ -10805,7 +10861,7 @@ MViewAltShiftF12
 
 MViewCtrlShiftF1
 l:
-l://Viewer: CtrlShift
+l:// Viewer: CtrlShift
 ""
 ""
 ""
@@ -10975,7 +11031,7 @@ MViewCtrlShiftF12
 
 MViewCtrlAltF1
 l:
-l://Viewer: CtrlAlt
+l:// Viewer: CtrlAlt
 ""
 ""
 ""
@@ -11145,7 +11201,7 @@ MViewCtrlAltF12
 
 MViewCtrlAltShiftF1
 l:
-l://Viewer: CtrlAltShift
+l:// Viewer: CtrlAltShift
 ""
 ""
 ""
@@ -12685,6 +12741,48 @@ upd:"Unknown"
 "Невядома"
 upd:"Unknown"
 
+MInfoUserAccessElevated
+upd:"Elevated"
+"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+"Podniesione"
+upd:"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+upd:"Elevated"
+
+MInfoUserAccessElevationTypeFull
+upd:"Full"
+"Full"
+upd:"Full"
+upd:"Full"
+upd:"Full"
+"Pełne"
+upd:"Full"
+upd:"Full"
+upd:"Full"
+upd:"Full"
+upd:"Full"
+upd:"Full"
+
+MInfoUserAccessElevationTypeLimited
+upd:"Limited"
+"Limited"
+upd:"Limited"
+upd:"Limited"
+upd:"Limited"
+"Ograniczone"
+upd:"Limited"
+upd:"Limited"
+upd:"Limited"
+upd:"Limited"
+upd:"Limited"
+upd:"Limited"
+
 MInfoDiskTitle
 "Диск"
 "Disk"
@@ -12881,19 +12979,19 @@ MInfoBDR
 "BD-R"
 "BD-R"
 
-MInfoBDRW
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
+MInfoBDRE
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
 
 MInfoHDDVDROM
 "HDDVD-ROM"
@@ -13287,33 +13385,19 @@ upd:"Unknown"
 "Ня вызначана"
 upd:"Unknown"
 
-MInfoPowerStatusBCLifePercent
-"Заряд батареи"
-"Battery life percent"
-"Stav baterie v procentech"
-"Status der Batteriedauer"
-upd:"Battery life percent"
-"Procent naładowania baterii"
-"Porcentaje carga de batería"
-"Stav akumulátora v percentách"
-"Percentuale Batterie"
-"Заряд батареї"
-"Зарад батарэи"
-upd:"Battery life percent"
-
 MInfoPowerStatusBCLifePercentUnknown
-"Не определено"
-"Unknown"
-"Neznámý"
-"Unbekannt"
-upd:"Unknown"
-"Nieznany"
-"Desconocido"
-"Neznámy"
-"Sconosciuto"
-"Не визначено"
-"Ня вызначана"
-upd:"Unknown"
+"не определено"
+"unknown"
+"neznámý"
+"unbekannt"
+upd:"unknown"
+"nieznany"
+"desconocido"
+"neznámy"
+"sconosciuto"
+"не визначено"
+"ня вызначана"
+upd:"unknown"
 
 MInfoPowerStatusBC
 "Статус заряда батареи"
@@ -13342,6 +13426,20 @@ upd:"High"
 "Високий"
 "Высокі"
 upd:"High"
+
+MInfoPowerStatusBCMedium
+"Средний"
+"Medium"
+"Střední"
+"Mittel"
+"Közepes"
+"Średni"
+"Medio"
+"Stredná"
+"Medio"
+"Середній"
+"Сярэдні"
+"Vidutinis"
 
 MInfoPowerStatusBCLow
 "Низкий"
@@ -13372,18 +13470,18 @@ upd:"Critical"
 upd:"Critical"
 
 MInfoPowerStatusBCCharging
-"Зарядка"
-"Charging"
-"Nabíjení"
-"Wird geladen"
-upd:"Charging"
-"Ładowanie"
-"Cargando"
-"Nabíjanie"
-"In Carica"
-"Заряджання"
-"Зарадка"
-upd:"Charging"
+"зарядка"
+"charging"
+"nabíjení"
+"wird geladen"
+upd:"charging"
+"ładowanie"
+"cargando"
+"nabíjanie"
+"in carica"
+"заряджання"
+"зарадка"
+upd:"charging"
 
 MInfoPowerStatusBCNoSysBat
 "Батареи нет"
@@ -15411,19 +15509,19 @@ MChangeDriveBDR
 "BD-R"
 "BD-R"
 
-MChangeDriveBDRW
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
-"BD-RW"
+MChangeDriveBDRE
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
+"BD-RE"
 
 MChangeDriveHDDVDROM
 "HDDVD-ROM"
@@ -16259,6 +16357,20 @@ l:
 "Хуткі прагляд"
 "Vaizdas"
 
+MQuickViewReparsePoint
+"Точка повторного анализа"
+"&Reparse point"
+"Reparse point"
+"Analysepunkt"
+upd:"Reparse point"
+"Punkt &analizy"
+"Punto de análisis"
+"Reparse point"
+"P&unto Di Reparse"
+"Точка повторного аналізу"
+"Кропка паўторнай апрацоўкі"
+upd:"&Reparse point"
+
 MQuickViewUnknownReparsePoint
 "Неизвестная точка повторного анализа"
 "Unknown reparse point"
@@ -16272,20 +16384,6 @@ upd:"Unknown reparse point"
 "Невідома точка повторного аналізу"
 "Невядомая кропка паўторнага аналізу"
 upd:"Unknown reparse point"
-
-MQuickViewNoData
-"(нет данных)"
-"(data not available)"
-"(data nejsou k dispozici)"
-"(nicht verfügbar)"
-"(adat nem elérhető)"
-"(dane niedostępne)"
-"(dato no disponible)"
-"(dáta nie sú k dispozícii)"
-"(dati sconosciuti)"
-"(нема даних)"
-"(няма дадзеных)"
-upd:"(data not available)"
 
 MQuickViewFolders
 "Папок:"
@@ -16457,18 +16555,18 @@ MSetAttrJunction
 upd:"&Junction:"
 
 MSetAttrSymlink
-"Ссылка:"
-"S&ymlink:"
-"Link:"
-"Symlink:"
-"Szimlink:"
-"Link:"
-"Enlace simbólico:"
-"Prepojenie:"
-"Simbolico:"
-"Посилання:"
-"Спасылак:"
-upd:"Symlink:"
+"Ссылка{}:"
+"S&ymlink{}:"
+"Link{}:"
+"Symlink{}:"
+"Szimlink{}:"
+"Link{}:"
+"Enlace simbólico{}:"
+"Prepojenie{}:"
+"Simbolico{}:"
+"Посилання{}:"
+"Спасылак{}:"
+upd:"Symlink{}:"
 
 MSetAttrVolMount
 "Том:"
@@ -16486,7 +16584,7 @@ upd:"Volume:"
 
 MSetAttrDfsTargets
 "DFS цели:"
-"&DFS Targets:"
+"DFS Targets:"
 "DFS cíly:"
 "DFS Ziele:"
 upd:"DFS Targets:"
@@ -16513,18 +16611,32 @@ MSetAttrAppExecLink
 "Programos slapyvardis :"
 
 MSetAttrUnknownReparsePoint
-"(нет данных)"
-"(data not available)"
-"(data nejsou k dispozici)"
-"(nicht verfügbar)"
-"(adat nem elérhető)"
-"(dane niedostępne)"
-"(datos no disponibles)"
-"(dáta nie sú k dispozícii)"
-"(dati sconosciuti)"
-"(нема даних)"
-"(няма дадзеных)"
-upd:"(data not available)"
+"Неизвестная точка повторного анализа"
+"Unknown reparse point"
+upd:"Unknown reparse point"
+"Unbekannter Analysepunkt"
+upd:"Unknown reparse point"
+"Nieznany punkt powiązania"
+"Punto de análisis desconocido"
+"Neznáme rozšírené informácie (ReparsePoint)"
+"Punto Reparse Ignoto"
+"Невідома точка повторного аналізу"
+"Невядомая кропка паўторнага аналізу"
+upd:"Unknown reparse point"
+
+MSetAttrDiskDevice
+"Устройство:"
+"Device:"
+"Přístroj:"
+"Gerät:"
+"Eszköz:"
+"Urządzenie:"
+"Dispositivo:"
+"Zariadenie:"
+"Dispositivo:"
+"Пристрій:"
+"Прылада:"
+"Įrenginys:"
 
 MSetAttrReadOnly
 "&Только для чтения"
@@ -16846,63 +16958,77 @@ MSetAttrOwner
 "Proprietario:"
 "Власник:"
 "Уладальнік:"
-upd:"Owner&:"
+"Savininkas:"
 
-MSetAttrModification
-"Время последней за&писи:"
-"Last &write time:"
-"Čas posle&dního zápisu:"
-"Letzte &Schreibzeit:"
-upd:"Last &write time:"
-"Czas &zapisu:"
-"&Ultima hora escritura:"
-"Čas posle&dného zápisu:"
-"Data &Modifica"
-"Час останнього за&пису:"
-"Час апошняга за&пісу:"
-"&Modifikuotas laikas:"
+MSetAttrDate
+"Дата/Время:"
+"Date/Time:"
+"Datum/Čas:"
+"Datum/Zeit:"
+"Dátum/Idő:"
+"Data/Czas:"
+"Fecha/Hora:"
+"Dátum/Čas:"
+"Data/Ora:"
+"Дата/Час:"
+"дата/Час:"
+"Data/Laikas:"
+
+MSetAttrWrite
+"за&писи:"
+"&write:"
+"&zápisu:"
+"&Schreiben:"
+"&írás:"
+"&zapisu:"
+"escrit&ura:"
+"&zápisu:"
+"&scrittura:"
+"за&пису:"
+"за&пісу:"
+"rašy&mas:"
 
 MSetAttrCreation
-"Время со&здания:"
-"Crea&tion time:"
-"Čas v&ytvoření:"
-"Datei erstell&t:"
-"&Létrehozás dátuma/ideje:"
-"Czas u&tworzenia:"
-"Hora de cr&eación:"
-"Čas v&ytvorenia:"
-"Data Cr&eazione"
-"Час створ&ення:"
-"Час &стварэння:"
-"Su&kurtas laikas:"
+"со&здания:"
+"crea&tion:"
+"v&ytvoření:"
+"Ers&tellung:"
+"&létrehozás:"
+"u&tworzenia:"
+"cr&eación:"
+"v&ytvorenia:"
+"Cr&eazione:"
+"створ&ення:"
+"&стварэння:"
+"su&kurtas:"
 
-MSetAttrLastAccess
-"Время последнего &доступа:"
-"&Last access time:"
-"Čas posledního pří&stupu:"
-"&Letzter Zugriff:"
-"&Utolsó hozzáférés dátuma/ideje:"
-"Czas ostatniego &dostępu:"
-"Hora de últi&mo acceso:"
-"Čas posledného prí&stupu:"
-"Data Ultimo Accesso"
-"Час останнього &доступу:"
-"Час апошняга &доступу:"
-"&Naudotas laikas:"
+MSetAttrAccess
+"&доступа:"
+"&access:"
+"pří&stupu:"
+"Zu&griff:"
+"&hozzáférés:"
+"&dostępu:"
+"&acceso:"
+"prí&stupu:"
+"&accesso:"
+"&доступу:"
+"&доступу:"
+"&naudotas:"
 
 MSetAttrChange
-"Время из&менения:"
-"Chan&ge time:"
-"Čas změny:"
-"Änderungsdatum:"
-upd:"Change time:"
-"&Czas zmiany:"
-"Cambiar &hora:"
-"Čas zmeny:"
-"Cambia Data&/Ora:"
-"Час з&мінення:"
-"Час з&мены:"
-upd:"Chan&ge time:"
+"из&менения:"
+"chan&ge:"
+"změny:"
+"Änderung:"
+"változás:"
+"zmiany:"
+"c&ambio:"
+"zmeny:"
+"cambiamento:"
+"з&мінення:"
+"з&мены:"
+"&pasikeitimas:"
 
 MSetAttrOriginal
 "Исход&ное"
@@ -18684,6 +18810,34 @@ MSetColorBackground
 "&Фон:"
 "&Fonas:"
 
+MSetColorForegroundDefault
+"По умолчанию"
+"Default"
+"Výchozí"
+"Default"
+"Alapértelmezett"
+"Domyślny"
+"Por defecto"
+"Predvolená"
+"Predefinito"
+"За замовчуванням"
+"Па змаўчанні"
+"Numatytas"
+
+MSetColorBackgroundDefault
+"По умолчанию"
+"Default"
+"Výchozí"
+"Default"
+"Alapértelmezett"
+"Domyślny"
+"Por defecto"
+"Predvolená"
+"Predefinito"
+"За замовчуванням"
+"Па змаўчанні"
+"Numatytas"
+
 MSetColorForeIndex
 l:
 l:// 8 characters max
@@ -18715,6 +18869,22 @@ l:// 8 characters max
 "AARRGGBB"
 "AARRGGBB"
 "AARRGGBB"
+
+MSetColorForeDefault
+l:
+l:// 8 characters max
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
 
 MSetColorFore256
 l:
@@ -18779,6 +18949,22 @@ l:// 8 characters max
 "AARRGGBB"
 "AARRGGBB"
 "AARRGGBB"
+
+MSetColorBackDefault
+l:
+l:// 8 characters max
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
+"AA"
 
 MSetColorBack256
 l:
@@ -18868,34 +19054,6 @@ MSetColorStyleItalic
 "Курсіў"
 "Kursyvas"
 
-MSetColorStyleUnderline
-"Подчёркнутый"
-"&Underline"
-"Podtržené"
-"Unterstrichen"
-"Aláhúzott"
-"Podkr&eślenie"
-"Subrayado"
-"Podčiarknuté"
-"Sottolineato"
-"Підкреслений"
-"Падкрэслены"
-"Pabrauktasis"
-
-MSetColorStyleUnderline2
-"Двойное"
-"&Double"
-"Dvojitě"
-"Doppelt"
-"Dupla"
-"Pod&wójne"
-"Doble"
-"Dvojité"
-"Doppia"
-"Подвійне"
-"Падвойнае"
-"Dvigubas"
-
 MSetColorStyleOverline
 "Надчёркивание"
 "O&verline"
@@ -18944,7 +19102,7 @@ MSetColorStyleBlink
 "Blikající"
 "Blinkend"
 "Villogás"
-"&Miganie"
+"&Migotanie"
 "Intermitente"
 "Blikanie"
 "Intermittente"
@@ -18953,7 +19111,7 @@ MSetColorStyleBlink
 "Mirksėjimas"
 
 MSetColorStyleInverse
-"Мерцающий"
+"Обратный"
 "Inverse"
 "Inverzní"
 "Umgekehrt"
@@ -18972,13 +19130,111 @@ MSetColorStyleInvisible
 "Neviditelný"
 "Unsichtbar"
 "Láthatatlan"
-"Niewidzialny"
+"Niewidzialność"
 "Invisible"
 "Neviditeľný"
 "Invisibile"
 "Невидимий"
 "Нябачны"
 "Nematomas"
+
+MSetColorStyleUnderline
+"Подчёркивание:"
+"&Underline:"
+"Podtržené:"
+"Unterstrichen:"
+"Aláhúzás:"
+"Podkr&eślenie:"
+"Subrayado:"
+"Podčiarknutie:"
+"Sottolineato:"
+"Підкреслення:"
+"Падкрэсліце:"
+"Pabraukimas:"
+
+MSetColorStyleUnderlineNone
+"Нет"
+"No"
+"Ne"
+"Nein"
+"Nem"
+"Brak"
+"No"
+"Nie"
+"No"
+"Ні"
+"Не"
+"Ne"
+
+MSetColorStyleUnderlineSingle
+"Одинарное"
+"Single"
+"Jedno"
+"Einzelner"
+"Egyetlen"
+"Pojedyncze"
+"Único"
+"Jedno"
+"Singola"
+"Одинарне"
+"Адзінарнае"
+"Одинарное"
+
+MSetColorStyleUnderlineDouble
+"Двойное"
+"Double"
+"Dvojitě"
+"Doppelt"
+"Dupla"
+"Podwójne"
+"Doble"
+"Dvojité"
+"Doppia"
+"Подвійне"
+"Падвойнае"
+"Dvigubas"
+
+MSetColorStyleUnderlineCurly
+"Фигурное"
+"Curly"
+"Kudrnaté"
+"Lockige"
+"Göndör"
+"Kręcone"
+"Rizado"
+"Kučeravé"
+"Riccia"
+"Фігурне"
+"Фігурнае"
+"Garbanotas"
+
+MSetColorStyleUnderlineDotted
+"Точечное"
+"Dotted"
+"Tečkované"
+"Gepunkteter"
+"Pontozott"
+"Kropkowane"
+"Punteado"
+"Bodkované"
+"Tratteggiata"
+"Крапкове"
+"Кропкавае"
+"Taškinis"
+
+MSetColorStyleUnderlineDashed
+"Пунктирное"
+"Dashed"
+"Čárkované"
+"Gestrichelter"
+"Szaggatott"
+"Przerywane"
+"Discontinuo"
+"Čiarkované"
+"Punteggiata"
+"Пунктирне"
+"Пункцірнае"
+"Brūkšninis"
 
 MSetColorSample
 "Текст Текст Текст Текст Текст Текст"
@@ -19042,7 +19298,7 @@ upd:"System"
 upd:"System"
 upd:"System"
 upd:"System"
-"System"
+"&System"
 "Sistema"
 upd:"System"
 upd:"System"
@@ -22426,7 +22682,7 @@ upd:"Plugin LuaMacro is not loaded"
 "Modul LuaMacro nie je spustený"
 "Plugin LuaMacro Non Caricato"
 "Плагін LuaMacro не завантажено"
-"Дадатак LuMacro не запампаваны"
+"Дадатак LuaMacro не запампаваны"
 upd:"Plugin LuaMacro is not loaded"
 
 MMacroRecordingIsDisabled
@@ -28738,29 +28994,29 @@ MFileFilterDate
 "Dát&um/Čas:"
 "Data&/Ora:"
 "&Дата/Час:"
-"&дата/Час"
-upd:"Date&/Time:"
+"&дата/Час:"
+"Data/Laikas:"
 
-MFileFilterWrited
+MFileFilterWrite
 "&записи"
 "&write"
 "&zápisu"
 "&Schreiben"
-upd:"&write"
+"írás"
 "&zapisu"
-"&modificación"
+"escritura"
 "&zápisu"
 "&Scrittura"
 "&запису"
 "&запісу"
-upd:"&write"
+"rašy&mas"
 
-MFileFilterCreated
+MFileFilterCreation
 "&создания"
 "&creation"
 "&vytvoření"
 "E&rstellung"
-"&Létrehozás"
+"&létrehozás"
 "&utworzenia"
 "&creación"
 "&vytvorenia"
@@ -28769,21 +29025,21 @@ MFileFilterCreated
 "&стварэння"
 upd:"&creation"
 
-MFileFilterOpened
+MFileFilterAccess
 "&доступа"
 "&access"
 "&přístupu"
 "Z&ugriff"
-"&Hozzáférés"
+"&hozzáférés"
 "&dostępu"
 "&acceso"
 "&prístupu"
 "Acce&sso"
 "д&оступу"
 "&доступу"
-upd:"&access"
+"&naudotas"
 
-MFileFilterChanged
+MFileFilterChange
 "&изменения"
 "c&hange"
 "z&měny"
@@ -29176,6 +29432,20 @@ upd:"Strictly sequential"
 upd:"Strictly sequential"
 upd:"Strictly sequential"
 upd:"Strictly se&quential"
+
+MFileFilterAttrDevice
+"Устройство"
+"Device"
+"Přístroj"
+"Gerät"
+"Eszköz"
+"Urządzenie"
+"Dispositivo"
+"Zariadenie"
+"Dispositivo"
+"Пристрій"
+"Прылада"
+"Įrenginys"
 
 MFileFilterReset
 "Очистит&ь"

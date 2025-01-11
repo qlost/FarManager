@@ -79,10 +79,10 @@ namespace os::com
 		CoTaskMemFree(const_cast<void*>(Object));
 	}
 
-	void invoke(function_ref<HRESULT()> const Callable, string_view CallableName, std::string_view const Function, std::string_view const File, int const Line)
+	void invoke(function_ref<HRESULT()> const Callable, string_view CallableName, source_location const& Location)
 	{
 		if (const auto Result = Callable(); FAILED(Result))
-			throw exception(Result, CallableName, Function, File, Line);
+			throw exception(Result, CallableName, Location);
 	}
 
 	string get_shell_name(string_view Path)
@@ -125,7 +125,7 @@ namespace os::com
 
 	static bool is_proper_progid(string_view const ProgID)
 	{
-		return !ProgID.empty() && reg::key::open(reg::key::classes_root, ProgID, KEY_QUERY_VALUE);
+		return !ProgID.empty() && reg::key::classes_root.open(ProgID, KEY_QUERY_VALUE);
 	}
 
 	static string get_shell_type(string_view const FileName)
@@ -142,10 +142,7 @@ namespace os::com
 				COM_INVOKE(imports.SHCreateAssociationRegistration, (IID_IApplicationAssociationRegistration, IID_PPV_ARGS_Helper(&ptr_setter(AAR))));
 
 				memory<wchar_t*> Association;
-				// https://github.com/llvm/llvm-project/issues/54300
-				// TODO: remove once we have it.
-				const auto& ExtRef = Ext;
-				COM_INVOKE(AAR->QueryCurrentDefault, (null_terminated(ExtRef).c_str(), AT_FILEEXTENSION, AL_EFFECTIVE, &ptr_setter(Association)));
+				COM_INVOKE(AAR->QueryCurrentDefault, (null_terminated(Ext).c_str(), AT_FILEEXTENSION, AL_EFFECTIVE, &ptr_setter(Association)));
 
 				return Association.get();
 			}
@@ -156,28 +153,28 @@ namespace os::com
 			}
 		}
 
-		if (const auto UserKey = reg::key::open(reg::key::current_user, concat(L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"sv, Ext), KEY_QUERY_VALUE))
+		try
 		{
-			if (string Value; UserKey.get(L"ProgId"sv, Value) && is_proper_progid(Value))
+			if (const auto UserKey = reg::key::current_user.open(concat(L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"sv, Ext), KEY_QUERY_VALUE))
 			{
-				return Value;
+				if (const auto ProgId = UserKey->get_string(L"ProgId"sv); ProgId && is_proper_progid(*ProgId))
+					return *ProgId;
+
+				if (const auto Application = UserKey->get_string(L"Application"sv))
+					if (const auto ProgId = L"Applications\\"sv + *Application; is_proper_progid(ProgId))
+						return ProgId;
 			}
 
-			if (string Value; UserKey.get(L"Application"sv, Value))
+			if (const auto CRKey = reg::key::classes_root.open(Ext, KEY_QUERY_VALUE))
 			{
-				if (auto ProgId = L"Applications\\"sv + Value; is_proper_progid(ProgId))
-				{
-					return ProgId;
-				}
+				if (const auto ProgId = CRKey->get_string({}); ProgId && is_proper_progid(*ProgId))
+					return *ProgId;
 			}
 		}
-
-		if (const auto CRKey = reg::key::open(reg::key::classes_root, Ext, KEY_QUERY_VALUE))
+		catch (far_exception const& e)
 		{
-			if (string Value; CRKey.get({}, Value) && is_proper_progid(Value))
-			{
-				return Value;
-			}
+			// This is informational, debug will do fine
+			LOGDEBUG(L"{}"sv, e);
 		}
 
 		return {};
@@ -189,13 +186,10 @@ namespace os::com
 		if (Type.empty())
 			return {};
 
-		string Description;
-		if (!reg::key::classes_root.get(Type, {}, Description))
-		{
-			return {};
-		}
+		if (const auto Description = reg::key::classes_root.get_string(Type, {}))
+			return *Description;
 
-		return Description;
+		return {};
 	}
 
 	ptr<IFileIsInUse> create_file_is_in_use(const string& File)

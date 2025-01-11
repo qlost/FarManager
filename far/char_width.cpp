@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 #include "console.hpp"
 #include "locale.hpp"
+#include "log.hpp"
 
 // Platform:
 
@@ -60,11 +61,11 @@ namespace
 
 	auto s_FullWidthState = full_width::off;
 
-	enum class codepoint_width: char
+	enum class codepoint_width: signed char
 	{
-		ambiguous,
-		narrow,
-		wide,
+		ambiguous = -1,
+		narrow    = 1,
+		wide      = 2,
 	};
 
 	[[nodiscard]]
@@ -82,16 +83,10 @@ namespace
 			UpperBound;
 
 		codepoint_width Width;
-
-		[[nodiscard]]
-		bool operator<(char_width::codepoint const Codepoint) const noexcept
-		{
-			return UpperBound < Codepoint;
-		}
 	};
 
 	// These mappings are based on src\types\CodepointWidthDetector.cpp from Windows Terminal.
-	// Generated on 10/25/2020 7:32:04 AM (UTC) from Unicode 13.0.0.
+	// Generated on 2022-11-15 19:54:23Z from Unicode 15.0.0.
 
 	// Note: unlike Terminal, we don't use any overrides since we don't control any drawing code
 	// and have no other choice but to do as the Romans do.
@@ -332,8 +327,13 @@ namespace
 		{ U'\U00017000', U'\U000187F7', cpw::wide      },
 		{ U'\U00018800', U'\U00018CD5', cpw::wide      },
 		{ U'\U00018D00', U'\U00018D08', cpw::wide      },
-		{ U'\U0001B000', U'\U0001B11E', cpw::wide      },
+		{ U'\U0001AFF0', U'\U0001AFF3', cpw::wide      },
+		{ U'\U0001AFF5', U'\U0001AFFB', cpw::wide      },
+		{ U'\U0001AFFD', U'\U0001AFFE', cpw::wide      },
+		{ U'\U0001B000', U'\U0001B122', cpw::wide      },
+		{ U'\U0001B132', U'\U0001B132', cpw::wide      },
 		{ U'\U0001B150', U'\U0001B152', cpw::wide      },
+		{ U'\U0001B155', U'\U0001B155', cpw::wide      },
 		{ U'\U0001B164', U'\U0001B167', cpw::wide      },
 		{ U'\U0001B170', U'\U0001B2FB', cpw::wide      },
 		{ U'\U0001F004', U'\U0001F004', cpw::wide      },
@@ -373,21 +373,21 @@ namespace
 		{ U'\U0001F6CC', U'\U0001F6CC', cpw::wide      },
 		{ U'\U0001F6D0', U'\U0001F6D2', cpw::wide      },
 		{ U'\U0001F6D5', U'\U0001F6D7', cpw::wide      },
+		{ U'\U0001F6DC', U'\U0001F6DF', cpw::wide      },
 		{ U'\U0001F6EB', U'\U0001F6EC', cpw::wide      },
 		{ U'\U0001F6F4', U'\U0001F6FC', cpw::wide      },
 		{ U'\U0001F7E0', U'\U0001F7EB', cpw::wide      },
+		{ U'\U0001F7F0', U'\U0001F7F0', cpw::wide      },
 		{ U'\U0001F90C', U'\U0001F93A', cpw::wide      },
 		{ U'\U0001F93C', U'\U0001F945', cpw::wide      },
-		{ U'\U0001F947', U'\U0001F978', cpw::wide      },
-		{ U'\U0001F97A', U'\U0001F9CB', cpw::wide      },
-		{ U'\U0001F9CD', U'\U0001F9FF', cpw::wide      },
-		{ U'\U0001FA70', U'\U0001FA74', cpw::wide      },
-		{ U'\U0001FA78', U'\U0001FA7A', cpw::wide      },
-		{ U'\U0001FA80', U'\U0001FA86', cpw::wide      },
-		{ U'\U0001FA90', U'\U0001FAA8', cpw::wide      },
-		{ U'\U0001FAB0', U'\U0001FAB6', cpw::wide      },
-		{ U'\U0001FAC0', U'\U0001FAC2', cpw::wide      },
-		{ U'\U0001FAD0', U'\U0001FAD6', cpw::wide      },
+		{ U'\U0001F947', U'\U0001F9FF', cpw::wide      },
+		{ U'\U0001FA70', U'\U0001FA7C', cpw::wide      },
+		{ U'\U0001FA80', U'\U0001FA88', cpw::wide      },
+		{ U'\U0001FA90', U'\U0001FABD', cpw::wide      },
+		{ U'\U0001FABF', U'\U0001FAC5', cpw::wide      },
+		{ U'\U0001FACE', U'\U0001FADB', cpw::wide      },
+		{ U'\U0001FAE0', U'\U0001FAE8', cpw::wide      },
+		{ U'\U0001FAF0', U'\U0001FAF8', cpw::wide      },
 		{ U'\U00020000', U'\U0002FFFD', cpw::wide      },
 		{ U'\U00030000', U'\U0003FFFD', cpw::wide      },
 		{ U'\U000E0100', U'\U000E01EF', cpw::ambiguous },
@@ -399,7 +399,7 @@ namespace
 	auto lookup_width(char_width::codepoint const Codepoint)
 	{
 		if (
-			const auto Iterator = std::lower_bound(ALL_CONST_RANGE(s_WideAndAmbiguousTable), Codepoint);
+			const auto Iterator = std::ranges::lower_bound(s_WideAndAmbiguousTable, Codepoint, {}, &unicode_range::UpperBound);
 			Iterator != std::end(s_WideAndAmbiguousTable) && in_closed_range(Iterator->LowerBound, Codepoint, Iterator->UpperBound)
 		)
 		{
@@ -418,12 +418,16 @@ namespace
 	[[nodiscard]]
 	auto device_width(char_width::codepoint const Codepoint, bool const ClearCacheOnly = false)
 	{
-		static std::array<codepoint_width, std::numeric_limits<char16_t>::max()> FastCache;
+		static std::array<uint8_t, std::numeric_limits<char16_t>::max()> FastCache;
 		static std::unordered_map<char_width::codepoint, codepoint_width> SlowCache;
+
+		// The static array above is 0-initialized by default, so we need to adjust accordingly
+		const auto to_raw = [](codepoint_width const Width){ return static_cast<uint8_t>(std::to_underlying(Width) + 1); };
+		const auto from_raw = [](uint8_t const Width){ return static_cast<codepoint_width>(Width - 1); };
 
 		if (ClearCacheOnly)
 		{
-			FastCache.fill(codepoint_width::ambiguous);
+			FastCache.fill(to_raw(codepoint_width::ambiguous));
 			SlowCache.clear();
 			console.ClearWideCache();
 			return codepoint_width::ambiguous;
@@ -433,8 +437,8 @@ namespace
 
 		if (IsBMP)
 		{
-			if (FastCache[Codepoint] != codepoint_width::ambiguous)
-				return FastCache[Codepoint];
+			if (const auto Width = from_raw(FastCache[Codepoint]); Width != codepoint_width::ambiguous)
+				return Width;
 		}
 		else
 		{
@@ -442,9 +446,12 @@ namespace
 				return Iterator->second;
 		}
 
-		const auto Result = console.IsWidePreciseExpensive(Codepoint)? codepoint_width::wide : codepoint_width::narrow;
+		const auto Result = static_cast<codepoint_width>(console.GetWidthPreciseExpensive(Codepoint));
 
-		(IsBMP? FastCache[Codepoint] : SlowCache[Codepoint]) = Result;
+		if (IsBMP)
+			FastCache[Codepoint] = to_raw(Result);
+		else
+			SlowCache[Codepoint] = Result;
 
 		return Result;
 	}
@@ -478,23 +485,29 @@ namespace
 namespace char_width
 {
 	[[nodiscard]]
-	bool is_wide(codepoint const Codepoint)
+	size_t get(codepoint const Codepoint)
 	{
 		switch (s_FullWidthState)
 		{
 		default:
 		case full_width::off:
-			return !is_bmp(Codepoint);
+			return 1;
 
 		case full_width::automatic:
 			if (!is_fullwidth_needed())
-				return false;
+				return 1;
 
 			[[fallthrough]];
 
 		case full_width::on:
-			return get_width(Codepoint) == codepoint_width::wide;
+			return static_cast<size_t>(get_width(Codepoint));
 		}
+	}
+
+	[[nodiscard]]
+	bool is_wide(codepoint const Codepoint)
+	{
+		return get(Codepoint) > 1;
 	}
 
 	void enable(int const Value)
@@ -528,6 +541,7 @@ namespace char_width
 			(void)device_width(0, true);
 	}
 
+	[[nodiscard]]
 	bool is_half_width_surrogate_broken()
 	{
 		// As of 23 Jun 2022 conhost and WT render half-width surrogates as half-width,
@@ -536,7 +550,25 @@ namespace char_width
 		// They might fix it eventually, so it's better to detect it dynamically.
 
 		// Mathematical Bold Fraktur Small A, U+1D586, half-width
-		static const auto Result = console.IsWidePreciseExpensive(U'𝖆');
+		static const auto Result = console.GetWidthPreciseExpensive(U'𝖆');
+		return Result > 1;
+	}
+
+	bool is_grapheme_clusters_on()
+	{
+		static const auto Result = []
+		{
+			if (const auto IsOn = console.is_grapheme_clusters_on(); IsOn)
+			{
+				LOGDEBUG(L"Grapheme clusters (VT): {}"sv, *IsOn);
+				return *IsOn;
+			}
+
+			const auto IsOn = console.GetWidthPreciseExpensive(L"à"sv) == 1;
+			LOGDEBUG(L"Grapheme clusters (heuristics): {}"sv, IsOn);
+			return IsOn;
+		}();
+
 		return Result;
 	}
 }

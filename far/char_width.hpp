@@ -48,14 +48,24 @@ namespace char_width
 {
 	using codepoint = char32_t;
 
+	[[nodiscard]]
+	size_t get(codepoint Codepoint);
+
+	[[nodiscard]]
 	bool is_wide(codepoint Codepoint);
 
 	void enable(int Value);
+
+	[[nodiscard]]
 	bool is_enabled();
 
 	void invalidate();
 
+	[[nodiscard]]
 	bool is_half_width_surrogate_broken();
+
+	[[nodiscard]]
+	bool is_grapheme_clusters_on();
 }
 
 #endif // CHAR_WIDTH_HPP_D66C86AC_3415_4FD1_89DA_0AB843FFEEB8

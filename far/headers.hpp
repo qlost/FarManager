@@ -39,10 +39,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if !CHECK_COMPILER(CL, 19, 29, 30148)
 #error Visual C++ 2019 Update 16.11.24 (or higher) required
-#elif !CHECK_COMPILER(GCC, 10, 0, 0)
-#error GCC 10.0.0 (or higher) required
-#elif !CHECK_COMPILER(CLANG, 10, 0, 0)
-#error Clang 10.0.0 (or higher) required
+#elif !CHECK_COMPILER(GCC, 12, 0, 0)
+#error GCC 12.0.0 (or higher) required
+#elif !CHECK_COMPILER(CLANG, 16, 0, 0)
+#error Clang 16.0.0 (or higher) required
 #endif
 
 #ifdef __GNUC__
@@ -68,7 +68,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bit>
 #include <bitset>
 #include <chrono>
+#include <compare>
 #include <concepts>
+#include <exception>
 #include <forward_list>
 #include <fstream>
 #include <functional>
@@ -83,6 +85,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <numeric>
 #include <optional>
 #include <random>
+#include <ranges>
 #include <regex>
 #include <set>
 #include <span>
@@ -126,8 +129,21 @@ inline namespace literals
 	using namespace std::literals;
 }
 
+// Basic sanity checks to avoid surprizes
+
+// char must be unsigned: we use it for indexing in a few places
 static_assert(std::unsigned_integral<char>);
+
+// wchar_t must be 16-bit: we have lookup tables
 static_assert(sizeof(wchar_t) == 2);
+
+// C and by extension C++ standard define it as uint_least16_t, which is insane.
+static_assert(sizeof(char16_t) == 2);
+
+// C and by extension C++ standard define it as uint_least32_t, which is insane.
+static_assert(sizeof(char32_t) == 4);
+
+// source encoding must be UTF-8, we use various special characters directly
 static_assert("𠜎"sv == "\xF0\xA0\x9C\x8E"sv);
 
 

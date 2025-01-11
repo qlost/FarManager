@@ -39,16 +39,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Internal:
 #include "config.hpp"
-#include "strmix.hpp"
 #include "global.hpp"
 #include "locale.hpp"
-#include "encoding.hpp"
 
 // Platform:
 
 // Common:
 #include "common/chrono.hpp"
 #include "common/from_string.hpp"
+#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -400,10 +399,10 @@ string MkStrFTime(string_view const Format)
 	return StrFTime(Format.empty()? Global->Opt->Macro.strDateFormat : Format, *std::localtime(&Time));
 }
 
-static void ParseTimeComponents(string_view const Src, span<const std::pair<size_t, size_t>> const Ranges, span<time_component> const Dst, time_component const Default)
+static void ParseTimeComponents(string_view const Src, std::span<const std::pair<size_t, size_t>> const Ranges, std::span<time_component> const Dst, time_component const Default)
 {
 	assert(Dst.size() == Ranges.size());
-	std::transform(ALL_CONST_RANGE(Ranges), Dst.begin(), [Src, Default](const auto& i)
+	std::ranges::transform(Ranges, Dst.begin(), [Src, Default](const auto& i)
 	{
 		const auto Part = trim(Src.substr(i.first, i.second));
 		return Part.empty()? Default : from_string<time_component>(Part);
@@ -461,7 +460,7 @@ static std::array<date_indices, 3> get_date_indices(date_type const DateFormat)
 	}
 }
 
-detailed_time_point parse_detailed_time_point(string_view Date, string_view Time, int DateFormat)
+os::chrono::time parse_time(string_view Date, string_view Time, int DateFormat)
 {
 	assert(Date.size() == L"YYYYY/MM/DD"sv.size());
 	time_component DateN[3];
@@ -478,21 +477,21 @@ detailed_time_point parse_detailed_time_point(string_view Date, string_view Time
 
 	return
 	{
-		full_year(DateN[Indices[2]]),
-		DateN[Indices[1]],
-		DateN[Indices[0]],
-		TimeN[i_hour],
-		TimeN[i_minute],
-		TimeN[i_second],
+		static_cast<uint16_t>(full_year(DateN[Indices[2]])),
+		static_cast<uint8_t>(DateN[Indices[1]]),
+		static_cast<uint8_t>(DateN[Indices[0]]),
+		static_cast<uint8_t>(TimeN[i_hour]),
+		static_cast<uint8_t>(TimeN[i_minute]),
+		static_cast<uint8_t>(TimeN[i_second]),
 		TimeN[i_tick]
 	};
 }
 
 os::chrono::time_point ParseTimePoint(string_view const Date, string_view const Time, int const DateFormat)
 {
-	const auto Point = parse_detailed_time_point(Date, Time, DateFormat);
+	const auto ParsedTime = parse_time(Date, Time, DateFormat);
 
-	if (Point.Year == time_none || Point.Month == time_none || Point.Day == time_none)
+	if (ParsedTime.Year == time_none || ParsedTime.Month == time_none || ParsedTime.Day == time_none)
 	{
 		// Year / Month / Day can't have reasonable defaults
 		return {};
@@ -504,23 +503,18 @@ os::chrono::time_point ParseTimePoint(string_view const Date, string_view const 
 		return Value == time_none? 0 : Value;
 	};
 
-	SYSTEMTIME st{};
+	os::chrono::local_time LocalTime{ ParsedTime };
 
-	const auto Milliseconds = Point.Hectonanosecond == time_none? time_none : os::chrono::hectonanoseconds(Point.Hectonanosecond) / 1ms;
-
-	st.wYear         = Point.Year;
-	st.wMonth        = Point.Month;
-	st.wDay          = Point.Day;
-	st.wHour         = Default(Point.Hour);
-	st.wMinute       = Default(Point.Minute);
-	st.wSecond       = Default(Point.Second);
-	st.wMilliseconds = Default(Milliseconds);
+	LocalTime.Hours            = Default(ParsedTime.Hours);
+	LocalTime.Minutes          = Default(ParsedTime.Minutes);
+	LocalTime.Seconds          = Default(ParsedTime.Seconds);
+	LocalTime.Hectonanoseconds = Default(ParsedTime.Hectonanoseconds);
 
 	os::chrono::time_point TimePoint;
-	if (!local_to_utc(st, TimePoint))
+	if (!local_to_utc(LocalTime, TimePoint))
 		return {};
 
-	return TimePoint + os::chrono::hectonanoseconds(Default(Point.Hectonanosecond)) % 1ms;
+	return TimePoint;
 }
 
 os::chrono::duration ParseDuration(string_view const Date, string_view const Time)
@@ -537,7 +531,7 @@ os::chrono::duration ParseDuration(string_view const Date, string_view const Tim
 	return days(DateN[0]) + hours(TimeN[0]) + minutes(TimeN[1]) + seconds(TimeN[2]) + os::chrono::hectonanoseconds(TimeN[3]);
 }
 
-std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int const TimeLength, int const FullYear, bool const Brief, bool const TextMonth)
+std::tuple<string, string> time_point_to_string(os::chrono::time_point const Point, int const TimeLength, int const FullYear, bool const Brief, bool const TextMonth, os::chrono::time_point const CurrentTime)
 {
 	if (Point == os::chrono::time_point{})
 	{
@@ -551,39 +545,39 @@ std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int c
 
 	const auto CurDateFormat = Brief && DateFormat == date_type::ymd? date_type::mdy : DateFormat;
 
-	SYSTEMTIME st;
-	if (!utc_to_local(Point, st))
+	os::chrono::local_time LocalTime;
+	if (!utc_to_local(Point, LocalTime))
 		return {};
 
 	auto Letter = L""sv;
 
 	if (TimeLength == 6)
 	{
-		Letter = st.wHour < 12 ? L"a"sv : L"p"sv;
+		Letter = LocalTime.Hours < 12 ? L"a"sv : L"p"sv;
 
-		if (st.wHour > 12)
-			st.wHour -= 12;
+		if (LocalTime.Hours > 12)
+			LocalTime.Hours -= 12;
 
-		if (!st.wHour)
-			st.wHour = 12;
+		if (!LocalTime.Hours)
+			LocalTime.Hours = 12;
 	}
 
 	auto TimeText = TimeLength < 7?
-		far::format(L"{:02}{}{:02}{}"sv, st.wHour, TimeSeparator, st.wMinute, Letter) :
+		far::format(L"{:02}{}{:02}{}"sv, LocalTime.Hours, TimeSeparator, LocalTime.Minutes, Letter) :
 		cut_right(
 			far::format(
 				L"{0:02}{1}{2:02}{1}{3:02}{4}{5:07}"sv,
-				st.wHour,
+				LocalTime.Hours,
 				TimeSeparator,
-				st.wMinute,
-				st.wSecond,
+				LocalTime.Minutes,
+				LocalTime.Seconds,
 				DecimalSeparator,
-				(std::chrono::milliseconds(st.wMilliseconds) + Point.time_since_epoch() % 1ms) / 1_hns
+				LocalTime.Hectonanoseconds
 			),
 			TimeLength
 		);
 
-	const auto Year = FullYear? st.wYear : st.wYear % 100;
+	const auto Year = FullYear? LocalTime.Year : LocalTime.Year % 100;
 
 	string DateText;
 
@@ -591,7 +585,7 @@ std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int c
 	{
 		const auto Format = [&](const auto FormatString)
 		{
-			DateText = far::format(FormatString, st.wDay, locale.LocalNames().Months[st.wMonth - 1].Short, Year);
+			DateText = far::format(FormatString, LocalTime.Day, locale.LocalNames().Months[LocalTime.Month - 1].Short, Year);
 		};
 
 		switch (CurDateFormat)
@@ -614,21 +608,20 @@ std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int c
 		case date_type::ymd:
 			p1 = Year;
 			w1 = FullYear == 2? 5 : 2;
-			using std::swap;
-			swap(f1, f3);
-			p2 = st.wMonth;
-			p3 = st.wDay;
+			std::ranges::swap(f1, f3);
+			p2 = LocalTime.Month;
+			p3 = LocalTime.Day;
 			break;
 
 		case date_type::dmy:
-			p1 = st.wDay;
-			p2 = st.wMonth;
+			p1 = LocalTime.Day;
+			p2 = LocalTime.Month;
 			p3 = Year;
 			break;
 
 		case date_type::mdy:
-			p1 = st.wMonth;
-			p2 = st.wDay;
+			p1 = LocalTime.Month;
+			p2 = LocalTime.Day;
 			p3 = Year;
 			break;
 		}
@@ -644,46 +637,104 @@ std::tuple<string, string> ConvertDate(os::chrono::time_point const Point, int c
 	{
 		DateText.resize(TextMonth? 6 : 5);
 
-		SYSTEMTIME Now;
-		if (utc_to_local(os::chrono::nt_clock::now(), Now) && Now.wYear != st.wYear)
-			TimeText = far::format(L"{:5}"sv, st.wYear);
+		const auto IsRecent =
+			CurrentTime >= Point &&
+			CurrentTime - Point < std::chrono::months{ 6 };
+
+		if (!IsRecent)
+			TimeText = far::format(L"{:5}"sv, LocalTime.Year);
 	}
 
 	return { std::move(DateText), std::move(TimeText) };
 }
 
-std::tuple<string, string> ConvertDuration(os::chrono::duration Duration)
+template<typename T> requires (T::period::num < T::period::den && T::period::num == 1 && T::period::den % 10 == 0)
+static constexpr auto decimal_duration_width()
+{
+	size_t Result = 0;
+
+	for (auto i = T::period::den; i != 1; i /= 10)
+		++Result;
+
+	return Result;
+}
+
+std::tuple<string, string> duration_to_string(os::chrono::duration Duration)
 {
 	using namespace std::chrono;
+	using namespace os::chrono;
 
-	const auto Result = split_duration<days, hours, minutes, seconds, os::chrono::hectonanoseconds>(Duration);
+	const auto Parts = split_duration<days, hours, minutes, seconds, hectonanoseconds>(Duration);
 
 	return
 	{
-		str(Result.get<days>() / 1_d),
-		far::format(L"{0:02}{4}{1:02}{4}{2:02}{5}{3:07}"sv,
-			Result.get<hours>() / 1h,
-			Result.get<minutes>() / 1min,
-			Result.get<seconds>() / 1s,
-			Result.get<os::chrono::hectonanoseconds>() / 1_hns,
+		str(Parts.get<days>() / 1_d),
+		far::format(L"{0:02}{4}{1:02}{4}{2:02}{5}{3:0{6}}"sv,
+			Parts.get<hours>() / 1h,
+			Parts.get<minutes>() / 1min,
+			Parts.get<seconds>() / 1s,
+			Parts.get<hectonanoseconds>() / 1_hns,
 			locale.time_separator(),
-			locale.decimal_separator()
+			locale.decimal_separator(),
+			decimal_duration_width<hectonanoseconds>()
 		)
 	};
 }
 
-string ConvertDurationToHMS(os::chrono::duration Duration)
+string duration_to_string_hms(os::chrono::duration Duration)
 {
 	using namespace std::chrono;
 
-	const auto Result = split_duration<hours, minutes, seconds>(Duration);
+	const auto Parts = split_duration<hours, minutes, seconds>(Duration);
 
 	return far::format(L"{0:02}{3}{1:02}{3}{2:02}"sv,
-		Result.get<hours>() / 1h,
-		Result.get<minutes>() / 1min,
-		Result.get<seconds>() / 1s,
+		Parts.get<hours>() / 1h,
+		Parts.get<minutes>() / 1min,
+		Parts.get<seconds>() / 1s,
 		locale.time_separator()
 	);
+}
+
+string duration_to_string_hr(os::chrono::duration Duration)
+{
+	using namespace std::chrono;
+	using namespace os::chrono;
+
+	const auto Parts = split_duration<days, hours, minutes, seconds, hectonanoseconds>(Duration);
+
+	const long long Values[]
+	{
+		Parts.get<days>() / 1_d,
+		Parts.get<hours>() / 1h,
+		Parts.get<minutes>() / 1min,
+	};
+
+	string Result;
+
+	for (const auto& [v, s]: zip(Values, L"dhm"sv))
+	{
+		if (v)
+			far::format_to(Result, L"{}{} "sv, v, s);
+	}
+
+	const auto Seconds = Parts.get<seconds>() / 1s;
+	const auto Decimals = Parts.get<hectonanoseconds>() / 1_hns;
+
+	if (Seconds || Decimals || Result.empty())
+	{
+		far::format_to(Result, L"{}"sv, Seconds);
+
+		if (Decimals)
+			far::format_to(Result, L".{:0{}}"sv, Decimals, decimal_duration_width<hectonanoseconds>());
+
+		Result += L's';
+	}
+	else
+	{
+		Result.pop_back();
+	}
+
+	return Result;
 }
 
 time_check::time_check(mode Mode) noexcept:
@@ -718,40 +769,42 @@ time_check::operator bool() const noexcept
 	return false;
 }
 
-std::pair<string, string> format_datetime(SYSTEMTIME const& SystemTime)
+std::pair<string, string> format_datetime(os::chrono::time const Time)
 {
 	return
 	{
 		far::format(
 			L"{:04}-{:02}-{:02}"sv,
-			SystemTime.wYear,
-			SystemTime.wMonth,
-			SystemTime.wDay
+			Time.Year,
+			Time.Month,
+			Time.Day
 		),
 		far::format(
 			L"{:02}:{:02}:{:02}.{:03}"sv,
-			SystemTime.wHour,
-			SystemTime.wMinute,
-			SystemTime.wSecond,
-			SystemTime.wMilliseconds
+			Time.Hours,
+			Time.Minutes,
+			Time.Seconds,
+			Time.Hectonanoseconds / (1ms / 1_hns)
 		)
 	};
 }
 
-static std::chrono::milliseconds till_next_unit(std::chrono::seconds const Unit)
+template<typename T>
+static std::chrono::milliseconds till_next_unit(os::chrono::nt_clock::time_point const Point)
 {
-	const auto Now = os::chrono::nt_clock::now().time_since_epoch();
-	return ((Now / Unit + 1) * Unit - Now) / 1ms * 1ms;
+	const auto Now = Point.time_since_epoch();
+	using namespace std::chrono;
+	return ceil<T>(Now) - duration_cast<milliseconds>(Now);
 }
 
 std::chrono::milliseconds till_next_second()
 {
-	return till_next_unit(1s);
+	return till_next_unit<std::chrono::seconds>(os::chrono::nt_clock::now());
 }
 
 std::chrono::milliseconds till_next_minute()
 {
-	return till_next_unit(1min);
+	return till_next_unit<std::chrono::minutes>(os::chrono::nt_clock::now());
 }
 
 #ifdef ENABLE_TESTS
@@ -781,20 +834,20 @@ TEST_CASE("datetime.parse.duration")
 	for (const auto& i: Tests)
 	{
 		REQUIRE(ParseDuration(i.Date, i.Time) == i.Duration);
-		const auto& [Date, Time] = ConvertDuration(i.Duration);
+		const auto& [Date, Time] = duration_to_string(i.Duration);
 		REQUIRE(ParseDuration(Date, Time) == i.Duration);
 	}
 }
 
 TEST_CASE("datetime.parse.timepoint")
 {
-	const auto tn = time_none;
+	constexpr auto tn = time_none;
 
 	static const struct
 	{
 		string_view Date, Time;
 		int DateFormat;
-		detailed_time_point TimePoint;
+		os::chrono::time TimePoint;
 	}
 	Tests[]
 	{
@@ -811,48 +864,106 @@ TEST_CASE("datetime.parse.timepoint")
 
 	for (const auto& i: Tests)
 	{
-		const auto Result = parse_detailed_time_point(i.Date, i.Time, i.DateFormat);
-
-		REQUIRE(Result.Year == i.TimePoint.Year);
-		REQUIRE(Result.Month == i.TimePoint.Month);
-		REQUIRE(Result.Day == i.TimePoint.Day);
-		REQUIRE(Result.Hour == i.TimePoint.Hour);
-		REQUIRE(Result.Minute == i.TimePoint.Minute);
-		REQUIRE(Result.Second == i.TimePoint.Second);
-		REQUIRE(Result.Hectonanosecond == i.TimePoint.Hectonanosecond);
+		REQUIRE(i.TimePoint == parse_time(i.Date, i.Time, i.DateFormat));
 	}
 }
 
-TEST_CASE("datetime.ConvertDuration")
+TEST_CASE("datetime.decimal_duration_width")
+{
+	using namespace std::chrono;
+	using namespace os::chrono;
+
+	using bad_duration_1 = std::chrono::duration<int, std::ratio<2, 3>>;
+	using bad_duration_2 = std::chrono::duration<int, std::ratio<1, 3>>;
+
+	STATIC_REQUIRE_ERROR(bad_duration_1, decimal_duration_width<TestType>());
+	STATIC_REQUIRE_ERROR(bad_duration_2, decimal_duration_width<TestType>());
+	STATIC_REQUIRE_ERROR(minutes, decimal_duration_width<TestType>());
+	STATIC_REQUIRE_ERROR(seconds, decimal_duration_width<TestType>());
+
+	STATIC_REQUIRE(decimal_duration_width<milliseconds>() == 3);
+	STATIC_REQUIRE(decimal_duration_width<microseconds>() == 6);
+	STATIC_REQUIRE(decimal_duration_width<hectonanoseconds>() == 9 - 2);
+	STATIC_REQUIRE(decimal_duration_width<nanoseconds>() == 9);
+}
+
+TEST_CASE("datetime.duration_to_string")
 {
 	static const struct
 	{
 		os::chrono::duration Duration;
-		string_view Days, Timestamp, HMS;
+		string_view Days, Timestamp, HMS, HR;
 	}
 	Tests[]
 	{
-		{ 0s,                                         L"0"sv, L"00:00:00.0000000"sv, L"00:00:00"sv,  },
-		{ 7_d,                                        L"7"sv, L"00:00:00.0000000"sv, L"168:00:00"sv, },
-		{ 2_d +  7h + 13min +  47s +   7654321_hns,   L"2"sv, L"07:13:47.7654321"sv, L"55:13:47"sv,  },
-		{ 3_d + 25h + 81min + 120s + 123456789_hns,   L"4"sv, L"02:23:12.3456789"sv, L"98:23:12"sv,  },
-	};
-
-	const auto check_digits = [](string_view const Expected, string_view const Actual)
-	{
-		// Time & decimal separators are locale-specific, so let's compare digits only
-		REQUIRE(std::equal(ALL_CONST_RANGE(Expected), ALL_CONST_RANGE(Actual), [](wchar_t const a, wchar_t const b)
-		{
-			return a == b || !std::iswdigit(a);
-		}));
+		{ 0s,                                         L"0"sv, L"00:00:00.0000000"sv, L"00:00:00"sv,  L"0s"sv },
+		{ 5min,                                       L"0"sv, L"00:05:00.0000000"sv, L"00:05:00"sv,  L"5m"sv },
+		{ 1_d + 1_hns,                                L"1"sv, L"00:00:00.0000001"sv, L"24:00:00"sv,  L"1d 0.0000001s"sv },
+		{ 7_d,                                        L"7"sv, L"00:00:00.0000000"sv, L"168:00:00"sv, L"7d"sv },
+		{ 2_d +  7h + 13min +  47s +   7654321_hns,   L"2"sv, L"07:13:47.7654321"sv, L"55:13:47"sv,  L"2d 7h 13m 47.7654321s"sv },
+		{ 3_d + 25h + 81min + 120s + 123456789_hns,   L"4"sv, L"02:23:12.3456789"sv, L"98:23:12"sv,  L"4d 2h 23m 12.3456789s"sv },
 	};
 
 	for (const auto& i: Tests)
 	{
-		const auto [Days, Timestamp] = ConvertDuration(i.Duration);
+		const auto [Days, Timestamp] = duration_to_string(i.Duration);
 		REQUIRE(i.Days == Days);
-		check_digits(i.Timestamp, Timestamp);
-		check_digits(i.HMS, ConvertDurationToHMS(i.Duration));
+		REQUIRE(i.Timestamp == Timestamp);
+		REQUIRE(i.HMS == duration_to_string_hms(i.Duration));
+		REQUIRE(i.HR == duration_to_string_hr(i.Duration));
 	}
 }
+
+TEST_CASE("datetime.format_datetime")
+{
+	static const struct
+	{
+		os::chrono::time SystemTime;
+		string_view Date, Time;
+	}
+	Tests[]
+	{
+		{ {                                    },  L"0000-00-00"sv, L"00:00:00.000"sv },
+		{ {     1,  1,  1,  1,  1,  1,   10000 },  L"0001-01-01"sv, L"01:01:01.001"sv },
+		{ {  2023,  9, 18, 22, 37, 14, 1230000 },  L"2023-09-18"sv, L"22:37:14.123"sv },
+		{ { 30827, 12, 31, 23, 59, 59, 9990000 }, L"30827-12-31"sv, L"23:59:59.999"sv },
+	};
+
+	for (const auto& i: Tests)
+	{
+		const auto [Date, Time] = format_datetime(i.SystemTime);
+		REQUIRE(i.Date == Date);
+		REQUIRE(i.Time == Time);
+	}
+}
+
+TEST_CASE("datetime.till_next_unit")
+{
+	static const struct
+	{
+		os::chrono::duration Duration;
+		std::chrono::milliseconds TillSecond, TillMinute;
+	}
+	Tests[]
+	{
+		{ 0s, 0s, 0min },
+		{ 1_hns, 1s, 1min },
+		{ 1min + 58s + 998ms, 2ms, 1s + 2ms },
+		{ 1min + 58s + 999ms, 1ms, 1s + 1ms },
+		{ 1min + 59s + 998ms, 2ms, 2ms },
+		{ 1min + 59s + 999ms, 1ms, 1ms },
+		{ 1min + 59s + 9999999_hns, 1ms, 1ms },
+		{ 12h + 34min + 56s + 1234567_hns, 877ms, 3s + 877ms },
+		{ 65h + 43min + 21s + 7654321_hns, 235ms, 38s + 235ms },
+	};
+
+	for (const auto& i: Tests)
+	{
+		using namespace std::chrono;
+		using point = os::chrono::nt_clock::time_point;
+		REQUIRE(i.TillSecond == till_next_unit<seconds>(point{ i.Duration }));
+		REQUIRE(i.TillMinute == till_next_unit<minutes>(point{ i.Duration }));
+	}
+}
+
 #endif

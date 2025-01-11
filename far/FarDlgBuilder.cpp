@@ -141,8 +141,14 @@ public:
 
 	void SaveValue(DialogItemEx const& Item, int const RadioGroupIndex) override
 	{
-		// Must be converted to unsigned type first regardless of underlying type
-		*m_IntValue = from_string<unsigned long long>(Item.strData, nullptr, 16);
+		unsigned long long Value;
+		if (from_string(Item.strData, Value, {}, 16))
+		{
+			*m_IntValue = Value;
+			return;
+		}
+
+		LOGWARNING(L"Invalid integer value {}"sv, Item.strData);
 	}
 
 	string_view GetMask() const
@@ -532,29 +538,29 @@ DialogItemEx& DialogBuilder::AddConstEditField(const string& Value, int Width, F
 	return Item;
 }
 
-DialogItemEx& DialogBuilder::AddComboBox(int& Value, int Width, span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
+DialogItemEx& DialogBuilder::AddComboBox(int& Value, int Width, std::span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
 {
 	return AddListControlImpl(DI_COMBOBOX, Value, Width, 0, Items, Flags | DIF_DROPDOWNLIST | DIF_LISTAUTOHIGHLIGHT);
 }
 
-DialogItemEx& DialogBuilder::AddComboBox(IntOption& Value, int Width, span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
+DialogItemEx& DialogBuilder::AddComboBox(IntOption& Value, int Width, std::span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
 {
 	return AddListControlImpl(DI_COMBOBOX, Value, Width, 0, Items, Flags | DIF_DROPDOWNLIST | DIF_LISTAUTOHIGHLIGHT);
 }
 
-DialogItemEx& DialogBuilder::AddListBox(int& Value, int Width, int Height, span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
+DialogItemEx& DialogBuilder::AddListBox(int& Value, int Width, int Height, std::span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
 {
 	return AddListControlImpl(DI_LISTBOX, Value, Width, Height, Items, Flags | DIF_LISTWRAPMODE | DIF_LISTAUTOHIGHLIGHT);
 }
 
-DialogItemEx& DialogBuilder::AddListBox(IntOption& Value, int Width, int Height, span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
+DialogItemEx& DialogBuilder::AddListBox(IntOption& Value, int Width, int Height, std::span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
 {
 	return AddListControlImpl(DI_LISTBOX, Value, Width, Height, Items, Flags | DIF_LISTWRAPMODE | DIF_LISTAUTOHIGHLIGHT);
 }
 
-void DialogBuilder::AddRadioButtons(size_t& Value, span<lng const> const Options, bool FocusOnSelected)
+void DialogBuilder::AddRadioButtons(size_t& Value, std::span<lng const> const Options, bool FocusOnSelected)
 {
-	for (const auto& i: irange(Options.size()))
+	for (const auto i: std::views::iota(0uz, Options.size()))
 	{
 		auto& Item = AddDialogItem(DI_RADIOBUTTON, msg(Options[i]).c_str());
 		SetNextY(Item);
@@ -574,9 +580,9 @@ void DialogBuilder::AddRadioButtons(size_t& Value, span<lng const> const Options
 	}
 }
 
-void DialogBuilder::AddRadioButtons(IntOption& Value, span<lng const> const Options, bool FocusOnSelected)
+void DialogBuilder::AddRadioButtons(IntOption& Value, std::span<lng const> const Options, bool FocusOnSelected)
 {
-	for (const auto& i: irange(Options.size()))
+	for (const auto i: std::views::iota(0uz, Options.size()))
 	{
 		auto& Item = AddDialogItem(DI_RADIOBUTTON, msg(Options[i]).c_str());
 		SetNextY(Item);
@@ -625,7 +631,7 @@ void DialogBuilder::LinkFlags(DialogItemEx& Parent, DialogItemEx& Target, FARDIA
 void DialogBuilder::AddOK()
 {
 	AddSeparator();
-	AddButtons({ lng::MOk });
+	AddButtons({{ lng::MOk }});
 }
 
 void DialogBuilder::AddOKCancel()
@@ -636,20 +642,20 @@ void DialogBuilder::AddOKCancel()
 void DialogBuilder::AddOKCancel(lng OKMessageId, lng CancelMessageId)
 {
 	AddSeparator();
-	AddButtons({ OKMessageId, CancelMessageId });
+	AddButtons({{ OKMessageId, CancelMessageId }});
 }
 
-void DialogBuilder::AddButtons(span<lng const> Buttons)
+void DialogBuilder::AddButtons(std::span<lng const> Buttons)
 {
 	AddButtons(Buttons, 0, Buttons.size() - 1);
 }
 
-void DialogBuilder::AddButtons(span<lng const> const Buttons, size_t const OkIndex, size_t const CancelIndex)
+void DialogBuilder::AddButtons(std::span<lng const> const Buttons, size_t const OkIndex, size_t const CancelIndex)
 {
 	const auto LineY = m_NextY++;
 	DialogItemEx const* PrevButton = nullptr;
 
-	for (const auto& i: irange(Buttons.size()))
+	for (const auto i: std::views::iota(0uz, Buttons.size()))
 	{
 		auto& NewButton = AddDialogItem(DI_BUTTON, msg(Buttons[i]).c_str());
 		NewButton.Flags = DIF_CENTERGROUP;
@@ -730,7 +736,7 @@ void DialogBuilder::ColumnBreak()
 
 void DialogBuilder::EndColumns()
 {
-	for (const auto& i: irange(m_ColumnStartIndex, m_DialogItems.size()))
+	for (const auto i: std::views::iota(m_ColumnStartIndex, m_DialogItems.size()))
 	{
 		const intptr_t Width = ItemWidth(m_DialogItems[i]);
 		if (Width > m_ColumnMinWidth)
@@ -835,7 +841,7 @@ void DialogBuilder::UpdateBorderSize()
 	intptr_t MaxHeight = 0;
 	Title->X2 = Title->X1 + MaxWidth + 3;
 
-	for (const auto& i : irange(size_t{ 1 }, m_DialogItems.size()))
+	for (const auto i: std::views::iota(1uz, m_DialogItems.size()))
 	{
 		if (m_DialogItems[i].Type == DI_SINGLEBOX)
 		{
@@ -862,7 +868,7 @@ void DialogBuilder::UpdateBorderSize()
 intptr_t DialogBuilder::MaxTextWidth() const
 {
 	intptr_t MaxWidth = 0;
-	for (const auto& i : irange(size_t{ 1 }, m_DialogItems.size()))
+	for (const auto i: std::views::iota(1uz, m_DialogItems.size()))
 	{
 		if (m_DialogItems[i].X1 == SECOND_COLUMN)
 			continue;
@@ -965,7 +971,7 @@ DialogItemEx& DialogBuilder::AddCheckboxImpl(lng_string const Text, value_type& 
 }
 
 template<typename value_type>
-DialogItemEx& DialogBuilder::AddListControlImpl(FARDIALOGITEMTYPES Type, value_type& Value, int Width, int Height, span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
+DialogItemEx& DialogBuilder::AddListControlImpl(FARDIALOGITEMTYPES Type, value_type& Value, int Width, int Height, std::span<DialogBuilderListItem const> const Items, FARDIALOGITEMFLAGS Flags)
 {
 	auto& Item = AddDialogItem(Type, L"");
 	SetNextY(Item);
@@ -978,7 +984,7 @@ DialogItemEx& DialogBuilder::AddListControlImpl(FARDIALOGITEMTYPES Type, value_t
 	std::vector<FarListItem> ListItems;
 	ListItems.reserve(Items.size());
 
-	std::transform(ALL_CONST_RANGE(Items), std::back_inserter(ListItems), [&Value](const DialogBuilderListItem& i)
+	std::ranges::transform(Items, std::back_inserter(ListItems), [&Value](const DialogBuilderListItem& i)
 	{
 		FarListItem NewItem{};
 		NewItem.Text = i.str().c_str();

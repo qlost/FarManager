@@ -40,6 +40,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 #include "nsUniversalDetectorEx.hpp"
 #include "config.hpp"
+#include "codepage.hpp"
 #include "codepage_selection.hpp"
 #include "global.hpp"
 #include "log.hpp"
@@ -62,14 +63,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 const auto BufferSize = 65536;
 static_assert(BufferSize % sizeof(wchar_t) == 0);
 
-enum_lines::enum_lines(std::istream& Stream, uintptr_t CodePage):
+enum_lines::enum_lines(std::istream& Stream, uintptr_t const CodePage, bool* TryUtf8):
 	m_Stream(Stream),
 	m_BeginPos(m_Stream.tellg()),
 	m_CodePage(CodePage),
+	m_TryUtf8(TryUtf8),
 	m_Eol(m_CodePage),
 	m_Buffer(BufferSize)
 {
-	if (IsUnicodeCodePage(m_CodePage))
+	if (IsUtf16CodePage(m_CodePage))
 	{
 		m_Data.emplace<string>().reserve(default_capacity);
 	}
@@ -102,9 +104,11 @@ bool enum_lines::fill() const
 
 	m_BufferView = { m_Buffer.data(), Read };
 
-	if (IsUnicodeCodePage(m_CodePage))
+	if (IsUtf16CodePage(m_CodePage))
 	{
-		if (const auto MissingBytes = Read % sizeof(wchar_t))
+		const auto CharSize = sizeof(char16_t);
+
+		if (const auto ExtraBytes = Read % CharSize)
 		{
 			// EOF in the middle of the character
 			// Logically we should return REPLACE_CHAR at this point and call it a day, however:
@@ -112,20 +116,24 @@ bool enum_lines::fill() const
 			// - People often use the editor to edit binary files
 			// - If we return REPLACE_CHAR, the incomplete char will be lost
 			// - If we pretend that the remaining bytes are \0, the worst thing that could happen is trailing \0 bytes after save.
+			const auto MissingBytes = CharSize - ExtraBytes;
 			std::fill_n(m_Buffer.begin() + Read, MissingBytes, '\0');
 			m_BufferView = { m_Buffer.data(), Read + MissingBytes };
 			m_Diagnostics.ErrorPosition = 0;
 		}
 
-		if (m_CodePage == CP_REVERSEBOM)
-			swap_bytes(m_Buffer.data(), m_Buffer.data(), m_BufferView.size());
+		if (m_CodePage == CP_UTF16BE)
+		{
+			static_assert(std::endian::native == std::endian::little, "No way");
+			swap_bytes(m_Buffer.data(), m_Buffer.data(), m_BufferView.size(), CharSize);
+		}
 	}
 
 	return true;
 }
 
 template<typename T>
-bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) const
+bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol) const
 {
 	To.clear();
 
@@ -136,14 +144,14 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) 
 		return true;
 	}
 
-	const auto
-		EolCr = m_Eol.cr<T>(),
-		EolLf = m_Eol.lf<T>();
+	const T
+		EolCr = m_Eol.cr(),
+		EolLf = m_Eol.lf();
 
 	for (;;)
 	{
 		const auto Char = !m_BufferView.empty() || fill()?
-			std::optional<T>{ std::basic_string_view<T>{ view_as<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
+			std::optional<T>{ std::basic_string_view<T>{ std::bit_cast<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
 			std::optional<T>{};
 
 		if (Char == EolLf)
@@ -167,7 +175,7 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) 
 				return true;
 
 			default:
-				UNREACHABLE;
+				std::unreachable();
 			}
 		}
 
@@ -189,7 +197,7 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian) 
 				return true;
 
 			default:
-				UNREACHABLE;
+				std::unreachable();
 			}
 		}
 
@@ -221,7 +229,7 @@ bool enum_lines::GetString(string_view& Str, eol& Eol) const
 	{
 		[&](string& String)
 		{
-			if (!GetTString(String, Eol, m_CodePage == CP_REVERSEBOM))
+			if (!GetTString(String, Eol))
 				return false;
 
 			Str = String;
@@ -242,9 +250,23 @@ bool enum_lines::GetString(string_view& Str, eol& Eol) const
 			if (Data.m_Bytes.size() > Data.m_wBuffer.size())
 				Data.m_wBuffer.reset(Data.m_Bytes.size());
 
+			const auto Utf8CP = encoding::codepage::utf8();
+			const auto IsUtf8Cp = m_CodePage == Utf8CP;
+
 			for (;;)
 			{
-				const auto Size = encoding::get_chars(m_CodePage, Data.m_Bytes, Data.m_wBuffer, &m_Diagnostics);
+				const auto TryUtf8 = m_TryUtf8 && *m_TryUtf8 && !IsUtf8Cp;
+				const auto Size = encoding::get_chars(TryUtf8? Utf8CP : m_CodePage, Data.m_Bytes, Data.m_wBuffer, &m_Diagnostics);
+
+				if (m_IsUtf8 == encoding::is_utf8::yes_ascii)
+					m_IsUtf8 = m_Diagnostics.get_is_utf8();
+
+				if (TryUtf8 && m_Diagnostics.ErrorPosition && m_IsUtf8 != encoding::is_utf8::yes)
+				{
+					*m_TryUtf8 = false;
+					continue;
+				}
+
 				if (Size <= Data.m_wBuffer.size())
 				{
 					Data.m_Bytes.clear();
@@ -266,30 +288,17 @@ static bool GetUnicodeCpUsingBOM(const os::fs::file& File, uintptr_t& Codepage)
 	if (!File.Read(Buffer, std::size(Buffer), BytesRead))
 		return false;
 
-	std::string_view const Signature(Buffer, std::size(Buffer));
+	std::string_view const Data(Buffer, std::size(Buffer));
 
-	if (BytesRead >= 2)
+	for (const auto i: { static_cast<uintptr_t>(CP_UTF8), CP_UTF16LE, CP_UTF16BE })
 	{
-		if (Signature.substr(0, 2) == encoding::get_signature_bytes(CP_UNICODE))
+		const auto Signature = encoding::get_signature_bytes(i);
+		if (Data.starts_with(Signature))
 		{
-			Codepage = CP_UNICODE;
-			File.SetPointer(2, nullptr, FILE_BEGIN);
+			Codepage = i;
+			File.SetPointer(Signature.size(), {}, FILE_BEGIN);
 			return true;
 		}
-
-		if (Signature.substr(0, 2) == encoding::get_signature_bytes(CP_REVERSEBOM))
-		{
-			Codepage = CP_REVERSEBOM;
-			File.SetPointer(2, nullptr, FILE_BEGIN);
-			return true;
-		}
-	}
-
-	if (BytesRead >= 3 && Signature == encoding::get_signature_bytes(CP_UTF8))
-	{
-		Codepage = CP_UTF8;
-		File.SetPointer(3, nullptr, FILE_BEGIN);
-		return true;
 	}
 
 	File.SetPointer(0, nullptr, FILE_BEGIN);
@@ -312,13 +321,13 @@ static bool GetUnicodeCpUsingWindows(const void* Data, size_t Size, uintptr_t& C
 
 	if (Test & IS_TEXT_UNICODE_UNICODE_MASK)
 	{
-		Codepage = CP_UNICODE;
+		Codepage = CP_UTF16LE;
 		return true;
 	}
 
 	if (Test & IS_TEXT_UNICODE_REVERSE_MASK)
 	{
-		Codepage = CP_REVERSEBOM;
+		Codepage = CP_UTF16BE;
 		return true;
 	}
 
@@ -352,11 +361,11 @@ static bool GetCpUsingML(std::string_view Str, uintptr_t& Codepage, function_ref
 	if (const auto Result = ML->DetectInputCodepage(MLDETECTCP_NONE, 0, const_cast<char*>(Str.data()), &Size, Info, &InfoCount); FAILED(Result))
 		return false;
 
-	const auto Scores = span(Info, InfoCount);
-	std::sort(ALL_CONST_RANGE(Scores), [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
+	std::span const Scores(Info, InfoCount);
+	std::ranges::sort(Scores, [](DetectEncodingInfo const& a, DetectEncodingInfo const& b) { return a.nDocPercent > b.nDocPercent; });
 
-	const auto It = std::find_if(ALL_CONST_RANGE(Scores), [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
-	if (It == Scores.cend())
+	const auto It = std::ranges::find_if(Scores, [&](DetectEncodingInfo const& i) { return i.nLangID != 0xffffffff && IsCodepageAcceptable(i.nCodePage); });
+	if (It == Scores.end())
 		return false;
 
 	Codepage = It->nCodePage;
@@ -425,11 +434,10 @@ static bool GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage,
 
 	unsigned long long FileSize = 0;
 	const auto WholeFileRead = File.GetSize(FileSize) && ReadSize == FileSize;
-	bool PureAscii = false;
 
-	if (encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead, PureAscii))
+	if (const auto IsUtf8 = encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead); IsUtf8 != encoding::is_utf8::no)
 	{
-		if (!PureAscii)
+		if (IsUtf8 == encoding::is_utf8::yes)
 			Codepage = CP_UTF8;
 		else if (DefaultCodepage == CP_UTF8 || DefaultCodepage == encoding::codepage::ansi() || DefaultCodepage == encoding::codepage::oem())
 			Codepage = DefaultCodepage;
@@ -454,7 +462,7 @@ uintptr_t GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage, b
 	if (!GetFileCodepage(File, DefaultCodepage, Codepage, SignatureFoundValue, NotUTF8, NotUTF16, UseHeuristics))
 	{
 		Codepage =
-			(NotUTF8 && DefaultCodepage == CP_UTF8) || (NotUTF16 && IsUnicodeCodePage(DefaultCodepage))?
+			(NotUTF8 && DefaultCodepage == CP_UTF8) || (NotUTF16 && IsUtf16CodePage(DefaultCodepage))?
 				encoding::codepage::ansi() :
 				DefaultCodepage;
 	}
@@ -561,7 +569,7 @@ TEST_CASE("enum_lines")
 
 	for (const auto& i: Tests)
 	{
-		for (const auto Codepage: { CP_UNICODE, CP_REVERSEBOM, static_cast<uintptr_t>(CP_UTF8) })
+		for (const auto Codepage: { CP_UTF16LE, CP_UTF16BE, static_cast<uintptr_t>(CP_UTF8) })
 		{
 			auto Str = encoding::get_bytes(Codepage, i.Str);
 			std::istringstream Stream(Str);
@@ -602,5 +610,7 @@ TEST_CASE("GetCpUsingML_M4000")
 
 	uintptr_t Cp;
 	GetCpUsingML({ c, std::size(c) }, Cp, [](uintptr_t){ return true; });
+
+	SUCCEED();
 }
 #endif

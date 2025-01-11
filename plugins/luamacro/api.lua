@@ -4,7 +4,6 @@ local Shared = ...
 local checkarg, utils, yieldcall = Shared.checkarg, Shared.utils, Shared.yieldcall
 
 local MCODE_F_USERMENU = 0x80C66
-local MCODE_F_FAR_GETCONFIG = 0x80C69
 local F=far.Flags
 local band,bor = bit64.band,bit64.bor
 local MacroCallFar = Shared.MacroCallFar
@@ -65,12 +64,26 @@ mf = {
   xlat            = function(...) return MacroCallFar(0x80C30, ...) end,
 }
 
+mf.mainmenu = function(param)
+  local mprt =
+    param == "fileassociations" and F.MPRT_FILEASSOCIATIONS or
+    param == "filehighlight"    and F.MPRT_FILEHIGHLIGHT    or
+    param == "filemaskgroups"   and F.MPRT_FILEMASKGROUPS   or
+    param == "filepanelmodes"   and F.MPRT_FILEPANELMODES   or
+    param == "foldershortcuts"  and F.MPRT_FOLDERSHORTCUTS
+  if mprt then
+    yieldcall(mprt)
+  else
+    error("parameter not supported: "..tostring(param), 2)
+  end
+end
+
 mf.iif = function(Expr, res1, res2)
   if Expr and Expr~=0 and Expr~="" then return res1 else return res2 end
 end
 
 mf.usermenu = function(mode, filename)
-  if Shared.OnlyEditorViewerUsed then return end -- mantis #2986 (crash)
+  if not panel.CheckPanelsExist() then return end -- mantis #2986 (crash)
   if mode and type(mode)~="number" then return end
   mode = mode or 0
   local sync_call = band(mode,0x100) ~= 0
@@ -82,7 +95,7 @@ mf.usermenu = function(mode, filename)
   elseif (mode==2 or mode==3) and type(filename)=="string" then
     if mode==3 then
       if not (filename:find("^%a:") or filename:find("^[\\/]")) then
-        filename = win.GetEnv("farprofile").."\\Menus\\"..filename
+        filename = win.JoinPath(win.GetEnv("FARPROFILE"), "Menus", filename)
       end
     end
     if sync_call then MacroCallFar(MCODE_F_USERMENU, filename)
@@ -292,27 +305,11 @@ SetProperties(Menu, {
 Far = {
   Cfg_Get        = function(...) return MacroCallFar(0x80C58, ...) end,
   DisableHistory = function(...) return Shared.keymacro.DisableHistory(...) end,
+  GetConfig      = function(...) return MacroCallFar(0x80C69, ...) end,
   KbdLayout      = function(...) return MacroCallFar(0x80C49, ...) end,
   KeyBar_Show    = function(...) return MacroCallFar(0x80C4B, ...) end,
   Window_Scroll  = function(...) return MacroCallFar(0x80C4A, ...) end,
 }
-
-function Far.GetConfig (keyname)
-  checkarg(keyname, 1, "string")
-  local key, name = keyname:match("^(.+)%.([^.]+)$")
-  if not key then
-    error("invalid format of arg. #1", 2)
-  end
-  local tp,val = MacroCallFar(MCODE_F_FAR_GETCONFIG, key, name)
-  if not tp then
-    error("cannot get setting '"..keyname.."'", 2)
-  end
-  tp = ({"boolean","3-state","integer","string"})[tp]
-  if tp == "3-state" then
-    if val==0 or val==1 then val=(val==1) else val="other" end
-  end
-  return val,tp
-end
 
 SetProperties(Far, {
   FullScreen     = function() return MacroCallFar(0x80411) end,
@@ -352,7 +349,7 @@ Plugin = {
 
   SyncCall = function(...)
     local v = Shared.keymacro.CallPlugin(Shared.pack(...), false)
-    if type(v)=="userdata" then return Shared.FarMacroCallToLua(v) else return v end
+    if type(v)=="userdata" then return Shared.MacroCallToLua(v) else return v end
   end
 }
 --------------------------------------------------------------------------------
@@ -417,19 +414,27 @@ local EVAL_MACROCANCELED = -3  -- было выведено меню выбор�
 local EVAL_RUNTIMEERROR  = -4  -- макрос был прерван в результате ошибки времени исполнения
 
 local function Eval_GetData (str) -- Получение данных макроса для Eval(S,2).
-  local Mode=far.MacroGetArea()
-  local UseCommon=false
+  local Mode = far.MacroGetArea()
+  local UseCommon = false
   str = str:match("^%s*(.-)%s*$")
 
-  local strArea,strKey = str:match("^(.-)/(.+)$")
-  if strArea then
+  local slash, strArea, strKey = str:match("^(/?)(.-)/(.+)$")
+  if slash == '/' then
+    strKey = str:sub(2)
+    UseCommon = true
+  elseif strArea then
     if strArea ~= "." then -- вариант "./Key" не подразумевает поиск в макрообласти Common
-      Mode=utils.GetAreaCode(strArea)
-      if Mode==nil then return end
+      local SpecifiedMode = utils.GetAreaCode(strArea)
+      if SpecifiedMode then
+        Mode = SpecifiedMode
+      else
+        strKey = str
+        UseCommon = true
+      end
     end
   else
-    strKey=str
-    UseCommon=true
+    strKey = str
+    UseCommon = true
   end
 
   return Mode, strKey, UseCommon
@@ -514,10 +519,10 @@ local function tableSerialize (tbl)
   if type(tbl) == "table" then
     local idx = {}
     AddToIndex(idx, tbl)
-    local lines = { "local idx={}; for i=1,"..#idx.." do idx[i]={} end" }
+    local lines = { "local t; local idx={}; for i=1,"..#idx.." do idx[i]={} end" }
     for i,t in ipairs(idx) do
       local found
-      lines[#lines+1] = "do local t=idx["..i.."]"
+      lines[#lines+1] = "do t=idx["..i.."]"
       for k,v in pairs(t) do
         local k2 = basicSerialize(k) or type(k)=="table" and "idx["..idx[k].."]"
         if k2 then

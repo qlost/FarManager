@@ -88,13 +88,12 @@ namespace components
 		components_list::instance().add(this);
 	}
 
-	const std::map<string_view, string, string_sort::less_t>& GetComponentsInfo()
+	const components_map& GetComponentsInfo()
 	{
 		static const auto sList = []
 		{
 			FN_RETURN_TYPE(GetComponentsInfo) Result;
-			const auto& ComponentsList = components_list::instance();
-			std::transform(ALL_CONST_RANGE(ComponentsList), std::inserter(Result, Result.end()), [](const auto& i)
+			std::ranges::transform(components_list::instance(), std::inserter(Result, Result.end()), [](const auto& i)
 			{
 				return i();
 			});

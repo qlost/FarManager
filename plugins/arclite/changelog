@@ -1,3 +1,40 @@
+drkns 2024-12-18 20:13:59+00:00 - build 347
+
+1. 7z.dll v24.09.
+
+drkns 2024-11-27 17:23:01+00:00 - build 346
+
+1. gh-886: ArcLite crash during an archive update.
+   Improve compression method detection when updating empty archives.
+
+drkns 2024-09-15 14:00:02+01:00 - build 345
+
+1. Improve compression method detection when updating archives.
+
+drkns 2024-08-28 22:00:00+01:00 - build 344
+
+1. Updated 7z.dll to v24.08.
+
+Yegor 2024-07-22 16:00-07:00 - build 343
+
+1. Updated 7z.dll to v24.07
+
+w17 2024-05-18 10:34:17+03:00 - build 342
+
+1. 7z.dll 24.05
+
+rohitab 2024-01-29 14:20:54+11:00 - build 341
+
+1. Check AlternateFileName due to changes in Far for gh-670.
+
+rohitab 2024-01-28 15:30:00+11:00 - build 340
+
+1. gh-781: Enable selection of compression methods for Zip archives.
+
+drkns 2023-09-21 19:20:10+01:00 - build 339
+
+1. Correction of 327.2.
+
 w17 2023-06-26 14:22:24+03:00 - build 338
 
 1. 7z.dll 23.01

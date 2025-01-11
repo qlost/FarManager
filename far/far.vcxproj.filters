@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Dependencies">
       <UniqueIdentifier>{ee8269df-ee5e-4cb1-b5e2-41705afcbbb0}</UniqueIdentifier>
@@ -48,6 +48,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cmdline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="codepage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="codepage_selection.cpp">
@@ -284,6 +287,9 @@
     <ClCompile Include="macro.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="macroapi.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -446,9 +452,6 @@
     <ClCompile Include="shortcuts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sqlite.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="sqlitedb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -526,6 +529,9 @@
     <ClInclude Include="cmdline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="codepage.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="codepage_selection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -562,15 +568,6 @@
     <ClInclude Include="common\view\enumerate.hpp">
       <Filter>Header Files\common\view</Filter>
     </ClInclude>
-    <ClInclude Include="common\view\reverse.hpp">
-      <Filter>Header Files\common\view</Filter>
-    </ClInclude>
-    <ClInclude Include="common\view\select.hpp">
-      <Filter>Header Files\common\view</Filter>
-    </ClInclude>
-    <ClInclude Include="common\view\where.hpp">
-      <Filter>Header Files\common\view</Filter>
-    </ClInclude>
     <ClInclude Include="common\view\zip.hpp">
       <Filter>Header Files\common\view</Filter>
     </ClInclude>
@@ -599,6 +596,9 @@
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\enumerator.hpp">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\expected.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\from_string.hpp">
@@ -646,9 +646,6 @@
     <ClInclude Include="common\preprocessor.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
-    <ClInclude Include="common\range.hpp">
-      <Filter>Header Files\common</Filter>
-    </ClInclude>
     <ClInclude Include="common\scope_exit.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
@@ -656,6 +653,12 @@
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\smart_ptr.hpp">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\source_location.hpp">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\span.hpp">
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\string_utils.hpp">
@@ -910,7 +913,13 @@
     <ClInclude Include="macro.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="macroapi.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="macroopcode.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="macrovalues.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="manager.hpp">
@@ -1111,6 +1120,9 @@
     <ClInclude Include="sqlitedb.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="stack_allocator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="stddlg.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1173,25 +1185,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Far.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.black.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.hack.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.mono.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.msg.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.red.ico">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="Far.log.ico">
+    <None Include="*.ico">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="farversion.m4">
@@ -1214,53 +1208,17 @@
     <CustomBuild Include="$(BootstrapDir)farlang.templ">
       <Filter>Generated Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="copyright.inc.m4">
+    <CustomBuild Include="copyright.inc.m4;Far.exe.manifest.m4;far.rc.inc.m4;farlang.templ.m4;farversion.inc.m4">
       <Filter>Dependencies</Filter>
     </CustomBuild>
-    <CustomBuild Include="Far.exe.manifest.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="far.rc.inc.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="farcolor.hpp">
+    <CustomBuild Include="farcolor.hpp;plugin.hpp">
       <Filter>Header Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarEng.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarGer.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarHun.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="farlang.templ.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarPol.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarRus.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarUkr.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarCze.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FarSky.hlf.m4">
-      <Filter>Dependencies</Filter>
-    </CustomBuild>
-    <CustomBuild Include="farversion.inc.m4">
-      <Filter>Dependencies</Filter>
     </CustomBuild>
     <CustomBuild Include="File_id.diz.m4">
       <Filter>Dependencies</Filter>
     </CustomBuild>
-    <CustomBuild Include="plugin.hpp">
-      <Filter>Header Files</Filter>
+    <CustomBuild Include="*.hlf.m4">
+      <Filter>Dependencies</Filter>
     </CustomBuild>
     <CustomBuild Include="api_test.c">
       <Filter>Source Files</Filter>

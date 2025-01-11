@@ -98,24 +98,24 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 	{
 		string Command;
 		std::vector<RegExpMatch> Matches;
-		named_regex_match NamedMatches;
+		unordered_string_map<size_t> NamedMatches;
 	};
 
 	const auto AddMatches = [&](menu_data const& Data)
 	{
 		for (const auto& i: Data.Matches)
 		{
-			Context.Variables.emplace(
+			Context.Variables.try_emplace(
 				far::format(L"RegexGroup{}"sv, &i - Data.Matches.data()),
 				get_match(Context.Name, i)
 			);
 		}
 
-		for (const auto& [Name, Value]: Data.NamedMatches.Matches)
+		for (const auto& [GroupName, GroupNumber]: Data.NamedMatches)
 		{
-			const auto& Match = Data.Matches[Value];
-			Context.Variables.emplace(
-				far::format(L"RegexGroup{{{}}}"sv, Name),
+			const auto& Match = Data.Matches[GroupNumber];
+			Context.Variables.try_emplace(
+				far::format(L"RegexGroup{{{}}}"sv, GroupName),
 				get_match(Context.Name, Match)
 			);
 		}
@@ -174,9 +174,8 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 			else
 				strDescription = std::move(strCommandText);
 
-			MenuItemEx TypesMenuItem(strDescription);
 			MenuData.emplace_back(std::move(NewMenuData));
-			MenuItems.emplace_back(std::move(TypesMenuItem));
+			MenuItems.emplace_back(strDescription);
 		}
 
 		if (!CommandCount)
@@ -209,7 +208,10 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 	AddMatches(ItemData);
 
 	bool PreserveLFN = false;
-	if (SubstFileName(ItemData.Command, Context, &PreserveLFN) && !ItemData.Command.empty())
+	if (!SubstFileName(ItemData.Command, Context, &PreserveLFN))
+		return false;
+
+	if (!ItemData.Command.empty())
 	{
 		if (AddToHistory && !(Global->Opt->ExcludeCmdHistory & EXCLUDECMDHISTORY_NOTFARASS) && !AlwaysWaitFinish) //AN
 		{
@@ -305,7 +307,7 @@ bool GetFiletypeOpenMode(int keyPressed, FILETYPE_MODE& mode, bool& shouldForceI
 /*
   Используется для запуска внешнего редактора и вьювера
 */
-void ProcessExternal(string_view const Command, string_view const Name, string_view const ShortName, bool const AlwaysWaitFinish, string_view const CurrentDirectory)
+bool ProcessExternal(string_view const Command, string_view const Name, string_view const ShortName, bool const AlwaysWaitFinish, string_view const CurrentDirectory)
 {
 	std::optional<os::fs::current_directory_guard> Guard;
 	// We have to set it - users can have associations like !.! which will work funny without this
@@ -314,8 +316,11 @@ void ProcessExternal(string_view const Command, string_view const Name, string_v
 
 	string strExecStr(Command);
 	bool PreserveLFN = false;
-	if (!SubstFileName(strExecStr, { Name, ShortName }, &PreserveLFN) || strExecStr.empty())
-		return;
+	if (!SubstFileName(strExecStr, { Name, ShortName }, &PreserveLFN))
+		return false;
+
+	if (strExecStr.empty())
+		return false;
 
 	// If you want your history to be usable - use full paths yourself. We cannot reliably substitute them.
 	Global->CtrlObject->ViewHistory->AddToHistory(strExecStr, AlwaysWaitFinish? HR_EXTERNAL_WAIT : HR_EXTERNAL);
@@ -329,6 +334,7 @@ void ProcessExternal(string_view const Command, string_view const Name, string_v
 	Info.WaitMode = AlwaysWaitFinish? execute_info::wait_mode::wait_finish : execute_info::wait_mode::if_needed;
 
 	Global->CtrlObject->CmdLine()->ExecString(Info);
+	return true;
 }
 
 static auto FillFileTypesMenu(VMenu2* TypesMenu, int MenuPos)
@@ -349,14 +355,14 @@ static auto FillFileTypesMenu(VMenu2* TypesMenu, int MenuPos)
 		Data.emplace_back(std::move(Item));
 	}
 
-	const auto MaxElement = std::max_element(ALL_CONST_RANGE(Data), [](const auto& a, const auto &b) { return a.Description.size() < b.Description.size(); });
+	const auto MaxElementSize = std::ranges::fold_left(Data, 0uz, [](size_t const Value, data_item const & i){ return std::max(Value, i.Description.size()); });
 
 	TypesMenu->clear();
 
 	for (const auto& i: Data)
 	{
 		const auto AddLen = i.Description.size() - HiStrlen(i.Description);
-		MenuItemEx TypesMenuItem(concat(fit_to_left(i.Description, MaxElement->Description.size() + AddLen), L' ', BoxSymbols[BS_V1], L' ', i.Mask));
+		MenuItemEx TypesMenuItem(concat(fit_to_left(i.Description, MaxElementSize + AddLen), L' ', BoxSymbols[BS_V1], L' ', i.Mask));
 		TypesMenuItem.ComplexUserData = i.Id;
 		TypesMenu->AddItem(TypesMenuItem);
 	}
@@ -407,7 +413,7 @@ static intptr_t EditTypeRecordDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,v
 				case ETR_CHECK_ALTVIEW:
 				case ETR_CHECK_EDIT:
 				case ETR_CHECK_ALTEDIT:
-					Dlg->SendMessage(DM_ENABLE,Param1+1,ToPtr(reinterpret_cast<intptr_t>(Param2)==BSTATE_CHECKED));
+					Dlg->SendMessage(DM_ENABLE,Param1+1,ToPtr(std::bit_cast<intptr_t>(Param2) == BSTATE_CHECKED));
 					break;
 				default:
 					break;
@@ -418,7 +424,7 @@ static intptr_t EditTypeRecordDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,v
 
 			if (Param1==ETR_BUTTON_OK)
 			{
-				return filemasks().assign(view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, ETR_EDIT_MASKS, nullptr)));
+				return filemasks().assign(std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, ETR_EDIT_MASKS, nullptr)));
 			}
 			break;
 

@@ -155,7 +155,7 @@ namespace
 		static size_t get_hash(const PSID Data, size_t Size)
 		{
 			const auto Begin = static_cast<const std::byte*>(Data);
-			return hash_range(Begin, Begin + Size);
+			return hash_range(std::span(Begin, Size));
 		}
 
 	private:
@@ -167,9 +167,7 @@ static bool SidToNameCached(PSID Sid, string& Name, const string& Computer)
 {
 	struct sid_hash_eq
 	{
-#ifdef __cpp_lib_generic_unordered_lookup
 		using is_transparent = void;
-#endif
 
 		size_t operator()(const sid& Sid) const { return Sid.get_hash(); }
 		size_t operator()(const PSID Sid) const { return sid::get_hash(Sid, GetLengthSid(Sid)); }
@@ -181,14 +179,7 @@ static bool SidToNameCached(PSID Sid, string& Name, const string& Computer)
 
 	static std::unordered_map<sid, string, sid_hash_eq, sid_hash_eq> SIDCache;
 
-#ifdef __cpp_lib_generic_unordered_lookup
-	const auto ItemIterator = SIDCache.find(Sid);
-#else
-	sid SidCopy(Sid);
-	const auto ItemIterator = SIDCache.find(SidCopy);
-#endif
-
-	if (ItemIterator != SIDCache.cend())
+	if (const auto ItemIterator = SIDCache.find(Sid); ItemIterator != SIDCache.cend())
 	{
 		Name = ItemIterator->second;
 		return true;
@@ -196,15 +187,7 @@ static bool SidToNameCached(PSID Sid, string& Name, const string& Computer)
 
 	if (SidToName(Sid, Name, Computer))
 	{
-		SIDCache.emplace(
-#ifdef __cpp_lib_generic_unordered_lookup
-			Sid,
-#else
-			std::move(SidCopy),
-#endif
-			Name
-		);
-
+		SIDCache.emplace(Sid, Name);
 		return true;
 	}
 
@@ -213,13 +196,13 @@ static bool SidToNameCached(PSID Sid, string& Name, const string& Computer)
 
 static bool ProcessFileOwner(string_view const Name, function_ref<bool(PSID)> const Callable)
 {
-	const auto SecurityDescriptor = os::fs::get_file_security(Name, OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION);
+	const auto SecurityDescriptor = os::fs::get_file_security(Name, OWNER_SECURITY_INFORMATION);
 	if (!SecurityDescriptor)
 		return false;
 
 	PSID pOwner;
 	BOOL OwnerDefaulted;
-	if (!GetSecurityDescriptorOwner(SecurityDescriptor.data(), &pOwner, &OwnerDefaulted))
+	if (!GetSecurityDescriptorOwner(SecurityDescriptor.get(), &pOwner, &OwnerDefaulted))
 		return false;
 
 	if (!IsValidSid(pOwner))
@@ -286,14 +269,26 @@ bool SetOwnerInternal(const string& Object, const string& Owner)
 
 	SCOPED_ACTION(os::security::privilege){ SE_TAKE_OWNERSHIP_NAME, SE_RESTORE_NAME };
 
-	const auto Result = SetNamedSecurityInfo(const_cast<wchar_t*>(Object.c_str()), SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, Sid.get(), nullptr, nullptr, nullptr);
-	SetLastError(Result);
-	return Result == ERROR_SUCCESS;
+	if (const auto Result = SetNamedSecurityInfo(
+		const_cast<wchar_t*>(Object.c_str()),
+		SE_FILE_OBJECT,
+		OWNER_SECURITY_INFORMATION,
+		Sid.get(),
+		{},
+		{},
+		{}
+	); Result != ERROR_SUCCESS)
+	{
+		SetLastError(Result);
+		return false;
+	}
+
+	return true;
 }
 
 bool SetFileOwner(string_view const Object, const string& Owner)
 {
-	const NTPath NtObject(Object);
+	const auto NtObject = nt_path(Object);
 
 	if (SetOwnerInternal(NtObject, Owner))
 		return true;

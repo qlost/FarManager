@@ -9,6 +9,7 @@
   <PropertyGroup Label="UserMacros">
     <ProjectSpecificOutDirName>Plugins\..</ProjectSpecificOutDirName>
     <ProjectSpecificIntDirName>Plugins\luamacro\$(ProjectName)</ProjectSpecificIntDirName>
+    <VersionLuaSDK>20241113</VersionLuaSDK>
     <DirBit Condition="'$(Platform)'=='Win32'">32</DirBit>
     <DirBit Condition="'$(Platform)'=='x64'">64</DirBit>
     <DirBit Condition="'$(Platform)'=='ARM64'">ARM64</DirBit>
@@ -26,7 +27,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(LuaLib).lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>luasdk/$(DirBit)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>luasdk/$(VersionLuaSDK)/$(DirBit);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile />
     </Link>
     <PreBuildEvent>
@@ -37,6 +38,7 @@
   <ItemGroup>
     <ClCompile Include="luafar\bit64.c" />
     <ClCompile Include="luafar\exported.c" />
+    <ClCompile Include="luafar\farhost.c" />
     <ClCompile Include="luafar\flags.c" />
     <ClCompile Include="luafar\keysandcolors.c" />
     <ClCompile Include="luafar\lflua.c" />
@@ -58,6 +60,12 @@
     <ClCompile Include="luafar\ustring.c" />
     <ClCompile Include="luafar\util.c" />
     <ClCompile Include="luafar\win.c" />
+    <ClCompile Include="luafar\LPeg\lpcap.c" />
+    <ClCompile Include="luafar\LPeg\lpcode.c" />
+    <ClCompile Include="luafar\LPeg\lpcset.c" />
+    <ClCompile Include="luafar\LPeg\lpprint.c" />
+    <ClCompile Include="luafar\LPeg\lptree.c" />
+    <ClCompile Include="luafar\LPeg\lpvm.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="luafar\luafar.h" />
@@ -66,14 +74,20 @@
     <ClInclude Include="luafar\ustring.h" />
     <ClInclude Include="luafar\util.h" />
     <ClInclude Include="luafar\version.h" />
+    <ClInclude Include="luafar\LPeg\lpcap.h" />
+    <ClInclude Include="luafar\LPeg\lpcode.h" />
+    <ClInclude Include="luafar\LPeg\lpcset.h" />
+    <ClInclude Include="luafar\LPeg\lpprint.h" />
+    <ClInclude Include="luafar\LPeg\lptree.h" />
+    <ClInclude Include="luafar\LPeg\lptypes.h" />
+    <ClInclude Include="luafar\LPeg\lpvm.h" />
     <ClInclude Include="luasdk\include\lauxlib.h" />
     <ClInclude Include="luasdk\include\lua.h" />
     <ClInclude Include="luasdk\include\lualib.h" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="luasdk\$(DirBit)\$(LuaLib).dll" />
-    <CopyFileToFolders Include="luasdk\$(DirBit)\lpeg.dll" />
-    <CopyFileToFolders Include="luasdk\32\legacy\$(LuaLib).dll">
+    <CopyFileToFolders Include="luasdk\$(VersionLuaSDK)\$(DirBit)\$(LuaLib).dll" />
+    <CopyFileToFolders Include="luasdk\$(VersionLuaSDK)\32\legacy\$(LuaLib).dll">
       <ExcludedFromBuild Condition="'$(Platform)'!='Win32'">true</ExcludedFromBuild>
     </CopyFileToFolders>
   </ItemGroup>

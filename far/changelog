@@ -1,4 +1,1351 @@
 --------------------------------------------------------------------------------
+drkns 2025-01-08 18:16:52+00:00 - build 6412
+
+1. Exception handling improvements.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-01-06 17:55:32+00:00 - build 6411
+
+1. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+drkns 2025-01-04 21:34:31+00:00 - build 6410
+
+1. Improve 6409.1 and add tests.
+
+2. Improve main thread wake-up logic.
+
+--------------------------------------------------------------------------------
+drkns 2025-01-04 16:10:43+00:00 - build 6409
+
+1. Fix clock update in rare cases.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2024-12-28 14:05:22+03:00 - build 6408
+
+1. Update vc_crt_fix...'es (add stub needed for NetBox)
+
+--------------------------------------------------------------------------------
+drkns 2024-12-26 18:04:08+00:00 - build 6407
+
+1. "System properties" in Attributes dialog invoked on a device didn't work in old Windows versions.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-26 11:25:55+00:00 - build 6406
+
+1. 0004063: Directory listing when enlarging.
+
+2. Update vc_crt_fix.
+
+3. Minimize conversions in SQLite custom collations.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-23 01:31:11+00:00 - build 6405
+
+1. Correction of 6404.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-21 23:08:36+00:00 - build 6404
+
+1. Properly cancel operations when !?<title>?<init>! dialog is cancelled.
+
+--------------------------------------------------------------------------------
+MZK 2024-12-19 16:56:14-05:00 - build 6403
+
+1. gh-763: Fixed drawing of History menu border after refresh (`Ctrl+R`)
+   and clear (`Del`).
+
+--------------------------------------------------------------------------------
+drkns 2024-12-14 12:19:57+00:00 - build 6402
+
+1. Make 'B' datetime modifier in panel modes actually Unix-like.
+   I.e. "within the past six months", not "within the current year".
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-11 20:43:27+00:00 - build 6401
+
+1. Correction of 5646.1.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-11 19:02:47+00:00 - build 6400
+
+1. Correction of 6227.3.
+
+--------------------------------------------------------------------------------
+skipik 2024-12-08 10:58:25+03:00 - build 6399
+
+1. SQLite v3.47.2.
+
+--------------------------------------------------------------------------------
+drkns 2024-12-02 20:39:53+00:00 - build 6398
+
+1. Use DECRQM 2027 to check grapheme clusters state (thanks to DHowett).
+
+--------------------------------------------------------------------------------
+drkns 2024-12-01 23:24:48+00:00 - build 6397
+
+1. Experimental: FMSG_KEEPBACKGROUND is a no-op.
+
+2. Correction of 6396.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-30 23:34:14+00:00 - build 6396
+
+1. Warn the user when the terminal uses grapheme clusters.
+
+--------------------------------------------------------------------------------
+skipik 2024-11-26 17:23:11+03:00 - build 6395
+
+1. SQLite v3.47.1.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-22 19:07:44+00:00 - build 6394
+
+1. Show device name in Attributes dialog invoked on a device.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-21 22:53:34+00:00 - build 6393
+
+1. Refactoring.
+
+2. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-21 02:07:01+00:00 - build 6392
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-20 01:14:20+00:00 - build 6391
+
+1. Refactoring.
+
+2. Exception handling improvements.
+
+3. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-19 01:13:08+00:00 - build 6390
+
+1. Refactoring.
+
+2. Improve keyboard layouts detection.
+
+3. Log detected keyboard layouts.
+
+--------------------------------------------------------------------------------
+drkns 2024-11-04 18:56:51+00:00 - build 6389
+
+1. Fix replacing empty strings in Editor.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-31 20:22:20+00:00 - build 6388
+
+1. Continue 6385.5.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-29 18:54:27+00:00 - build 6387
+
+1. Continue 6385.5.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-29 02:35:48+00:00 - build 6386
+
+1. Continue 6385.5.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-26 20:17:00+01:00 - build 6385
+
+1. Show elevation type in InfoPanel & bug reports.
+
+2. Preserve inherited attributes when saving files.
+
+3. Fix power notifications when 2 InfoPanels are opened simultaneously.
+
+4. gh-674: Panel refresh stops working after certain actions.
+
+5. Experimental: FS monitor refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-26 00:32:56+01:00 - build 6384
+
+1. gh-878: FAR sets nanosecond filetime incorrectly.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-24 22:36:31+01:00 - build 6383
+
+1. Correction of 6381.1.
+
+2. gh-875 (maybe).
+
+--------------------------------------------------------------------------------
+skipik 2024-10-23 22:50:00+03:00 - build 6382
+
+1. SQLite v3.47.0.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-22 02:30:00+01:00 - build 6381
+
+1. Drop redundant (and expensive) conversions.
+
+2. Improve logging.
+
+3. Warnings.
+
+--------------------------------------------------------------------------------
+shmuel 2024-10-09 07:18:28+03:00 - build 6380
+
+1. Change KeyMacros.CONVFMT from .6g to .14g to be consistent with Lua.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-05 20:30:55+01:00 - build 6379
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-10-01 22:23:16+01:00 - build 6378
+
+1. Minimize allocations in SQLite custom collations.
+
+2. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-27 22:42:31+01:00 - build 6377
+
+1. Show content of WCI reparse points
+
+2. New versions of fmt, tinyxml2, Catch2.
+
+--------------------------------------------------------------------------------
+shmuel 2024-09-26 21:57:37+03:00 - build 6376
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-09-25 23:38:23+03:00 - build 6375
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-23 16:09:43+01:00 - build 6374
+
+1. Continue 6371 & 6372.
+
+--------------------------------------------------------------------------------
+shmuel 2024-09-23 10:13:10+03:00 - build 6373
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-22 22:30:28+01:00 - build 6372
+
+1. Continue 6371: fallback to OEM if we have not seen any valid UTF-8 yet.
+
+2. Fix libc++ build.
+
+3. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-22 14:58:10+01:00 - build 6371
+
+1. Assume that hlf and lng files are in UTF-8 by default, even if there is no BOM.
+   Fallback to OEM only if decoding fails.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-15 14:01:29+01:00 - build 6370
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-11 17:11:09+01:00 - build 6369
+
+1. Correction of 5839.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-10 19:37:57+01:00 - build 6368
+
+1. Minor visual correction of 6348.
+
+--------------------------------------------------------------------------------
+drkns 2024-09-05 21:27:14+01:00 - build 6367
+
+1. Minor rendering fixes.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-31 13:02:11+01:00 - build 6366
+
+1. Improve shadow rendering.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-30 22:15:07+01:00 - build 6365
+
+1. Extend character width detection to support arbitrary values.
+
+2. Extend 6348.1 to classic rendering.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-24 11:06:55+01:00 - build 6364
+
+1. Correction of 6362.1.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-24 00:55:19+01:00 - build 6363
+
+1. Correction of 6362.2.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-23 23:13:12+01:00 - build 6362
+
+1. Read palette via VT.
+
+2. Extend palette operations to 256 colors.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-19 17:15:46+01:00 - build 6361
+
+1. gh-866: Strange characters in console after cd.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-17 11:35:12+01:00 - build 6360
+
+1. Continue 6359.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-15 01:55:21+01:00 - build 6359
+
+1. gh-864: Confusion between ² and ' keys on AZERTY (french) keyboard for Macro Shortcuts.
+
+2. Various refactoring, related to #1.
+
+--------------------------------------------------------------------------------
+yjh 2024-08-14 00:19:45+03:00 - build 6358
+
+1. SQLite 3.46.1
+
+--------------------------------------------------------------------------------
+drkns 2024-08-13 01:07:52+01:00 - build 6357
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-11 13:32:00+01:00 - build 6356
+
+1. Continue 6355.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-10 17:24:40+01:00 - build 6355
+
+1. Improve short names usage in executor.
+
+--------------------------------------------------------------------------------
+drkns 2024-08-04 20:51:46+01:00 - build 6354
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-28 14:35:18+01:00 - build 6353
+
+1. Minor fixes & refactoring.
+
+--------------------------------------------------------------------------------
+MZK 2024-07-21 18:59:11-04:00 - build 6352
+
+1. Do not change the number of bytes per line in Hex View when not in Hex mode.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-21 12:25:59+01:00 - build 6351
+
+1. Continue 6348.1.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-20 21:38:24+01:00 - build 6350
+
+1. Correction of 5441.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-20 09:18:53+01:00 - build 6349
+
+1. Continue 6348.2.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-18 01:23:45+01:00 - build 6348
+
+1. Use console pages (DECCRA) to preserve content, not supported by ReadConsoleOutput.
+   See microsoft/terminal#10810 for details.
+
+2. Propagate command execution information to the terminal (OSC133 & OSC9001).
+
+--------------------------------------------------------------------------------
+MZK 2024-07-15 22:26:34-04:00 - build 6347
+
+1. If Hex View of the Internal Viewer is wider than the window, it can be properly
+   scrolled horizontally with arrow keys. (The width of the Hex View depends only
+   on the number of bytes per line and does not change with the Far window width.)
+
+2. Ctrl+Alt+Arrow keys snap the number of bytes per line in Hex View of the
+   Internal Viewer to the multiples of 16 (instead of changing the number by 16).
+
+3. Help files updated accordingly.
+
+4. Refactoring
+
+--------------------------------------------------------------------------------
+drkns 2024-07-15 20:17:50+01:00 - build 6346
+
+1. microsoft/terminal#10337 again.
+
+--------------------------------------------------------------------------------
+drkns 2024-07-08 22:55:36+01:00 - build 6345
+
+1. gh-854: Windows 10 32-bit crash.
+   A relatively large value of Layout.WidthDecrement, persisted into the config,
+   could cause havoc after rerunning with a smaller window size.
+
+--------------------------------------------------------------------------------
+drkns 2024-06-26 18:12:34+01:00 - build 6344
+
+1. Fix 5281.2.
+
+--------------------------------------------------------------------------------
+drkns 2024-06-01 18:14:25+01:00 - build 6343
+
+1. Continue 6336.
+
+--------------------------------------------------------------------------------
+zg 2024-06-01 10:22:55+03:00 - build 6342
+
+1. Mantis#0004047: non-modal dialog opened in background.
+
+--------------------------------------------------------------------------------
+shmuel 2024-06-01 00:07:40+03:00 - build 6341
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-05-31 15:20:31+03:00 - build 6340
+
+1. Fix crash in debug builds on sending DM_LISTSETCURPOS to an empty menu.
+
+--------------------------------------------------------------------------------
+shmuel 2024-05-31 00:00:44+03:00 - build 6339
+
+1. Split macro.cpp into 2 files (new file: macroapi.cpp).
+
+--------------------------------------------------------------------------------
+shmuel 2024-05-30 00:16:16+03:00 - build 6338
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-29 17:32:47+01:00 - build 6337
+
+1. Continue 6336.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-27 00:33:52+01:00 - build 6336
+
+1. Refactoring.
+
+2. Do not use forward slashes in NT paths.
+
+--------------------------------------------------------------------------------
+yjh 2024-05-24 23:54:29+03:00 - build 6335
+
+1. SQLite 3.46.0
+
+--------------------------------------------------------------------------------
+drkns 2024-05-13 18:47:46+01:00 - build 6334
+
+1. 0004043: In Panel mode Ctrl+\ doesn't work to jump to the drive root on Czech keyboard.
+   Dead keys saga continues.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-11 12:07:52+01:00 - build 6333
+
+1. Reimplement 6332 slightly differently to not break the tests, OEM keys and compatibility with 1.x plugins.
+
+--------------------------------------------------------------------------------
+shmuel 2024-05-10 14:07:17+03:00 - build 6332
+
+1. Fix: NumEnter and NumDel posted from a macro were incorrectly converted
+        to INPUT_RECORD (EventType was set to 0).
+        That caused problems in plugins processing DN_CONTROLINPUT.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-06 12:34:28+01:00 - build 6331
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-05 18:00:54+01:00 - build 6330
+
+1. Experimental: handle AltGr as Alt when nothing is mapped to it.
+
+--------------------------------------------------------------------------------
+johnd0e 2024-05-05 18:03:00+02:00 - build 6329
+
+1. gh-836: Apply ENHANCED_KEY for more relevant keys in TranslateKeyToVK
+
+--------------------------------------------------------------------------------
+drkns 2024-05-05 13:25:24+01:00 - build 6328
+
+1. A few alignment-related fixes.
+
+--------------------------------------------------------------------------------
+shmuel 2024-05-04 15:58:16+03:00 - build 6327
+
+1. mf.mainmenu: add parameter 'filemaskgroups'.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-02 19:59:34+01:00 - build 6326
+
+1. Continue 6324.3.
+
+--------------------------------------------------------------------------------
+johnd0e 2024-05-01 22:52:00+02:00 - build 6325
+
+1. gh-835 / M3557: Enhance the function mf.flock to enable switching the Lock-state
+   even when a key is held.
+
+--------------------------------------------------------------------------------
+drkns 2024-05-01 21:20:54+01:00 - build 6324
+
+1. 0004042: In text fields the "unchanged text" color is applied to the whole field.
+
+2. Fix menu scrollbars.
+
+3. (Hopefully) correct scrollbar logic in corner cases.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-29 17:21:29+01:00 - build 6323
+
+1. Correction of 6318.1.
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-29 00:47:53+03:00 - build 6322
+
+1. Correct mf.atoi()
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-28 21:55:56+03:00 - build 6321
+
+1. Fix mf.itoa()
+
+--------------------------------------------------------------------------------
+drkns 2024-04-28 19:47:48+01:00 - build 6320
+
+1. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-28 19:47:03+03:00 - build 6319
+
+1. Fix mf.foldershortcuts()
+
+2. Fix mf.atoi()
+
+--------------------------------------------------------------------------------
+drkns 2024-04-28 13:28:25+01:00 - build 6318
+
+1. Correctly handle repeated key event records.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-27 16:37:38+03:00 - build 6317
+
+1. Macro-API: add the following function to mf table:
+              fileassociations, filehighlight, filepanelmodes, foldershortcuts.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-26 19:16:40+01:00 - build 6316
+
+1. Correction of 6274.
+
+--------------------------------------------------------------------------------
+johnd0e 2024-04-26 19:10:24+01:00 - build 6315
+
+1. gh-707 / M2856: Improve dead keys detection to allow key combinations with AltGr / LCtrlRAlt.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-23 23:43:58+01:00 - build 6314
+
+1. Show elevation status in InfoPanel.
+
+2. Exception handling improvements.
+
+3. Fix mapping of OEM keys to US keyboard and pass current layout to mapping functions.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-19 18:28:14+01:00 - build 6313
+
+1. New versions of fmt, tinyxml2, Catch2 and character width mappings.
+
+2. Remove duplicated code.
+
+3. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-17 21:09:16+01:00 - build 6312
+
+1. Reshape Attributes dialog.
+
+2. Add FILE_ATTRIBUTE_DEVICE to Filters.
+
+3. A few minor fixes.
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-17 00:53:14+03:00 - build 6311
+
+1. Macro-API: fix CmdLine.CurPos
+
+--------------------------------------------------------------------------------
+yjh 2024-04-16 11:49:47+03:00 - build 6310
+
+1. SQLite v3.45.3
+
+--------------------------------------------------------------------------------
+drkns 2024-04-15 18:15:01+01:00 - build 6309
+
+1. Fix enum_processes last entry population.
+
+2. Logging improvements.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-14 19:36:02+01:00 - build 6308
+
+1. Show content of NFS reparse points.
+
+2. Attribute dialog minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-14 11:07:34+01:00 - build 6307
+
+1. Show content of LX_SYMLINK reparse points.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-11 21:38:54+01:00 - build 6306
+
+1. Remove redundant code.
+
+--------------------------------------------------------------------------------
+MZK 2024-04-10 21:23:59-07:00 - build 6305
+
+1. Fixed fallout of 6304 (reported in gh-825).
+
+--------------------------------------------------------------------------------
+MZK 2024-04-08 20:23:30-07:00 - build 6304
+
+1. Fixed Hex mode width calculations in Viewer.
+   Also, some renaming and refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-08 22:06:36+01:00 - build 6303
+
+1. A few DFS-specific fixes.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-08 01:43:20+01:00 - build 6302
+
+1. Autocomplete NT devices.
+   Type \\?\ or \\.\ or \??\ to see.
+
+--------------------------------------------------------------------------------
+drkns 2024-04-07 15:05:45+01:00 - build 6301
+
+1. Remove redundant warning suppressions.
+
+2. Refactoring.
+
+3. More tests.
+
+--------------------------------------------------------------------------------
+shmuel 2024-04-02 21:52:04+03:00 - build 6300
+
+1. Fix return value of DM_SETTEXT.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-30 15:02:16+00:00 - build 6299
+
+1. Extract sqlite into sqlite3.dll.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-29 22:36:24+00:00 - build 6298
+
+1. Refactoring.
+
+2. Improve logging.
+
+3. Log debug messages.
+
+--------------------------------------------------------------------------------
+shmuel 2024-03-26 13:55:22+02:00 - build 6297
+
+1. Revert 6296.
+
+--------------------------------------------------------------------------------
+shmuel 2024-03-26 03:59:57+02:00 - build 6296
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-03-25 15:07:30+02:00 - build 6295
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-23 10:36:53+00:00 - build 6294
+
+1. Continue gh-811.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-21 07:10:47+00:00 - build 6293
+
+1. Continue gh-811.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-20 23:14:45+00:00 - build 6292
+
+1. Support exit code in exit command.
+
+2. Partial revert of gh-811 due to M#4035.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-20 18:07:12+00:00 - build 6291
+
+1. Improve subsystem detection in rare cases.
+
+2. Improve exception diagnostics.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-17 10:38:11+00:00 - build 6290
+
+1. From rohitab: gh-811: Autocomplete dropdown disappears on navigation with arrow keys.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-16 19:57:36+00:00 - build 6289
+
+1. Fix a typo in 6288.
+
+2. Refactoring.
+
+3. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-16 16:23:21+00:00 - build 6288
+
+1. FSF.DetectCodePage.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-15 02:21:13+00:00 - build 6287
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-14 18:58:33+00:00 - build 6286
+
+1. Get keyboard layout from IMM.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2024-03-13 00:52:52+03:00 - build 6285
+
+1. SQLite v3.45.2
+
+--------------------------------------------------------------------------------
+drkns 2024-03-12 07:13:20+00:00 - build 6284
+
+1. Correction of 6282.2.
+
+2. Refactoring.
+
+3. More logging.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-08 23:56:07+00:00 - build 6283
+
+1. Fix a typo in 6282.3.
+
+--------------------------------------------------------------------------------
+drkns 2024-03-08 20:10:47+00:00 - build 6282
+
+1. Remove dependency on UI sorting settings from internal components.
+
+2. Optimize ExcludeCmds processing.
+
+3. Fix handle leak on process creation.
+
+4. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-03-06 21:05:50+02:00 - build 6281
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2024-03-01 23:27:19+02:00 - build 6280
+
+1. ACTL_QUIT - Param1 is Far exit code.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-28 23:28:48+00:00 - build 6279
+
+1. Show current cube slice in color pickers.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-18 11:43:13+00:00 - build 6278
+
+1. gh-801: Colors from deleted lines are reused causing spurious colors in the editor.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-17 22:16:41+00:00 - build 6277
+
+1. More gh-800.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-17 16:37:11+00:00 - build 6276
+
+1. Fix block selection of surrogate pairs.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-17 12:06:08+00:00 - build 6275
+
+1. gh-799: Issue with left mouse click outside of autocomplete history list.
+
+2. gh-800: Backspace does not open user menu of parent folder.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-16 00:38:30+00:00 - build 6274
+
+1. Rework OS commands parsing. Should fix gh-792 and gh-798 too.
+
+2. Refactoring, tests
+
+--------------------------------------------------------------------------------
+drkns 2024-02-12 20:23:32+00:00 - build 6273
+
+1. gh-796 and other folder shortcuts improvements:
+   - RCtrl+<N> in folder shortcuts menu works the same as Down
+   - RCtrl+<N> in folder shortcuts menu switches to the corresponding list if needed
+   - If there are no shortcuts assigned to RCtrl+<N>, an empty menu will pop up.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-12 01:52:41+00:00 - build 6272
+
+1. gh-795: FindFile Trap.
+
+--------------------------------------------------------------------------------
+MZK 2024-02-10 13:13:13-08:00 - build 6271
+
+1. `Ctrl+Numpad5` in Editor menu "All matching entries" vertically aligns
+   found text in all items. To preserve vertical alignment while scrolling items
+   horizontally, the items can be moved beyond the left or right window edges.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-10 14:45:04+00:00 - build 6270
+
+1. Refactoring.
+
+2. Improve encoding diagnostics.
+
+3. Correction of 6251.
+
+4. gh-794: Dangling pointer deref in dialog autocompletion after DM_LISTSET & likely other list modifications.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-05 00:21:12+00:00 - build 6269
+
+1. Correction of 6267.
+
+--------------------------------------------------------------------------------
+rohitab 2024-02-04 15:53:24+11:00 - build 6268
+
+1. gh-790: DI_EDIT changes text after DM_SETDLGITEMSHORT.
+
+2. DM_SETMAXTEXTLENGTH
+   - Current text of edit control is preserved.
+   - Correct value of MaxLength is returned in DM_GETDLGITEM/DM_GETDLGITEMSHORT.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-03 16:21:32+00:00 - build 6267
+
+1. Improve handling of paths with trailing spaces.
+
+2. Refactoring: simplify AddEndSlash.
+
+--------------------------------------------------------------------------------
+drkns 2024-02-02 08:43:11+00:00 - build 6266
+
+1. Correction of 6265.
+
+--------------------------------------------------------------------------------
+rohitab 2024-01-31 11:44:30+11:00 - build 6265
+
+1. gh-786: Enable autocompletion in edit controls after initialization.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-31 01:27:12+03:00 - build 6264
+
+1. SQLite v3.45.1
+
+--------------------------------------------------------------------------------
+drkns 2024-01-30 07:17:21+00:00 - build 6263
+
+1. Correction of 6262.
+
+--------------------------------------------------------------------------------
+rohitab 2024-01-29 14:21:57+11:00 - build 6262
+
+1. gh-670: AlternateFileName returns different values with different Lua APIs.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-27 16:45:12+00:00 - build 6261
+
+1. gh-783: Crash when opening a plugin via an association from a plugin panel.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-24 15:47:05+00:00 - build 6260
+
+1. Refactoring.
+
+2. More logging.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-24 14:11:48+00:00 - build 6259
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-23 20:57:27+00:00 - build 6258
+
+1. More gh-773.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-22 18:54:12+00:00 - build 6257
+
+1. More gh-773.
+
+2. More logging.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-20 14:19:30+00:00 - build 6256
+
+1. far:config hex mode fix.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-20 14:05:54+00:00 - build 6255
+
+1. Improve system error messages decoding.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-19 17:32:24+00:00 - build 6254
+
+1. Restore ExitFarW calls on plugins unload, dropped after 6139.
+   Also forum: crash on manual unload of anamorphosis.dll.
+   ExitFarW calls are meaningful, we can't just drop them.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2024-01-18 14:38:15+02:00 - build 6253
+
+1. copy progress dialog rendered according current size.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-17 01:29:14+03:00 - build 6252
+
+1. SQLite v3.45.0
+
+--------------------------------------------------------------------------------
+drkns 2024-01-14 18:33:02+00:00 - build 6251
+
+1. gh-773: Preserve centered dialog state on console resize.
+
+2. Cancelling dialog drag with right mouse click didn't work.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+zg 2024-01-12 12:01:38+02:00 - build 6250
+
+1. guid for copy progress dialog.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-07 18:24:05+00:00 - build 6249
+
+1. FSF.LStr[n]icmp case insensitivity depended on system settings.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-05 23:58:39+03:00 - build 6248
+
+1. fmt v10.2.1
+
+--------------------------------------------------------------------------------
+zg 2024-01-05 09:36:01+02:00 - build 6247
+
+1. M#4026: GUID for replace confirmation dialog in editor.
+
+--------------------------------------------------------------------------------
+drkns 2024-01-03 18:53:27+00:00 - build 6246
+
+1. More ranges.
+
+2. Use std-like source_location.
+
+--------------------------------------------------------------------------------
+yjh 2024-01-03 10:58:29+03:00 - build 6245
+
+1. fmt v10.2.
+
+--------------------------------------------------------------------------------
+MZK 2024-01-01 00:00:00-08:00 - build 6244
+
+1. More `VMenu` refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 20:09:55+00:00 - build 6243
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 12:07:31+00:00 - build 6242
+
+1. Use bit_cast where appropriate.
+
+2. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-30 01:44:13+00:00 - build 6241
+
+1. gh-769: "Find All" list is truncated from the top on a short screen.
+
+--------------------------------------------------------------------------------
+MZK 2023-12-29 16:07:42-08:00 - build 6240
+
+1. Refactored `VMenu::ShowMenu` and its vicinity.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-29 22:04:10+00:00 - build 6239
+
+1. Refactoring.
+
+2. Logging improvements.
+
+3. More info in crash reports.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-28 21:59:39+00:00 - build 6238
+
+1. Crash on empty regex groups.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-28 19:20:35+00:00 - build 6237
+
+1. And another.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-27 23:11:57+00:00 - build 6236
+
+1. Another attempt to make nested user screens work.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 21:23:54+00:00 - build 6235
+
+1. Fix issues with battery status in info panel.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 13:59:59+00:00 - build 6234
+
+1. Fix RGB color processing.
+
+--------------------------------------------------------------------------------
+shmuel 2023-12-23 13:44:26+02:00 - build 6233
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-23 00:21:23+00:00 - build 6232
+
+1. More ranges.
+
+2. More concepts.
+
+3. More spans.
+
+4. Warnings.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 22:12:53+00:00 - build 6231
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 07:23:40+00:00 - build 6230
+
+1. Correction of 6229.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-21 00:38:58+00:00 - build 6229
+
+1. Remove old workarounds.
+
+2. More tests.
+
+3. More ranges.
+
+--------------------------------------------------------------------------------
+mishasychev 2023-12-20 10:55:32+03:00 - build 6228
+
+1. Replace `std::optional` with `std::variant` in lazy.hpp.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-16 16:35:29+00:00 - build 6227
+
+1. Fix deadlock after an external std::exit() call.
+
+2. Clarify calling plugins by prefix
+   - Do not pass the command to the OS if the user cancelled the operation.
+   - Do not send FE_CLOSE until we get a new panel.
+
+3. Fix calling FCTL_GETPANELINFO from ClosePanelW.
+
+4. Minor fixes & remove old workarounds.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-13 22:11:00+00:00 - build 6226
+
+1. More ranges.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-09 20:35:47+00:00 - build 6225
+
+1. More ranges (less trivial cases).
+
+--------------------------------------------------------------------------------
+drkns 2023-12-08 23:18:38+00:00 - build 6224
+
+1. Refactoring.
+
+2. Switch to ranges globally (simple cases for now).
+
+--------------------------------------------------------------------------------
+MZK 2023-12-07 12:21:35-08:00 - build 6223
+
+1. gh-750: Fixed VMenu set selection behavior around list edges.
+   Warning! Bugs are expected.
+
+--------------------------------------------------------------------------------
+drkns 2023-12-07 19:52:27+00:00 - build 6222
+
+1. gh-758: Show all reparse point tags in Attributes dialog.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-30 17:25:47+00:00 - build 6221
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-28 17:30:27+00:00 - build 6220
+
+1. gh-754: Far crash on opening small file from network in Editor.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-27 20:38:00+00:00 - build 6219
+
+1. Reduce memory consumption in editor with a few tricks. Could be up to 30%.
+
+2. gh-752: Editor Undo Glitch.
+   Primordial bug from v1.50 beta (6 Oct 1997).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-26 15:22:17+00:00 - build 6218
+
+1. Fix flags processing in mf.size2str, broken in 5418.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+yjh 2023-11-25 00:35:07+03:00 - build 6217
+
+1. SQLite v3.44.2
+
+--------------------------------------------------------------------------------
+yjh 2023-11-23 02:00:07+03:00 - build 6216
+
+1. SQLite v3.44.1
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-22 20:50:01+02:00 - build 6215
+
+1. Warnings.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-21 20:32:53+02:00 - build 6214
+
+1. Far.GetConfig() is implemented entirely in Far.exe (was: Far + LuaMacro).
+
+--------------------------------------------------------------------------------
+drkns 2023-11-19 21:55:10+00:00 - build 6213
+
+1. Support underline style and color.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-14 23:04:38+02:00 - build 6212
+
+1. Fix Macro Settings dialog.
+
+--------------------------------------------------------------------------------
+shmuel 2023-11-13 20:19:31+02:00 - build 6211
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-11 23:43:42+00:00 - build 6210
+
+1. M#4019: restore elevation requests for network paths
+
+2. gh-747: Build 6209 crashes on start with the profile from build 5629.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-07 01:48:43+00:00 - build 6209
+
+1. Correction of 6204.
+
+--------------------------------------------------------------------------------
+drkns 2023-11-06 18:35:45+00:00 - build 6208
+
+1. Refactoring.
+
+2. Clang:
+   - Fix build
+   - Fix warnings
+   - Remove outdated workarounds
+   - Bump version
+
+3. Clarification of "black on black - default color" logic in Files highlighting:
+   black on black is now considered "default" (or "transparent") only when both
+   foreground and background are fully opaque.
+   If you noticed a sudden black color somewhere where it shouldn't be - make sure
+   that both foreground and background are either fully opaque or fully transparent,
+   either via the UI or:
+   1. export the config
+   2. search for:   background="00000000" foreground="FF000000"
+      replace with: background="00000000" foreground="00000000"
+   3. save and import.
+
+--------------------------------------------------------------------------------
+yjh 2023-11-02 09:24:30+03:00 - build 6207
+
+1. SQLite v3.44.0
+
+--------------------------------------------------------------------------------
+drkns 2023-10-29 01:30:01+01:00 - build 6206
+
+1. gh-741: Far regular expressions - performance.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-26 18:32:38+01:00 - build 6205
+
+1. Fix 5199.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-13 22:09:02+01:00 - build 6204
+
+1. In VT mode, end each line with \n.
+   Apparently it's the right thing to do and it fixes a few issues.
+
+2. Refactoring, tests.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-11 01:59:20+01:00 - build 6203
+
+1. Fix build.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-11 01:27:28+01:00 - build 6202
+
+1. Properly update copy progress when skipping files.
+
+--------------------------------------------------------------------------------
+yjh 2023-10-11 00:41:58+03:00 - build 6201
+
+1. SQLite v3.43.2
+
+--------------------------------------------------------------------------------
+drkns 2023-10-10 07:08:40+01:00 - build 6200
+
+1. And again.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-09 23:16:20+01:00 - build 6199
+
+1. Correction of 6198.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-09 17:17:17+01:00 - build 6198
+
+1. M#3968, M#3992, forum: Error 0x000003EC when opening empty file shares with non-ASCII names.
+
+--------------------------------------------------------------------------------
+drkns 2023-10-05 22:00:00+01:00 - build 6197
+
+1. Add "default color" concept.
+   In VT renderer "default" is SGR 39/49.
+   In classic renderer "default" is whatever was active in the console initially.
+
+2. COL_COMMANDLINE, COL_COMMANDLINEPREFIX, COL_COMMANDLINEUSERSCREEN use "default" by default.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-28 17:14:11+01:00 - build 6196
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-24 20:39:46+01:00 - build 6195
+
+1. Continue 6185.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-21 19:24:08+01:00 - build 6194
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2023-09-19 22:13:20+01:00 - build 6193
+
+1. Refactoring, more tests.
+
+2. BD-RW -> BD-RE.
+
+--------------------------------------------------------------------------------
 drkns 2023-09-14 02:49:00+01:00 - build 6192
 
 1. Workaround for gh-727 and related minor fixes.

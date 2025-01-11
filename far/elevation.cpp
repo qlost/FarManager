@@ -108,14 +108,12 @@ static os::security::privilege CreateBackupRestorePrivilege()
 	return { SE_BACKUP_NAME, SE_RESTORE_NAME };
 }
 
-template<typename T>
-static void WritePipe(const os::handle& Pipe, const T& Data)
+static void WritePipe(const os::handle& Pipe, const auto& Data)
 {
 	return pipe::write(Pipe, Data);
 }
 
-template<typename T>
-static void ReadPipe(const os::handle& Pipe, T& Data)
+static void ReadPipe(const os::handle& Pipe, auto& Data)
 {
 	pipe::read(Pipe, Data);
 }
@@ -141,7 +139,7 @@ public:
 			return nullptr;
 
 		auto& Attributes = *m_Attributes;
-		Attributes.lpSecurityDescriptor = m_Descriptor ? m_Descriptor.data() : nullptr;
+		Attributes.lpSecurityDescriptor = m_Descriptor ? m_Descriptor.get() : nullptr;
 		return &Attributes;
 	}
 
@@ -149,17 +147,6 @@ private:
 	os::security::descriptor m_Descriptor;
 	mutable std::optional<SECURITY_ATTRIBUTES> m_Attributes;
 };
-
-static void WritePipe(const os::handle& Pipe, os::security::descriptor const& Data)
-{
-	const auto Size = Data.size();
-	pipe::write(Pipe, Size);
-
-	if (!Size)
-		return;
-
-	pipe::write(Pipe, Data.data(), Size);
-}
 
 static void WritePipe(const os::handle& Pipe, SECURITY_DESCRIPTOR* Data)
 {
@@ -172,11 +159,16 @@ static void WritePipe(const os::handle& Pipe, SECURITY_DESCRIPTOR* Data)
 	pipe::write(Pipe, Data, Size);
 }
 
+static void WritePipe(const os::handle& Pipe, os::security::descriptor const& Data)
+{
+	return WritePipe(Pipe, Data.get());
+}
+
 static void WritePipe(const os::handle& Pipe, SECURITY_ATTRIBUTES* Data)
 {
 	if (!Data)
 	{
-		pipe::write(Pipe, size_t{});
+		pipe::write(Pipe, 0uz);
 		return;
 	}
 	else
@@ -198,8 +190,11 @@ static void ReadPipe(const os::handle& Pipe, os::security::descriptor& Data)
 	if (!Size)
 		return;
 
-	Data.reset(Size);
-	pipe::read(Pipe, Data.data(), Size);
+	Data.reset(static_cast<SECURITY_DESCRIPTOR*>(LocalAlloc(LMEM_FIXED, Size)));
+	if (!Data)
+		throw far_exception(far::format(L"LocalAlloc({}): {}"sv, Size, os::last_error()));
+
+	pipe::read(Pipe, Data.get(), Size);
 }
 
 static void ReadPipe(const os::handle& Pipe, security_attributes_wrapper& Data)
@@ -266,8 +261,7 @@ T elevation::Read() const
 	return Data;
 }
 
-template<typename... args>
-void elevation::Write(const args&... Args) const
+void elevation::Write(const auto&... Args) const
 {
 	(..., WritePipe(m_Pipe, Args));
 }
@@ -286,8 +280,7 @@ T elevation::RetrieveLastErrorAndResult() const
 	return Read<T>();
 }
 
-template<typename T, typename F1, typename F2>
-auto elevation::execute(lng Why, string_view const Object, T Fallback, const F1& PrivilegedHander, const F2& ElevatedHandler)
+auto elevation::execute(lng Why, string_view const Object, auto Fallback, const auto& PrivilegedHander, const auto& ElevatedHandler)
 {
 	SCOPED_ACTION(std::scoped_lock)(m_CS);
 	if (!ElevationApproveDlg(Why, Object))
@@ -377,8 +370,8 @@ static os::handle create_named_pipe(string_view const Name)
 static bool grant_duplicate_handle()
 {
 	PACL Acl;
-	os::memory::local::ptr<std::remove_pointer_t<PSECURITY_DESCRIPTOR>> Descriptor;
-	if (const auto Result = GetSecurityInfo(GetCurrentProcess(), SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, {}, {}, &Acl, {}, &ptr_setter(Descriptor)); Result != ERROR_SUCCESS)
+	os::security::descriptor Descriptor;
+	if (const auto Result = GetSecurityInfo(GetCurrentProcess(), SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, {}, {}, &Acl, {}, std::bit_cast<PSECURITY_DESCRIPTOR*>(&ptr_setter(Descriptor))); Result != ERROR_SUCCESS)
 	{
 		LOGWARNING(L"GetSecurityInfo: {}"sv, os::format_error(Result));
 		return false;
@@ -449,21 +442,30 @@ static os::handle create_elevated_process(const string& Parameters)
 
 static bool connect_pipe_to_process(const os::handle& Process, const os::handle& Pipe)
 {
-	os::event const AEvent(os::event::type::automatic, os::event::state::nonsignaled);
+	os::event const AEvent(os::event::type::manual, os::event::state::nonsignaled);
 	OVERLAPPED Overlapped;
 	AEvent.associate(Overlapped);
-	if (!ConnectNamedPipe(Pipe.native_handle(), &Overlapped))
+	if (ConnectNamedPipe(Pipe.native_handle(), &Overlapped))
+		return true;
+
+	switch (const auto LastError = os::last_error(); LastError.Win32Error)
 	{
-		const auto LastError = GetLastError();
-		if (LastError != ERROR_IO_PENDING && LastError != ERROR_PIPE_CONNECTED)
-			return false;
-	}
+	case ERROR_PIPE_CONNECTED:
+		return true;
 
-	if (const auto Result = os::handle::wait_any({ AEvent.native_handle(), Process.native_handle() }, 15s); !Result || *Result == 1)
+	case ERROR_IO_PENDING:
+		{
+			if (const auto Result = os::handle::wait_any(15s, AEvent, Process); !Result || *Result == 1)
+				CancelIo(Pipe.native_handle());
+
+			DWORD NumberOfBytesTransferred;
+			return GetOverlappedResult(Pipe.native_handle(), &Overlapped, &NumberOfBytesTransferred, TRUE) != FALSE;
+		}
+
+	default:
+		LOGWARNING(L"ConnectNamedPipe(): {}"sv, LastError);
 		return false;
-
-	DWORD NumberOfBytesTransferred;
-	return GetOverlappedResult(Pipe.native_handle(), &Overlapped, &NumberOfBytesTransferred, FALSE) != FALSE;
+	}
 }
 
 void elevation::TerminateChildProcess() const
@@ -648,7 +650,7 @@ bool elevation::ElevationApproveDlg(lng const Why, string_view const Object)
 
 		if(!Global->IsMainThread())
 		{
-			os::event SyncEvent(os::event::type::automatic, os::event::state::nonsignaled);
+			os::event SyncEvent(os::event::type::manual, os::event::state::nonsignaled);
 			listener const Listener(listener::scope{L"Elevation"sv}, [&SyncEvent](const std::any& Payload)
 			{
 				ElevationApproveDlgSync(*std::any_cast<EAData*>(Payload));
@@ -725,7 +727,7 @@ void elevation::progress_routine(LPPROGRESS_ROUTINE ProgressRoutine) const
 	const auto Data = Read<intptr_t>();
 	// BUGBUG: SourceFile, DestinationFile ignored
 
-	const auto Result = ProgressRoutine(TotalFileSize, TotalBytesTransferred, StreamSize, StreamBytesTransferred, StreamNumber, CallbackReason, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE, reinterpret_cast<void*>(Data));
+	const auto Result = ProgressRoutine(TotalFileSize, TotalBytesTransferred, StreamSize, StreamBytesTransferred, StreamNumber, CallbackReason, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE, ToPtr(Data));
 
 	Write(CallbackMagic, Result);
 }
@@ -740,7 +742,7 @@ bool elevation::copy_file(const string& From, const string& To, LPPROGRESS_ROUTI
 		},
 		[&]
 		{
-			Write(C_FUNCTION_COPYFILE, From, To, reinterpret_cast<intptr_t>(ProgressRoutine), reinterpret_cast<intptr_t>(Data), Flags);
+			Write(C_FUNCTION_COPYFILE, From, To, std::bit_cast<intptr_t>(ProgressRoutine), std::bit_cast<intptr_t>(Data), Flags);
 			// BUGBUG: Cancel ignored
 
 			while (Read<int>() == CallbackMagic)
@@ -970,13 +972,12 @@ bool elevation::set_file_security(string const& Object, SECURITY_INFORMATION con
 		false,
 		[&]
 		{
-			return os::fs::low::set_file_security(Object.c_str(), RequestedInformation, Descriptor.data());
+			return os::fs::low::set_file_security(Object.c_str(), RequestedInformation, Descriptor.get());
 		},
 		[&]
 		{
 
-			Write(C_FUNCTION_SETFILESECURITY, Object, RequestedInformation);
-			pipe::write(m_Pipe, Descriptor.data(), Descriptor.size());
+			Write(C_FUNCTION_SETFILESECURITY, Object, RequestedInformation, Descriptor);
 			return RetrieveLastErrorAndResult<bool>();
 		});
 }
@@ -1052,7 +1053,7 @@ public:
 
 		const auto OptionalPrivilegesCount = 2; // Backup, restore
 
-		SCOPED_ACTION(os::security::privilege)((span(Privileges)).subspan(UsePrivileges? 0 : OptionalPrivilegesCount));
+		SCOPED_ACTION(os::security::privilege)(std::span{Privileges}.subspan(UsePrivileges? 0 : OptionalPrivilegesCount));
 
 		const auto PipeName = concat(L"\\\\.\\pipe\\"sv, Uuid);
 		WaitNamedPipe(PipeName.c_str(), NMPWAIT_WAIT_FOREVER);
@@ -1114,8 +1115,7 @@ private:
 		return Data;
 	}
 
-	template<typename... args>
-	void Write(const args&... Args) const
+	void Write(const auto&... Args) const
 	{
 		(..., WritePipe(m_Pipe, Args));
 	}
@@ -1162,7 +1162,7 @@ private:
 		const auto Flags = Read<DWORD>();
 		// BUGBUG: Cancel ignored
 
-		callback_param Param{ this, reinterpret_cast<void*>(Data) };
+		callback_param Param{ this, ToPtr(Data) };
 		const auto Result = os::fs::low::copy_file(From.c_str(), To.c_str(), UserCopyProgressRoutine? CopyProgressRoutineWrapper : nullptr, &Param, nullptr, Flags);
 
 		Write(0 /* not CallbackMagic */, os::last_error(), Result);
@@ -1272,7 +1272,7 @@ private:
 			}
 		}
 
-		Write(os::last_error(), reinterpret_cast<intptr_t>(Duplicate));
+		Write(os::last_error(), std::bit_cast<intptr_t>(Duplicate));
 	}
 
 	void SetEncryptionHandler() const
@@ -1324,11 +1324,9 @@ private:
 	{
 		const auto Object = Read<string>();
 		const auto SecurityInformation = Read<SECURITY_INFORMATION>();
-		const auto Size = Read<size_t>();
-		const os::security::descriptor SecurityDescriptor(Size);
-		pipe::read(m_Pipe, SecurityDescriptor.data(), Size);
+		const auto SecurityDescriptor = Read<os::security::descriptor>();
 
-		const auto Result = os::fs::low::set_file_security(Object.c_str(), SecurityInformation, SecurityDescriptor.data());
+		const auto Result = os::fs::low::set_file_security(Object.c_str(), SecurityInformation, SecurityDescriptor.get());
 
 		Write(os::last_error(), Result);
 	}
@@ -1359,7 +1357,7 @@ private:
 				StreamBytesTransferred,
 				StreamNumber,
 				CallbackReason,
-				reinterpret_cast<intptr_t>(Param->UserData));
+				std::bit_cast<intptr_t>(Param->UserData));
 			// BUGBUG: SourceFile, DestinationFile ignored
 
 			for (;;)
@@ -1373,11 +1371,8 @@ private:
 				Context.Process(Result);
 			}
 		},
-		[&]
-		{
-			SAVE_EXCEPTION_TO(Param->ExceptionPtr);
-			return PROGRESS_CANCEL;
-		});
+		save_exception_and_return<PROGRESS_CANCEL>(Param->ExceptionPtr)
+		);
 	}
 
 	bool Process(int Command) const

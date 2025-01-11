@@ -73,7 +73,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
-EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback const* aCallback, History* iHistory, FarList* iList, DWORD iFlags):
+EditControl::EditControl(window_ptr Owner, SimpleScreenObject* Parent, parent_processkey_t&& ParentProcessKey, Callback const* aCallback, History* iHistory, VMenu* iList, DWORD iFlags):
 	Edit(std::move(Owner)),
 	pHistory(iHistory),
 	pList(iList),
@@ -142,7 +142,7 @@ void EditControl::SetMenuPos(VMenu2& menu)
 static void AddSeparatorOrSetTitle(VMenu2& Menu, lng TitleId)
 {
 	bool Separator = false;
-	for (const auto& i: irange(Menu.size()))
+	for (const auto i: std::views::iota(0uz, Menu.size()))
 	{
 		if (Menu.at(i).Flags & LIF_SEPARATOR)
 		{
@@ -166,14 +166,14 @@ static void AddSeparatorOrSetTitle(VMenu2& Menu, lng TitleId)
 static bool ParseStringWithQuotes(string_view const Str, string& Start, string& Token, bool& StartQuote)
 {
 	size_t Pos;
-	if (std::count(ALL_CONST_RANGE(Str), L'"') & 1) // odd quotes count
+	if (std::ranges::count(Str, L'"') & 1) // odd quotes count
 	{
 		Pos = Str.rfind(L'"');
 	}
 	else
 	{
 		auto WordDiv = GetBlanks() + Global->Opt->strWordDiv.Get();
-		static const auto NoQuote = L"\":\\/%.-"sv;
+		static const auto NoQuote = L"\":\\/%.?-"sv;
 		std::erase_if(WordDiv, [&](wchar_t i){ return contains(NoQuote, i); });
 
 		for (Pos = Str.size() - 1; Pos != static_cast<size_t>(-1); Pos--)
@@ -275,6 +275,18 @@ static bool EnumFiles(VMenu2& Menu, const string_view strStart, const string_vie
 		}
 	}
 
+	if (HasPathPrefix(Token) && Token.substr(L"\\\\?\\"sv.size()).find_first_of(path::separators) == Token.npos)
+	{
+		for (const auto& Namespace: { L"\\??"sv, L"\\GLOBAL??"sv })
+		{
+			for (const auto& i: os::fs::enum_devices(Namespace))
+			{
+				if (starts_with_icase(i, FileName))
+					ResultStrings.emplace(Token.substr(0, Token.size() - FileName.size()) + i);
+			}
+		}
+	}
+
 	return EnumWithQuoutes(Menu, strStart, Token, StartQuote, lng::MCompletionFilesTitle, ResultStrings);
 }
 
@@ -284,12 +296,10 @@ static bool EnumModules(VMenu2& Menu, const string_view strStart, const string_v
 
 	std::set<string, string_sort::less_t> ResultStrings;
 
-	for (const auto& i: enum_tokens(os::env::expand(Global->Opt->Exec.strExcludeCmds), L";"sv))
+	if (const auto Range = std::ranges::equal_range(Global->Opt->Exec.ExcludeCmds, Token, string_sort::less_icase, std::views::take(Token.size())); !Range.empty())
 	{
-		if (starts_with_icase(i, Token))
-		{
-			ResultStrings.emplace(i);
-		}
+		// TODO: insert_range
+		ResultStrings.insert(ALL_CONST_RANGE(Range));
 	}
 
 	if (const auto strPathEnv = os::env::get(L"PATH"sv); !strPathEnv.empty())
@@ -324,13 +334,13 @@ static bool EnumModules(VMenu2& Menu, const string_view strStart, const string_v
 	{
 		const auto SamDesired = KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | Flags;
 
-		const auto AppPathsKey = os::reg::key::open(RootKey, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\"sv, SamDesired);
+		const auto AppPathsKey = RootKey.open(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\"sv, SamDesired);
 		if (!AppPathsKey)
 			return;
 
-		for (const auto& SubkeyName: os::reg::enum_key(AppPathsKey))
+		for (const auto& SubkeyName: AppPathsKey->enum_keys())
 		{
-			if (const auto SubKey = os::reg::key::open(AppPathsKey, SubkeyName, SamDesired); SubKey.get({}) && starts_with_icase(SubkeyName, Token))
+			if (const auto SubKey = AppPathsKey->open(SubkeyName, SamDesired); SubKey && SubKey->exits({}) && starts_with_icase(SubkeyName, Token))
 			{
 				ResultStrings.emplace(SubkeyName);
 			}
@@ -449,16 +459,18 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			}
 			else if (pList)
 			{
-				for (const auto& i: span(pList->Items, pList->ItemsNumber))
+				for (const auto i: std::views::iota(0uz, pList->size()))
 				{
-					if (!starts_with_icase(i.Text, Str))
+					string_view const Text = pList->at(i).Name;
+
+					if (!starts_with_icase(Text, Str))
 						continue;
 
-					MenuItemEx Item(i.Text);
+					MenuItemEx Item(Text);
 					// Preserve the case of the already entered part
 					if (Global->Opt->AutoComplete.AppendCompletion)
 					{
-						Item.ComplexUserData = cmp_user_data{ Str + string_view(i.Text + Str.size()) };
+						Item.ComplexUserData = cmp_user_data{ Str + Text.substr(Str.size()) };
 					}
 					ComplMenu->AddItem(Item);
 				}
@@ -549,7 +561,13 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 						if (Global->Opt->AutoComplete.ModalList)
 							return 0;
 
-						const auto CurPos = ComplMenu->GetSelectPos();
+						if (!IsChanged && (Msg == DN_DRAWDIALOGDONE || Msg == DN_DRAWDLGITEMDONE))
+						{
+							::SetCursorType(Visible, Size);
+							return 0;
+						}
+
+						const auto CurPos = Msg == DN_LISTCHANGE? static_cast<int>(std::bit_cast<intptr_t>(Param)) : ComplMenu->GetSelectPos();
 						if(CurPos>=0 && (PrevPos!=CurPos || IsChanged))
 						{
 							PrevPos=CurPos;
@@ -562,7 +580,25 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 					}
 
 					const auto& ReadRec = *static_cast<INPUT_RECORD const*>(Param);
-					auto MenuKey = InputRecordToKey(&ReadRec);
+
+					auto MenuKey = [&]() -> unsigned
+					{
+						// ugh
+						if (ReadRec.EventType == MOUSE_EVENT)
+						{
+							auto Position = ComplMenu->GetPosition();
+
+							++Position.left;
+							++Position.top;
+							--Position.right;
+							--Position.bottom;
+
+							if (!Position.contains(ReadRec.Event.MouseEvent.dwMousePosition))
+								return KEY_NONE;
+						}
+
+						return InputRecordToKey(&ReadRec);
+					}();
 
 					::SetCursorType(Visible, Size);
 
@@ -663,6 +699,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 									}
 									m_ParentProcessKey(Manager::Key(MenuKey));
 									Show();
+									ComplMenu->Show();
 									return 1;
 								}
 

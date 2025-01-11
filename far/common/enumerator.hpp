@@ -32,8 +32,10 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "movable.hpp"
 #include "preprocessor.hpp"
 
+#include <functional>
 #include <iterator>
 
 #include <cassert>
@@ -45,7 +47,7 @@ class [[nodiscard]] enumerator
 {
 public:
 	NONCOPYABLE(enumerator);
-	MOVE_CONSTRUCTIBLE(enumerator);
+	MOVABLE(enumerator);
 
 	using value_type = T;
 	using enumerator_type = enumerator;
@@ -77,28 +79,31 @@ public:
 		{
 		}
 
-		[[nodiscard]]
-		auto operator->() noexcept
+		iterator_t(iterator_t const& rhs):
+			m_Owner(rhs.m_Owner),
+			m_Position(rhs.m_Position),
+			m_Value(rhs.m_Value)
 		{
-			return &remove_pointer(value());
+		}
+
+		auto& operator=(iterator_t const& rhs)
+		{
+			m_Owner = rhs.m_Owner;
+			m_Position = rhs.m_Position;
+			m_Value = rhs.m_Value;
+			return *this;
 		}
 
 		[[nodiscard]]
 		auto operator->() const noexcept
 		{
-			return &remove_pointer(value());
-		}
-
-		[[nodiscard]]
-		auto& operator*() noexcept
-		{
-			return remove_pointer(value());
+			return &remove_pointer(m_Value);
 		}
 
 		[[nodiscard]]
 		auto& operator*() const noexcept
 		{
-			return remove_pointer(value());
+			return remove_pointer(m_Value);
 		}
 
 		auto& operator++()
@@ -108,12 +113,7 @@ public:
 			return *this;
 		}
 
-		auto operator++(int)
-		{
-			auto Copy = *this;
-			++*this;
-			return Copy;
-		}
+		POSTFIX_INCREMENT()
 
 		[[nodiscard]]
 		bool operator==(const iterator_t& rhs) const noexcept
@@ -145,14 +145,9 @@ public:
 			return m_Value;
 		}
 
-		auto& value() const
-		{
-			return m_Value;
-		}
-
 		owner_type m_Owner{};
 		position m_Position{ position::end };
-		std::remove_const_t<item_type> m_Value{};
+		std::remove_const_t<item_type> mutable m_Value{};
 	};
 
 	using iterator = iterator_t<T, Derived*>;
@@ -183,9 +178,9 @@ protected:
 	enumerator() { static_assert(std::derived_from<Derived, enumerator>); }
 
 private:
-	template<typename iterator_type, typename owner_type>
+	template<typename iterator_type>
 	[[nodiscard]]
-	static auto make_iterator(owner_type Owner, typename iterator_type::position Position = iterator_type::position::end)
+	static auto make_iterator(auto Owner, typename iterator_type::position Position = iterator_type::position::end)
 	{
 		return iterator_type{ static_cast<typename iterator_type::owner_type>(Owner), Position };
 	}
@@ -193,49 +188,43 @@ private:
 
 #define IMPLEMENTS_ENUMERATOR(type) friend typename type::enumerator_type
 
-template<typename value_type, typename callable, typename finaliser>
-class [[nodiscard]] inline_enumerator: public enumerator<inline_enumerator<value_type, callable, finaliser>, value_type>
+template<typename value_type>
+class [[nodiscard]] inline_enumerator: public enumerator<inline_enumerator<value_type>, value_type>
 {
 	IMPLEMENTS_ENUMERATOR(inline_enumerator);
 
 public:
 	NONCOPYABLE(inline_enumerator);
 	MOVE_CONSTRUCTIBLE(inline_enumerator);
+	MOVE_ASSIGNABLE(inline_enumerator);
 
-	explicit inline_enumerator(callable&& Callable, finaliser&& Finaliser):
-		m_Callable(FWD(Callable)),
-		m_Finaliser(FWD(Finaliser))
+	using callable = std::function<bool(bool, value_type&)>;
+	using finaliser = std::function<void()>;
+
+	explicit inline_enumerator(callable Callable, finaliser Finaliser = {}):
+		m_Callable(std::move(Callable)),
+		m_Finaliser(std::move(Finaliser))
 	{
 	}
 
 	~inline_enumerator()
 	{
-		m_Finaliser();
+		if (m_Engaged && m_Finaliser)
+			m_Finaliser();
 	}
 
 private:
 	[[nodiscard]]
 	bool get(bool Reset, value_type& Value) const
 	{
+		assert(m_Callable);
+
 		return m_Callable(Reset, Value);
 	}
 
-	mutable callable m_Callable;
+	callable m_Callable;
 	finaliser m_Finaliser;
+	movable m_Engaged;
 };
-
-template<typename value_type, typename callable, typename finaliser>
-[[nodiscard]]
-auto make_inline_enumerator(callable&& Callable, finaliser&& Finaliser)
-{
-	return inline_enumerator<value_type, callable, finaliser>(FWD(Callable), FWD(Finaliser));
-}
-
-template<typename value_type, typename callable>
-[[nodiscard]]
-auto make_inline_enumerator(callable&& Callable)
-{
-	return make_inline_enumerator<value_type>(FWD(Callable), []{});
-}
 
 #endif // ENUMERATOR_HPP_6BCD3B36_3A68_400C_82B5_AB3644D0A874

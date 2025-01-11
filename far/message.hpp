@@ -41,7 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
-#include "common/range.hpp"
+#include "common/span.hpp"
 
 // External:
 
@@ -52,7 +52,6 @@ enum class lng;
 enum
 {
 	MSG_WARNING        = 0_bit,
-	MSG_KEEPBACKGROUND = 2_bit,
 	MSG_LEFTALIGN      = 3_bit,
 
 	MSG_KILLSAVESCREEN = 28_bit,

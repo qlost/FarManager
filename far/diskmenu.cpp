@@ -195,7 +195,7 @@ static void AddPluginItems(VMenu2 &ChDisk, int Pos, int DiskCount, bool SetSelec
 #endif // NO_WRAPPER
 					LIF_NONE;
 
-				MenuInitItems.push_back({ std::move(strPluginText), Flags, HotKey, { pPlugin, Uuid } });
+				MenuInitItems.emplace_back(std::move(strPluginText), Flags, HotKey, plugin_item{ pPlugin, Uuid });
 			}
 		}
 	}
@@ -203,7 +203,7 @@ static void AddPluginItems(VMenu2 &ChDisk, int Pos, int DiskCount, bool SetSelec
 	if (MenuInitItems.empty())
 		return;
 
-	std::sort(ALL_RANGE(MenuInitItems), [SortByHotkey = (Global->Opt->ChangeDriveMode & DRIVE_SORT_PLUGINS_BY_HOTKEY) != 0](menu_init_item const& a, menu_init_item const& b)
+	std::ranges::sort(MenuInitItems, [SortByHotkey = (Global->Opt->ChangeDriveMode & DRIVE_SORT_PLUGINS_BY_HOTKEY) != 0](menu_init_item const& a, menu_init_item const& b)
 	{
 		if (!SortByHotkey || a.Hotkey == b.Hotkey)
 			return string_sort::less(a.Str, b.Str);
@@ -358,7 +358,7 @@ static int MessageRemoveConnection(string_view const Drive, int &UpdateProfile)
 	//   есть постоянное подключение.
 
 	bool IsPersistent = true;
-	if (os::reg::key::open(os::reg::key::current_user, concat(L"Network\\"sv, Drive.front()), KEY_QUERY_VALUE))
+	if (os::reg::key::current_user.open(concat(L"Network\\"sv, Drive.front()), KEY_QUERY_VALUE))
 	{
 		DCDlg[rc_checkbox].Selected = Global->Opt->ChangeDriveDisconnectMode;
 	}
@@ -802,8 +802,8 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 
 				if (DriveMode & (DRIVE_SHOW_SIZE | DRIVE_SHOW_SIZE_FLOAT))
 				{
-					unsigned long long TotalSize = 0, UserFree = 0;
-					if (os::fs::get_disk_size(RootDirectory, &TotalSize, nullptr, &UserFree))
+					unsigned long long UserTotal = 0, UserFree = 0;
+					if (os::fs::get_disk_size(RootDirectory, &UserTotal, {}, &UserFree))
 					{
 						const auto SizeFlags = DriveMode & DRIVE_SHOW_SIZE?
 							//размер как минимум в мегабайтах
@@ -816,7 +816,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 							return trim(FileSizeToStr(Size, 9, SizeFlags));
 						};
 
-						NewItem.TotalSize = FormatSize(TotalSize);
+						NewItem.TotalSize = FormatSize(UserTotal);
 						NewItem.FreeSize = FormatSize(UserFree);
 					}
 				}
@@ -1391,6 +1391,8 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 		{
 			const auto IsActive = Owner->IsFocused();
 			const auto NewPanel = Owner->Parent()->ChangePanel(Owner, panel_type::FILE_PANEL, TRUE, FALSE);
+			// BUGBUG gh-674 make sure to recreate FS watcher
+			// SetCurDir below should do that
 			NewPanel->SetCurDir(strNewCurDir, true);
 			NewPanel->Show();
 

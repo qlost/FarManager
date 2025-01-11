@@ -55,8 +55,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/2d/algorithm.hpp"
 #include "common/algorithm.hpp"
 #include "common/enum_substrings.hpp"
+#include "common/from_string.hpp"
 #include "common/io.hpp"
-#include "common/range.hpp"
 #include "common/scope_exit.hpp"
 #include "common/view/enumerate.hpp"
 
@@ -67,7 +67,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ESC L"\u001b"
 #define CSI ESC L"["
-#define OSC(Command) ESC L"]" Command ESC L"\\"sv
+#define ST ESC L"\\"
+#define OSC(Command) ESC L"]" Command ST ""sv
 #define ANSISYSSC CSI L"s"
 #define ANSISYSRC CSI L"u"
 
@@ -158,8 +159,8 @@ wchar_t ReplaceControlCharacter(wchar_t const Char)
 static bool sanitise_dbsc_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 {
 	const auto
-		IsFirst = flags::check_any(First.Attributes.Flags, COMMON_LVB_LEADING_BYTE),
-		IsSecond = flags::check_any(Second.Attributes.Flags, COMMON_LVB_TRAILING_BYTE);
+		IsFirst = flags::check_one(First.Attributes.Flags, COMMON_LVB_LEADING_BYTE),
+		IsSecond = flags::check_one(Second.Attributes.Flags, COMMON_LVB_TRAILING_BYTE);
 
 	if (!IsFirst && !IsSecond)
 	{
@@ -170,7 +171,7 @@ static bool sanitise_dbsc_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 	flags::clear(First.Attributes.Flags, COMMON_LVB_LEADING_BYTE);
 	flags::clear(Second.Attributes.Flags, COMMON_LVB_TRAILING_BYTE);
 
-	if (First == Second)
+	if (IsFirst && IsSecond && First == Second)
 	{
 		// Valid DBSC, awesome
 		flags::set(First.Attributes.Flags, COMMON_LVB_LEADING_BYTE);
@@ -200,7 +201,7 @@ static bool sanitise_surrogate_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 		return false;
 	}
 
-	if (encoding::utf16::is_valid_surrogate_pair(First.Char, Second.Char) && First.Attributes == Second.Attributes)
+	if (IsFirst && IsSecond && First.Attributes == Second.Attributes)
 	{
 		// Valid surrogate, awesome
 		return false;
@@ -215,9 +216,9 @@ static bool sanitise_surrogate_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 	return true;
 }
 
-void sanitise_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
+bool sanitise_pair(FAR_CHAR_INFO& First, FAR_CHAR_INFO& Second)
 {
-	sanitise_dbsc_pair(First, Second) || sanitise_surrogate_pair(First, Second);
+	return sanitise_dbsc_pair(First, Second) || sanitise_surrogate_pair(First, Second);
 }
 
 bool get_console_screen_buffer_info(HANDLE ConsoleOutput, CONSOLE_SCREEN_BUFFER_INFO* ConsoleScreenBufferInfo)
@@ -389,20 +390,20 @@ protected:
 		}
 
 	private:
-		size_t read(span<wchar_t> const Str) const
+		size_t read(std::span<wchar_t> const Str) const
 		{
 			if (m_Redirected)
 			{
 				DWORD BytesRead;
 				if (!ReadFile(GetStdHandle(m_Type), Str.data(), static_cast<DWORD>(Str.size() * sizeof(wchar_t)), &BytesRead, {}))
-					throw MAKE_FAR_FATAL_EXCEPTION(L"File read error"sv);
+					throw far_fatal_exception(L"File read error"sv);
 
 				return BytesRead / sizeof(wchar_t);
 			}
 
 			size_t Size;
 			if (!::console.Read(Str, Size))
-				throw MAKE_FAR_FATAL_EXCEPTION(L"Console read error"sv);
+				throw far_fatal_exception(L"Console read error"sv);
 
 			return Size;
 		}
@@ -418,10 +419,10 @@ protected:
 				{
 					DWORD BytesWritten;
 					if (!WriteFile(GetStdHandle(m_Type), Data, static_cast<DWORD>(Size), &BytesWritten, {}))
-						throw MAKE_FAR_FATAL_EXCEPTION(L"File write error"sv);
+						throw far_fatal_exception(L"File write error"sv);
 				};
 
-				if constexpr (constexpr auto UseUtf8Output = true)
+				if constexpr ([[maybe_unused]] constexpr auto UseUtf8Output = true)
 				{
 					const auto Utf8Str = encoding::utf8::get_bytes(Str);
 					write(Utf8Str.data(), Utf8Str.size());
@@ -434,18 +435,19 @@ protected:
 				return;
 			}
 
-			FarColor CurrentColor;
+			FarColor CurrentColor{};
 			const auto ChangeColour = m_Colour && ::console.GetTextAttributes(CurrentColor);
 
 			if (ChangeColour)
 			{
+				CurrentColor = colors::unresolve_defaults(CurrentColor);
 				::console.SetTextAttributes(colors::merge(CurrentColor, *m_Colour));
 			}
 
 			SCOPE_EXIT{ if (ChangeColour) ::console.SetTextAttributes(CurrentColor); };
 
 			if (!::console.Write(Str))
-				throw MAKE_FAR_FATAL_EXCEPTION(L"Console write error"sv);
+				throw far_fatal_exception(L"Console write error"sv);
 		}
 
 		void flush() const
@@ -501,7 +503,7 @@ protected:
 		static FarColor fg_color(int const NtColor)
 		{
 			auto Color = colors::NtColorToFarColor(NtColor);
-			colors::make_transparent(Color.BackgroundColor);
+			Color.SetBgDefault();
 			return Color;
 		}
 
@@ -531,6 +533,142 @@ protected:
 		CONSOLE_CURSOR_INFO m_CursorInfo{};
 		bool m_Restore{};
 	};
+
+	class scoped_vt_output
+	{
+	public:
+		NONCOPYABLE(scoped_vt_output);
+
+		scoped_vt_output():
+			m_ConsoleMode(::console.UpdateMode(::console.GetOutputHandle(), ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING, 0))
+		{
+		}
+
+		~scoped_vt_output()
+		{
+			if (m_ConsoleMode)
+				::console.SetMode(::console.GetOutputHandle(), *m_ConsoleMode);
+		}
+
+		explicit operator bool() const
+		{
+			return m_ConsoleMode.has_value();
+		}
+
+	private:
+		std::optional<DWORD> m_ConsoleMode;
+	};
+
+	class scoped_vt_input
+	{
+	public:
+		NONCOPYABLE(scoped_vt_input);
+
+		scoped_vt_input():
+			m_ConsoleMode(::console.UpdateMode(::console.GetInputHandle(), ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_LINE_INPUT))
+		{
+		}
+
+		~scoped_vt_input()
+		{
+			if (m_ConsoleMode)
+				::console.SetMode(::console.GetInputHandle(), *m_ConsoleMode);
+		}
+
+		explicit operator bool() const
+		{
+			return m_ConsoleMode.has_value();
+		}
+
+	private:
+		std::optional<DWORD> m_ConsoleMode;
+	};
+
+	static string query_vt(string_view const Command)
+	{
+		// A VT query works as follows:
+		// - We cast an unpronounceable spell into the output stream.
+		// - If the terminal recognizes the spell, it conjures
+		//   an equally unpronounceable answer into the input stream.
+		//   Notably, it takes its time at that and answers asynchronously.
+		// - If the terminal does not recognize the spell, it does not
+		//   burden itself with explanations and stays silent.
+
+		// A classic, timeless design, a pinnacle of 70's or whatever.
+
+		// The only problem with it is that there is no way to tell what will happen.
+		// You conjure a dodgy incantation, which may or may not be supported, and pray.
+		// Maybe the response comes immediately.
+		// Maybe later.
+		// Maybe never.
+
+		// 🤦
+
+		// To make sure that we do not deadlock ourselves here we prepend & append
+		// this dummy DA command that always works (since it was in the initial WT release),
+		// so that the response is always non-empty and we know exactly where it starts and ends.
+		// In other words:
+		// - <attributes>[the response we are actually after]<attributes>: yay.
+		// - <attributes><attributes>: nay, the request is unsupported.
+
+		// Ah, and since it is input stream, the user can type any rubbish into it at the same time.
+		// Fortunately, it seems that user input is queued before and/or after the responses,
+		// but does not interlace with them.
+
+		// We also need to enable VT input, otherwise it will only work in a real console.
+		// Are you not entertained?
+
+		scoped_vt_input const VtInput;
+		if (!VtInput)
+			throw far_exception(L"scoped_vt_input"sv);
+
+		const auto Dummy = CSI L"0c"sv;
+
+		if (!::console.Write(concat(Dummy, Command, Dummy)))
+			throw far_exception(L"WriteConsole"sv);
+
+		string Response;
+
+		std::optional<size_t>
+			FirstTokenPrefixPos,
+			FirstTokenSuffixPos;
+
+		const auto
+			TokenPrefix = CSI "?"sv,
+			TokenSuffix = L"c"sv;
+
+		size_t DA_ResponseSize{};
+
+		for (;;)
+		{
+			wchar_t ResponseBuffer[8192];
+			size_t ResponseSize;
+
+			if (!::console.Read(ResponseBuffer, ResponseSize))
+				throw far_exception(L"ReadConsole"sv);
+
+			Response.append(ResponseBuffer, ResponseSize);
+
+			if (!FirstTokenPrefixPos)
+				if (const auto Pos = Response.find(TokenPrefix); Pos != Response.npos)
+					FirstTokenPrefixPos = Pos;
+
+			if (FirstTokenPrefixPos && !FirstTokenSuffixPos)
+				if (const auto Pos = Response.find(TokenSuffix, *FirstTokenPrefixPos + TokenPrefix.size()); Pos != Response.npos)
+				{
+					FirstTokenSuffixPos = Pos;
+					DA_ResponseSize = Pos + TokenSuffix.size();
+				}
+
+			if (DA_ResponseSize && Response.size() >= DA_ResponseSize * 2)
+			{
+				if (const auto DA_Response = string_view(Response).substr(*FirstTokenPrefixPos, DA_ResponseSize); Response.ends_with(DA_Response))
+					break;
+			}
+		}
+
+		return Response.substr(DA_ResponseSize, Response.size() - DA_ResponseSize * 2);
+	}
 
 	console::console():
 		m_OriginalInputHandle(GetStdHandle(STD_INPUT_HANDLE)),
@@ -586,18 +724,21 @@ protected:
 		return m_OriginalInputHandle;
 	}
 
+	static bool is_pseudo_console(HWND const Window)
+	{
+		wchar_t ClassName[MAX_PATH];
+		const auto Size = GetClassName(Window, ClassName, static_cast<int>(std::size(ClassName)));
+		return string_view(ClassName, Size) == L"PseudoConsoleWindow"sv;
+	}
+
 	HWND console::GetWindow() const
 	{
 		const auto Window = GetConsoleWindow();
 
-		wchar_t ClassName[MAX_PATH];
-		if (const auto Size = GetClassName(Window, ClassName, static_cast<int>(std::size(ClassName))); Size)
+		if (is_pseudo_console(Window))
 		{
-			if (string_view(ClassName, Size) == L"PseudoConsoleWindow"sv)
-			{
-				if (const auto Owner = ::GetWindow(Window, GW_OWNER))
-					return Owner;
-			}
+			if (const auto Owner = ::GetWindow(Window, GW_OWNER))
+				return Owner;
 		}
 
 		return Window;
@@ -651,9 +792,7 @@ protected:
 			if (WindowCoord.x > csbi.dwSize.X)
 			{
 				// windows sometimes uses existing colors to init right region of screen buffer
-				FarColor Color;
-				GetTextAttributes(Color);
-				ClearExtraRegions(Color, CR_RIGHT);
+				ClearExtraRegions(colors::default_color(), CR_RIGHT);
 			}
 		}
 
@@ -786,17 +925,35 @@ protected:
 		return true;
 	}
 
-	bool console::GetKeyboardLayoutName(string &strName) const
+	static HKL get_keyboard_layout_imm()
 	{
+		const auto ImeWnd = ImmGetDefaultIMEWnd(::console.GetWindow());
+		if (!ImeWnd)
+			return {};
+
+		const auto ThreadId = GetWindowThreadProcessId(ImeWnd, {});
+		if (!ThreadId)
+		{
+			LOGWARNING(L"GetWindowThreadProcessId(): {}"sv, os::last_error());
+			return {};
+		}
+
+		return GetKeyboardLayout(ThreadId);
+	}
+
+	HKL console::GetKeyboardLayout() const
+	{
+		if (const auto Hkl = get_keyboard_layout_imm())
+			return Hkl;
+
 		wchar_t Buffer[KL_NAMELENGTH];
 		if (!imports.GetConsoleKeyboardLayoutNameW(Buffer))
 		{
-			LOGERROR(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
-			return false;
+			LOGWARNING(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
+			return {};
 		}
 
-		strName = Buffer;
-		return true;
+		return os::make_hkl(Buffer);
 	}
 
 	uintptr_t console::GetInputCodepage() const
@@ -864,6 +1021,19 @@ protected:
 		return true;
 	}
 
+	std::optional<DWORD> console::UpdateMode(HANDLE const ConsoleHandle, DWORD const ToSet, DWORD const ToClear) const
+	{
+		DWORD CurrentMode;
+
+		if (!GetMode(ConsoleHandle, CurrentMode))
+			return {};
+
+		if (const auto NewMode = (CurrentMode | ToSet) & ~ToClear; NewMode != CurrentMode && !SetMode(ConsoleHandle, NewMode))
+			return {};
+
+		return CurrentMode;
+	}
+
 	bool console::IsVtSupported() const
 	{
 		static const auto Result = [&]
@@ -889,6 +1059,65 @@ protected:
 		}();
 
 		return Result;
+	}
+
+	static bool layout_has_altgr(HKL const Layout)
+	{
+		static std::unordered_map<HKL, bool> LayoutState;
+		const auto [Iterator, Inserted] = LayoutState.try_emplace(Layout, false);
+		if (!Inserted)
+			return Iterator->second;
+
+		BYTE KeyState[256]{};
+		KeyState[VK_CONTROL] = 0b10000000;
+		KeyState[VK_MENU]    = 0b10000000;
+
+		for (const auto VK: std::views::iota(0, 256))
+		{
+			if (VK == VK_PACKET)
+				continue;
+
+			if (wchar_t Buffer[2]; os::to_unicode(VK, 0, KeyState, Buffer, 0, Layout) > 0)
+			{
+				return Iterator->second = true;
+			}
+		}
+
+		return false;
+	}
+
+	static void undo_altgr_if_redundant(KEY_EVENT_RECORD& KeyEvent)
+	{
+		const auto AltGr = LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED;
+
+		if ((KeyEvent.dwControlKeyState & AltGr) != AltGr)
+			return; // It's not AltGr
+
+		if (KeyEvent.uChar.UnicodeChar)
+			return; // It produces a character
+
+		const auto Layout = ::console.GetKeyboardLayout();
+
+		if (os::is_dead_key(KeyEvent, Layout))
+			return; // It produces a dead key
+
+		if (!layout_has_altgr(Layout))
+			return; // It's not AltGr
+
+		// It's AltGr that produces nothing. We can safely patch it to normal RAlt
+		KeyEvent.dwControlKeyState &= ~LEFT_CTRL_PRESSED;
+
+		BYTE KeyState[256]{};
+		KeyState[VK_SHIFT] = KeyEvent.dwControlKeyState & SHIFT_PRESSED? 0b10000000 : 0;
+		KeyState[VK_CAPITAL] = KeyEvent.dwControlKeyState & CAPSLOCK_ON? 0b00000001 : 0;
+
+		if (wchar_t Buffer[2]; os::to_unicode(KeyEvent.wVirtualKeyCode, KeyEvent.wVirtualScanCode, KeyState, Buffer, 0, Layout) > 0)
+			KeyEvent.uChar.UnicodeChar = Buffer[0];
+	}
+
+	static void postprocess_key_event(KEY_EVENT_RECORD& KeyEvent)
+	{
+		undo_altgr_if_redundant(KeyEvent);
 	}
 
 	static bool get_current_console_font(HANDLE OutputHandle, CONSOLE_FONT_INFO& FontInfo)
@@ -951,79 +1180,115 @@ protected:
 		Set(&COORD::Y, &POINT::y, &SMALL_RECT::Top);
 	}
 
-	static void AdjustMouseEvents(span<INPUT_RECORD> const Buffer, short Delta)
+	static void postprocess_mouse_event(MOUSE_EVENT_RECORD& MouseEvent)
 	{
-		std::optional<point> Size;
+		if (!sWindowMode)
+			return;
 
-		for (auto& i: Buffer)
+		fix_wheel_coordinates(MouseEvent);
+
+		MouseEvent.dwMousePosition.Y = std::max(0, MouseEvent.dwMousePosition.Y - ::console.GetDelta());
+
+		if (point Size; ::console.GetSize(Size))
+			MouseEvent.dwMousePosition.X = std::min(MouseEvent.dwMousePosition.X, static_cast<short>(Size.x - 1));
+	}
+
+	static void postprocess_event(INPUT_RECORD& Record)
+	{
+		switch (Record.EventType)
 		{
-			if (i.EventType != MOUSE_EVENT)
-				continue;
+		case KEY_EVENT:
+			postprocess_key_event(Record.Event.KeyEvent);
+			break;
 
-			if (!Size)
-			{
-				Size.emplace();
-				if (!::console.GetSize(*Size))
-					return;
-			}
+		case MOUSE_EVENT:
+			postprocess_mouse_event(Record.Event.MouseEvent);
+			break;
 
-			fix_wheel_coordinates(i.Event.MouseEvent);
-
-			i.Event.MouseEvent.dwMousePosition.Y = std::max(0, i.Event.MouseEvent.dwMousePosition.Y - Delta);
-			i.Event.MouseEvent.dwMousePosition.X = std::min(i.Event.MouseEvent.dwMousePosition.X, static_cast<short>(Size->x - 1));
+		default:
+			break;
 		}
 	}
 
-	bool console::PeekInput(span<INPUT_RECORD> const Buffer, size_t& NumberOfEventsRead) const
+	std::optional<KEY_EVENT_RECORD> console::queued() const
 	{
-		DWORD dwNumberOfEventsRead = 0;
-		if (!PeekConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsRead))
+		if (!m_QueuedKeys.wRepeatCount)
+			return {};
+
+		auto Result = m_QueuedKeys;
+		Result.wRepeatCount = 1;
+		return Result;
+	}
+
+	bool console::PeekOneInput(INPUT_RECORD& Record) const
+	{
+		// See below
+		if (const auto Key = queued())
+		{
+			Record.EventType = KEY_EVENT;
+			Record.Event.KeyEvent = *Key;
+			return true;
+		}
+
+		DWORD NumberOfEvents = 0;
+		if (!PeekConsoleInput(GetInputHandle(), &Record, 1, &NumberOfEvents))
 		{
 			LOGERROR(L"PeekConsoleInput(): {}"sv, os::last_error());
 			return false;
 		}
 
-		NumberOfEventsRead = dwNumberOfEventsRead;
-
-		if (sWindowMode)
-		{
-			AdjustMouseEvents({Buffer.data(), NumberOfEventsRead}, GetDelta());
-		}
-		return true;
-	}
-
-	bool console::PeekOneInput(INPUT_RECORD& Record) const
-	{
-		size_t Read;
-		return PeekInput({ &Record, 1 }, Read) && Read == 1;
-	}
-
-	bool console::ReadInput(span<INPUT_RECORD> const Buffer, size_t& NumberOfEventsRead) const
-	{
-		DWORD dwNumberOfEventsRead = 0;
-		if (!ReadConsoleInput(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &dwNumberOfEventsRead))
-		{
-			LOGERROR(L"ReadConsoleInput(): {}"sv, os::last_error());
+		if (!NumberOfEvents)
 			return false;
-		}
 
-		NumberOfEventsRead = dwNumberOfEventsRead;
-
-		if (sWindowMode)
-		{
-			AdjustMouseEvents({Buffer.data(), NumberOfEventsRead}, GetDelta());
-		}
+		postprocess_event(Record);
 
 		return true;
 	}
 
 	bool console::ReadOneInput(INPUT_RECORD& Record) const
 	{
-		size_t Read;
-		return ReadInput({ &Record, 1 }, Read) && Read == 1;
+		// See below
+		if (const auto Key = queued())
+		{
+			Record.EventType = KEY_EVENT;
+			Record.Event.KeyEvent = *Key;
+			--m_QueuedKeys.wRepeatCount;
+			return true;
+		}
+
+		DWORD NumberOfEvents = 0;
+		if (!ReadConsoleInput(GetInputHandle(), &Record, 1, &NumberOfEvents))
+		{
+			LOGERROR(L"ReadConsoleInput(): {}"sv, os::last_error());
+			return false;
+		}
+
+		if (!NumberOfEvents)
+			return false;
+
+		postprocess_event(Record);
+
+		// https://learn.microsoft.com/en-us/windows/console/key-event-record-str
+		// wRepeatCount
+		// The repeat count, which indicates that a key is being held down.
+		// For example, when a key is held down, you might get five events
+		// with this member equal to 1, one event with this member equal to 5,
+		// or multiple events with this member greater than or equal to 1.
+
+		// We do not burden the rest of the code with these shenanigans
+		// always yield key events with the repeat count equal to 1
+		// and maintain an internal "queue" to yield the rest during the next calls.
+		if (Record.EventType == KEY_EVENT && Record.Event.KeyEvent.wRepeatCount > 1)
+		{
+			m_QueuedKeys = Record.Event.KeyEvent;
+			Record.Event.KeyEvent.wRepeatCount = 1;
+			--m_QueuedKeys.wRepeatCount;
+		}
+
+		return true;
 	}
 
-	bool console::WriteInput(span<INPUT_RECORD> const Buffer, size_t& NumberOfEventsWritten) const
+	bool console::WriteInput(std::span<INPUT_RECORD> const Buffer, size_t& NumberOfEventsWritten) const
 	{
 		if (sWindowMode)
 		{
@@ -1091,7 +1356,7 @@ protected:
 
 		if (BufferSize.x * BufferSize.y * sizeof(CHAR_INFO) > MAXSIZE)
 		{
-			const auto HeightStep = std::max(MAXSIZE / (BufferSize.x * sizeof(CHAR_INFO)), size_t{ 1 });
+			const auto HeightStep = std::max(MAXSIZE / (BufferSize.x * sizeof(CHAR_INFO)), 1uz);
 
 			const size_t Height = ReadRegion.bottom - ReadRegion.top + 1;
 
@@ -1126,14 +1391,17 @@ protected:
 		for_submatrix(Buffer, SubRect, [&](FAR_CHAR_INFO& i)
 		{
 			const auto& Cell = *ConsoleBufferIterator++;
-			i = { replace_replacement_if_needed(Cell), colors::NtColorToFarColor(Cell.Attributes) };
+			i = { replace_replacement_if_needed(Cell), {}, {}, colors::unresolve_defaults(colors::NtColorToFarColor(Cell.Attributes)) };
 		});
 
 		return true;
 	}
 
-	static constexpr uint8_t vt_base_color_index(uint8_t const Index)
+	static constexpr uint8_t vt_color_index(uint8_t const Index)
 	{
+		if (Index > colors::index::nt_last)
+			return Index;
+
 		// NT is RGB, VT is BGR
 		constexpr uint8_t Table[]
 		{
@@ -1148,24 +1416,30 @@ protected:
 			0b111, // 111
 		};
 
-		return Table[Index & 0b111];
-	}
-
-	static constexpr uint8_t vt_color_index(uint8_t const Index)
-	{
-		return (Index & 0b11111000) | vt_base_color_index(Index);
+		return (Index & 0b1000) | Table[Index & 0b111];
 	}
 
 	static constexpr struct
 	{
-		COLORREF FarColor::* Color;
 		FARCOLORFLAGS Flags;
-		string_view Normal, Intense, ExtendedColour;
+		string_view Normal, Intense, ExtendedColour, Default, Separator, ExtraSeparator;
+		bool PreferBasicIndex;
 	}
 	ColorsMapping[]
 	{
-		{ &FarColor::ForegroundColor, FCF_FG_INDEX, L"3"sv, L"9"sv,  L"38"sv },
-		{ &FarColor::BackgroundColor, FCF_BG_INDEX, L"4"sv, L"10"sv, L"48"sv },
+		// Initially Windows supported only RGB format ";2;R;G;B", ":2::R:G:B" was added much later.
+		// Underline only supports the latter, which seems to be more standard/preferable, but we cannot use it exclusively:
+		// as of Nov 2023 the host that comes with the OS only supports the former.
+		{ FCF_FG_INDEX, L"3"sv, L"9"sv,  L"38"sv, L"39"sv, L";"sv, L""sv,  true  },
+		{ FCF_BG_INDEX, L"4"sv, L"10"sv, L"48"sv, L"49"sv, L";"sv, L""sv,  true  },
+		{ 0,            L""sv,  L""sv,   L"58"sv, L"59"sv, L":"sv, L":"sv, false },
+	};
+
+	enum class colors_mapping_type
+	{
+		foreground,
+		background,
+		underline,
 	};
 
 	static constexpr struct
@@ -1177,8 +1451,6 @@ protected:
 	{
 		{ FCF_FG_BOLD,         L"1"sv,     L"22"sv },
 		{ FCF_FG_ITALIC,       L"3"sv,     L"23"sv },
-		{ FCF_FG_UNDERLINE,    L"4"sv,     L"24"sv },
-		{ FCF_FG_UNDERLINE2,   L"21"sv,    L"24"sv },
 		{ FCF_FG_OVERLINE,     L"53"sv,    L"55"sv },
 		{ FCF_FG_STRIKEOUT,    L"9"sv,     L"29"sv },
 		{ FCF_FG_FAINT,        L"2"sv,     L"22"sv },
@@ -1187,71 +1459,47 @@ protected:
 		{ FCF_FG_INVISIBLE,    L"8"sv,     L"28"sv },
 	};
 
-	static const size_t UnderlineIndex = 2;
-	static_assert(StyleMapping[UnderlineIndex].Style == FCF_FG_UNDERLINE);
-	static_assert(StyleMapping[UnderlineIndex + 1].Style == FCF_FG_UNDERLINE2);
-
-	static void make_vt_color(const FarColor& Attributes, string& Str, size_t const MappingIndex)
+	static constexpr string_view UnderlineStyleMapping[]
 	{
-		const auto& Mapping = ColorsMapping[MappingIndex];
-		const auto ColorPart = std::invoke(Mapping.Color, Attributes);
+		L"24"sv,  // UNDERLINE_NONE
+		L"4"sv,   // UNDERLINE_SINGLE
+		L"21"sv,  // UNDERLINE_DOUBLE
+		L"4:3"sv, // UNDERLINE_CURLY
+		L"4:4"sv, // UNDERLINE_DOT
+		L"4:5"sv, // UNDERLINE_DASH
+	};
 
-		if (Attributes.Flags & Mapping.Flags)
+	static void make_vt_color(colors::single_color const Color, colors_mapping_type const MappingType, string& Str)
+	{
+		const auto& Mapping = ColorsMapping[std::to_underlying(MappingType)];
+
+		if (Color.IsIndex)
 		{
-			const auto Index = colors::index_value(ColorPart);
-			if (Index < 16)
-				append(Str, ColorPart & FOREGROUND_INTENSITY? Mapping.Intense : Mapping.Normal, static_cast<wchar_t>(L'0' + vt_base_color_index(Index)));
+			if (colors::is_default(Color.Value))
+				append(Str, Mapping.Default);
+			else if (const auto Index = vt_color_index(colors::index_value(Color.Value)); Index < colors::index::nt_size && Mapping.PreferBasicIndex)
+				append(Str, Color.Value & C_INTENSE? Mapping.Intense : Mapping.Normal, static_cast<wchar_t>(L'0' + (Index & 0b111)));
 			else
-				far::format_to(Str, L"{};5;{}"sv, Mapping.ExtendedColour, Index);
+				far::format_to(Str, L"{1}{0}5{0}{2}"sv, Mapping.Separator, Mapping.ExtendedColour, Index);
 		}
 		else
 		{
-			const auto RGBA = colors::to_rgba(ColorPart);
-			far::format_to(Str, L"{};2;{};{};{}"sv, Mapping.ExtendedColour, RGBA.r, RGBA.g, RGBA.b);
+			const auto RGBA = colors::to_rgba(Color.Value);
+			far::format_to(Str, L"{2}{0}2{0}{1}{3}{0}{4}{0}{5}"sv, Mapping.Separator, Mapping.ExtraSeparator, Mapping.ExtendedColour, RGBA.r, RGBA.g, RGBA.b);
 		}
 	}
 
-	static void make_vt_style(const FarColor& Attributes, string& Str, std::optional<FarColor> const& LastColor)
+	static void make_vt_style(FARCOLORFLAGS const Style, string& Str, FARCOLORFLAGS const LastStyle)
 	{
-		auto UnderlineSet = false;
-
 		for (const auto& i: StyleMapping)
 		{
-			if (Attributes.Flags & i.Style)
-			{
-				if (!LastColor.has_value() || !(LastColor->Flags & i.Style))
-				{
-					append(Str, i.On, L';');
+			const auto Was = (LastStyle & i.Style) != 0;
+			const auto Is  = (Style & i.Style) != 0;
 
-					// See below
-					if (i.Style == FCF_FG_UNDERLINE)
-						UnderlineSet = true;
-				}
-			}
-			else
-			{
-				if (LastColor.has_value() && LastColor->Flags & i.Style)
-				{
-					if (i.Style == FCF_FG_UNDERLINE2 && Attributes.Flags & FCF_FG_UNDERLINE)
-					{
-						// Both Underline and Double Underline have the same off code. 🤦
-						// VT is a bloody joke. Whoever invented it should be punished.
+			if (Was == Is)
+				continue;
 
-						// D is checked after U.
-						// We're dropping D now, so, if we have already enabled U on the previous iteration, this will kill it.
-						// To address this, we undo U if needed, emit the off code and enable U.
-						constexpr auto UnderlineOn = StyleMapping[UnderlineIndex].On;
-
-						if (UnderlineSet)
-							Str.resize(Str.size() - UnderlineOn.size() - 1);
-
-						append(Str, i.Off, L';', UnderlineOn, L';');
-						continue;
-					}
-
-					append(Str, i.Off, L';');
-				}
-			}
+			append(Str, Is > Was? i.On : i.Off, L';');
 		}
 
 		// We should only enter this function if the style has changed and it should add or remove at least something,
@@ -1259,40 +1507,103 @@ protected:
 		Str.pop_back();
 	}
 
-	static void make_vt_attributes(const FarColor& Attributes, string& Str, std::optional<FarColor> const& LastColor)
+	static void make_vt_attributes(const FarColor& Color, string& Str, FarColor const& LastColor)
 	{
-		const auto SameFgColor = LastColor && LastColor->IsFgIndex() == Attributes.IsFgIndex() && LastColor->ForegroundColor == Attributes.ForegroundColor;
-		const auto SameBgColor = LastColor && LastColor->IsBgIndex() == Attributes.IsBgIndex() && LastColor->BackgroundColor == Attributes.BackgroundColor;
-		const auto SameStyle = LastColor && ((LastColor->Flags & FCF_STYLEMASK) == (Attributes.Flags & FCF_STYLEMASK));
+		using colors::single_color;
+		const auto StyleMaskWithoutUnderline = FCF_STYLEMASK & ~FCF_FG_UNDERLINE_MASK;
 
-		if (SameFgColor && SameBgColor && SameStyle)
+		struct expanded_state
 		{
-			assert(false);
-			return;
+			single_color ForegroundColor, BackgroundColor;
+			FARCOLORFLAGS Style;
+			UNDERLINE_STYLE UnderlineStyle;
+			single_color UnderlineColor;
+
+			bool operator==(expanded_state const&) const = default;
+
+			explicit expanded_state(FarColor const& Color):
+				ForegroundColor(single_color::foreground(Color)),
+				BackgroundColor(single_color::background(Color)),
+				Style(Color.Flags& StyleMaskWithoutUnderline),
+				UnderlineStyle(Color.GetUnderline()),
+				UnderlineColor(single_color::underline(Color))
+			{
+				if (Color.Flags & COMMON_LVB_GRID_HORIZONTAL)
+					Style |= FCF_FG_OVERLINE;
+
+				if (Color.Flags & COMMON_LVB_REVERSE_VIDEO)
+					Style |= FCF_FG_INVERSE;
+
+				if (Color.Flags & COMMON_LVB_UNDERSCORE && UnderlineStyle == UNDERLINE_STYLE::UNDERLINE_NONE)
+					UnderlineStyle = UNDERLINE_STYLE::UNDERLINE_SINGLE;
+
+				if (
+					// If there's no underline, no point in emitting its color
+					UnderlineStyle == UNDERLINE_NONE ||
+					// UnderlineColor repurposed a previously reserved field,
+					// which means that it will likely be set to 0 ("transparent black")
+					// when coming from external sources like config or plugins.
+					// We don't want to treat that case as black for obvious reasons.
+					colors::is_transparent(UnderlineColor.Value) ||
+					// No point in emitting the color if it's the same as foreground
+					UnderlineColor == ForegroundColor
+				)
+					UnderlineColor = single_color::default_color();
+			}
 		}
+		const
+		Current(Color), Last(LastColor);
+
+		if (Current == Last)
+			return;
 
 		Str += CSI ""sv;
 
-		if (!SameFgColor)
+		auto ModeAdded = false;
+
+		if (Current.ForegroundColor != Last.ForegroundColor)
 		{
-			make_vt_color(Attributes, Str, 0);
+			make_vt_color(Current.ForegroundColor, colors_mapping_type::foreground, Str);
+			ModeAdded = true;
 		}
 
-		if (!SameBgColor)
+		if (Current.BackgroundColor != Last.BackgroundColor)
 		{
-			if (!SameFgColor)
+			if (ModeAdded)
 				Str += L';';
 
-			make_vt_color(Attributes, Str, 1);
+			make_vt_color(Current.BackgroundColor, colors_mapping_type::background, Str);
+			ModeAdded = true;
 		}
 
-		if (!SameStyle)
+		if (Current.Style != Last.Style)
 		{
-			if (!SameFgColor || !SameBgColor)
+			if (ModeAdded)
 				Str += L';';
 
-			make_vt_style(Attributes, Str, LastColor);
+			make_vt_style(Current.Style, Str, Last.Style);
+			ModeAdded = true;
 		}
+
+		if (Current.UnderlineStyle != Last.UnderlineStyle)
+		{
+			if (ModeAdded)
+				Str += L';';
+
+			Str += UnderlineStyleMapping[Current.UnderlineStyle];
+			ModeAdded = true;
+		}
+
+		if (Current.UnderlineColor != Last.UnderlineColor)
+		{
+			if (ModeAdded)
+				Str += L';';
+
+			make_vt_color(Current.UnderlineColor, colors_mapping_type::underline, Str);
+			ModeAdded = true;
+		}
+
+		assert(ModeAdded);
 
 		Str += L'm';
 	}
@@ -1307,11 +1618,11 @@ protected:
 			(a.Flags & ~IgnoredFlags) == (b.Flags & ~IgnoredFlags) &&
 			a.ForegroundColor == b.ForegroundColor &&
 			a.BackgroundColor == b.BackgroundColor &&
-			// Reserved[0] contains non-BMP codepoints and is of no interest here.
-			a.Reserved[1] == b.Reserved[1];
+			a.UnderlineColor == b.UnderlineColor;
+			// Reserved contains non-BMP codepoints and is of no interest here.
 	}
 
-	static void make_vt_sequence(span<FAR_CHAR_INFO> Input, string& Str, std::optional<FarColor>& LastColor)
+	static void make_vt_sequence(std::span<FAR_CHAR_INFO> Input, string& Str, FarColor& LastColor)
 	{
 		const auto CharWidthEnabled = char_width::is_enabled();
 
@@ -1333,15 +1644,9 @@ protected:
 						Cell.Char = bad_char_replacement;
 						flags::clear(Cell.Attributes.Flags, COMMON_LVB_TRAILING_BYTE);
 					}
-					else
-WARNING_PUSH()
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
-WARNING_DISABLE_GCC("-Wmaybe-uninitialized")
-
-						if (Cell.Char == *LeadingChar)
+					else if (Cell.Char == *LeadingChar)
 					{
 						if (Cell.Char == encoding::replace_char && !char_width::is_wide(encoding::replace_char))
-WARNING_POP()
 						{
 							// As of 13 Jul 2022 ReadConsoleOutputW doesn't work with surrogate pairs (see microsoft/terminal#10810)
 							// It returns two FFFDs instead with leading and trailing flags.
@@ -1379,7 +1684,7 @@ WARNING_POP()
 					(
 						encoding::utf16::is_high_surrogate(Cell.Char) ||
 						// FFFD can be wide too
-						(Cell.Char == encoding::replace_char && char_width::is_wide(encoding::replace_char))
+						(Cell.Char == encoding::replace_char && Cell.Reserved1 <= std::numeric_limits<wchar_t>::max() && char_width::is_wide(encoding::replace_char))
 					)
 				)
 				{
@@ -1387,15 +1692,15 @@ WARNING_POP()
 				}
 			}
 
-			if (!LastColor.has_value() || !is_same_color(Cell.Attributes, *LastColor))
+			if (!is_same_color(Cell.Attributes, LastColor))
 			{
 				make_vt_attributes(Cell.Attributes, Str, LastColor);
 				LastColor = Cell.Attributes;
 			}
 
-			if (CharWidthEnabled && Cell.Char == encoding::replace_char && Cell.Attributes.Reserved[0] > std::numeric_limits<wchar_t>::max())
+			if (CharWidthEnabled && Cell.Char == encoding::replace_char && Cell.Reserved1 > std::numeric_limits<wchar_t>::max())
 			{
-				const auto Pair = encoding::utf16::to_surrogate(Cell.Attributes.Reserved[0]);
+				const auto Pair = encoding::utf16::to_surrogate(Cell.Reserved1);
 				append(Str, Pair.first, Pair.second);
 
 				if (char_width::is_half_width_surrogate_broken())
@@ -1410,9 +1715,74 @@ WARNING_POP()
 
 	class console::implementation
 	{
-	public:
-		static bool WriteOutputVT(matrix<FAR_CHAR_INFO>& Buffer, rectangle const SubRect, rectangle const& WriteRegion)
+		class foreign_blocks_list
 		{
+		public:
+			void queue(FAR_CHAR_INFO const& Cell, point const& Point, rectangle const WorkingArea)
+			{
+				const auto IsForeign = check(Cell);
+				if (IsForeign)
+				{
+					if (!m_ForeignBlock)
+						m_ForeignBlock.emplace(WorkingArea.left + Point.x, WorkingArea.top + Point.y, WorkingArea.left + Point.x, WorkingArea.top + Point.y);
+					else
+						++m_ForeignBlock->right;
+				}
+
+				if (m_ForeignBlock && (!IsForeign || Point.x == WorkingArea.width() - 1 || Point.y == WorkingArea.height() - 1))
+					queue();
+			}
+
+			void unstash() const
+			{
+				for (const auto& Block : m_ForeignBlocks)
+					::console.unstash_output(Block);
+			}
+
+		private:
+			static bool check(FAR_CHAR_INFO const& Cell)
+			{
+				return
+					Cell.Attributes.Flags & FCF_FOREIGN &&
+					colors::is_transparent(Cell.Attributes.ForegroundColor) &&
+					colors::is_transparent(Cell.Attributes.BackgroundColor);
+			}
+
+			void queue()
+			{
+				for (auto& Block: m_ForeignBlocks)
+				{
+					if (
+						Block.left == m_ForeignBlock->left &&
+						Block.right == m_ForeignBlock->right &&
+						Block.bottom == m_ForeignBlock->top - 1
+						)
+					{
+						Block.bottom = m_ForeignBlock->bottom;
+						m_ForeignBlock.reset();
+						return;
+					}
+				}
+
+				m_ForeignBlocks.emplace_back(*m_ForeignBlock);
+				m_ForeignBlock.reset();
+			}
+
+			std::vector<rectangle> m_ForeignBlocks;
+			std::optional<rectangle> m_ForeignBlock;
+		};
+
+	public:
+		static bool WriteOutputVT(matrix<FAR_CHAR_INFO>& Buffer, point const BufferCoord, rectangle const& WriteRegion)
+		{
+			const rectangle SubRect
+			{
+				BufferCoord.x,
+				BufferCoord.y,
+				BufferCoord.x + WriteRegion.width() - 1,
+				BufferCoord.y + WriteRegion.height() - 1
+			};
+
 			const auto Out = ::console.GetOutputHandle();
 
 			CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -1455,7 +1825,7 @@ WARNING_POP()
 			if (const auto Area = SubRect.width() * SubRect.height(); Area > 4)
 				Str.reserve(std::max(1024, Area * 2));
 
-			std::optional<FarColor> LastColor;
+			auto LastColor = colors::default_color();
 
 			point ViewportSize;
 			{
@@ -1487,7 +1857,9 @@ WARNING_POP()
 				// Save cursor position
 				Str = ANSISYSSC L""sv;
 
-				for (const auto& i: irange(SubRect.top + SubrectOffset, std::min(SubRect.top + SubrectOffset + ViewportSize.y, SubRect.bottom + 1)))
+				foreign_blocks_list ForeignBlocksList;
+
+				for (const auto i: std::views::iota(SubRect.top + SubrectOffset, std::min(SubRect.top + SubrectOffset + ViewportSize.y, SubRect.bottom + 1)))
 				{
 					if (i != SubRect.top + SubrectOffset)
 					{
@@ -1495,26 +1867,44 @@ WARNING_POP()
 							ANSISYSRC // Restore cursor position
 							CSI L"1B" // Move cursor down
 							ANSISYSSC // Save again
-							L""sv;
 
-						// For some reason restoring the cursor position affects colors
-						LastColor.reset();
+							// conhost used to preserve colors after ANSISYSRC, but it is not the case anymore (see terminal#14612)
+							// Explicitly reset them here for consistency across implementations.
+							CSI L"m"sv;
+
+						LastColor = colors::default_color();
 					}
 
-					make_vt_sequence(Buffer[i].subspan(SubRect.left, SubRect.width()), Str, LastColor);
+					const auto BlockRow = Buffer[i].subspan(SubRect.left, SubRect.width());
+					make_vt_sequence(BlockRow, Str, LastColor);
+
+					if (SubRect.right == ScrX && i != ScrY)
+					{
+						// Explicitly ending rows with \n should (hopefully) give a hint to the host
+						// that we're writing something structured and not just a stream,
+						// so it's better to leave the text alone when resizing the buffer.
+						// Surprisingly, it also fixes terminal#15153.
+						Str += L'\n';
+					}
+
+					for (const auto& Cell: BlockRow)
+					{
+						ForeignBlocksList.queue(Cell, { static_cast<int>(&Cell - BlockRow.data()), i - (SubRect.top + SubrectOffset) }, SubRect);
+					}
 				}
 
 				if (!::console.Write(Str))
 					return false;
 
-				Str.clear();
+				ForeignBlocksList.unstash();
 
+				Str.clear();
 			}
 
-			return ::console.Write(CSI L"0m"sv);
+			return ::console.Write(CSI L"m"sv);
 		}
 
-		class cursor_suppressor: public hide_cursor
+		class cursor_suppressor: hide_cursor
 		{
 		public:
 			NONCOPYABLE(cursor_suppressor);
@@ -1555,34 +1945,20 @@ WARNING_POP()
 			return true;
 		}
 
-		static bool WriteOutputNTImplDebug(CHAR_INFO* const Buffer, point const BufferSize, rectangle const& WriteRegion)
+		static bool WriteOutputNT(matrix<FAR_CHAR_INFO>& Buffer, point const BufferCoord, rectangle const& WriteRegion)
 		{
-			if constexpr ((false))
+			const rectangle SubRect
 			{
-				assert(BufferSize.x == WriteRegion.width());
-				assert(BufferSize.y == WriteRegion.height());
+				BufferCoord.x,
+				BufferCoord.y,
+				BufferCoord.x + WriteRegion.width() - 1,
+				BufferCoord.y + WriteRegion.height() - 1
+			};
 
-				const auto invert_colors = [&]
-				{
-					for (auto& i: span(Buffer, BufferSize.x* BufferSize.y))
-						i.Attributes = (i.Attributes & FCF_RAWATTR_MASK) | extract_integer<BYTE, 0>(~i.Attributes);
-				};
-
-				invert_colors();
-
-				WriteOutputNTImpl(Buffer, BufferSize, WriteRegion);
-				Sleep(50);
-
-				invert_colors();
-			}
-
-			return WriteOutputNTImpl(Buffer, BufferSize, WriteRegion) != FALSE;
-		}
-
-		static bool WriteOutputNT(matrix<FAR_CHAR_INFO>& Buffer, rectangle const SubRect, rectangle const& WriteRegion)
-		{
 			std::vector<CHAR_INFO> ConsoleBuffer;
 			ConsoleBuffer.reserve(SubRect.width() * SubRect.height());
+
+			foreign_blocks_list ForeignBlocksList;
 
 			if (char_width::is_enabled())
 			{
@@ -1619,13 +1995,15 @@ WARNING_POP()
 					}
 
 					ConsoleBuffer.emplace_back(CHAR_INFO{ { ReplaceControlCharacter(Cell.Char) }, colors::FarColorToConsoleColor(Cell.Attributes) });
+					ForeignBlocksList.queue(Cell, Point, SubRect);
 				});
 			}
 			else
 			{
-				for_submatrix(Buffer, SubRect, [&](const FAR_CHAR_INFO& i)
+				for_submatrix(Buffer, SubRect, [&](const FAR_CHAR_INFO& Cell, point const Point)
 				{
-					ConsoleBuffer.emplace_back(CHAR_INFO{ { ReplaceControlCharacter(i.Char) }, colors::FarColorToConsoleColor(i.Attributes) });
+					ConsoleBuffer.emplace_back(CHAR_INFO{ { ReplaceControlCharacter(Cell.Char) }, colors::FarColorToConsoleColor(Cell.Attributes) });
+					ForeignBlocksList.queue(Cell, Point, SubRect);
 				});
 			}
 
@@ -1633,7 +2011,7 @@ WARNING_POP()
 
 			if (BufferSize.x * BufferSize.y * sizeof(CHAR_INFO) > MAXSIZE)
 			{
-				const auto HeightStep = std::max(MAXSIZE / (BufferSize.x * sizeof(CHAR_INFO)), size_t{ 1 });
+				const auto HeightStep = std::max(MAXSIZE / (BufferSize.x * sizeof(CHAR_INFO)), 1uz);
 
 				for (size_t i = 0, Height = WriteRegion.height(); i < Height; i += HeightStep)
 				{
@@ -1651,15 +2029,17 @@ WARNING_POP()
 						PartialWriteRegion.height()
 					};
 
-					if (!WriteOutputNTImplDebug(ConsoleBuffer.data() + i * PartialBufferSize.x, PartialBufferSize, PartialWriteRegion))
+					if (!WriteOutputNTImpl(ConsoleBuffer.data() + i * PartialBufferSize.x, PartialBufferSize, PartialWriteRegion))
 						return false;
 				}
 			}
 			else
 			{
-				if (!WriteOutputNTImplDebug(ConsoleBuffer.data(), BufferSize, WriteRegion))
+				if (!WriteOutputNTImpl(ConsoleBuffer.data(), BufferSize, WriteRegion))
 					return false;
 			}
+
+			ForeignBlocksList.unstash();
 
 			return true;
 		}
@@ -1685,21 +2065,144 @@ WARNING_POP()
 			return true;
 		}
 
-		static bool SetPaletteVT(std::array<COLORREF, 16> const& Palette)
+		static bool GetPaletteVT(std::array<COLORREF, 256>& Palette)
+		{
+			try
+			{
+				LOGDEBUG(L"Reading VT palette - here be dragons"sv);
+
+				const auto
+					OSCPrefix = ESC L"]4"sv,
+					OSCSuffix = ST L""sv;
+
+				string Request;
+				Request.reserve(OSCPrefix.size() + L";255;?"sv.size() * Palette.size() - 100 - 10 + OSCSuffix.size());
+
+				// A single OSC for the whole thing.
+				// Querying the palette was introduced after the terse syntax, so it's fine.
+				Request = OSCPrefix;
+
+				for (const auto i: std::views::iota(0uz, Palette.size()))
+					far::format_to(Request, L";{};?"sv, vt_color_index(static_cast<uint8_t>(i)));
+
+				Request += OSCSuffix;
+
+				const auto ResponseData = query_vt(Request);
+				if (ResponseData.empty())
+				{
+					LOGWARNING(L"OSC 4 query is not supported"sv, Request);
+					return false;
+				}
+
+				const auto give_up = [&]
+				{
+					throw far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false);
+				};
+
+				string_view Response = ResponseData;
+				if (!Response.ends_with(L'\\'))
+					give_up();
+
+				Response.remove_suffix(1);
+
+				const auto
+					Prefix = ESC "]"sv,
+					Suffix = ESC ""sv,
+					RGBPrefix = L"rgb:"sv;
+
+				size_t ColorsSet = 0;
+
+				for (auto PaletteToken: enum_tokens(Response, L"\\"sv))
+				{
+					if (!PaletteToken.starts_with(Prefix) || !PaletteToken.ends_with(Suffix))
+						give_up();
+
+					PaletteToken.remove_prefix(Prefix.size());
+					PaletteToken.remove_suffix(Suffix.size());
+
+					enum_tokens const Subtokens(PaletteToken, L";"sv);
+
+					auto SubIterator = Subtokens.cbegin();
+					if (SubIterator == Subtokens.cend())
+						give_up();
+
+					if (*SubIterator++ != L"4"sv)
+						give_up();
+
+					const auto VtIndex = from_string<unsigned>(*SubIterator++);
+					if (VtIndex >= Palette.size())
+						give_up();
+
+					auto& PaletteColor = Palette[vt_color_index(VtIndex)];
+
+					auto ColorStr = *SubIterator;
+					if (!ColorStr.starts_with(RGBPrefix))
+						give_up();
+
+					ColorStr.remove_prefix(RGBPrefix.size());
+
+					if (ColorStr.size() != L"0000"sv.size() * 3 + 2)
+						give_up();
+
+					const auto color = [&](size_t const Offset)
+					{
+						const auto Value = from_string<unsigned>(ColorStr.substr(Offset * L"0000/"sv.size(), 4), {}, 16);
+						if (Value > 0xffff)
+							give_up();
+
+						return Value / 0x0101;
+					};
+
+					PaletteColor = RGB(color(0), color(1), color(2));
+					++ColorsSet;
+				}
+
+				if (ColorsSet != Palette.size())
+					give_up();
+
+				LOGDEBUG(L"VT palette read successfuly"sv);
+				return true;
+			}
+			catch (far_exception const& e)
+			{
+				LOGERROR(L"{}"sv, e);
+				return false;
+			}
+		}
+
+		static bool GetPaletteNT(std::array<COLORREF, 256>& Palette)
+		{
+			if (!imports.GetConsoleScreenBufferInfoEx)
+				return false;
+
+			CONSOLE_SCREEN_BUFFER_INFOEX csbi{ sizeof(csbi) };
+			if (!imports.GetConsoleScreenBufferInfoEx(::console.GetOutputHandle(), &csbi))
+			{
+				LOGERROR(L"GetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
+				return false;
+			}
+
+			std::ranges::copy(csbi.ColorTable, Palette.begin());
+
+			return true;
+		}
+
+		static bool SetPaletteVT(std::array<COLORREF, 256> const& Palette)
 		{
 			string Str;
-			Str.reserve(OSC(L"4;15;rgb:ff/ff/ff").size() * 16);
+			Str.reserve(OSC(L"4;255;rgb:ff/ff/ff").size() * Palette.size() - 100 - 10);
 
 			for (const auto& [Color, i] : enumerate(Palette))
 			{
-				const union { COLORREF Color; rgba RGBA; } Value{ Color };
-				far::format_to(Str, OSC(L"4;{};rgb:{:02x}/{:02x}/{:02x}"), vt_color_index(i), Value.RGBA.r, Value.RGBA.g, Value.RGBA.b);
+				const auto RGBA = colors::to_rgba(Color);
+				// A separate OSC for every color: unfortunately the terse syntax was only added in 2020
+				far::format_to(Str, OSC(L"4;{};rgb:{:02x}/{:02x}/{:02x}"), vt_color_index(i), RGBA.r, RGBA.g, RGBA.b);
 			}
 
 			return ::console.Write(Str);
 		}
 
-		static bool SetPaletteNT(std::array<COLORREF, 16> const& Palette)
+		static bool SetPaletteNT(std::array<COLORREF, 256> const& Palette)
 		{
 			if (!imports.GetConsoleScreenBufferInfoEx)
 				return false;
@@ -1713,10 +2216,12 @@ WARNING_POP()
 				return false;
 			}
 
-			if (std::equal(ALL_CONST_RANGE(Palette), ALL_CONST_RANGE(csbi.ColorTable)))
+			std::span const NtPalette(Palette.data(), colors::index::nt_size);
+
+			if (std::ranges::equal(NtPalette, csbi.ColorTable))
 				return true;
 
-			std::copy(ALL_CONST_RANGE(Palette), std::begin(csbi.ColorTable));
+			std::ranges::copy(NtPalette, std::begin(csbi.ColorTable));
 
 			if (!imports.SetConsoleScreenBufferInfoEx(Output, &csbi))
 			{
@@ -1735,6 +2240,15 @@ WARNING_POP()
 
 	bool console::WriteOutput(matrix<FAR_CHAR_INFO>& Buffer, point BufferCoord, const rectangle& WriteRegionRelative) const
 	{
+		if (IsVtActive())
+		{
+			const int Delta = sWindowMode? GetDelta() : 0;
+			auto WriteRegion = WriteRegionRelative;
+			WriteRegion.top += Delta;
+			WriteRegion.bottom += Delta;
+			return implementation::WriteOutputVT(Buffer, BufferCoord, WriteRegion);
+		}
+
 		if (ExternalConsole.Imports.pWriteOutput)
 		{
 			const COORD BufferSize{ static_cast<short>(Buffer.width()), static_cast<short>(Buffer.height()) };
@@ -1747,18 +2261,22 @@ WARNING_POP()
 		WriteRegion.top += Delta;
 		WriteRegion.bottom += Delta;
 
-		const rectangle SubRect
-		{
-			BufferCoord.x,
-			BufferCoord.y,
-			BufferCoord.x + WriteRegion.width() - 1,
-			BufferCoord.y + WriteRegion.height() - 1
-		};
-
-		return (IsVtActive()? implementation::WriteOutputVT : implementation::WriteOutputNT)(Buffer, SubRect, WriteRegion);
+		return implementation::WriteOutputNT(Buffer, BufferCoord, WriteRegion);
 	}
 
-	bool console::Read(span<wchar_t> const Buffer, size_t& Size) const
+	bool console::WriteOutputGather(matrix<FAR_CHAR_INFO>& Buffer, std::span<rectangle const> WriteRegions) const
+	{
+		// TODO: VT can handle this in one go
+		for (const auto& i: WriteRegions)
+		{
+			if (!WriteOutput(Buffer, { i.left, i.top }, i))
+				return false;
+		}
+
+		return true;
+	}
+
+	bool console::Read(std::span<wchar_t> const Buffer, size_t& Size) const
 	{
 		DWORD NumberOfCharsRead;
 		if (!ReadConsole(GetInputHandle(), Buffer.data(), static_cast<DWORD>(Buffer.size()), &NumberOfCharsRead, {}))
@@ -1861,24 +2379,34 @@ WARNING_POP()
 
 	bool console::FlushInputBuffer() const
 	{
+		if (m_QueuedKeys.wRepeatCount)
+			m_QueuedKeys = {};
+
 		return FlushConsoleInputBuffer(GetInputHandle()) != FALSE;
 	}
 
 	bool console::GetNumberOfInputEvents(size_t& NumberOfEvents) const
 	{
-		DWORD dwNumberOfEvents = 0;
-		const auto Result = GetNumberOfConsoleInputEvents(GetInputHandle(), &dwNumberOfEvents) != FALSE;
-		NumberOfEvents = dwNumberOfEvents;
-		return Result;
+		if (DWORD dwNumberOfEvents = 0; GetNumberOfConsoleInputEvents(GetInputHandle(), &dwNumberOfEvents))
+		{
+			NumberOfEvents = m_QueuedKeys.wRepeatCount + dwNumberOfEvents;
+			return true;
+		}
+
+		if (!m_QueuedKeys.wRepeatCount)
+			return false;
+
+		NumberOfEvents = m_QueuedKeys.wRepeatCount;
+		return true;
 	}
 
 	bool console::GetAlias(string_view const Name, string& Value, string_view const ExeName) const
 	{
-		os::last_error_guard Guard;
+		SCOPED_ACTION(os::last_error_guard);
 
 		null_terminated const C_Name(Name), C_ExeName(ExeName);
 
-		return os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](span<wchar_t> Buffer)
+		return os::detail::ApiDynamicErrorBasedStringReceiver(ERROR_INSUFFICIENT_BUFFER, Value, [&](std::span<wchar_t> Buffer)
 		{
 			// This API design is mental:
 			// - If everything is ok, it return the string size, including the terminating \0
@@ -1896,7 +2424,7 @@ WARNING_POP()
 			);
 
 			if (!ReturnedSizeInBytes || (ReturnedSizeInBytes == BufferSizeInBytes && GetLastError() == ERROR_INSUFFICIENT_BUFFER))
-				return size_t{};
+				return 0uz;
 
 			return ReturnedSizeInBytes / sizeof(wchar_t) - 1;
 		});
@@ -1989,8 +2517,8 @@ WARNING_POP()
 	{
 		// https://github.com/microsoft/terminal/issues/10337
 
-		// As of 7 Oct 2022 GetLargestConsoleWindowSize is broken in WT.
-		// It takes the current screen resolution and divides it by an inadequate font size, e.g. 1x16.
+		// As of 15 Jul 2024 GetLargestConsoleWindowSize is broken in WT.
+		// It takes the current screen size in pixels and divides it by an inadequate font size, e.g. 1x16 or 1x1.
 
 		// It is unlikely that it is ever gonna be fixed, so we do a few very basic checks here to filter out obvious rubbish.
 
@@ -2007,6 +2535,20 @@ WARNING_POP()
 		// The API works with SHORTs, anything larger than that makes no sense.
 		if (Size.x >= std::numeric_limits<SHORT>::max() || Size.y >= std::numeric_limits<SHORT>::max())
 			return false;
+
+		// If we got here, it is either legit or they used some fallback 1x1 font and the proportions are not screwed enough to fail the checks above.
+		if (const auto Monitor = MonitorFromWindow(::console.GetWindow(), MONITOR_DEFAULTTONEAREST))
+		{
+			if (MONITORINFO Info{ sizeof(Info) }; GetMonitorInfo(Monitor, &Info))
+			{
+				// The smallest selectable in the UI font is 5x2. Anything smaller than that is likely rubbish and unreadable anyway.
+				if (const auto AssumedFontHeight = (Info.rcWork.bottom - Info.rcWork.top) / Size.y; AssumedFontHeight < 5)
+					return false;
+
+				if (const auto AssumedFontWidth = (Info.rcWork.right - Info.rcWork.left) / Size.x; AssumedFontWidth < 2)
+					return false;
+			}
+		}
 
 		return true;
 	}
@@ -2080,6 +2622,25 @@ WARNING_POP()
 				FillConsoleOutputAttribute(GetOutputHandle(), ConColor, RightSize, RightCoord, &CharsWritten);
 			}
 		}
+		return true;
+	}
+
+	bool console::Clear(const FarColor& Color) const
+	{
+		ClearExtraRegions(Color, CR_BOTH);
+
+		point ViewportSize;
+		if (!GetSize(ViewportSize))
+			return false;
+
+		const auto ConColor = colors::FarColorToConsoleColor(Color);
+		const DWORD Size = ViewportSize.x * ViewportSize.y;
+
+		COORD const Coord{ 0, GetDelta() };
+		DWORD CharsWritten;
+		FillConsoleOutputCharacter(GetOutputHandle(), L' ', Size, Coord, &CharsWritten);
+		FillConsoleOutputAttribute(GetOutputHandle(), ConColor, Size, Coord, &CharsWritten);
+
 		return true;
 	}
 
@@ -2214,6 +2775,33 @@ WARNING_POP()
 		return ::GetDelta(csbi);
 	}
 
+	bool console::input_queue_inspector::search(function_ref<bool(INPUT_RECORD const&)> Predicate)
+	{
+		const auto NumberOfEvents = []
+		{
+			size_t Result;
+			return ::console.GetNumberOfInputEvents(Result)? Result : 0;
+		}();
+
+		if (m_Buffer.size() < NumberOfEvents)
+		{
+			m_Buffer.clear();
+			resize_exp(m_Buffer, NumberOfEvents);
+		}
+
+		if (!os::handle::is_signaled(::console.GetInputHandle(), 100ms))
+			return false;
+
+		DWORD EventsRead = 0;
+		if (!PeekConsoleInput(::console.GetInputHandle(), m_Buffer.data(), static_cast<DWORD>(m_Buffer.size()), &EventsRead))
+		{
+			LOGERROR(L"PeekConsoleInput(): {}"sv, os::last_error());
+			return false;
+		}
+
+		return std::ranges::any_of(m_Buffer | std::views::take(EventsRead), Predicate);
+	}
+
 	bool console::ScrollScreenBuffer(rectangle const& ScrollRectangle, point DestinationOrigin, const FAR_CHAR_INFO& Fill) const
 	{
 		const CHAR_INFO SysFill{ { Fill.Char }, colors::FarColorToConsoleColor(Fill.Attributes) };
@@ -2316,7 +2904,7 @@ WARNING_POP()
 		return ExternalConsole.Imports.pWriteOutput.operator bool();
 	}
 
-	bool console::IsWidePreciseExpensive(char32_t const Codepoint)
+	size_t console::GetWidthPreciseExpensive(string_view const Str)
 	{
 		// It ain't stupid if it works
 
@@ -2347,27 +2935,31 @@ WARNING_POP()
 			LOGWARNING(L"SetConsoleCursorPosition(): {}"sv, os::last_error());
 
 			if (GetLastError() != ERROR_INVALID_HANDLE)
-				return false;
+				return 1;
 
-			LOGINFO(L"Reinitializing");
+			LOGINFO(L"Reinitializing"sv);
 			initialize();
-			return false;
 		}
 
 		DWORD Written;
-		const auto Pair = encoding::utf16::to_surrogate(Codepoint);
-		const std::array Chars{ Pair.first, Pair.second };
-		if (!WriteConsole(m_WidthTestScreen.native_handle(), Chars.data(), Pair.second? 2 : 1, &Written, {}))
+		if (!WriteConsole(m_WidthTestScreen.native_handle(), Str.data(), static_cast<DWORD>(Str.size()), &Written, {}))
 		{
 			LOGWARNING(L"WriteConsole(): {}"sv, os::last_error());
-			return false;
+			return Str.size();
 		}
 
 		CONSOLE_SCREEN_BUFFER_INFO Info;
 		if (!get_console_screen_buffer_info(m_WidthTestScreen.native_handle(), &Info))
-			return false;
+			return Str.size();
 
-		return Info.dwCursorPosition.X > 1;
+		return Info.dwCursorPosition.X;
+	}
+
+	size_t console::GetWidthPreciseExpensive(char32_t const Codepoint)
+	{
+		const auto Pair = encoding::utf16::to_surrogate(Codepoint);
+		const std::array Chars{ Pair.first, Pair.second };
+		return GetWidthPreciseExpensive({ Chars.data(), Pair.second? 2uz : 1uz });
 	}
 
 	void console::ClearWideCache()
@@ -2375,31 +2967,34 @@ WARNING_POP()
 		m_WidthTestScreen = {};
 	}
 
-	bool console::GetPalette(std::array<COLORREF, 16>& Palette) const
-	{
-		if (!imports.GetConsoleScreenBufferInfoEx)
-			return false;
-
-		CONSOLE_SCREEN_BUFFER_INFOEX csbi{ sizeof(csbi) };
-		if (!imports.GetConsoleScreenBufferInfoEx(GetOutputHandle(), &csbi))
-		{
-			LOGERROR(L"GetConsoleScreenBufferInfoEx(): {}"sv, os::last_error());
-			return false;
-		}
-
-		std::copy(ALL_CONST_RANGE(csbi.ColorTable), Palette.begin());
-
-		return true;
-	}
-
-	bool console::SetPalette(std::array<COLORREF, 16> const& Palette) const
+	bool console::GetPalette(std::array<COLORREF, 256>& Palette) const
 	{
 		// Happy path
-		if (IsVtEnabled())
-			return implementation::SetPaletteVT(Palette);
+		const auto VtEnabled = IsVtEnabled();
+		if (VtEnabled && implementation::GetPaletteVT(Palette))
+			return true;
 
 		// Legacy console
-		if (!IsVtSupported())
+		if (VtEnabled || !IsVtSupported())
+			return implementation::GetPaletteNT(Palette);
+
+		// If VT is not enabled, we enable it temporarily and use VT method if we can:
+		if ([[maybe_unused]] scoped_vt_output const VtOutput{})
+			return implementation::GetPaletteVT(Palette);
+
+		// Otherwise fallback to NT
+		return implementation::GetPaletteNT(Palette);
+	}
+
+	bool console::SetPalette(std::array<COLORREF, 256> const& Palette) const
+	{
+		// Happy path
+		const auto VtEnabled = IsVtEnabled();
+		if (VtEnabled && implementation::SetPaletteVT(Palette))
+			return true;
+
+		// Legacy console
+		if (VtEnabled || !IsVtSupported())
 			return implementation::SetPaletteNT(Palette);
 
 		// These methods are currently not synchronized in WT 🤦
@@ -2407,11 +3002,8 @@ WARNING_POP()
 		// VT does and updates the CSBI too.
 
 		// If VT is not enabled, we enable it temporarily and use VT method if we can:
-		if (std::pair<HANDLE, DWORD> Data{ GetOutputHandle(), 0 }; GetMode(Data.first, Data.second) && SetMode(Data.first, Data.second | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
-		{
-			SCOPE_EXIT { SetMode(Data.first, Data.second); };
+		if ([[maybe_unused]] scoped_vt_output const VtOutput{})
 			return implementation::SetPaletteVT(Palette);
-		}
 
 		// Otherwise fallback to NT
 		return implementation::SetPaletteNT(Palette);
@@ -2437,7 +3029,7 @@ WARNING_POP()
 		case TBPF_ERROR:         return L'2';
 		case TBPF_PAUSED:        return L'4';
 		default:
-			UNREACHABLE;
+			std::unreachable();
 		}
 	}
 
@@ -2450,6 +3042,103 @@ WARNING_POP()
 	{
 		// 🤦
 		send_vt_command(far::format(OSC(L"9;4;{};{}"), state_to_vt(State), Percent));
+	}
+
+// I'd prefer a more obscure number, but looks like only 1-6 are supported
+#define SERVICE_PAGE_NUMBER "3"
+
+	void console::stash_output() const
+	{
+		send_vt_command(CSI L";;;;1;;;" SERVICE_PAGE_NUMBER "$v"sv);
+	}
+
+	void console::unstash_output(rectangle const Coordinates) const
+	{
+		send_vt_command(far::format(
+			CSI L"{};{};{};{};" SERVICE_PAGE_NUMBER ";{};{};1$v"sv,
+			1 + Coordinates.top,
+			1 + Coordinates.left,
+			1 + Coordinates.bottom,
+			1 + Coordinates.right,
+			1 + Coordinates.top,
+			1 + Coordinates.left
+		));
+	}
+
+#undef SERVICE_PAGE_NUMBER
+
+	void console::start_prompt() const
+	{
+		send_vt_command(OSC("133;D"));
+		send_vt_command(OSC("133;A"));
+	}
+
+	void console::start_command() const
+	{
+		send_vt_command(OSC("133;B"));
+	}
+
+	void console::start_output() const
+	{
+		send_vt_command(OSC("133;C"));
+	}
+
+	void console::command_finished() const
+	{
+		send_vt_command(OSC("133;D"));
+	}
+
+	void console::command_finished(int const ExitCode) const
+	{
+		send_vt_command(far::format(OSC("133;D;{}"), ExitCode));
+	}
+
+	void console::command_not_found(string_view const Command) const
+	{
+		send_vt_command(far::format(OSC("9001;CmdNotFound;{}"), Command));
+	}
+
+	std::optional<bool> console::is_grapheme_clusters_on() const
+	{
+		try
+		{
+#define DECRQM_REQUEST "?2027"
+
+			const auto ResponseData = query_vt(CSI DECRQM_REQUEST "$p"sv);
+			if (ResponseData.empty())
+			{
+				LOGWARNING(L"DECRQM 2027 query is not supported"sv);
+				return {};
+			}
+
+			const auto
+				Prefix = CSI DECRQM_REQUEST ";"sv,
+				Suffix = L"$y"sv;
+
+#undef DECRQM_REQUEST
+
+			const auto give_up = [&]
+			{
+				throw far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false);
+			};
+
+			if (ResponseData.size() != Prefix.size() + 1 + Suffix.size() || !ResponseData.starts_with(Prefix) || !ResponseData.ends_with(Suffix))
+				give_up();
+
+			switch (ResponseData[Prefix.size()])
+			{
+			case L'3': return true;
+			case L'4': return false;
+			default:
+				give_up();
+				std::unreachable();
+			}
+		}
+		catch (far_exception const& e)
+		{
+			LOGERROR(L"{}"sv, e);
+			return {};
+		}
 	}
 
 	bool console::GetCursorRealPosition(point& Position) const
@@ -2484,11 +3173,8 @@ WARNING_POP()
 			return false;
 
 		// If VT is not enabled, we enable it temporarily
-		if (std::pair<HANDLE, DWORD> Data{ GetOutputHandle(), 0 }; GetMode(Data.first, Data.second) && SetMode(Data.first, Data.second | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
-		{
-			SCOPE_EXIT{ SetMode(Data.first, Data.second); };
+		if ([[maybe_unused]] scoped_vt_output const VtOutput{})
 			return Write(Command);
-		}
 
 		return false;
 	}
@@ -2530,8 +3216,8 @@ TEST_CASE("console.vt_color")
 	for (const auto& i: Tests)
 	{
 		string Str[2];
-		console_detail::make_vt_color(i.Color, Str[0], 0);
-		console_detail::make_vt_color(i.Color, Str[1], 1);
+		console_detail::make_vt_color(colors::single_color::foreground(i.Color), console_detail::colors_mapping_type::foreground, Str[0]);
+		console_detail::make_vt_color(colors::single_color::background(i.Color), console_detail::colors_mapping_type::background, Str[1]);
 		REQUIRE(Str[0] == i.Fg);
 		REQUIRE(Str[1] == i.Bg);
 	}
@@ -2539,44 +3225,123 @@ TEST_CASE("console.vt_color")
 
 TEST_CASE("console.vt_sequence")
 {
+	FAR_CHAR_INFO const def{ L' ', {}, {}, colors::default_color() };
+
+	const auto check = [](std::span<FAR_CHAR_INFO> const Buffer, string_view const Expected)
 	{
-		FAR_CHAR_INFO Buffer[3]{};
-		Buffer[0].Char = L' ';
-		Buffer[0].Attributes.Flags = FCF_BG_INDEX | FCF_FG_INDEX | FCF_FG_BOLD;
-		Buffer[0].Attributes.BackgroundColor = 1;
-		Buffer[0].Attributes.ForegroundColor = 10;
+		string Actual;
+		auto LastColor = colors::default_color();
+		console_detail::make_vt_sequence(Buffer, Actual, LastColor);
+		REQUIRE(Expected == Actual);
+	};
+
+#define SGR(modes) CSI #modes "m"
+#define VTSTR(str) L"" str ""sv
+
+	{
+		FAR_CHAR_INFO Buffer[]{ def };
+		check(Buffer, L" "sv);
+	}
+
+	{
+		FAR_CHAR_INFO Buffer[]{ def, def, def, def };
+		Buffer[1].Attributes.BackgroundColor = colors::opaque(C_MAGENTA);
+		Buffer[2].Attributes.ForegroundColor = colors::opaque(C_GREEN);
+		Buffer[3].Attributes.Flags |= FCF_FG_BOLD;
+		check(Buffer, VTSTR(
+			" "
+			SGR(45) " "
+			SGR(32;49) " "
+			SGR(39;1) " "
+		));
+	}
+
+	{
+		FAR_CHAR_INFO Buffer[]{ def, def, def };
+		Buffer[0].Attributes.Flags |= FCF_FG_BOLD;
+		Buffer[0].Attributes.BackgroundColor = colors::opaque(C_BLUE);
+		Buffer[0].Attributes.ForegroundColor = colors::opaque(C_LIGHTGREEN);
 
 		Buffer[1] = Buffer[0];
 
 		Buffer[2] = Buffer[1];
 		flags::clear(Buffer[2].Attributes.Flags, FCF_FG_BOLD);
 
-		string Str;
-		std::optional<FarColor> LastColor;
-		console_detail::make_vt_sequence(Buffer, Str, LastColor);
-
-		REQUIRE(Str == CSI L"92;44;1m" L"  " CSI L"22m" L" "sv);
+		check(Buffer, VTSTR(
+			SGR(92;44;1) "  "
+			SGR(22) " "
+		));
 	}
 
 	{
-		FAR_CHAR_INFO Buffer[3]{};
-		Buffer[0].Char = L' ';
-		Buffer[0].Attributes.Flags = FCF_BG_INDEX | FCF_FG_INDEX | FCF_FG_UNDERLINE2;
-		Buffer[0].Attributes.BackgroundColor = 1;
-		Buffer[0].Attributes.ForegroundColor = 10;
+		FAR_CHAR_INFO Buffer[]{ def, def, def, def, def };
+		Buffer[0].Attributes.BackgroundColor = colors::opaque(C_BLUE);
+		Buffer[0].Attributes.ForegroundColor = colors::opaque(C_YELLOW);
 
 		Buffer[1] = Buffer[0];
+		Buffer[1].Attributes.SetUnderline(UNDERLINE_CURLY);
+		Buffer[1].Attributes.UnderlineColor = Buffer[1].Attributes.ForegroundColor;
+		Buffer[1].Attributes.SetUnderlineIndex(Buffer[1].Attributes.IsFgIndex());
 
 		Buffer[2] = Buffer[1];
-		flags::clear(Buffer[2].Attributes.Flags, FCF_FG_UNDERLINE2);
-		flags::set(Buffer[2].Attributes.Flags, FCF_FG_UNDERLINE);
+		Buffer[2].Attributes.UnderlineColor = colors::opaque(C_RED);
 
-		string Str;
-		std::optional<FarColor> LastColor;
-		console_detail::make_vt_sequence(Buffer, Str, LastColor);
+		Buffer[3] = Buffer[1];
 
-		REQUIRE(Str == CSI L"92;44;21m" L"  " CSI L"24;4m" L" "sv);
+		Buffer[4] = Buffer[3];
+		Buffer[4].Attributes.ForegroundColor = colors::opaque(C_MAGENTA);
+		Buffer[4].Attributes.UnderlineColor = colors::opaque(C_MAGENTA);
+
+
+		check(Buffer, VTSTR(
+			SGR(93;44) " "
+			SGR(4:3) " "
+			SGR(58:5:1) " "
+			SGR(59) " "
+			SGR(35) " "
+		));
 	}
+
+	{
+		FAR_CHAR_INFO Buffer[]{ def, def, def, def, def, def };
+
+		Buffer[0].Attributes.BackgroundColor = colors::opaque(C_BLUE);
+		Buffer[0].Attributes.ForegroundColor = colors::opaque(C_LIGHTGREEN);
+		Buffer[0].Attributes.SetUnderline(UNDERLINE_DOUBLE);
+
+		Buffer[1] = Buffer[0];
+		Buffer[1].Attributes.SetUnderline(UNDERLINE_CURLY);
+		Buffer[1].Attributes.UnderlineColor = colors::opaque(C_YELLOW);
+
+		Buffer[2] = Buffer[1];
+		Buffer[2].Attributes.SetUnderline(UNDERLINE_DOT);
+
+		Buffer[3] = Buffer[2];
+		Buffer[3].Attributes.SetUnderline(UNDERLINE_DASH);
+		Buffer[3].Attributes.UnderlineColor = colors::opaque(0x112233);
+		Buffer[3].Attributes.SetUnderlineIndex(false);
+
+		Buffer[4] = Buffer[3];
+		Buffer[4].Attributes.SetUnderline(UNDERLINE_NONE);
+		Buffer[4].Attributes.UnderlineColor = colors::opaque(0xAABBCC);
+
+		Buffer[5] = Buffer[4];
+		Buffer[5].Attributes.SetUnderline(UNDERLINE_NONE);
+		Buffer[5].Attributes.UnderlineColor = colors::opaque(0xFF06B5);
+
+
+		check(Buffer, VTSTR(
+			SGR(92;44;21) " "
+			SGR(4:3;58:5:11)  " "
+			SGR(4:4) " "
+			SGR(4:5;58:2::51:34:17) " "
+			SGR(24;59)
+			"  "
+		));
+	}
+
+#undef VTSTR
+#undef SGR
 }
 
 #endif

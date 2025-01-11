@@ -88,10 +88,8 @@ public:
 	void DrawCommand(string_view const Command) override
 	{
 		Global->CtrlObject->CmdLine()->DrawFakeCommand(Command);
-		ScrollScreen(1);
 
 		m_Command = Command;
-		m_ShowCommand = true;
 	}
 
 	void Consolise(bool SetTextColour) override
@@ -119,6 +117,8 @@ public:
 
 		if (SetTextColour)
 			console.SetTextAttributes(colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN));
+
+		console.start_output();
 	}
 
 	void DoPrologue() override
@@ -132,7 +132,7 @@ public:
 		m_Finalised = false;
 	}
 
-	void DoEpilogue(bool Scroll) override
+	void DoEpilogue(bool Scroll, bool IsLastInstance) override
 	{
 		if (!m_Activated)
 			return;
@@ -149,19 +149,26 @@ public:
 			std::wcout.flush();
 			Global->ScrBuf->FillBuf();
 
-			m_Consolised = false;
+			if (IsLastInstance)
+				m_Consolised = false;
 		}
 
-		if (Scroll && DoWeReallyHaveToScroll(Global->Opt->ShowKeyBar? 3 : 2))
+		if (Scroll)
 		{
-			ScrollScreen(1);
+			const auto SpaceNeeded = Global->Opt->ShowKeyBar? 3uz : 2uz;
+
+			if (const auto SpaceAvailable = NumberOfEmptyLines(SpaceNeeded); SpaceAvailable < SpaceNeeded)
+				std::wcout << string_view(L"\n\n\n", SpaceNeeded - SpaceAvailable) << std::flush;
+
+			Global->ScrBuf->FillBuf();
 		}
 
 		console.ResetViewportPosition();
 
 		Global->WindowManager->Desktop()->TakeSnapshot();
 
-		m_Finalised = true;
+		if (IsLastInstance)
+			m_Finalised = true;
 	}
 
 	~context() override
@@ -171,7 +178,6 @@ public:
 
 private:
 	string m_Command;
-	bool m_ShowCommand{};
 	bool m_Activated{};
 	bool m_Finalised{};
 	bool m_Consolised{};
@@ -187,7 +193,7 @@ void console_session::EnterPluginContext(bool Scroll)
 	}
 	else
 	{
-		m_PluginContext->DoEpilogue(Scroll);
+		m_PluginContext->DoEpilogue(Scroll, false);
 	}
 
 	m_PluginContext->DoPrologue();
@@ -196,26 +202,25 @@ void console_session::EnterPluginContext(bool Scroll)
 
 void console_session::LeavePluginContext(bool Scroll)
 {
-	Global->ScrBuf->Flush();
 	if (m_PluginContextInvocations)
 		--m_PluginContextInvocations;
 
 	if (m_PluginContext)
 	{
-		m_PluginContext->DoEpilogue(Scroll);
+		m_PluginContext->DoEpilogue(Scroll, !m_PluginContextInvocations);
 	}
 	else
 	{
 		// FCTL_SETUSERSCREEN without corresponding FCTL_GETUSERSCREEN
 		// Old (1.x) behaviour emulation:
 		if (Global->Opt->ShowKeyBar)
-		{
+				std::wcout << L'\n';
+
+		if (Scroll)
 			std::wcout << L'\n';
-		}
+
 		std::wcout.flush();
 		Global->ScrBuf->FillBuf();
-		if (Scroll)
-			ScrollScreen(1);
 		Global->WindowManager->Desktop()->TakeSnapshot();
 	}
 

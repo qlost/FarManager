@@ -46,7 +46,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/2d/matrix.hpp"
 #include "common/2d/point.hpp"
 #include "common/2d/rectangle.hpp"
-#include "common/range.hpp"
 
 // External:
 
@@ -85,15 +84,14 @@ public:
 
 	void FillBuf();
 	void Read(rectangle Where, matrix<FAR_CHAR_INFO>& Dest);
-	void Write(int X,int Y, span<const FAR_CHAR_INFO> Text);
+	void Write(int X,int Y, std::span<const FAR_CHAR_INFO> Text);
 	void RestoreMacroChar();
 	void RestoreElevationChar();
 
-	void ApplyShadow(rectangle Where, bool IsLegacy);
+	void ApplyShadow(rectangle Where);
 	void ApplyColor(rectangle Where, const FarColor& Color);
 	void FillRect(rectangle Where, const FAR_CHAR_INFO& Info);
 
-	void Scroll(size_t Count);
 	void Invalidate(flush_type FlushType = flush_type::all);
 	void Flush(flush_type FlushType = flush_type::all);
 

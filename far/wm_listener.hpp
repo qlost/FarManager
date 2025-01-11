@@ -55,10 +55,12 @@ public:
 	void enable_power_notifications();
 	void disable_power_notifications();
 
+	static HWND service_window();
+
 private:
 	void WindowThreadRoutine(const os::event& ReadyEvent);
 
-	HWND m_Hwnd{};
+	static inline HWND m_Hwnd{};
 	std::exception_ptr m_ExceptionPtr;
 	os::thread m_Thread;
 	struct powernotify_deleter
@@ -66,6 +68,7 @@ private:
 		void operator()(HPOWERNOTIFY Ptr) const;
 	};
 	std::unique_ptr<std::remove_pointer_t<HPOWERNOTIFY>, powernotify_deleter> m_PowerNotify;
+	size_t m_PowerNotifyRefCount{};
 };
 
 #endif // WM_LISTENER_HPP_6C668719_5279_4CB7_81B0_448AC5165C00

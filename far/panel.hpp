@@ -43,10 +43,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.fwd.hpp"
+#include "platform.chrono.hpp"
 
 // Common:
 #include "common/enumerator.hpp"
-#include "common/range.hpp"
 #include "common/string_utils.hpp"
 
 // External:
@@ -117,7 +117,7 @@ enum class panel_mode
 enum class panel_sort: int;
 enum class sort_order: int;
 
-span<std::pair<panel_sort, sort_order> const> default_sort_layers(panel_sort SortMode);
+std::span<std::pair<panel_sort, sort_order> const> default_sort_layers(panel_sort SortMode);
 
 class VMenu2;
 class Edit;
@@ -147,7 +147,7 @@ public:
 	virtual void EditFilter() {}
 	virtual bool FileInFilter(size_t idxItem) {return true;}
 	virtual bool FilterIsEnabled() {return false;}
-	virtual void ReadDiz(span<PluginPanelItem> Items = {}) {}
+	virtual void ReadDiz(std::span<PluginPanelItem> Items = {}) {}
 	virtual void DeleteDiz(string_view Name, string_view ShortName) {}
 	virtual string GetDizName() const { return {}; }
 	virtual void FlushDiz() {}
@@ -184,7 +184,7 @@ public:
 	virtual void UpdateIfRequired() {}
 	virtual void StopFSWatcher() {}
 	virtual bool FindPartName(string_view Name,int Next,int Direct=1) {return false;}
-	virtual bool GetPlainString(string& Dest, int ListPos) const { return false; }
+	virtual bool GetPlainString(string& Dest, int ListPos, os::chrono::time_point CurrentTime) const { return false; }
 	virtual bool GoToFile(long idxItem) {return true;}
 	virtual bool GoToFile(string_view Name, bool OnlyPartName = false) {return true;}
 	virtual long FindFile(string_view Name, bool OnlyPartName = false) {return -1;}
@@ -212,6 +212,7 @@ public:
 	virtual void OnDestroy() {}
 	virtual void InitCurDir(string_view CurDir);
 	virtual void on_swap() {}
+	virtual void dispose(){}
 
 	panel_mode GetMode() const { return m_PanelMode; }
 	void SetMode(panel_mode Mode) { m_PanelMode = Mode; }
@@ -227,7 +228,7 @@ public:
 	void SetSortGroups(bool Mode) {m_SortGroups=Mode;}
 	bool GetShowShortNamesMode() const { return m_ShowShortNames; }
 	void SetShowShortNamesMode(bool Mode) {m_ShowShortNames=Mode;}
-	bool ExecShortcutFolder(int Pos);
+	bool ExecShortcutFolder(size_t Index);
 	bool ExecFolder(string_view Folder, const UUID& PluginUuid, const string& strPluginFile, const string& strPluginData, bool CheckType, bool Silent);
 	bool SaveShortcutFolder(int Pos) const;
 	int SetPluginCommand(int Command,int Param1,void* Param2);
@@ -249,7 +250,7 @@ public:
 	auto enum_selected()
 	{
 		using value_type = os::fs::find_data;
-		return make_inline_enumerator<value_type>([this](const bool Reset, value_type& Value)
+		return inline_enumerator<value_type>([this](const bool Reset, value_type& Value)
 		{
 			if (Reset)
 				GetSelName(nullptr);

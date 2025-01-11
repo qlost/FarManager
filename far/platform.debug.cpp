@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "map_file.hpp"
 #include "pathmix.hpp"
 #include "string_utils.hpp"
+#include "strmix.hpp"
 
 // Platform:
 #include "platform.env.hpp"
@@ -51,6 +52,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common.hpp"
 #include "common/function_ref.hpp"
+#include "common/enum_tokens.hpp"
 
 // External:
 
@@ -60,15 +62,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace os::debug
 {
-	bool debugger_present()
+	bool is_debugger_present()
 	{
 		return IsDebuggerPresent() != FALSE;
 	}
 
-	void breakpoint(bool const Always)
+	void breakpoint()
 	{
-		if (Always || debugger_present())
-			DebugBreak();
+		DebugBreak();
+	}
+
+	void breakpoint_if_debugging()
+	{
+		if (is_debugger_present())
+			breakpoint();
 	}
 
 	void print(const wchar_t* const Str)
@@ -104,12 +111,22 @@ namespace os::debug
 		return Name.get();
 	}
 
-	static void** dummy_current_exception(NTSTATUS const Code)
+	static void** dummy_noncontinuable_exception(NTSTATUS const Code)
 	{
 		static EXCEPTION_RECORD DummyRecord{};
 
 		DummyRecord.ExceptionCode = static_cast<DWORD>(Code);
 		DummyRecord.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
+
+		static void* DummyRecordPtr = &DummyRecord;
+		return &DummyRecordPtr;
+	}
+
+	static void** dummy_continuable_exception(NTSTATUS const Code)
+	{
+		static EXCEPTION_RECORD DummyRecord{};
+
+		DummyRecord.ExceptionCode = static_cast<DWORD>(Code);
 
 		static void* DummyRecordPtr = &DummyRecord;
 		return &DummyRecordPtr;
@@ -128,7 +145,7 @@ namespace os::debug
 #else
 	static void** __current_exception()
 	{
-		return dummy_current_exception(EH_EXCEPTION_NUMBER);
+		return dummy_noncontinuable_exception(EH_EXCEPTION_NUMBER);
 	}
 
 	static void** __current_exception_context()
@@ -149,11 +166,11 @@ namespace os::debug
 		};
 	}
 
-	EXCEPTION_POINTERS fake_exception_information(unsigned const Code)
+	EXCEPTION_POINTERS fake_exception_information(unsigned const Code, bool const Continuable)
 	{
 		return
 		{
-			static_cast<EXCEPTION_RECORD*>(*dummy_current_exception(Code)),
+			static_cast<EXCEPTION_RECORD*>(*(Continuable? dummy_continuable_exception : dummy_noncontinuable_exception)(Code)),
 			static_cast<CONTEXT*>(*dummy_current_exception_context())
 		};
 	}
@@ -188,9 +205,9 @@ namespace os::debug
 			if (!Size)
 				break;
 
-			std::transform(Pointers, Pointers + Size, std::back_inserter(Stack), [](void* Ptr)
+			std::ranges::transform(Pointers, Pointers + Size, std::back_inserter(Stack), [](void* Ptr)
 			{
-				return stack_frame{ reinterpret_cast<uintptr_t>(Ptr), INLINE_FRAME_CONTEXT_INIT };
+				return stack_frame{ std::bit_cast<uintptr_t>(Ptr), INLINE_FRAME_CONTEXT_INIT };
 			});
 
 			i += Size;
@@ -229,6 +246,7 @@ namespace os::debug
 			ContextRecord.R11,
 			ContextRecord.Sp
 #else
+			COMPILER_WARNING("Unknown platform")
 			IMAGE_FILE_MACHINE_UNKNOWN
 #endif
 		};
@@ -241,33 +259,9 @@ namespace os::debug
 		return ADDRESS64{ Offset, 0, AddrModeFlat };
 	};
 
-	template<typename T, typename data>
-	static void stack_walk(data const& Data, function_ref<bool(T&)> const& Walker, function_ref<void(uintptr_t, DWORD)> const& Handler)
+	static BOOL WINAPI legacy_walk(DWORD const MachineType, HANDLE const Process, HANDLE const Thread, LPSTACKFRAME_EX const StackFrame, PVOID const ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE64 const ReadMemoryRoutine, PFUNCTION_TABLE_ACCESS_ROUTINE64 const FunctionTableAccessRoutine, PGET_MODULE_BASE_ROUTINE64 const GetModuleBaseRoutine, PTRANSLATE_ADDRESS_ROUTINE64 const TranslateAddress, DWORD)
 	{
-		T StackFrame{};
-		StackFrame.AddrPC = address(Data.PC);
-		StackFrame.AddrFrame = address(Data.Frame);
-		StackFrame.AddrStack = address(Data.Stack);
-
-		if constexpr (std::same_as<T, STACKFRAME_EX>)
-		{
-			StackFrame.StackFrameSize = sizeof(StackFrame);
-		}
-
-		while (Walker(StackFrame))
-		{
-			// Cast to uintptr_t is ok here: although this function can be used
-			// to capture a stack of 64-bit process from a 32-bit one,
-			// we always use it with the current process only.
-
-			DWORD InlineFrameContext;
-			if constexpr (std::same_as<T, STACKFRAME_EX>)
-				InlineFrameContext = StackFrame.InlineFrameContext;
-			else
-				InlineFrameContext = 0;
-
-			Handler(static_cast<uintptr_t>(StackFrame.AddrPC.Offset), InlineFrameContext);
-		}
+		return imports.StackWalk64(MachineType, Process, Thread, std::bit_cast<LPSTACKFRAME64>(StackFrame), ContextRecord, ReadMemoryRoutine, FunctionTableAccessRoutine, GetModuleBaseRoutine, TranslateAddress);
 	}
 
 	// StackWalk64() may modify context record passed to it, so we will use a copy.
@@ -278,59 +272,26 @@ namespace os::debug
 		if (!imports.StackWalkEx && !imports.StackWalk64)
 			return Result;
 
-		const auto Process = GetCurrentProcess();
 		const auto Data = platform_specific_data(ContextRecord);
 
 		if (Data.MachineType == IMAGE_FILE_MACHINE_UNKNOWN || (!Data.PC && !Data.Frame && !Data.Stack))
 			return Result;
 
-		const auto handler = [&](uintptr_t const Address, DWORD const InlineFrameContext)
-		{
-			Result.push_back({ Address, InlineFrameContext });
-		};
+		STACKFRAME_EX StackFrame{};
+		StackFrame.AddrPC = address(Data.PC);
+		StackFrame.AddrFrame = address(Data.Frame);
+		StackFrame.AddrStack = address(Data.Stack);
+		StackFrame.StackFrameSize = sizeof(StackFrame);
 
-		if (imports.StackWalkEx)
+		const auto Walker = imports.StackWalkEx? *imports.StackWalkEx : legacy_walk;
+		const auto Process = GetCurrentProcess();
+
+		while (Walker(Data.MachineType, Process, ThreadHandle, &StackFrame, &ContextRecord, {}, imports.SymFunctionTableAccess64, imports.SymGetModuleBase64, {}, SYM_STKWALK_DEFAULT))
 		{
-			stack_walk<STACKFRAME_EX>(
-				Data,
-				[&](STACKFRAME_EX& StackFrame)
-				{
-					return imports.StackWalkEx(
-						Data.MachineType,
-						Process,
-						ThreadHandle,
-						&StackFrame,
-						&ContextRecord,
-						{},
-						imports.SymFunctionTableAccess64,
-						imports.SymGetModuleBase64,
-						{},
-						SYM_STKWALK_DEFAULT
-					);
-				},
-				handler
-			);
-		}
-		else
-		{
-			stack_walk<STACKFRAME64>(
-				Data,
-				[&](STACKFRAME64& StackFrame)
-				{
-					return imports.StackWalk64(
-						Data.MachineType,
-						Process,
-						ThreadHandle,
-						&StackFrame,
-						&ContextRecord,
-						{},
-						imports.SymFunctionTableAccess64,
-						imports.SymGetModuleBase64,
-						{}
-					);
-				},
-				handler
-			);
+			// Cast to uintptr_t is ok here: although this function can be used
+			// to capture a stack of 64-bit process from a 32-bit one,
+			// we always use it with the current process only.
+			Result.emplace_back(static_cast<uintptr_t>(StackFrame.AddrPC.Offset), StackFrame.InlineFrameContext);
 		}
 
 		return Result;
@@ -362,9 +323,14 @@ namespace os::debug
 		// Use -service to set it back to _OUT_TO_STDERR (e.g. for macro tests on CI).
 		_set_error_mode(_OUT_TO_MSGBOX);
 
-		_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_WNDW);
-		_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_WNDW);
-		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_WNDW);
+		const auto ReportToUI = [](int const ReportType)
+		{
+			_CrtSetReportMode(ReportType, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_WNDW);
+		};
+
+		ReportToUI(_CRT_WARN);
+		ReportToUI(_CRT_ERROR);
+		ReportToUI(_CRT_ASSERT);
 #endif
 	}
 
@@ -373,28 +339,30 @@ namespace os::debug
 #ifdef _DEBUG
 		_set_error_mode(_OUT_TO_STDERR);
 
-		(void)_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-		(void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-		(void)_CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+		const auto ReportToStdErr = [](int const ReportType)
+		{
+			(void)_CrtSetReportFile(ReportType, _CRTDBG_FILE_STDERR);
+			_CrtSetReportMode(ReportType, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+		};
 
-		_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-		_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+		ReportToStdErr(_CRT_WARN);
+		ReportToStdErr(_CRT_ERROR);
+		ReportToStdErr(_CRT_ASSERT);
 #endif
 	}
 }
 
 namespace os::debug::symbols
 {
-	static bool initialize(HANDLE const Process, string const& Path)
+	static std::optional<bool> initialize(HANDLE const Process, string const& Path)
 	{
 		if (imports.SymInitializeW)
 			return imports.SymInitializeW(Process, EmptyToNull(Path), TRUE) != FALSE;
 
 		if (imports.SymInitialize)
-			return imports.SymInitialize(Process, EmptyToNull(encoding::ansi::get_bytes(Path)), TRUE);
+			return imports.SymInitialize(Process, EmptyToNull(encoding::ansi::get_bytes(Path)), TRUE) != FALSE;
 
-		return false;
+		return {};
 	}
 
 	static auto event_level(DWORD const EventSeverity)
@@ -421,7 +389,7 @@ namespace os::debug::symbols
 		{
 		case CBA_EVENT:
 			{
-				const auto& Event = *static_cast<IMAGEHLP_CBA_EVENT const*>(reinterpret_cast<void const*>(CallbackData));
+				const auto& Event = view_as<IMAGEHLP_CBA_EVENT>(static_cast<uintptr_t>(CallbackData));
 				const auto Level = event_level(Event.severity);
 
 				string Buffer;
@@ -449,7 +417,7 @@ namespace os::debug::symbols
 		}
 	}
 
-	static bool register_callback(HANDLE const Process)
+	static std::optional<bool> register_callback(HANDLE const Process)
 	{
 		if (imports.SymRegisterCallbackW64)
 			return imports.SymRegisterCallbackW64(Process, callback, context_encoding::unicode) != FALSE;
@@ -457,34 +425,101 @@ namespace os::debug::symbols
 		if (imports.SymRegisterCallback64)
 			return imports.SymRegisterCallback64(Process, callback, context_encoding::ansi) != FALSE;
 
-		return false;
+		return {};
+	}
+
+	static void append_to_search_path(string& Path, string_view const Str)
+	{
+		append(Path, Path.empty()? L""sv : L";"sv, Str);
+	};
+
+	static void update_symbols_search_path(HANDLE const Process, string_view const NewPath)
+	{
+		string ExistingPath;
+
+		if (imports.SymGetSearchPathW)
+		{
+			// This stupid function doesn't fill the buffer if it's not large enough.
+			// It also doesn't provide any way to detect that.
+			wchar_t Buffer[MAX_PATH * 4];
+			if (imports.SymGetSearchPathW(Process, Buffer, static_cast<DWORD>(std::size(Buffer))))
+				ExistingPath = Buffer;
+			else
+				LOGWARNING(L"SymGetSearchPathW(): {}"sv, os::last_error());
+		}
+		else if (imports.SymGetSearchPath)
+		{
+			char Buffer[MAX_PATH * 4];
+			if (imports.SymGetSearchPath(Process, Buffer, static_cast<DWORD>(std::size(Buffer))))
+				ExistingPath = encoding::ansi::get_chars(Buffer);
+			else
+				LOGWARNING(L"SymGetSearchPath(): {}"sv, os::last_error());
+		}
+
+		string_view Path;
+
+		if (ExistingPath.empty())
+		{
+			Path = NewPath;
+		}
+		else
+		{
+			const auto contains = [&](string_view const NewPathElement)
+			{
+				const auto Enumerator = enum_tokens(ExistingPath, L";"sv);
+				return std::ranges::find_if(Enumerator, [&](string_view const i){ return equal_icase(i, NewPathElement); }) != Enumerator.cend();
+			};
+
+			bool PathChanged = false;
+
+			for (const auto& i: enum_tokens(NewPath, L";"))
+			{
+				if (contains(i))
+					continue;
+
+				append_to_search_path(ExistingPath, i);
+				PathChanged = true;
+			}
+
+			if (!PathChanged)
+				return;
+
+			Path = ExistingPath;
+		}
+
+		if (imports.SymSetSearchPathW)
+		{
+			if (!imports.SymSetSearchPathW(Process, null_terminated(Path).c_str()))
+				LOGWARNING(L"SymSetSearchPathW({}): {}"sv, Path, os::last_error());
+		}
+		else if (imports.SymSetSearchPath)
+		{
+			if (!imports.SymSetSearchPath(Process, encoding::ansi::get_bytes(Path).c_str()))
+				LOGWARNING(L"SymSetSearchPath({}): {}"sv, Path, os::last_error());
+		}
 	}
 
 	bool initialize(string_view Module)
 	{
-		auto Path = env::get(L"_NT_SYMBOL_PATH"sv);
+		string Path;
 
-		const auto append_to_path = [&](string_view const Str)
-		{
-			append(Path, Path.empty()? L""sv : L";"sv, Str);
-		};
-
-		if (const auto AltSymbolPath = env::get(L"_NT_ALTERNATE_SYMBOL_PATH"sv); !AltSymbolPath.empty())
-		{
-			append_to_path(AltSymbolPath);
-		}
-
-		if (const auto FarPath = fs::get_current_process_file_name(); !FarPath.empty())
+		if (const auto FarPath = fs::get_current_process_file_name(); !FarPath.empty() && FarPath != Module)
 		{
 			string_view FarPathView = FarPath;
 			CutToParent(FarPathView);
-			append_to_path(FarPathView);
+			append_to_search_path(Path, FarPathView);
 		}
 
 		if (!Module.empty())
 		{
 			CutToParent(Module);
-			append_to_path(Module);
+			append_to_search_path(Path, Module);
+		}
+
+		for (const auto& Var: { L"_NT_SYMBOL_PATH"sv, L"_NT_ALTERNATE_SYMBOL_PATH"sv })
+		{
+			if (const auto EnvSymbolPath = env::get(Var); !EnvSymbolPath.empty())
+				append_to_search_path(Path, EnvSymbolPath);
 		}
 
 		if (imports.SymSetOptions)
@@ -502,16 +537,22 @@ namespace os::debug::symbols
 
 		const auto Process = GetCurrentProcess();
 
-		if (!initialize(Process, Path))
+		const auto Result = initialize(Process, Path);
+		if (Result == false) // optional
 		{
-			LOGWARNING(L"SymInitialize({}): {}"sv, Path, last_error());
-			return false;
+			if (const auto LastError = last_error(); LastError.Win32Error == ERROR_INVALID_PARAMETER)
+			{
+				// Symbols are already initialized by something else; try to at least propagate our search paths
+				update_symbols_search_path(Process, Path);
+			}
+			else
+				LOGWARNING(L"SymInitialize({}): {}"sv, Path, LastError);
 		}
 
-		if (!register_callback(Process))
+		if (register_callback(Process) == false) // optional
 			LOGWARNING(L"SymRegisterCallback(): {}"sv, last_error());
 
-		return true;
+		return Result.value_or(false);
 	}
 
 	void clean()
@@ -533,14 +574,8 @@ namespace os::debug::symbols
 			header info;
 			static constexpr auto max_name_size = MAX_SYM_NAME;
 
-			using char_type = value_type<decltype(info.Name)>;
+			using char_type = std::ranges::range_value_t<decltype(info.Name)>;
 			char_type name[max_name_size + 1];
-
-			struct symbol
-			{
-				std::basic_string_view<char_type> Name;
-				size_t Displacement;
-			};
 		};
 
 		struct symbol_storage
@@ -556,12 +591,22 @@ namespace os::debug::symbols
 			string
 				SymbolName,
 				FileName;
+
+			string_view convert_symbol_name(string_view const Name)
+			{
+				return Name;
+			}
+
+			string_view convert_symbol_name(std::string_view const Name)
+			{
+				return SymbolName = encoding::ansi::get_chars(Name);
+			}
 		};
 	}
 
 	static symbol frame_get_symbol(HANDLE const Process, uintptr_t const Address, symbol_storage& Storage)
 	{
-		const auto Get = [&]<typename T>(auto const& Getter, package<T>& Buffer) -> typename package<T>::symbol
+		const auto Get = [&]<typename T>(auto const& Getter, package<T>& Buffer) -> symbol
 		{
 			Buffer.info.SizeOfStruct = sizeof(Buffer.info);
 
@@ -590,36 +635,26 @@ namespace os::debug::symbols
 				NameSize = Buffer.info.NameLen;
 			}
 
-			// Old dbghelp versions (e.g. XP) not always populate NameLen
-			return { { Buffer.info.Name, NameSize? NameSize : std::char_traits<typename package<T>::char_type>::length(Buffer.info.Name) }, static_cast<size_t>(Displacement) };
+			return
+			{
+				// Old dbghelp versions (e.g. XP) not always populate NameLen
+				Storage.convert_symbol_name({ Buffer.info.Name, NameSize? NameSize : std::char_traits<typename package<T>::char_type>::length(Buffer.info.Name) }),
+				static_cast<size_t>(Displacement),
+				// Fake symbol, generated by the OS from the DLL export table.
+				// The name is usually rubbish.
+				// We will try to source it from the map file.
+				(Buffer.info.Flags & SYMFLAG_EXPORT) != 0
+			};
 		};
 
 		if (imports.SymFromAddrW)
-		{
-			const auto Symbol = Get(imports.SymFromAddrW, Storage.SymbolInfo.emplace<0>());
-			if (Symbol.Name.empty())
-				return {};
-
-			return { Symbol.Name, Symbol.Displacement };
-		}
+			return Get(imports.SymFromAddrW, Storage.SymbolInfo.emplace<0>());
 
 		if (imports.SymFromAddr)
-		{
-			const auto Symbol = Get(imports.SymFromAddr, Storage.SymbolInfo.emplace<1>());
-			if (Symbol.Name.empty())
-				return {};
-
-			return { Storage.SymbolName = encoding::ansi::get_chars(Symbol.Name), Symbol.Displacement };
-		}
+			return Get(imports.SymFromAddr, Storage.SymbolInfo.emplace<1>());
 
 		if (imports.SymGetSymFromAddr64)
-		{
-			const auto Symbol = Get(imports.SymGetSymFromAddr64, Storage.SymbolInfo.emplace<2>());
-			if (Symbol.Name.empty())
-				return {};
-
-			return { Storage.SymbolName = encoding::ansi::get_chars(Symbol.Name), Symbol.Displacement };
-		}
+			return Get(imports.SymGetSymFromAddr64, Storage.SymbolInfo.emplace<2>());
 
 		return {};
 	}
@@ -680,14 +715,29 @@ namespace os::debug::symbols
 		return { Buffer.FileName, Buffer.LineNumber, Displacement };
 	}
 
+	static HMODULE module_from_address(uintptr_t const Address)
+	{
+		if (HMODULE Module; imports.GetModuleHandleExW && imports.GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, std::bit_cast<LPCWSTR>(Address), &Module))
+			return Module;
+		return {};
+	}
+
+	static uintptr_t base_from_address(uintptr_t const Address)
+	{
+		MEMORY_BASIC_INFORMATION mbi;
+		if (VirtualQuery(std::bit_cast<void*>(Address), &mbi, sizeof(mbi)))
+			return std::bit_cast<uintptr_t>(mbi.AllocationBase);
+
+		return {};
+	}
+
 	static void handle_frame(
 		HANDLE const Process,
-		string_view const ModuleName,
 		stack_frame const& Frame,
 		bool const IsInlineFrame,
 		symbol_storage& Storage,
 		std::unordered_map<uintptr_t, map_file>& MapFiles,
-		function_ref<void(uintptr_t, string_view, bool, symbol, location)> const Consumer
+		function_ref<void(uintptr_t, uintptr_t, string_view, bool, symbol, location)> const Consumer
 	)
 	{
 		std::optional<IMAGEHLP_MODULEW64> Module(std::in_place);
@@ -696,15 +746,33 @@ namespace os::debug::symbols
 		Module->SizeOfStruct = static_cast<DWORD>(aligned_size(offsetof(IMAGEHLP_MODULEW64, LoadedImageName), 8));
 
 		if (!imports.SymGetModuleInfoW64 || !imports.SymGetModuleInfoW64(Process, Frame.Address, &*Module))
-			Module.reset();
+		{
+			if (const auto ModuleFromAddress = module_from_address(Frame.Address))
+			{
+				Module->BaseOfImage = std::bit_cast<uintptr_t>(ModuleFromAddress);
+
+				if (string ModuleFromAddressFileName; fs::get_module_file_name({}, ModuleFromAddress, ModuleFromAddressFileName))
+					xwcsncpy(Module->ImageName, ModuleFromAddressFileName.data(), std::size(Module->ImageName));
+			}
+			else if (const auto BaseFromAddress = base_from_address(Frame.Address))
+			{
+				if (string ModuleFromAddressFileName; fs::get_module_file_name({}, std::bit_cast<HMODULE>(BaseFromAddress), ModuleFromAddressFileName))
+				{
+					Module->BaseOfImage = std::bit_cast<uintptr_t>(BaseFromAddress);
+					xwcsncpy(Module->ImageName, ModuleFromAddressFileName.data(), std::size(Module->ImageName));
+				}
+			}
+			else
+				Module.reset();
+		}
 
 		const auto BaseAddress = Module? Module->BaseOfImage : 0;
-		const auto ImageName = Module? Module->ImageName : L""sv;
+		const auto ImageName = Module? Module->ImageName : L"";
 
 		symbol Symbol;
 		location Location;
 
-		if (Frame.Address)
+		if (os::memory::is_pointer(Frame.Address))
 		{
 			if (IsInlineFrame)
 			{
@@ -717,18 +785,17 @@ namespace os::debug::symbols
 				Location = frame_get_location(Process, Frame.Address, Storage);
 			}
 
-			if (Symbol.Name.empty() && Module)
+			if ((Symbol.Name.empty() || Symbol.IsFake) && BaseAddress && *ImageName)
 			{
-				auto& MapFile = MapFiles.try_emplace(
-					Module->BaseOfImage,
-					*Module->ImageName?
-					Module->ImageName :
-					ModuleName
-				).first->second;
-
+				auto& MapFile = MapFiles.try_emplace(BaseAddress, ImageName).first->second;
 				const auto Info = MapFile.get(Frame.Address - BaseAddress);
-				Symbol.Name = Info.Symbol;
-				Symbol.Displacement = Info.Displacement;
+
+				if (!Info.Symbol.empty())
+				{
+					Symbol.Name = Info.Symbol;
+					Symbol.Displacement = Info.Displacement;
+					Symbol.IsFake = false;
+				}
 
 				if (Location.FileName.empty())
 				{
@@ -738,10 +805,9 @@ namespace os::debug::symbols
 			}
 		}
 
-		const auto Fixup = IsInlineFrame && !is_inline_frame(Frame.InlineContext)? 1 : 0;
-
 		Consumer(
-			Frame.Address? Frame.Address + Fixup - BaseAddress : 0,
+			Frame.Address,
+			BaseAddress,
 			ImageName,
 			IsInlineFrame,
 			Symbol,
@@ -750,10 +816,9 @@ namespace os::debug::symbols
 	}
 
 	void get(
-		string_view const ModuleName,
-		span<stack_frame const> const BackTrace,
+		std::span<stack_frame const> const BackTrace,
 		std::unordered_map<uintptr_t, map_file>& MapFiles,
-		function_ref<void(uintptr_t, string_view, bool, symbol, location)> const Consumer
+		function_ref<void(uintptr_t, uintptr_t, string_view, bool, symbol, location)> const Consumer
 	)
 	{
 		const auto Process = GetCurrentProcess();
@@ -764,32 +829,34 @@ namespace os::debug::symbols
 			if (i.InlineContext)
 			{
 				// If InlineContext is populated, the frames are from StackWalkEx and any inline frames are already included.
-				handle_frame(Process, ModuleName, i, is_inline_frame(i.InlineContext), Storage, MapFiles, Consumer);
+				handle_frame(Process, i, is_inline_frame(i.InlineContext), Storage, MapFiles, Consumer);
 				continue;
 			}
 
 			// StackWalk64 and RtlCaptureStackBackTrace do not include inline frames, we have to ask for them manually.
 			if (imports.SymAddrIncludeInlineTrace)
 			{
-				auto Frame = i;
-				if (Frame.Address != 0)
-					--Frame.Address;
+				const auto Address = i.Address? i.Address - 1 : i.Address;
+				DWORD InlineContext{};
 
-				if (const auto InlineFramesCount = imports.SymAddrIncludeInlineTrace(Process, Frame.Address))
+				if (const auto InlineFramesCount = imports.SymAddrIncludeInlineTrace(Process, Address))
 				{
 					ULONG FrameIndex{};
-					if (imports.SymQueryInlineTrace(Process, Frame.Address, INLINE_FRAME_CONTEXT_INIT, Frame.Address, Frame.Address, &Frame.InlineContext, &FrameIndex))
+					if (imports.SymQueryInlineTrace(Process, Address, INLINE_FRAME_CONTEXT_INIT, Address, Address, &InlineContext, &FrameIndex))
 					{
 						for (DWORD n = FrameIndex; n != InlineFramesCount; ++n)
 						{
-							handle_frame(Process, ModuleName, Frame, true, Storage, MapFiles, Consumer);
-							++Frame.InlineContext;
+							// Handle frames as StackWalkEx frames (same address, STACK_FRAME_TYPE_RA) for consistency
+							INLINE_FRAME_CONTEXT FrameContext{ InlineContext };
+							FrameContext.FrameType |= STACK_FRAME_TYPE_RA;
+							handle_frame(Process, { i.Address, FrameContext.ContextValue }, true, Storage, MapFiles, Consumer);
+							++InlineContext;
 						}
 					}
 				}
 			}
 
-			handle_frame(Process, ModuleName, i, false, Storage, MapFiles, Consumer);
+			handle_frame(Process, i, false, Storage, MapFiles, Consumer);
 		}
 	}
 }

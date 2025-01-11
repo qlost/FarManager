@@ -34,8 +34,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "../preprocessor.hpp"
-#include "../range.hpp"
+#include "../span.hpp"
 
+#include <algorithm>
 #include <vector>
 
 #include <cassert>
@@ -45,15 +46,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace detail
 {
 	template<typename T>
-	class matrix_row: public span<T>
+	class matrix_row: public std::span<T>
 	{
 	public:
-		using span<T>::span;
+		using std::span<T>::span;
 
 		[[nodiscard]]
 		bool operator==(const matrix_row& rhs) const
 		{
-			return std::equal(ALL_CONST_RANGE(*this), ALL_CONST_RANGE(rhs));
+			return std::ranges::equal(*this, rhs);
 		}
 	};
 
@@ -67,9 +68,9 @@ namespace detail
 	public:
 		using iterator_category = std::random_access_iterator_tag;
 		using difference_type = std::ptrdiff_t;
-		using reference = T;
-		using value_type = T;
-		using pointer = T*;
+		using value_type = matrix_row<T>;
+		using reference = value_type;
+		using pointer = value_type*;
 
 		matrix_iterator() = default;
 
@@ -93,6 +94,8 @@ namespace detail
 
 		auto& operator++() { m_Data += m_Width; return *this; }
 		auto& operator--() { m_Data -= m_Width; return *this; }
+
+		POSTFIX_OPS()
 
 		auto& operator+=(size_t const n) { m_Data += n * m_Width; return *this; }
 		auto& operator-=(size_t const n) { m_Data -= n * m_Width; return *this; }
@@ -126,6 +129,8 @@ template<class T>
 class matrix_view
 {
 public:
+	using iterator = detail::matrix_iterator<T>;
+
 	COPYABLE(matrix_view);
 	MOVABLE(matrix_view);
 
@@ -137,33 +142,25 @@ public:
 	{
 	}
 
-	[[nodiscard]] auto begin()        { return detail::matrix_iterator(data(), m_Cols); }
-	[[nodiscard]] auto end()          { return detail::matrix_iterator(data() + size(), m_Cols); }
-	[[nodiscard]] auto begin()  const { return detail::matrix_iterator(data(), m_Cols); }
-	[[nodiscard]] auto end()    const { return detail::matrix_iterator(data() + size(), m_Cols); }
-	[[nodiscard]] auto cbegin() const { return detail::matrix_iterator(data(), m_Cols); }
-	[[nodiscard]] auto cend()   const { return detail::matrix_iterator(data() + size(), m_Cols); }
-
-	[[nodiscard]]
-	// BUGBUG assert for <= is due to the fact that &row[size] can be used as an 'end' iterator
-	// TODO: use iterators
-	auto operator[](size_t const Index) { assert(Index <= m_Rows); return detail::matrix_row(m_Data + m_Cols * Index, m_Cols); }
+	[[nodiscard]] auto begin()   const { return iterator(m_Data, m_Cols); }
+	[[nodiscard]] auto end()     const { return iterator(m_Data + size(), m_Cols); }
+	[[nodiscard]] auto cbegin()  const { return begin(); }
+	[[nodiscard]] auto cend()    const { return end(); }
+	[[nodiscard]] auto rbegin()  const { return std::make_reverse_iterator(begin()); }
+	[[nodiscard]] auto rend()    const { return std::make_reverse_iterator(end()); }
+	[[nodiscard]] auto crbegin() const { return rbegin(); }
+	[[nodiscard]] auto crend()   const { return rend(); }
 
 	[[nodiscard]]
 	// BUGBUG assert for <= is due to the fact that &row[size] can be used as an 'end' iterator
 	// TODO: use iterators
 	auto operator[](size_t const Index) const { assert(Index <= m_Rows); return detail::matrix_row(m_Data + m_Cols * Index, m_Cols); }
 
-	const auto& at(size_t const Row, size_t const Col) const
+	auto& at(size_t const Row, size_t const Col) const
 	{
 		assert(Row < m_Rows);
 		assert(Col < m_Cols);
-		return m_Data[m_Cols * Row + Col];
-	}
-
-	auto& at(size_t const Row, size_t const Col)
-	{
-		return const_cast<T&>(std::as_const(*this).at(Row, Col));
+		return data()[m_Cols * Row + Col];
 	}
 
 	[[nodiscard]]
@@ -171,12 +168,6 @@ public:
 
 	[[nodiscard]]
 	auto width() const { return m_Cols; }
-
-	[[nodiscard]]
-	auto front() { assert(m_Rows != 0); return (*this)[0]; }
-
-	[[nodiscard]]
-	auto back() { assert(m_Rows != 0); return (*this)[m_Rows - 1]; }
 
 	[[nodiscard]]
 	auto front() const { assert(m_Rows != 0); return (*this)[0]; }
@@ -191,10 +182,17 @@ public:
 	auto size() const { return m_Rows * m_Cols; }
 
 	[[nodiscard]]
-	auto data() { return m_Data; }
-
-	[[nodiscard]]
 	auto data() const { return m_Data; }
+
+	auto row_number(detail::matrix_row<T> const& Row) const
+	{
+		return (Row.data() - m_Data) / m_Cols;
+	}
+
+	operator matrix_view<const T>() const
+	{
+		return matrix_view<const T>(m_Data, m_Rows, m_Cols);
+	}
 
 private:
 	T* m_Data{};

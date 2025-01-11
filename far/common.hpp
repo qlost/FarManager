@@ -37,14 +37,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // TODO: clean up & split
 
-template<typename T>
-bool CheckStructSize(const T* s)
+bool CheckStructSize(const auto* s)
 {
-	return s && (s->StructSize >= sizeof(T));
+	return s && (s->StructSize >= sizeof(*s));
 }
 
-template<typename T>
-bool CheckNullOrStructSize(const T* s)
+bool CheckNullOrStructSize(const auto* s)
 {
 	return !s || CheckStructSize(s);
 }
@@ -56,21 +54,19 @@ auto NullToEmpty(const T* Str)
 	return Str? Str : &empty;
 }
 
-template<class T>
-auto EmptyToNull(const T* Str)
+auto EmptyToNull(const auto* Str)
 {
 	return (Str && !*Str)? nullptr : Str;
 }
 
-template<class T>
-auto EmptyToNull(const T& Str)
+auto EmptyToNull(const auto& Str)
 {
 	return Str.empty()? nullptr : Str.c_str();
 }
 
 inline void* ToPtr(intptr_t Value) noexcept
 {
-	return reinterpret_cast<void*>(Value);
+	return std::bit_cast<void*>(Value);
 }
 
 #endif // COMMON_HPP_1BD5AB87_3379_4AFE_9F63_DB850DCF72B4

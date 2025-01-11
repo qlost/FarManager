@@ -52,9 +52,6 @@ namespace imports_detail
 
 class imports
 {
-public:
-	imports();
-
 private:
 #define MODULE(MODULE) m_##MODULE{WIDE_SV(#MODULE)}
 
@@ -87,6 +84,7 @@ private:
 
 	private:
 		auto get_pointer() const;
+		mutable function_type m_Pointer{};
 	};
 
 #define DEFINE_IMPORT_FUNCTION(MODULE, FALLBACK_DO, FALLBACK_RET, CALLTYPE, RETTYPE, NAME, ...) \
@@ -108,6 +106,8 @@ public: \
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQueryInformationFile, HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtSetInformationFile, HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, ULONG Length, FILE_INFORMATION_CLASS FileInformationClass); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQueryObject, HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength); // NT4
+	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtOpenDirectoryObject, PHANDLE DirectoryHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes);
+	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQueryDirectoryObject, HANDLE DirectoryHandle, PVOID Buffer, ULONG Length, BOOLEAN ReturnSingleEntry, BOOLEAN RestartScan, PULONG  Context, PULONG  ReturnLength);
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtOpenSymbolicLinkObject, PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtQuerySymbolicLinkObject, HANDLE LinkHandle, PUNICODE_STRING LinkTarget, PULONG ReturnedLength); // NT4
 	DEFINE_IMPORT_FUNCTION(ntdll, nop, nt,    NTAPI, NTSTATUS, NtClose, HANDLE Handle); // NT4
@@ -134,6 +134,7 @@ public: \
 	DEFINE_IMPORT_FUNCTION(kernel32, le, nullptr, WINAPI,  PVOID,   AddVectoredExceptionHandler, ULONG First, PVECTORED_EXCEPTION_HANDLER Handler); // XP
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  ULONG,   RemoveVectoredExceptionHandler, PVOID Handle); // XP
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    TzSpecificLocalTimeToSystemTime, const TIME_ZONE_INFORMATION* TimeZoneInformation, const SYSTEMTIME* LocalTime, LPSYSTEMTIME UniversalTime); // XP
+	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    GetModuleHandleExW, DWORD Flags, LPCWSTR ModuleName, HMODULE* Module);
 	DEFINE_IMPORT_FUNCTION(kernel32, le, handle,  WINAPI,  HANDLE,  FindFirstStreamW, LPCWSTR FileName, STREAM_INFO_LEVELS InfoLevel, LPVOID FindStreamData, DWORD Flags); // 2k3
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    FindNextStreamW, HANDLE FindStream, LPVOID FindStreamData); // 2k3
 	DEFINE_IMPORT_FUNCTION(kernel32, le, false,   WINAPI,  BOOL,    GetVolumePathNamesForVolumeNameW, LPCWSTR VolumeName, LPWSTR VolumePathNames, DWORD BufferLength, PDWORD ReturnLength); // 2k3
@@ -183,6 +184,8 @@ public: \
 	DEFINE_IMPORT_FUNCTION(dbgeng, nop, hr, STDAPICALLTYPE, HRESULT, DebugCreate, REFIID InterfaceId, PVOID* Interface);
 
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymInitialize, HANDLE Process, PCSTR UserSearchPath, BOOL InvadeProcess); // 2k
+	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymGetSearchPath, HANDLE Process, PSTR SearchPath, DWORD SearchPathLength); // 2k
+	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymSetSearchPath, HANDLE Process, PCSTR SearchPath); // 2k
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymCleanup, HANDLE Process); // 2k
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, zero,    WINAPI, DWORD,   SymSetOptions, DWORD SymOptions); // 2k
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    StackWalk64, DWORD MachineType, HANDLE Process, HANDLE Thread, LPSTACKFRAME64 StackFrame, PVOID ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine, PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine, PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine, PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress); // 2k
@@ -196,6 +199,8 @@ public: \
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymRegisterCallback64, HANDLE Process, PSYMBOL_REGISTERED_CALLBACK64 CallbackFunction, ULONG64 UserContext); // 2k
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    MiniDumpWriteDump, HANDLE Process, DWORD ProcessId, HANDLE File, MINIDUMP_TYPE DumpType, PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam, PMINIDUMP_CALLBACK_INFORMATION CallbackParam); // XP
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymInitializeW, HANDLE Process, PCWSTR UserSearchPath, BOOL InvadeProcess); // Vista
+	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymGetSearchPathW, HANDLE Process, PWSTR SearchPath, DWORD SearchPathLength); // Vista
+	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymSetSearchPathW, HANDLE Process, PCWSTR SearchPath); // Vista
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymFromAddrW, HANDLE Process, DWORD64 Address, PDWORD64 Displacement, PSYMBOL_INFOW Symbol); // Vista
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, false,   WINAPI, BOOL,    SymGetLineFromAddrW64, HANDLE Process, DWORD64 Addr, PDWORD Displacement, PIMAGEHLP_LINEW64 Line); // Vista
 	DEFINE_IMPORT_FUNCTION(dbghelp, le, zero,    WINAPI, DWORD,   UnDecorateSymbolNameW, PCWSTR Name, PWSTR OutputString, DWORD MaxStringLength, DWORD Flags); // Vista
@@ -237,24 +242,19 @@ namespace imports_detail
 	template<const os::rtdl::module imports::* ModuleAccessor, auto Name, auto StubFunction>
 	auto imports::unique_function_pointer<ModuleAccessor, Name, StubFunction>::get_pointer() const
 	{
-		static const auto Pointer = [&]
+		if (m_Pointer)
+			return m_Pointer;
+
+		if (const auto DynamicPointer = std::bit_cast<function_type>(get_pointer_impl(std::invoke(ModuleAccessor, ::imports), Name)))
 		{
-			if (const auto DynamicPointer = reinterpret_cast<function_type>(get_pointer_impl(std::invoke(ModuleAccessor, ::imports), Name)))
-				return DynamicPointer;
-
-			return StubFunction;
-		}();
-
-		// Logged separately to avoid a deadlock in recursive static initialisation
-		if (static auto Logged = false; !Logged)
-		{
-			if (Pointer == StubFunction)
-				log_missing_import(std::invoke(ModuleAccessor, ::imports), Name);
-
-			Logged = true;
+			m_Pointer = DynamicPointer;
+			return m_Pointer;
 		}
 
-		return Pointer;
+		log_missing_import(std::invoke(ModuleAccessor, ::imports), Name);
+
+		m_Pointer = StubFunction;
+		return m_Pointer;
 	}
 }
 

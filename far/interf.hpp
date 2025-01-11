@@ -158,8 +158,7 @@ void ShowCursor();
 void SetInitialCursorType();
 void GetCursorType(bool& Visible, size_t& Size);
 void MoveRealCursor(int X,int Y);
-void ScrollScreen(int Count);
-bool DoWeReallyHaveToScroll(short Rows);
+size_t NumberOfEmptyLines(size_t Desired);
 
 struct position_parser_state
 {
@@ -201,13 +200,12 @@ void PutText(rectangle Where, const FAR_CHAR_INFO* Src);
 void GetText(rectangle Where, matrix<FAR_CHAR_INFO>& Dest);
 
 void SetScreen(rectangle Where, wchar_t Ch,const FarColor& Color);
-void MakeShadow(rectangle Where, bool IsLegacy = false);
-void DropShadow(rectangle Where, bool IsLegacy = false);
+void MakeShadow(rectangle Where);
+void DropShadow(rectangle Where);
 void SetColor(int Color);
 void SetColor(PaletteColors Color);
 void SetColor(const FarColor& Color);
 void SetRealColor(const FarColor& Color);
-void ClearScreen(const FarColor& Color);
 const FarColor& GetColor();
 
 void Box(rectangle Where, const FarColor& Color,int Type);

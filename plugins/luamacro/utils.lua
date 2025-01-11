@@ -7,6 +7,7 @@ local F = far.Flags
 local type = type
 local string_find, string_sub = string.find, string.sub
 local band, bor = bit64.band, bit64.bor
+local JoinPath = win.JoinPath
 local MacroCallFar = Shared.MacroCallFar
 local gmeta = { __index=_G }
 local LastMessage = {}
@@ -55,7 +56,8 @@ local function GetAreaCode(Area)     return AllAreaNames[Area:lower()] end
 local MCODE_F_CHECKALL     = 0x80C64
 local MCODE_F_GETOPTIONS   = 0x80C65
 local MCODE_F_MACROSETTINGS = 0x80C6A
-Shared.OnlyEditorViewerUsed = band(MacroCallFar(MCODE_F_GETOPTIONS),0x3) ~= 0
+
+local ReadOnlyConfig = band(MacroCallFar(MCODE_F_GETOPTIONS),0x10) ~= 0
 
 local Areas
 local LoadedMacros
@@ -383,7 +385,7 @@ local function AddRegularMacro (srctable, FileName)
       end
     end
   else
-    return
+    macro.action = function() end -- intended use: do all the things in condition()
   end
 
   local arFound = {} -- prevent multiple inclusions, i.e. area="Editor Editor"
@@ -709,7 +711,6 @@ local function LoadMacros (unload, paths)
   export.GetContentFields = nil
   export.GetContentData = nil
 
-  local allAreas = band(MacroCallFar(MCODE_F_GETOPTIONS),0x3) == 0
   local numerrors=0
   local newAreas = {}
   Events = {}
@@ -722,7 +723,7 @@ local function LoadMacros (unload, paths)
   ContentColumns = {}
   if Shared.panelsort then Shared.panelsort.DeleteSortModes() end
 
-  local AreaNames = allAreas and AllAreaNames or SomeAreaNames
+  local AreaNames = panel.CheckPanelsExist() and AllAreaNames or SomeAreaNames
   for _,name in pairs(AreaNames) do newAreas[name]={} end
   for _,name in ipairs(EventGroups) do Events[name]={} end
   for k in pairs(package.loaded) do
@@ -755,12 +756,12 @@ local function LoadMacros (unload, paths)
   if not unload then
     LoadCounter = LoadCounter + 1
     local DummyFunc = function() end
-    local DirMacros = win.GetEnv("farprofile").."\\Macros\\"
-    if 0 == band(MacroCallFar(MCODE_F_GETOPTIONS),0x10) then -- not ReadOnlyConfig
+    local DirMacros = JoinPath(win.GetEnv("FARPROFILE"), "Macros")
+    if not ReadOnlyConfig then
       for _,v in ipairs {"scripts", "modules", "lib32", "lib64"} do
-        win.CreateDir(DirMacros..v)
+        win.CreateDir(JoinPath(DirMacros, v))
       end
-      win.CreateDir(win.GetEnv("farprofile").."\\Menus")
+      win.CreateDir(JoinPath(win.GetEnv("FARPROFILE"), "Menus"))
     end
 
     local moonscript = require "moonscript"
@@ -839,8 +840,8 @@ local function LoadMacros (unload, paths)
     if paths then
       paths = ExpandEnv(paths)
     else
-      paths = DirMacros.."scripts"
-      local cfg, msg = ReadIniFile(far.PluginStartupInfo().ModuleDir.."luamacro.ini")
+      paths = JoinPath(DirMacros, "scripts")
+      local cfg, msg = ReadIniFile(JoinPath(far.PluginStartupInfo().ModuleDir,"luamacro.ini"))
       if cfg then
         if cfg.General then
           local p = cfg.General.MacroPath
@@ -853,7 +854,7 @@ local function LoadMacros (unload, paths)
 
     for p in paths:gmatch("[^;]+") do
       p = far.ConvertPath(p, F.CPM_FULL) -- needed for relative paths
-      local macroinit = p:gsub("[\\/]*$", "\\_macroinit.lua")
+      local macroinit = JoinPath(p, "_macroinit.lua")
       local info = win.GetFileInfo(macroinit)
       if info and not info.FileAttributes:find("d") then
         LoadRegularFile(info, macroinit, nil)
@@ -863,7 +864,7 @@ local function LoadMacros (unload, paths)
       far.RecursiveSearch (p, "*.lua,*.moon", LoadRegularFile, bor(F.FRS_RECUR,F.FRS_SCANSYMLINK), macroinit)
     end
 
-    far.RecursiveSearch (DirMacros.."internal", "*.lua", LoadRecordedFile, 0)
+    far.RecursiveSearch (JoinPath(DirMacros,"internal"), "*.lua", LoadRecordedFile, 0)
 
     export.ExitFAR = Events.exitfar[1] and export_ExitFAR
     export.ProcessDialogEvent = Events.dialogevent[1] and export_ProcessDialogEvent
@@ -914,9 +915,9 @@ Macro {
 end
 
 local function WriteMacros()
-  if 0 ~= band(MacroCallFar(MCODE_F_GETOPTIONS),0x10) then return end -- ReadOnlyConfig
+  if ReadOnlyConfig then return end
 
-  local dir = win.GetEnv("farprofile").."\\Macros\\internal"
+  local dir = JoinPath(win.GetEnv("FARPROFILE"), "Macros", "internal")
   if not win.CreateDir(dir, true) then return end
 
   for areaname,area in pairs(Areas) do
@@ -1194,8 +1195,10 @@ local function RunStartMacro()
   if not LoadMacrosDone then return end
 
   local mode = far.MacroGetArea()
-  local opt = band(MacroCallFar(MCODE_F_GETOPTIONS),0x3)
-  local mtable = opt==1 and Areas.editor or opt==2 and Areas.viewer or Areas.shell
+  local mtable = (mode==F.MACROAREA_EDITOR and Areas.editor)
+    or (mode==F.MACROAREA_VIEWER and Areas.viewer) or Areas.shell
+
+  if mtable == nil then return end
 
   for k=1,2 do
     if k==2 then mtable = Areas.common end

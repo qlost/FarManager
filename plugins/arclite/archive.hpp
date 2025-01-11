@@ -31,6 +31,8 @@ extern const wchar_t* c_method_copy;   // pseudo method
 extern const wchar_t* c_method_lzma;   // standard 7z methods
 extern const wchar_t* c_method_lzma2;  //
 extern const wchar_t* c_method_ppmd;   //
+extern const wchar_t* c_method_deflate;
+extern const wchar_t* c_method_deflate64;
 
 extern const UInt64 c_min_volume_size;
 
@@ -313,7 +315,7 @@ public:
   int m_open_password;
   bool m_update_props_defined;
   bool m_has_crc;
-  void load_update_props();
+  void load_update_props(const ArcType& arc_type);
 public:
   void create(const std::wstring& src_dir, const std::vector<std::wstring>& file_names, const UpdateOptions& options, std::shared_ptr<ErrorLog> error_log);
   void update(const std::wstring& src_dir, const std::vector<std::wstring>& file_names, const std::wstring& dst_dir, const UpdateOptions& options, std::shared_ptr<ErrorLog> error_log);

@@ -47,9 +47,9 @@
 
 @Contents
 $^#Menedżer plików i archiwów#
-`$^#'FULLVERSION`#'
+$^#M4_MACRO_GET(FULLVERSION)#
 $^#Copyright © 1996-2000 Eugene Roshal#
-`$^#Copyright © 2000-'COPYRIGHTYEAR` Far Group#'
+$^#Copyright © 2000-M4_MACRO_GET(COPYRIGHTYEAR) Far Group#
  ~Indeks pomocy~@Index@
  ~Jak używać pomocy~@Help@
 
@@ -240,7 +240,7 @@ ustawienia z pliku ini).
  Far Manager może ustawić ~zmienną systemową~@FAREnv@ "FARUSER" na wartość <użytkownik>.
 
  #-v <nazwa_pliku>#
- Włącza podgląd podanego pliku. Jeżeli <nazwa_pliku> to `#-#', program odczytuje
+ Włącza podgląd podanego pliku. Jeżeli <nazwa_pliku> to ‘#-#’, program odczytuje
 dane ze strumienia stdin.
 
  Przykład: "dir|far -v -" wyświetli wyjście polecenia dir.
@@ -379,15 +379,15 @@ $ #Polecenia kontroli panelu#
                                                #Prawy przycisk myszy#
  Zaznacz grupę                                              #Szary +#
  Odznacz grupę                                              #Szary -#
- Odwróć zaznaczenie                                         #Szary *#
+ Odwróć zaznaczenie                                         #Szara *#
  Zaznacz pliki o tym samym rozszerzeniu              #Ctrl+<Szary +>#
  jak bieżący plik
  Odznacz pliki o tym samym rozszerzeniu              #Ctrl+<Szary ->#
  jak bieżący plik
- Odwróć selekcję włączając foldery                   #Ctrl+<Szary *>#
+ Odwróć selekcję włączając foldery                   #Ctrl+<Szara *>#
  Zaznacz pliki o tej samej nazwie jak bieżący plik    #Alt+<Szary +>#
  Odznacz pliki o tej samej nazwie jak bieżący plik    #Alt+<Szary ->#
- Odwróć selekcję plików, odznacz foldery              #Alt+<Szary *>#
+ Odwróć selekcję plików, odznacz foldery              #Alt+<Szara *>#
  Zaznacz wszystkie pliki                            #Shift+<Szary +>#
  Odznacz wszystkie pliki                            #Shift+<Szary ->#
  Przywróć poprzednie zaznaczenie                             #Ctrl+M#
@@ -2008,7 +2008,7 @@ Atrybuty #Strumień integralności# i #Brak danych kontrolnych# są obsługiwane
 począwszy od Windows Server 2012.
 
  #Ma więcej niż jeden link#
- Używany tylko na dyskach z systemem NTFS. Warunek jest prawdziwy, jeśli dane
+ Używany tylko na dyskach z systemem NTFS. Warunek jest prawdziwy, jeżeli dane
 na które wskazuje bieżący plik jest również wskazany przez co najmniej jeden inny plik.
  #Uwaga#: Włączenie tej opcji może spowodować znaczne spowolnienie wyszukiwania.
 
@@ -2295,7 +2295,8 @@ będzie włączona, Far spróbuje do uruchomienia użyć przypisania z systemu W
 oraz "IF DEFINED" (jeżeli zdefiniowano) pozwalają na skonfigurowanie "inteligentniejszych"
 powiązań - jeżeli ustawiono kilka powiązań do danego typu pliku, menu zostanie
 wyświetlone tylko dla powiązań, których warunki zostaną spełnione (wartość TRUE).
- 3. ^<wrap>If the specified mask is a regular expression, its capturing groups can be referenced in the commands as %RegexGroup#N# or %RegexGroup{#Name#}.
+ 3. ^<wrap>Jeżeli określona maska jest wyrażeniem regularnym, do jej grup przechwytujących
+można odwoływać się w poleceniach jako %RegexGroup#N# or %RegexGroup{#Nazwa#}.
 
 
 @MetaSymbols
@@ -2776,7 +2777,7 @@ znak opisuje jedną zapisaną ścieżkę.
  Elementy zachęty mogą być wyróżniane za pomocą #kolorów#.
 
  Format:
- #([[T]FFFFFFFF][:[T]BBBBBBBB])#, gdzie:
+ #([[T]FFFFFFFF][:[T]BBBBBBBB][:style[:[T]UUUUUUUU]])#, gdzie:
 
   #FFFFFFFF#
   Kolor tekstu w formacie aarrggbb lub indeks w palecie konsoli.
@@ -2784,13 +2785,32 @@ znak opisuje jedną zapisaną ścieżkę.
   #BBBBBBBB#
   Kolor tła w formacie aarrggbb lub indeks w palecie konsoli.
 
+  #style#
+  Jeden lub więcej stylów tekstu, oddzielone spacjami:
+  #bold#               (pogrubienie)
+  #italic#             (kursywa)
+  #overline#           (nadkreślenie)
+  #strikeout#          (przekreślenie)
+  #faint#              (przygaszenie)
+  #blink#              (migotanie)
+  #inverse#            (odwrotność)
+  #invisible#          (niewidzialność)
+  #underline#          (podkreślenie pojedyncze)
+  #underline_double#   (podkreślenie podwójne)
+  #underline_curly#    (podkreślenie kręcone)
+  #underline_dot#      (podkreślenie kropkowane)
+  #underline_dash#     (podkreślenie przerywane)
+
+  #UUUUUUUU#
+  Kolor tła w formacie aarrggbb lub indeks w palecie konsoli.
+
   #T#
-  Flaga "TrueColor". Jeżeli nieobecna, wartość jest traktowana jako indeks palety konsoli (0-F):
+  Flaga "TrueColor". Jeżeli nieobecna, wartość jest traktowana jako indeks palety konsoli (00-FF):
 
   \00 \11 \22 \33 \44 \55 \66 \77 \88 \99 \AA \BB \CC \DD \EE \FF \-
   0123456789ABCDEF
 
- Jeżeli nie podano kolorów tekstu lub tła, zostanie użyta odpowiednia wartość domyślna.
+ Jeżeli nie podano koloru, zostanie użyta odpowiednia wartość domyślna.
 
  Przykłady:
 
@@ -2831,14 +2851,19 @@ $ #Podgląd: sterowanie klawiszami#
  #Ctrl+Shift+Lewo#    Pokazuje pierwszą kolumnę z lewej
  #Ctrl+Shift+Prawo#   Pokazuje ostatnią kolumnę z prawej ze wszystkich linii widocznych na ekranie
 
- W ~trybach podglądu~@ViewerMode@ #hex# (szesnastkowo) i #źródło#, skróty #Ctrl+Lewo#
-oraz #Ctrl+Prawo# przesuwają zawartość okna o jeden bajt w odpowiednim
-kierunku.
+ Następujące skróty klawiszowe są dostępne w trybach #źródłowym# i #hex# (szesnastkowym):
 
- W trybie #hex# ~podglądu~@ViewerMode@, skróty #Alt+Lewo# i #Alt+Prawo#
-odpowiednio zmniejszają lub zwiększają liczbę bajtów widocznych o jeden.
-Skróty #Ctrl+Alt+Lewo# i #Ctrl+Alt+Prawo# zmieniają liczbę wyświetlanych
-bajtów o 16.
+ #Ctrl+Lewo#          ^<wrap>Przesuwa wszystkie znaki (tryb #źródłowy#) lub bajty (tryb #hex#) w prawo
+przesuwając ostatni znak (bajt) z wiersza na pierwszą pozycję następnego wiersza
+ #Ctrl+Prawo#         Przesuwa wszystkie znaki (tryb #źródłowy#) lub bajty (tryb #hex#) w lewo
+przesuwając pierwszy znak (bajt) z rzędu na ostatnią pozycję poprzedniego wiersza
+
+ Następujące dodatkowe skróty dostępne są w trybie #hex#:
+
+ #Alt+Lewo#           ^<wrap>Zmniejszenie liczby bajtów w wierszu
+ #Alt+Prawo#          Zwiększenie liczby bajtów w wierszu
+ #Ctrl+Alt+Lewo#      Zmniejszenie liczby bajtów w wierszu do następnej wielokrotności 16 bajtów
+ #Ctrl+Alt+Prawo#     Zwiększenie liczby bajtów w wierszu do następnej wielokrotności 16 bajtów
 
  Polecenia podglądu
 
@@ -2941,6 +2966,8 @@ przełącza tryb #źródło# na #tekstowy#, i przełącza tryb #hex# na przeciwn
 do trybu podstawowego (#źródło# lub #tekst#) ostatnio wybranego w menu
 #Tryb widoku#. Uwaga: klawisze #F4# i #F2# przełączają tryb #hex# na inne tryby.
 
+ Zobacz także pełną listę ~poleceń podglądu~@Viewer@.
+
  Tryb #tekstowy#
 
  W trybie #tekstowym#, przeglądarka renderuje zawartość pliku bajt po bajcie
@@ -2975,7 +3002,8 @@ Dłuższe linie są dzielone na kilka wierszy, nawet w trybie #obcinania#.
 
  Tryb #źródło# (ang. dump)
 
- W trybie #źródła#, przeglądarka renderuje zawartość pliku znak po znaku
+ W trybie #źródłowym# nie ma pojęcia linii tekstu.
+Przeglądarka renderuje zawartość pliku znak po znaku
 bez uwzględniania znaków końca wiersza lub kodów sterujących, które traktowane
 są jak zwykłe znaki. Znaki są wyświetlane na ekranie rzędami od lewej
 do prawej. Po osiągnięciu końca wiersza, następny znak jest wyświetlany
@@ -2997,69 +3025,50 @@ znakiem #›# (kod znaku U+203A).
  Strona kodowa 1200 (UTF-16): każda pozycja na ekranie odpowiada dwóm
 kolejnym bajtom rozpoczynając od równego przesunięcia w pliku.
 
- W trybie #źródłowym# nie ma pojęcia linii tekstu. Zamiast przewijania
-w poziomie (tak jak w trybie #tekst# i #obcinanie#), tekst jest przesuwany
-o jeden znak. Klawisze #Ctrl+Prawo# przesuwają wszystkie znaki w lewo;
-pierwszy znak w rzędzie staje się ostatnim w poprzednim rzędzie.
-Klawisze #Ctrl+Lewo# przesuwają wszystkie znaki w prawo, przenosząc ostatni
-znak rzędu do pierwszej pozycji następnego rzędu. Tekst "przepływa" z wiersza
-do wiersza. Klawisze #Prawo# i #Lewo# są ignorowane.
-
  Tryb #hex# (kody szesnastkowe)
 
- W trybie #hex#, przeglądarka renderuje zawartość pliku w formacie
-16 bajtów na wiersz ekranu, z szesnastkowym przesunięciem pierwszego bajtu
-w każdym rzędzie w lewo, po którym następuje szesnastkowa reprezentacja
-każdego bajtu, a następnie reprezentację znaków.
+ W trybie #hex#, przeglądarka renderuje szesnastkowo reprezentację bajtów
+w pliku. Każdy wiersz rozpoczyna sie szesnastkową wartością przesunięcia
+od pierwszego bajtu pliku, a kończy reprezentacją znakową bajtów wiersza.
 
  Odwzorowanie zależy od kodowania zdefiniowanego przez bieżącą stronę kodową.
 Dla kodowań jednobajtowych (np. wszystkie strony kodowe ANSI), bajty w każdym
-wierszu są reprezentowane przez 16 dwucyfrowych wartości szesnastkowych
-po których następuje 16 znaków. Dla kodowania UTF-8, bajty są reprezentowane
-w ten sam sposób, gdy znaki są wyświetlanie w pozycjach bajtów wiodących
-sekwencji UTF-8, a bajty kontynuacji są wypełniane znakiem #›#
-(kod znaku U+203A). Dla kodowania UTF-16(BE) kodowanie wartości szesnastkowych
-przedstawia 8 znaków. Na przykład:
+wierszu są reprezentowane przez sekwencję dwucyfrowych wartości szesnastkowych,
+po których następuje sekwencja znaów o tej samej długości. Dla kodowania UTF-8,
+bajty są reprezentowane w ten sam sposób, podczas gdy znaki są wyświetlanie
+na pozycjach wiodących bajtów sekwencji UTF-8, a bajty kontynuacji są wypełniane
+znakiem #›# (kod znaku U+203A). W przypadku kodowania UTF-16(BE) każda para
+dwucyfrowych wartości szesnastkowych jest reprezentowana przez jeden znak.
+Na przykład:
 
  Strona kodowa 1250 (ANSI - Europa Środkowa)
 
 @-
  \1b0000000000: 44 6F 9C E6 20 62 B3 61 │ 7A 65 F1 73 74 77 2C 20  Dość błazeństw, \-
  \1b0000000010: BF 72 B9 20 6D F3 6A 20 │ 70 EA 6B 20 6C 75 9F 6E  żrą mój pęk luźn\-
- \1b0000000020: 79 63 68 20 66 69 67 0D │ 0A                       ych fig         \-
+ \1b0000000020: 79 63 68 20 66 69 67 2E │ 0D 0A                    ych fig.        \-
 @+
-Za: [L. Jakubowicz; "Wiadomości Literackie" (nr 1, 1936, str. 7)]
 
  Strona kodowa 65001 (UTF-8)
 
 @-
- \1b0000000035: D0 92 20 D1 87 D0 B0 D1 │ 89 D0 B0 D1 85 20 D1 8E  В› ч›а›щ›а›х› ю›\-
- \1b0000000045: D0 B3 D0 B0 20 D0 B6 D0 │ B8 D0 BB 2D D0 B1 D1 8B  г›а› ж›и›л›-б›ы›\-
- \1b0000000055: D0 BB 20 D1 86 D0 B8 D1 │ 82 D1 80 D1 83 D1 81 2C  л› ц›и›т›р›у›с›,\-
+ \1b0000000000: EF BB BF 44 6F C5 9B C4 │ 87 20 62 C5 82 61 7A 65  �››Doś›ć› bł›aze\-
+ \1b0000000010: C5 84 73 74 77 2C 20 C5 │ BC 72 C4 85 20 6D C3 B3  ń›stw, ż›rą› mó›\-
+ \1b0000000020: 6A 20 70 C4 99 6B 20 6C │ 75 C5 BA 6E 79 63 68 20  j pę›k luź›nych \-
+ \1b0000000030: 66 69 67 2E 0D 0A       │                          fig.            \-
 @+
 
  Strona kodowa 1200 (UTF-16)
 
 @-
- \1b00000000A2: 3D 04 3E 04 20 00 44 04 │ 30 04 3B 04 4C 04 48 04  но фальш\-
- \1b00000000B2: 38 04 32 04 4B 04 39 04 │ 20 00 4D 04 3A 04 37 04  ивый экз\-
- \1b00000000C2: 35 04 3C 04 3F 04 3B 04 │ 4F 04 40 04 2C 00 20 00  емпляр, \-
- \1b00000000D2: 34 04 30 04 2E 00 0D 00 │ 0A 00                    да.♪◙   \-
+ \1b0000000000: 44 00 6F 00 5B 01 07 01 │ 20 00 62 00 42 01 61 00  Dość bła\-
+ \1b0000000010: 7A 00 65 00 44 01 73 00 │ 74 00 77 00 2C 00 20 00  zeństw, \-
+ \1b0000000020: 7C 01 72 00 05 01 20 00 │ 6D 00 F3 00 6A 00 20 00  żrą mój \-
+ \1b0000000030: 70 00 19 01 6B 00 20 00 │ 6C 00 75 00 7A 01 6E 00  pęk luźn\-
+ \1b0000000040: 79 00 63 00 68 00 20 00 │ 66 00 69 00 67 00 2E 00  ych fig.\-
+ \1b0000000050: 0D 00 0A 00             │                                  \-
 @+
-
- Kombinacja klawiszy #Ctrl+Prawo# przesuwa wszystkie bajty w lewo; pierwszy
-bajt w wierszu staje się ostatnim w poprzednim wierszu. Kombinacja #Ctrl+Lewo#
-przesuwa wszystkie bajty w praco, przesuwając ostatni bajt w rzędzie do pierwszej
-pozycji następnie wiersza. Inaczej niż w trybie #źródłowym# zawartość jest
-przesuwana o bajt, a nie o znak.
-
- Kombinacja klawiszy #Alt+Prawo# zwiększa liczbę wyświetlanych bajtów w każdym
-rzędzie o jeden bajt. Kombinacja #Ctrl+Alt+Prawo# zwiększa liczbę bajtów
-o 16 jednocześnie. Kombinacja #Alt+Lewo# zmniejsza liczbę wyświetlanych bajtów
-w każdej linii o jeden bajt. Kombinacja #Ctrl+Alt+Lewo# zmniejsza liczbę bajtów
-o 16 jednocześnie.
-
- Klawisze #Prawy# i #Lewy# są ignorowane.
+ Za: [L. Jakubowicz; "Wiadomości Literackie" (nr 1, 1936, str. 7)]
 
 
 @ViewerGotoPos
@@ -3431,6 +3440,9 @@ $ #Edytor: menu wszystkich znalezionych wystąpień#
 
  #Ctrl+Enter#, #Ctrl+Kliknięcie lewym przyciskiem myszy#
  Przechodzi do pozycji znalezionego tekstu.
+
+ #Ctrl+Numpad5#
+ Pionowe wyrównanie wszystkich znalezionych wartości.
 
  #Szary +#
  Dodaje zakładkę sesji w bieżącej pozycji.
@@ -4116,7 +4128,7 @@ operacji, z której wywołano to menu.
  Menu filtrów składa się z dwóch części. W górnej części są przedstawione
 #filtry użytkownika#, w dolna część zawiera maski wszystkich plików,
 które istnieją w bieżącym panelu (łącznie z maskami plików wybranymi w aktualnym
-obszarze działania, z którego wywołano menu, nawet jeśli nie ma żadnych plików
+obszarze działania, z którego wywołano menu, nawet jeżeli nie ma żadnych plików
 pasujących do masek w bieżącym panelu).
 
  Dla #Filtrów użytkownika# dostępne są następujące polecenia:
@@ -4201,7 +4213,7 @@ zostanie pokazana informacja o błędzie. Jeżeli włączona będzie opcja
 pliku opisów.
 
  Jeżeli jest to włączone w konfiguracji, Far aktualizuje opisy podczas
-kopiowania, przenoszeniu i usuwania plików. Ale jeśli polecenie przetwarza
+kopiowania, przenoszeniu i usuwania plików. Ale jeżeli polecenie przetwarza
 pliki z podfolderów, opisy w podfolderach nie są aktualizowane.
 
  #Otwieraj pliki w kodowaniu Windows#
@@ -4400,16 +4412,22 @@ $ #Wybór kolorów#
 
  Kolory wyświetlanych znaków i tła mogą być:
  - jednym z 16 kolorów ze standardowej palety Konsoli Windows,
- - jednym z 256 kolorów z palety Xterm, lub
+ - jednym z 256 kolorów z palety ANSI, lub
  - jednym z 16 milionów kolorów z przestrzeni barw RGB.
 
  Standardowa 16-kolorowa paleta jest dostępna w oknie dialogowym.
  Aby skorzystać z ~256-kolorowej palety~@ColorPicker256@ i ~przestrzeni barw RGB~@ColorPickerRGB@ należy użyć odpowiednich przycisków.
 
+ #Domyślny# to kolor używany przez terminal, gdy nie określono żadnych kolorów, np. \(800000:800000) C:\> \-.
+ Zazwyczaj jest to jeden z kolorów palety, np. \(7:0)srebrny na czarnym\-, ale niekoniecznie: niektóre terminale
+mogą go obsługiwać inaczej, np. renderować jako półprzezroczysty.
+
  Wartość kolorów jest także przedstawiania w postaci szesnastkowej, gdzie:
  - #AA______# - kanał alfa, oznaczający stopień przezroczystości od pełnej przejrzystości (00) do pełnego koloru (FF).
  - #______##### - indeks palety od 00 do FF.
  - #__RRGGBB# - kanały czerwony (Red), zielony (Green) i niebieski (Blue) z przestrzeni barw RGB, każdy od 00 do FF.
+
+ Indeksy palety 00-0F są ułożone zgodnie z systemem Windows/DOS/CGA/IBC PC, a nie ANSI (np. kolor ##1 to niebieskie, a nie czerwony).
 
  Jeżeli kolor nie jest w pełni nieprzezroczysty, brany jest pod uwagę poprzedni kolor w logicznym porządku Z.
 
@@ -4417,17 +4435,21 @@ $ #Wybór kolorów#
  Jeżeli opcja #Dziedziczenie# jest zaznaczona, uwzględniany jest poprzedni styl tekstu pierwszoplanowego
  w logicznym porządku Z.
 
- Default:   \(7:0) Example \-
- Bold:      \(7:0:bold) Example \-
- Italic:    \(7:0:italic) Example \-
- Underline: \(7:0:underline) Example \-
- Double:    \(7:0:underline2) Example \-
- Overline:  \(7:0:overline) Example \-
- Strikeout: \(7:0:strikeout) Example \-
- Faint:     \(7:0:faint) Example \-
- Blink:     \(7:0:blink) Example \-
- Inverse:   \(7:0:inverse) Example \-
- Invisible: \(7:0:invisible) Example \-
+ Domyślny:        \(7:0) Przykład \-
+ Pogrubienie:     \(7:0:bold) Przykład \-
+ Kursywa:         \(7:0:italic) Przykład \-
+ Nadkreślenie:    \(7:0:overline) Przykład \-
+ Przekreślenie:   \(7:0:strikeout) Przykład \-
+ Przygaszenie:    \(7:0:faint) Przykład \-
+ Migotanie:       \(7:0:blink) Przykład \-
+ Odwrotność:      \(7:0:inverse) Przykład \-
+ Niewidzialność:  \(7:0:invisible) Przykład \-
+ Podkreślenie:
+   Pojedyncze: \(7:0:underline) Przykład \-
+   Podwójne:   \(7:0:underline_double) Przykład \-
+   Kręcone:    \(7:0:underline_curly) Przykład \-
+   Kropkowane: \(7:0:underline_dot) Przykład \-
+   Przerywane: \(7:0:underline_dash) Przykład \-
 
  W sekcji podglądu (poniżej opcji) wyświetlany jest wynik końcowy.
 
@@ -4441,7 +4463,7 @@ Więcej informacji znajdziesz ~tutaj~@https://docs.microsoft.com/en-us/windows/c
 
 @ColorPicker256
 $ #Wybór z 256 kolorów#
- To okno dialogowe pozwala wybrać kolor z 256-kolorowej palety Xterm.
+ To okno dialogowe pozwala wybrać kolor z 256-kolorowej palety ANSI.
 
  Pierwsze 16 kolorów są takie same, jak standardowa paleta dostępna w ~głównym oknie~@ColorPicker@.
 
@@ -4471,18 +4493,18 @@ $ #Wybór z 256 kolorów#
 
 
 @ColorPickerRGB
-$ #RGB Color Picker#
- This dialog allows to pick a color from the RGB color space.
+$ #Wybór z kolorów RGB#
+ To okno dialogowe pozwala wybrać kolor z przestrzeni barw RGB.
 
- The 16 777 216 RGB colors are represented as a 16x16x16 hypercube.
+ 16 777 216 kolorów RGB prezentowane są jako hipersześcian o wymiarach 16x16x16.
 
- Use the buttons on the right to rotate the cube, access its inner levels or mix the primary colors directly.
+ Użyj przycisków po prawej stronie, aby obrócić kostką, uzyskać dostęp do jej wewnętrznych poziomów lub bezpośrednio mieszać kolory podstawowe.
 
- Each of the 4096 cells in the hypercube represents a 16x16x16 cube with RGB colors. To switch between the cubes use the #↔# button.
+ Każda z 4096 komórek hipersześcianu reprezentuje sześcian 16x16x16 z kolorami RGB. Aby przełączyć się między sześcianami, należy użyć przycisku #↔#.
 
- The #«# button allows to save the selected color to the custom palette for quick access.
+ Przycisk #«# dodaje wybrany kolor do palety użytkownika, dla szybszego dostępu do tego koloru.
 
- The #System# button opens the system RGB color picker.
+ Przycisk #System# otwiera systemowy wybór kolorów RGB.
 
 
 @SortGroups
@@ -4592,7 +4614,7 @@ z tą samą #nazwą#, jak element pod kursorem. #†#
  #Ctrl+<Szara *># odwraca bieżące zaznaczenie na wszystkich elementach,
 włączając foldery.
 
- #Alt+<Szary *># odwraca zaznaczenie tylko dla plików, foldery są odznaczane.
+ #Alt+<Szara *># odwraca zaznaczenie tylko dla plików, foldery są odznaczane.
 
  #Ctrl+M# przywraca ostatnie zaznaczenie.
 
@@ -5097,8 +5119,8 @@ znaków i tylko wtedy gdy dopasowanie kończy się niepowodzeniem, przechwytuje 
 przypadków znakiem ‘#\#’, ale w przypadku liter i cyfr należy to robić ostrożnie,
 ponieważ jest to sposób opisywania znaków specjalnych:
 
- #.#    - ^<wrap>dowolny znak za wyjątkiem powrotu karetki. Jeśli wśród opcji znajduje się
-“#s#”, to wtedy kropka dopasowuje dowolny znak.
+ #.#    - ^<wrap>dowolny znak za wyjątkiem powrotu karetki. Jeżeli wśród opcji
+znajduje się “#s#”, to wtedy kropka dopasowuje dowolny znak.
  #\t#   - tabulator (0x09)
  #\n#   - nowa linia (LF, 0x0a)
  #\r#   - powrót karetki (CR, 0x0d)
@@ -5190,7 +5212,7 @@ użytkownika.
 @KeyMacro
 $ #Makropolecenia#
  Domyślnie makropolecenia są wczytywanie z plików z rozszerzeniami #.lua# i #.moon# zapisanych w folderze
-#%FARPROFILE%\\Macros\\scripts#. Więcej szczegółów w pliku #%FARHOME%\\Encyclopedia\\macroapi_manual.en.chm#.
+#%FARPROFILE%\\Macros\\scripts#. Więcej szczegółów w pliku #%FARHOME%\\Encyclopedia\\macroapi_manual.pl.chm#.
 
  Makropolecenia klawiaturowe lub makropolecenia - są to nagrywane sekwencje
 klawiszy, które można wykorzystać do wykonania powtarzalnych zadań
@@ -5344,7 +5366,7 @@ klawisz skrótu makropolecenia, które ma zostać usunięte.
  #Uwaga#: po usunięciu makropolecenia, kombinacja
 klawiszy (skrót), który został użyty do jego wykonania
 zacznie funkcjonować tak, jak to było pierwotnie zamierzone.
-Oznacza to, że jeśli jakaś kombinacja była obsługiwana
+Oznacza to, że jeżeli jakaś kombinacja była obsługiwana
 przez Far lub jakąś wtyczkę, to po usunięciu makropolecenia
 kombinacja klawiszy będzie przetwarzania jak w przeszłości.
 
@@ -6672,7 +6694,7 @@ zastąpione ich odpowiednimi znakami narodowymi zdefiniowanymi w #XLat.Table1#.
 
  Domyślna wartość: pusty łańcuch (tabela przekodowania nie jest zdefiniowana).
 
- Jeśli znak nie może być przekodowany przy użyciu tabeli, Far spróbuje
+ Jeżeli znak nie może być przekodowany przy użyciu tabeli, Far spróbuje
 zastosować specjalne reguły ~XLat.Rules~@XLat.Rules@.
 
  Zobacz także Addons\XLat\Russian\Qwerty.farconfig.
@@ -6697,11 +6719,11 @@ drugim znakiem w parze.
 lub nie istnieje żadna reguła o nazwie odpowiadającej bieżącemu układowi
 klawiatury - to zostanie użyta jedna z trzech ponumerowanych reguł.
 
- #XLat.Rules1# ^<wrap> jest stosowana, jeśli poprzedni znak w przekodowanym
+ #XLat.Rules1# ^<wrap> jest stosowana, jeżeli poprzedni znak w przekodowanym
 łańcuchu pochodzi z alfabetu narodowego.
- #XLat.Rules2# jest stosowana, jeśli poprzedni znak w przekodowanym
+ #XLat.Rules2# jest stosowana, jeżeli poprzedni znak w przekodowanym
 łańcuchu jest znakiem łacińskim.
- #XLat.Rules3# jest stosowana, jeśli poprzedni znak w przekodowanym łańcuchu
+ #XLat.Rules3# jest stosowana, jeżeli poprzedni znak w przekodowanym łańcuchu
 nie pochodzi z alfabetu narodowego, ani nie jest znakiem alfabetu łacińskiego.
 
  Nazwana reguła specjalna jest stosowana jeżeli bit 2 (0x04) w ~XLat.Flags~@XLat.Flags@
@@ -6832,5 +6854,5 @@ tworzenia, usuwania lub zmiany nazw folderów.
 
 
 @Index
-$ #Index help file#
+$ #Indeks pliku pomocy#
 <%INDEX%>

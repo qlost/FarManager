@@ -1,4 +1,5 @@
 NAME=LuaMacro
+VERSION_LUASDK=20241113
 USERCPP=/Iluasdk/include /DEXPORT_OPEN /DEXPORT_CONFIGURE \
         /DEXPORT_PROCESSEDITOREVENT /DEXPORT_PROCESSVIEWEREVENT \
         /DEXPORT_PROCESSDIALOGEVENT /DEXPORT_PROCESSEDITORINPUT /DEXPORT_PROCESSCONSOLEINPUT \
@@ -7,7 +8,6 @@ USERCPP=/Iluasdk/include /DEXPORT_OPEN /DEXPORT_CONFIGURE \
         /DEXPORT_PROCESSHOSTFILE /DEXPORT_PROCESSPANELEVENT /DEXPORT_PROCESSPANELINPUT \
         /DEXPORT_PUTFILES /DEXPORT_SETDIRECTORY /DEXPORT_SETFINDLIST /DEXPORT_GETCONTENTDATA \
         /DRUN_LUAFAR_INIT
-LUA_VER=51
 
 LUALIB=$(INTDIR)\luafar3.lib
 
@@ -28,7 +28,7 @@ ALL: lualib lualegacy
 
 LINK_OBJS = $(INTDIR)\luaplug.obj
 
-LINK_LIBS=$(LINK_LIBS) luasdk\$(DIRBIT)\lua$(LUA_VER).lib $(LUALIB)
+LINK_LIBS=$(LINK_LIBS) luasdk\$(VERSION_LUASDK)\$(DIRBIT)\lua51.lib $(LUALIB)
 
 !include ..\makefile_vc_target_inc
 
@@ -52,7 +52,7 @@ lualib:
 lualegacy:
 !if "$(DIRBIT)" == "32"
 	@if not exist $(FAR_WORKDIR)\Legacy\$(NULL) mkdir $(FAR_WORKDIR)\Legacy
-	@copy /y luasdk\32\legacy\lua51.dll $(FAR_WORKDIR)\Legacy 1>nul
+	@copy /y luasdk\$(VERSION_LUASDK)\32\legacy\lua51.dll $(FAR_WORKDIR)\Legacy 1>nul
 !else
 	@echo >nul
 !endif

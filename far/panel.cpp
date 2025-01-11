@@ -979,10 +979,10 @@ bool Panel::SetPluginDirectory(string_view const Directory, bool Silent)
 	return Result;
 }
 
-bool Panel::ExecShortcutFolder(int Pos)
+bool Panel::ExecShortcutFolder(size_t const Index)
 {
 	Shortcuts::data Data;
-	if (!Shortcuts(Pos).Get(Data))
+	if (!Shortcuts::Get(Index, Data))
 		return false;
 
 	Data.Folder = os::env::expand(Data.Folder);
@@ -1054,7 +1054,7 @@ bool Panel::ExecFolder(string_view const Folder, const UUID& PluginUuid, const s
 						IsActive? FOSF_ACTIVE : FOSF_NONE
 					};
 
-					if (auto hNewPlugin = Global->CtrlObject->Plugins->Open(pPlugin, OPEN_SHORTCUT, FarUuid, reinterpret_cast<intptr_t>(&info)))
+					if (auto hNewPlugin = Global->CtrlObject->Plugins->Open(pPlugin, OPEN_SHORTCUT, FarUuid, std::bit_cast<intptr_t>(&info)))
 					{
 						const auto NewPanel = Parent()->ChangePanel(SrcPanel, panel_type::FILE_PANEL, TRUE, TRUE);
 						NewPanel->SetPluginMode(std::move(hNewPlugin), {}, IsActive || !Parent()->GetAnotherPanel(NewPanel)->IsVisible());

@@ -67,7 +67,6 @@ enum MACRODISABLEONLOAD
 	MDOL_ALL            = 31_bit, // дисаблим все макросы при загрузке
 };
 
-class TVar;
 struct point;
 
 struct MacroPanelSelect
@@ -79,6 +78,7 @@ struct MacroPanelSelect
 };
 
 class Dialog;
+struct DlgParam;
 
 class KeyMacro: noncopyable
 {
@@ -94,8 +94,9 @@ public:
 	static bool IsHistoryDisabled(int TypeHistory);
 	static bool MacroExists(int Key, FARMACROAREA Area, bool UseCommon);
 	static void RunStartMacro();
-	static bool SaveMacros(bool always);
+	static bool SaveMacros();
 	static void SetMacroConst(int ConstIndex, long long Value);
+	static long long GetMacroConst(int ConstIndex);
 	static bool PostNewMacro(const wchar_t* Sequence, FARKEYMACROFLAGS InputFlags, DWORD AKey = 0);
 	static bool IsMacroDialog(window_ptr const& Window);
 
@@ -117,13 +118,13 @@ public:
 private:
 	static int GetExecutingState();
 	intptr_t AssignMacroDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Param2);
-	int  AssignMacroKey(DWORD& MacroKey, unsigned long long& Flags);
+	bool AssignMacroKey(DlgParam *Param);
 	bool GetMacroSettings(int Key, unsigned long long &Flags, string_view Src = {}, string_view Descr = {});
 	intptr_t ParamMacroDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Param2);
 	void RestoreMacroChar() const;
 
 	FARMACROAREA m_Area;
-	FARMACROAREA m_StartMode;
+	FARMACROAREA m_StartArea;
 	FARMACROSTATE m_Recording;
 	string m_RecCode;
 	string m_RecDescription;
@@ -133,5 +134,12 @@ private:
 };
 
 inline bool IsMenuArea(int Area){return Area==MACROAREA_MAINMENU || Area==MACROAREA_MENU || Area==MACROAREA_DISKS || Area==MACROAREA_USERMENU || Area==MACROAREA_SHELLAUTOCOMPLETION || Area==MACROAREA_DIALOGAUTOCOMPLETION;}
+
+inline bool IsPanelsArea(int Area){return Area==MACROAREA_SHELL || Area==MACROAREA_INFOPANEL || Area==MACROAREA_QVIEWPANEL || Area==MACROAREA_TREEPANEL;}
+
+void ShowUserMenu(size_t Count, const FarMacroValue *Values);
+bool IsTopMacroOutputDisabled();
+DWORD GetHistoryDisableMask();
+DWORD SetHistoryDisableMask(DWORD Mask);
 
 #endif // MACRO_HPP_BA3167E8_1846_4B24_88A4_CF59CA90169F

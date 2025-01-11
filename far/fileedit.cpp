@@ -80,6 +80,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "file_io.hpp"
 #include "log.hpp"
 #include "elevation.hpp"
+#include "codepage.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -264,9 +265,9 @@ static intptr_t hndSaveFileAs(Dialog* Dlg, intptr_t msg, intptr_t param1, void* 
 				const uintptr_t cp = Dlg->GetListItemSimpleUserData(ID_SF_CODEPAGE, pos.SelectPos);
 				if (cp != CurrentCodepage)
 				{
-					if (IsUnicodeOrUtfCodePage(cp))
+					if (IsUtfCodePage(cp))
 					{
-						if (!IsUnicodeOrUtfCodePage(CurrentCodepage))
+						if (!IsUtfCodePage(CurrentCodepage))
 							Dlg->SendMessage(DM_SETCHECK,ID_SF_SIGNATURE,ToPtr(Global->Opt->EdOpt.AddUnicodeBOM));
 						Dlg->SendMessage(DM_ENABLE,ID_SF_SIGNATURE,ToPtr(TRUE));
 					}
@@ -294,7 +295,7 @@ static intptr_t hndSaveFileAs(Dialog* Dlg, intptr_t msg, intptr_t param1, void* 
 
 static bool dlgSaveFileAs(string &strFileName, eol& Eol, uintptr_t &codepage, bool &AddSignature)
 {
-	const auto ucp = IsUnicodeOrUtfCodePage(codepage);
+	const auto ucp = IsUtfCodePage(codepage);
 
 	auto EditDlg = MakeDialogItems<ID_SF_COUNT>(
 	{
@@ -944,7 +945,9 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			if (!m_Flags.Check(FFILEEDIT_ENABLEF6))
 				break; // отдадим F6 плагинам, если есть запрет на переключение
 
-			bool ConfirmSave = true;
+			// If the file is "new", there is nothing to view yet, so we have to save it first.
+			const auto NeedSave = m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED) || m_Flags.Check(FFILEEDIT_NEW);
+			bool ConfirmSave = !m_Flags.Check(FFILEEDIT_NEW);
 
 			if (!m_Flags.Check(FFILEEDIT_NEW) && !os::fs::is_file(strFullFileName))
 			{
@@ -968,7 +971,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 				}
 			}
 
-			if (!ProcessQuitKey(true, ConfirmSave, false))
+			if (!ProcessQuitKey(NeedSave, ConfirmSave, false))
 				return false;
 
 			const auto delete_on_close =
@@ -1144,7 +1147,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			case KEY_ESC:
 			case KEY_F10:
 			{
-				bool ConfirmSave = true, NeedSave = true;
+				bool ConfirmSave = true, NeedSave = m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED);
 
 				if (!m_Flags.Check(FFILEEDIT_NEW) && !os::fs::is_file(strFullFileName))
 				{
@@ -1249,7 +1252,7 @@ bool FileEditor::SetCodePageEx(uintptr_t cp)
 		cp = EditFile? GetFileCodepage(EditFile, DefaultCodepage) : DefaultCodepage;
 	}
 
-	if (cp == CP_DEFAULT || !codepages::IsCodePageSupported(cp))
+	if (cp == CP_DEFAULT || !IsCodePageSupported(cp))
 	{
 		Message(MSG_WARNING,
 			msg(lng::MEditTitle),
@@ -1267,8 +1270,8 @@ bool FileEditor::SetCodePageEx(uintptr_t cp)
 
 	const auto need_reload = !m_Flags.Check(FFILEEDIT_NEW) // we can't reload non-existing file
 		&& (BadConversion
-		|| IsUnicodeCodePage(m_codepage)
-		|| IsUnicodeCodePage(cp));
+		|| IsUtf16CodePage(m_codepage)
+		|| IsUtf16CodePage(cp));
 
 	if (need_reload)
 	{
@@ -1333,7 +1336,7 @@ static std::optional<bool> confirm_save()
 
 bool FileEditor::ProcessQuitKey(bool const NeedSave, bool ConfirmSave, bool const DeleteWindow)
 {
-	if (NeedSave && m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED))
+	if (NeedSave)
 	{
 		bool TrySave = true;
 
@@ -1449,7 +1452,7 @@ bool FileEditor::LoadFile(const string_view Name, int& UserBreak, error_state_ex
 			m_editor->m_Flags.Invert(Editor::FEDITOR_LOCKMODE);
 		}
 
-		if (Cached && pc.CodePage && !codepages::IsCodePageSupported(pc.CodePage))
+		if (Cached && pc.CodePage && !IsCodePageSupported(pc.CodePage))
 			pc.CodePage = 0;
 
 		bool testBOM = true;
@@ -1468,7 +1471,7 @@ bool FileEditor::LoadFile(const string_view Name, int& UserBreak, error_state_ex
 			{
 				const auto Cp = GetFileCodepage(EditFile, GetDefaultCodePage(), &m_bAddSignature, Redetect || Global->Opt->EdOpt.AutoDetectCodePage);
 				testBOM = false;
-				if (codepages::IsCodePageSupported(Cp))
+				if (IsCodePageSupported(Cp))
 					m_codepage = Cp;
 			}
 
@@ -1496,7 +1499,7 @@ bool FileEditor::LoadFile(const string_view Name, int& UserBreak, error_state_ex
 		enum_lines EnumFileLines(Stream, m_codepage);
 		for (auto Str: EnumFileLines)
 		{
-			if (testBOM && IsUnicodeOrUtfCodePage(m_codepage))
+			if (testBOM && IsUtfCodePage(m_codepage))
 			{
 				if (Str.Str.starts_with(encoding::bom_char))
 				{
@@ -1765,7 +1768,7 @@ int FileEditor::SaveFile(const string_view Name, bool bSaveAs, error_state_ex& E
 	*/
 	m_Flags.Clear(FFILEEDIT_DELETEONCLOSE|FFILEEDIT_DELETEONLYFILEONCLOSE);
 
-	if (!IsUnicodeOrUtfCodePage(Codepage))
+	if (!IsUtfCodePage(Codepage))
 	{
 		int LineNumber=-1;
 		encoding::diagnostics Diagnostics;
@@ -1915,6 +1918,9 @@ bool FileEditor::SaveAction(bool const SaveAsIntention)
 				strFileName :
 				strFullFileName;
 
+			if (strSaveAsName.empty())
+				strSaveAsName = PointToName(strFullFileName);
+
 			if (!dlgSaveFileAs(strSaveAsName, Eol, Codepage, AddSignature))
 				return false;
 
@@ -1951,7 +1957,7 @@ bool FileEditor::SaveAction(bool const SaveAsIntention)
 			return false;
 
 		default:
-			UNREACHABLE;
+			std::unreachable();
 		}
 	}
 }
@@ -2054,8 +2060,7 @@ void FileEditor::SetFileName(const string_view NewFileName)
 {
 	if (!NewFileName.empty())
 	{
-		strFullFileName = ConvertNameToFull(NewFileName);
-		ReplaceSlashToBackslash(strFullFileName);
+		strFullFileName = path::normalize_separators(ConvertNameToFull(NewFileName));
 		strFileName = PointToName(strFullFileName);
 		return;
 	}
@@ -2068,13 +2073,13 @@ void FileEditor::SetFileName(const string_view NewFileName)
 		strStartDir,
 		far::vformat(
 			msg(lng::MNewFileName),
-			LocalTime.wYear,
-			LocalTime.wMonth,
-			LocalTime.wDay,
-			LocalTime.wHour,
-			LocalTime.wMinute,
-			LocalTime.wSecond,
-			LocalTime.wMilliseconds
+			LocalTime.Year,
+			LocalTime.Month,
+			LocalTime.Day,
+			LocalTime.Hours,
+			LocalTime.Minutes,
+			LocalTime.Seconds,
+			LocalTime.Hectonanoseconds / (1ms / 1_hns)
 		)
 	);
 }
@@ -2190,7 +2195,7 @@ void FileEditor::ShowStatus() const
 		auto [UnicodeStr, UnicodeSize] = char_code(Char, m_editor->EdOpt.CharCodeBase);
 		CharCode = std::move(UnicodeStr);
 
-		if (!IsUnicodeOrUtfCodePage(m_codepage))
+		if (!IsUtfCodePage(m_codepage))
 		{
 			const auto [AnsiStr, AnsiSize] = ansi_char_code(Char, m_editor->EdOpt.CharCodeBase, m_codepage);
 			if (!CharCode.empty() && !AnsiStr.empty())
@@ -2395,7 +2400,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 		}
 		case ECTL_DELETESESSIONBOOKMARK:
 		{
-			return m_editor->DeleteSessionBookmark(m_editor->PointerToSessionBookmark(static_cast<int>(reinterpret_cast<intptr_t>(Param2))));
+			return m_editor->DeleteSessionBookmark(m_editor->PointerToSessionBookmark(static_cast<int>(std::bit_cast<intptr_t>(Param2))));
 		}
 		case ECTL_GETSESSIONBOOKMARKS:
 		{
@@ -2441,7 +2446,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 				InitKeyBar();
 			else
 			{
-				if (reinterpret_cast<intptr_t>(Param2) != -1) // не только перерисовать?
+				if (std::bit_cast<intptr_t>(Param2) != -1) // не только перерисовать?
 				{
 					if(CheckStructSize(Kbt))
 						m_windowKeyBar->Change(Kbt->Titles);
@@ -2557,7 +2562,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			{
 				if (ESPT_SETBOM==espar->Type)
 				{
-					if(IsUnicodeOrUtfCodePage(m_codepage))
+					if(IsUtfCodePage(m_codepage))
 					{
 						m_bAddSignature=espar->iParam != 0;
 						return TRUE;
@@ -2600,8 +2605,7 @@ bool FileEditor::LoadFromCache(EditorPosCache &pc) const
 	}
 	else
 	{
-		strCacheName = strFullFileName;
-		ReplaceSlashToBackslash(strCacheName);
+		strCacheName = path::normalize_separators(strFullFileName);
 	}
 
 	pc.Clear();
@@ -2678,7 +2682,7 @@ bool FileEditor::AskOverwrite(const string_view FileName)
 uintptr_t FileEditor::GetDefaultCodePage()
 {
 	const auto cp = encoding::codepage::normalise(Global->Opt->EdOpt.DefaultCodePage);
-	return cp == CP_DEFAULT || !codepages::IsCodePageSupported(cp)?
+	return cp == CP_DEFAULT || !IsCodePageSupported(cp)?
 		encoding::codepage::ansi() :
 		cp;
 }

@@ -72,7 +72,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/scope_exit.hpp"
-#include "common/view/reverse.hpp"
 
 // External:
 #include "format.hpp"
@@ -181,13 +180,19 @@ static bool CASHook(const Manager::Key& key)
 	// AltGr + Shift is a legit way to enter the same characters in upper case (É, Ú, Ó etc.).
 	// AltGr is implemented as LeftCtrl + RightAlt and we don't want to trigger this witchcraft on AltGr+Shift.
 	// The second check is to allow RCtrl+AltGr+Shift (i.e. RCtrl+LCtrl+RAlt+Shift) to still be used for this.
-	if (flags::check_all(state, LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED) && !flags::check_all(state, RIGHT_CTRL_PRESSED))
+	if (flags::check_all(state, LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED) && !flags::check_one(state, RIGHT_CTRL_PRESSED))
 		return false;
 
+	enum
+	{
+		cas_left  = 0_bit,
+		cas_right = 1_bit
+	};
+
 	const auto
-		CaseAny   = flags::check_all(Global->Opt->CASRule, 0b11) && AnyPressed(state),
-		CaseLeft  = flags::check_all(Global->Opt->CASRule, 0b01) && LeftPressed(state),
-		CaseRight = flags::check_all(Global->Opt->CASRule, 0b10) && RightPressed(state);
+		CaseAny   = flags::check_all(Global->Opt->CASRule, cas_left | cas_right) && AnyPressed(state),
+		CaseLeft  = flags::check_one(Global->Opt->CASRule, cas_left) && LeftPressed(state),
+		CaseRight = flags::check_one(Global->Opt->CASRule, cas_right) && RightPressed(state);
 
 	if (!CaseAny && !CaseLeft && !CaseRight)
 		return false;
@@ -360,7 +365,7 @@ void Manager::ExecuteNonModal(const window_ptr& NonModal)
 void Manager::ExecuteModal(const window_ptr& Executed)
 {
 	bool stop=false;
-	if (!m_Executed.emplace(Executed, &stop).second)
+	if (!m_Executed.try_emplace(Executed, &stop).second)
 		return;
 
 	const auto OriginalStartManager = StartManager;
@@ -398,7 +403,7 @@ int Manager::CountWindowsWithName(string_view const Name, bool IgnoreCase) const
 
 	string strType, strCurName;
 
-	return std::count_if(CONST_RANGE(m_windows, i)
+	return std::ranges::count_if(m_windows, [&](window_ptr const& i)
 	{
 		i->GetTypeAndName(strType, strCurName);
 		return AreEqual(Name, strCurName);
@@ -436,7 +441,7 @@ window_ptr Manager::WindowMenu()
 			}
 		}
 
-		const auto TypesWidth = std::get<0>(*std::max_element(ALL_CONST_RANGE(Data), [](const auto& a, const auto &b) { return std::get<0>(a).size() < std::get<0>(b).size(); })).size();
+		const auto TypesWidth = std::ranges::fold_left(Data, 0uz, [](size_t const Value, auto const& i){ return std::max(Value, std::get<0>(i).size()); });
 
 		const auto ModalMenu = VMenu2::create(msg(lng::MScreensTitle), {}, ScrY - 4);
 		ModalMenu->SetHelp(L"ScrSwitch"sv);
@@ -444,7 +449,7 @@ window_ptr Manager::WindowMenu()
 		ModalMenu->SetPosition({ -1, -1, 0, 0 });
 		ModalMenu->SetId(ScreensSwitchId);
 
-		for (const auto& i: irange(Data.size()))
+		for (const auto i: std::views::iota(0uz, Data.size()))
 		{
 			auto& [Type, Name, Window] = Data[i];
 
@@ -486,7 +491,7 @@ window_ptr Manager::WindowMenu()
 
 int Manager::GetWindowCountByType(int Type) const
 {
-	return std::count_if(CONST_RANGE(m_windows, i)
+	return std::ranges::count_if(m_windows, [&](window_ptr const& i)
 	{
 		return !i->IsDeleting() && i->GetExitCode() != XC_QUIT && i->GetType() == Type;
 	});
@@ -495,7 +500,7 @@ int Manager::GetWindowCountByType(int Type) const
 /*$ 11.05.2001 OT Теперь можно искать файл не только по полному имени, но и отдельно - путь, отдельно имя */
 window_ptr Manager::FindWindowByFile(int const ModalType, string_view const FileName) const
 {
-	const auto ItemIterator = std::find_if(CONST_RANGE(m_windows, i)
+	const auto ItemIterator = std::ranges::find_if(m_windows, [&](window_ptr const& i)
 	{
 		// Mantis#0000469 - получать Name будем только при совпадении ModalType
 		if (!i->IsDeleting() && i->GetType() == ModalType)
@@ -576,7 +581,7 @@ void Manager::SwitchToPanels()
 {
 	if (!Global->OnlyEditorViewerUsed)
 	{
-		const auto PanelsWindow = std::find_if(ALL_CONST_RANGE(m_windows), [](const auto& item) { return std::dynamic_pointer_cast<FilePanels>(item) != nullptr; });
+		const auto PanelsWindow = std::ranges::find_if(m_windows, [](const auto& item) { return std::dynamic_pointer_cast<FilePanels>(item) != nullptr; });
 		if (PanelsWindow != m_windows.cend())
 		{
 			ActivateWindow(*PanelsWindow);
@@ -645,7 +650,7 @@ void Manager::ProcessMainLoop()
 	}
 }
 
-void Manager::ExitMainLoop(int Ask)
+void Manager::ExitMainLoop(int Ask, int ExitCode)
 {
 	if (!Ask || !Global->Opt->Confirm.Exit || Message(0,
 		msg(lng::MQuit),
@@ -661,7 +666,8 @@ void Manager::ExitMainLoop(int Ask)
 		*/
 		if (ExitAll() || Global->CloseFAR)
 		{
-			Global->CtrlObject->Plugins->NotifyExit();
+			Global->FarExitCode = ExitCode;
+			Global->CtrlObject->Plugins->NotifyExitLuaMacro();
 
 			const auto cp = Global->CtrlObject->Cp();
 			if (!cp || (!cp->LeftPanel()->ProcessPluginEvent(FE_CLOSE, nullptr) && !cp->RightPanel()->ProcessPluginEvent(FE_CLOSE, nullptr)))
@@ -701,7 +707,7 @@ bool Manager::ProcessKey(Key key)
 		/*** А вот здесь - все остальное! ***/
 		if (!Global->IsProcessAssignMacroKey)
 		{
-			if (std::any_of(CONST_RANGE(m_GlobalKeyHandlers, i) { return i(key); }))
+			if (std::ranges::any_of(m_GlobalKeyHandlers, [&](auto const& i){ return i(key); }))
 			{
 				return true;
 			}
@@ -877,7 +883,7 @@ window_ptr Manager::GetWindow(size_t Index) const
 
 int Manager::IndexOf(const window_ptr& Window) const
 {
-	const auto ItemIterator = std::find(ALL_CONST_RANGE(m_windows), Window);
+	const auto ItemIterator = std::ranges::find(m_windows, Window);
 	return ItemIterator != m_windows.cend() ? ItemIterator - m_windows.cbegin() : -1;
 }
 
@@ -1019,7 +1025,7 @@ void Manager::RefreshCommit(const window_ptr& Param)
 		m_windows_changed.pop_back();
 	};
 
-	for (const auto& i: range(std::next(m_windows.begin(), (Param->HasSaveScreen() && !IsSpecialWindow)?0:WindowIndex), m_windows.end()))
+	for (const auto& i: std::ranges::subrange(std::next(m_windows.begin(), (Param->HasSaveScreen() && !IsSpecialWindow)?0:WindowIndex), m_windows.end()))
 	{
 		i->Refresh();
 		if (m_windows_changed[ChangedIndex - 1]) //ой, всё!
@@ -1195,7 +1201,7 @@ desktop* Manager::Desktop() const
 
 Viewer* Manager::GetCurrentViewer() const
 {
-	for (const auto& i: reverse(m_windows))
+	for (const auto& i: std::views::reverse(m_windows))
 	{
 		if (const auto v = std::dynamic_pointer_cast<ViewerContainer>(i))
 		{
@@ -1208,7 +1214,7 @@ Viewer* Manager::GetCurrentViewer() const
 
 FileEditor* Manager::GetCurrentEditor() const
 {
-	for (const auto& i: reverse(m_windows))
+	for (const auto& i: std::views::reverse(m_windows))
 	{
 		if (const auto e = std::dynamic_pointer_cast<FileEditor>(i))
 		{
@@ -1221,7 +1227,7 @@ FileEditor* Manager::GetCurrentEditor() const
 
 Manager::windows::const_iterator Manager::IsSpecialWindow() const
 {
-	return std::find_if(CONST_RANGE(m_windows, i) { return i->IsSpecial(); });
+	return std::ranges::find_if(m_windows, [](window_ptr const& i){ return i->IsSpecial(); });
 }
 
 void Manager::FolderChanged()

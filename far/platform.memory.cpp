@@ -71,10 +71,15 @@ namespace os::memory
 		}();
 
 		return in_closed_range(
-			reinterpret_cast<uintptr_t>(info.lpMinimumApplicationAddress),
-			reinterpret_cast<uintptr_t>(Address),
-			reinterpret_cast<uintptr_t>(info.lpMaximumApplicationAddress)
+			std::bit_cast<uintptr_t>(info.lpMinimumApplicationAddress),
+			std::bit_cast<uintptr_t>(Address),
+			std::bit_cast<uintptr_t>(info.lpMaximumApplicationAddress)
 		);
+	}
+
+	bool is_pointer(uintptr_t const Address)
+	{
+		return is_pointer(std::bit_cast<void const*>(Address));
 	}
 
 	void enable_low_fragmentation_heap()
@@ -112,7 +117,7 @@ namespace os::memory
 TEST_CASE("os.memory.is_pointer")
 {
 	REQUIRE(!os::memory::is_pointer(nullptr));
-	REQUIRE(!os::memory::is_pointer(reinterpret_cast<void*>(42)));
+	REQUIRE(!os::memory::is_pointer(42));
 	REQUIRE(os::memory::is_pointer("42"));
 }
 #endif

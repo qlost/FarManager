@@ -35,6 +35,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "string_utils.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 //----------------------------------------------------------------------------
 
@@ -47,8 +48,8 @@ namespace detail
 		out_of_range,
 	};
 
-	template<typename result_type, typename converter_type>
-	result from_string(std::wstring_view const Str, result_type& Value, size_t* const Pos, int const Base, converter_type const Converter)
+	template<typename result_type>
+	result from_string(std::wstring_view const Str, result_type& Value, size_t* const Pos, int const Base, auto const Converter)
 	{
 		if (Str.empty() || Str.front() == L' ' || Str.front() == L'+')
 			return result::invalid_argument;
@@ -145,9 +146,8 @@ namespace detail
 	}
 }
 
-template<typename T>
 [[nodiscard]]
-bool from_string(std::wstring_view const Str, T& Value, size_t* const Pos = {}, int const Base = 10)
+bool from_string(std::wstring_view const Str, auto& Value, size_t* const Pos = {}, int const Base = 10)
 {
 	return detail::from_string(Str, Value, Pos, Base) == detail::result::ok;
 }
@@ -168,7 +168,7 @@ T from_string(std::wstring_view const Str, size_t* const Pos = {}, int const Bas
 		throw std::out_of_range("from_string argument out of range");
 
 	default:
-		UNREACHABLE;
+		std::unreachable();
 	}
 }
 

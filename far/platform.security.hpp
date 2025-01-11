@@ -38,9 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.hpp"
+#include "platform.memory.hpp"
 
 // Common:
-#include "common/range.hpp"
 #include "common/smart_ptr.hpp"
 
 // External:
@@ -66,6 +66,9 @@ namespace os::security
 	bool is_admin();
 
 	[[nodiscard]]
+	TOKEN_ELEVATION_TYPE elevation_type();
+
+	[[nodiscard]]
 	handle open_current_process_token(DWORD DesiredAccess);
 
 	class privilege
@@ -74,23 +77,22 @@ namespace os::security
 		NONCOPYABLE(privilege);
 		MOVE_CONSTRUCTIBLE(privilege);
 
-		privilege(const std::initializer_list<const wchar_t* const>& Names): privilege(span(Names)) {}
-		explicit privilege(span<const wchar_t* const> Names);
+		privilege(const std::initializer_list<const wchar_t* const>& Names): privilege(std::span(Names)) {}
+		explicit privilege(std::span<const wchar_t* const> Names);
 		~privilege();
 
-		template<class... args>
 		[[nodiscard]]
-		static bool check(args&&... Args) { return check({ FWD(Args)... }); }
+		static bool check(auto&&... Args) { return check({{ FWD(Args)... }}); }
 
 		[[nodiscard]]
-		static bool check(span<const wchar_t* const> Names);
+		static bool check(std::span<const wchar_t* const> Names);
 
 	private:
 		block_ptr<TOKEN_PRIVILEGES> m_SavedState;
 		bool m_Changed{};
 	};
 
-	using descriptor = block_ptr<SECURITY_DESCRIPTOR, 512>;
+	using descriptor = memory::local::ptr<SECURITY_DESCRIPTOR>;
 }
 
 #endif // PLATFORM_SECURITY_HPP_08ED45C7_0FD0_43D5_8838_F9B6F8EFD31C

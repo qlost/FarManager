@@ -7,12 +7,16 @@
 
 WARNING_PUSH(3)
 
+WARNING_DISABLE_MSC(4267) // 'var' : conversion from 'size_t' to 'type', possible loss of data
+
 WARNING_DISABLE_GCC("-Wctor-dtor-privacy")
 
 WARNING_DISABLE_CLANG("-Weverything")
 
 #define FMT_CONSTEVAL consteval
 #define FMT_HAS_CONSTEVAL
+
+#include <algorithm>
 
 #include <fmt/format.h>
 #include <fmt/xchar.h>

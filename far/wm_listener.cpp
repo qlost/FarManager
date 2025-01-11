@@ -99,7 +99,7 @@ static LRESULT CALLBACK WndProc(HWND Hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
 			{
 				// https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-settingchange
 				// Some applications send this message with lParam set to NULL
-				const auto Area = NullToEmpty(view_as<const wchar_t*>(lParam));
+				const auto Area = NullToEmpty(std::bit_cast<const wchar_t*>(lParam));
 
 				if (Area == L"Environment"sv)
 				{
@@ -142,10 +142,8 @@ static LRESULT CALLBACK WndProc(HWND Hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
 		}
 	},
-	[]
-	{
-		SAVE_EXCEPTION_TO(*WndProcExceptionPtr);
-	});
+	save_exception_to(*WndProcExceptionPtr)
+	);
 
 	return DefWindowProc(Hwnd, Msg, wParam, lParam);
 }
@@ -163,10 +161,11 @@ void wm_listener::powernotify_deleter::operator()(HPOWERNOTIFY const Ptr) const
 // for PBT_POWERSETTINGCHANGE
 void wm_listener::enable_power_notifications()
 {
-	if (!imports.RegisterPowerSettingNotification)
+	if (++m_PowerNotifyRefCount > 1)
 		return;
 
-	assert(!m_PowerNotify);
+	if (!imports.RegisterPowerSettingNotification)
+		return;
 
 	m_PowerNotify.reset(imports.RegisterPowerSettingNotification(m_Hwnd, &GUID_BATTERY_PERCENTAGE_REMAINING, DEVICE_NOTIFY_WINDOW_HANDLE));
 
@@ -176,13 +175,21 @@ void wm_listener::enable_power_notifications()
 
 void wm_listener::disable_power_notifications()
 {
-	m_PowerNotify.reset();
+	assert(m_PowerNotifyRefCount);
+
+	if (!--m_PowerNotifyRefCount)
+		m_PowerNotify.reset();
+}
+
+HWND wm_listener::service_window()
+{
+	return m_Hwnd;
 }
 
 wm_listener::wm_listener()
 {
-	os::event ReadyEvent(os::event::type::automatic, os::event::state::nonsignaled);
-	m_Thread = os::thread(os::thread::mode::join, &wm_listener::WindowThreadRoutine, this, std::ref(ReadyEvent));
+	os::event ReadyEvent(os::event::type::manual, os::event::state::nonsignaled);
+	m_Thread = os::thread(&wm_listener::WindowThreadRoutine, this, std::ref(ReadyEvent));
 	ReadyEvent.wait();
 }
 

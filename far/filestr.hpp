@@ -61,7 +61,7 @@ class [[nodiscard]] enum_lines: public enumerator<enum_lines, file_line>
 	IMPLEMENTS_ENUMERATOR(enum_lines);
 
 public:
-	enum_lines(std::istream& Stream, uintptr_t CodePage);
+	enum_lines(std::istream& Stream, uintptr_t CodePage, bool* TryUtf8 = {});
 
 	bool conversion_error() const { return m_Diagnostics.ErrorPosition.has_value(); }
 
@@ -74,11 +74,13 @@ private:
 	bool fill() const;
 
 	template<typename T>
-	bool GetTString(std::basic_string<T>& To, eol& Eol, bool BigEndian = false) const;
+	bool GetTString(std::basic_string<T>& To, eol& Eol) const;
 
 	std::istream& m_Stream;
 	size_t m_BeginPos;
 	uintptr_t m_CodePage;
+	bool* m_TryUtf8;
+	mutable encoding::is_utf8 m_IsUtf8{encoding::is_utf8::yes_ascii};
 	raw_eol m_Eol;
 
 	mutable char_ptr m_Buffer;

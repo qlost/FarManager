@@ -1,3 +1,6 @@
+|[Polski](README-PL.md)|[Русский](README-RU.md)|
+|-|-|
+
 [![Header][logo-img]][logo-url]
 
 ### Far Manager
@@ -22,22 +25,22 @@ The functionality of Far Manager is greatly extended by external DLL modules —
 
 
 #### Support forum
-https://enforum.farmanager.com/  
+https://enforum.farmanager.com/<br/>
 https://forum.farmanager.com/
 
 #### Bug tracker
 https://bugs.farmanager.com/
 
 #### Developers mailing list (english)
-https://groups.google.com/group/fardeven  
+https://groups.google.com/group/fardeven<br/>
 <fardeven@googlegroups.com>
 
 #### Developers mailing list (russian)
-https://groups.google.com/group/fardev  
+https://groups.google.com/group/fardev<br/>
 <fardev@googlegroups.com>
 
 #### Commits mailing list
-https://groups.google.com/group/farcommits  
+https://groups.google.com/group/farcommits<br/>
 <farcommits@googlegroups.com>
 
 #### Source code

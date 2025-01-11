@@ -332,7 +332,7 @@ SearchReplaceDlgResult GetSearchReplaceString(
 			if (Init || Empty != SearchStringWasEmpty)
 			{
 				SearchStringWasEmpty = Empty;
-				Dialog::suppress_redraw RedrawGuard{ Dlg };
+				SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 				for (auto Item : { dlg_button_prev, dlg_button_action, dlg_button_all })
 					Dlg->SendMessage(DM_ENABLE, Item, ToPtr(!Empty));
 			}
@@ -478,7 +478,8 @@ SearchReplaceDlgResult GetSearchReplaceString(
 	case dlg_button_action: return Props.ShowButtonsPrevNext ? SearchReplaceDlgResult::Next : SearchReplaceDlgResult::Ok;
 	case dlg_button_prev:   return SearchReplaceDlgResult::Prev;
 	case dlg_button_all:    return SearchReplaceDlgResult::All;
-	default:                UNREACHABLE;
+	default:
+		std::unreachable();
 	}
 }
 
@@ -587,7 +588,7 @@ bool GetString(
 		StrDlg[gs_edit].strData = SrcText;
 
 	{
-		const auto Dlg = Dialog::create(span(StrDlg.data(), StrDlg.size() - Substract));
+		const auto Dlg = Dialog::create(std::span(StrDlg.data(), StrDlg.size() - Substract));
 		Dlg->SetPosition({ -1, -1, 76, offset + (Flags & FIB_BUTTONS? 8 : 6) });
 		if(Id) Dlg->SetId(*Id);
 
@@ -724,7 +725,7 @@ static std::vector<string> get_locking_processes(const string& FullName, size_t 
 		if (!Enum)
 		{
 			Enum.emplace();
-			std::transform(ALL_CONST_RANGE(*Enum), std::inserter(ActiveProcesses, ActiveProcesses.end()), [](os::process::enum_process_entry const& Entry)
+			std::ranges::transform(*Enum, std::inserter(ActiveProcesses, ActiveProcesses.end()), [](os::process::enum_process_entry const& Entry)
 			{
 				return std::pair(Entry.Pid, Entry.Name);
 			});
@@ -875,7 +876,7 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 	if(!Msg.empty())
 	{
 		Msgs.emplace_back(far::vformat(msg(lng::MObjectLockedReason), msg(Reason)));
-		std::move(ALL_RANGE(Msg), std::back_inserter(Msgs));
+		std::ranges::move(Msg, std::back_inserter(Msgs));
 		Msg.clear();
 	}
 
@@ -1197,7 +1198,7 @@ void regex_playground()
 	RegexDlgItems[rp_edit_substitution].strHistory = L"RegexTestSubstitution"sv;
 
 	RegExp Regex;
-	std::vector<RegExpMatch> Match;
+	regex_match Match;
 	named_regex_match NamedMatch;
 
 	std::vector<string> ListStrings;
@@ -1218,7 +1219,8 @@ void regex_playground()
 		case status::normal:  return F_LIGHTGREEN;
 		case status::warning: return F_YELLOW;
 		case status::error:   return F_LIGHTRED;
-		default: UNREACHABLE;
+		default:
+			std::unreachable();
 		}
 	};
 
@@ -1226,12 +1228,10 @@ void regex_playground()
 	{
 		const auto update_substitution = [&]
 		{
-			const auto TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
-			const auto ReplaceStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
+			const auto TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+			const auto ReplaceStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
 
-			int CurPos = 0;
-			int SearchLength;
-			const auto Str = ReplaceBrackets(TestStr, ReplaceStr, Match, &NamedMatch, CurPos, SearchLength);
+			const auto Str = ReplaceBrackets(TestStr, ReplaceStr, Match.Matches, &NamedMatch);
 			Status = status::normal;
 			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_result, UNSAFE_CSTR(Str));
 		};
@@ -1244,7 +1244,7 @@ void regex_playground()
 
 		const auto clear_matches = [&]
 		{
-			Match.clear();
+			Match.Matches.clear();
 			NamedMatch.Matches.clear();
 			ListItems.clear();
 
@@ -1264,7 +1264,7 @@ void regex_playground()
 
 		const auto update_test = [&]
 		{
-			string_view const TestStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+			string_view const TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
 
 			bool IsMatch;
 
@@ -1292,23 +1292,23 @@ void regex_playground()
 			ListItems.clear();
 			ListStrings.clear();
 
-			reserve_exp_noshrink(ListItems, Match.size());
-			reserve_exp_noshrink(ListStrings, Match.size());
+			reserve_exp(ListItems, Match.Matches.size());
+			reserve_exp(ListStrings, Match.Matches.size());
 
 			const auto match_str = [&](RegExpMatch const& m)
 			{
 				return m.start < 0? L""s : far::format(L"{}-{} {}"sv, m.start, m.end, get_match(TestStr, m));
 			};
 
-			for (const auto& [i, Index] : enumerate(Match))
+			for (const auto& [i, Index] : enumerate(Match.Matches))
 			{
 				ListStrings.emplace_back(far::format(L"${}: {}"sv, Index, match_str(i)));
-				ListItems.push_back({ i.start < 0? LIF_GRAYED : LIF_NONE, ListStrings.back().c_str(), 0, 0 });
+				ListItems.emplace_back(i.start < 0? LIF_GRAYED : LIF_NONE, ListStrings.back().c_str(), 0, 0);
 			}
 
 			for (const auto& [k, v] : NamedMatch.Matches)
 			{
-				const auto& m = Match[v];
+				const auto& m = Match.Matches[v];
 				ListStrings[v] = far::format(L"${{{}}}: {}"sv, k, match_str(m));
 				ListItems[v].Text = ListStrings[v].c_str();
 			}
@@ -1322,7 +1322,7 @@ void regex_playground()
 		{
 			try
 			{
-				const string_view RegexStr = view_as<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_regex, {}));
+				const string_view RegexStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_regex, {}));
 				Regex.Compile(RegexStr, RegexStr.starts_with(L'/')? OP_PERLSTYLE : 0);
 			}
 			catch (regex_exception const& e)
@@ -1388,7 +1388,7 @@ progress_impl::~progress_impl()
 		m_Dialog->CloseDialog();
 }
 
-void progress_impl::init(span<DialogItemEx> const Items, rectangle const Position)
+void progress_impl::init(std::span<DialogItemEx> const Items, rectangle const Position, const UUID* Id)
 {
 	m_Dialog = Dialog::create(Items, [](Dialog* const Dlg, intptr_t const Msg, intptr_t const Param1, void* const Param2)
 	{
@@ -1409,6 +1409,8 @@ void progress_impl::init(span<DialogItemEx> const Items, rectangle const Positio
 
 	m_Dialog->SetPosition(Position);
 	m_Dialog->SetCanLoseFocus(true);
+	if(Id)
+		m_Dialog->SetId(*Id);
 	m_Dialog->Process();
 
 	Global->WindowManager->PluginCommit();
@@ -1459,7 +1461,7 @@ void single_progress::update(size_t const Percent) const
 {
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_progress, UNSAFE_CSTR(make_progressbar(single_progress_detail::DlgW - 10, Percent, true, true)));
 
-	const auto Title = view_as<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
+	const auto Title = std::bit_cast<const wchar_t*>(m_Dialog->SendMessage(DM_GETCONSTTEXTPTR, single_progress_detail::items::pr_doublebox, {}));
 	m_Dialog->SendMessage(DM_SETTEXTPTR, single_progress_detail::items::pr_console_title, UNSAFE_CSTR(concat(L'{', str(Percent), L"%} "sv, Title)));
 }
 

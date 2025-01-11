@@ -78,7 +78,7 @@ static HICON load_icon(int IconId, bool Big)
 
 static HICON set_icon(HWND Wnd, bool Big, HICON Icon)
 {
-	return reinterpret_cast<HICON>(SendMessage(Wnd, WM_SETICON, Big? ICON_BIG : ICON_SMALL, reinterpret_cast<LPARAM>(Icon)));
+	return std::bit_cast<HICON>(SendMessage(Wnd, WM_SETICON, Big? ICON_BIG : ICON_SMALL, std::bit_cast<LPARAM>(Icon)));
 }
 
 void consoleicons::update_icon()
@@ -187,7 +187,8 @@ static BOOL control_handler(DWORD CtrlType)
 		if(!CancelIoInProgress().is_signaled())
 		{
 			CancelIoInProgress().set();
-			os::thread(os::thread::mode::detach, &CancelSynchronousIoWrapper, Global->MainThreadHandle());
+			os::thread Thread(&CancelSynchronousIoWrapper, Global->MainThreadHandle());
+			Thread.detach();
 		}
 		WriteInput(KEY_BREAK);
 
@@ -225,7 +226,7 @@ static BOOL WINAPI CtrlHandler(DWORD CtrlType)
 	{
 		return control_handler(CtrlType);
 	},
-	[&]
+	[&](source_location const&)
 	{
 		return FALSE;
 	});
@@ -391,7 +392,6 @@ void InitConsole()
 	SetPalette();
 
 	UpdateScreenSize();
-	Global->ScrBuf->FillBuf();
 
 	consoleicons::instance().update_icon();
 }
@@ -773,7 +773,7 @@ static void string_to_buffer_simple(string_view const Str, std::vector<FAR_CHAR_
 	const auto From = Str.substr(0, MaxSize);
 	Buffer.reserve(From.size());
 
-	std::transform(ALL_CONST_RANGE(From), std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, CurColor }; });
+	std::ranges::transform(From, std::back_inserter(Buffer), [](wchar_t c) { return FAR_CHAR_INFO{ c, {}, {}, CurColor }; });
 }
 
 static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_CHAR_INFO>& Buffer, size_t const MaxSize)
@@ -796,7 +796,7 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 			Str.remove_prefix(1);
 		}
 
-		Buffer.push_back({ Char[0], CurColor });
+		Buffer.push_back({ Char[0], {}, {}, CurColor });
 
 		if (char_width::is_wide(Codepoint))
 		{
@@ -810,13 +810,13 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 			if (Char[1])
 			{
 				// It's wide and it already occupies two cells - awesome
-				Buffer.push_back({ Char[1], CurColor });
+				Buffer.push_back({ Char[1], {}, {}, CurColor });
 			}
 			else
 			{
 				// It's wide and we need to add a bogus cell
 				Buffer.back().Attributes.Flags |= COMMON_LVB_LEADING_BYTE;
-				Buffer.push_back({ Char[0], CurColor });
+				Buffer.push_back({ Char[0], {}, {}, CurColor });
 				Buffer.back().Attributes.Flags |= COMMON_LVB_TRAILING_BYTE;
 			}
 		}
@@ -830,13 +830,13 @@ static void string_to_buffer_full_width_aware(string_view Str, std::vector<FAR_C
 					// Put *one* fake character:
 					Buffer.back().Char = encoding::replace_char;
 					// Stash the actual codepoint. The drawing code will restore it from here:
-					Buffer.back().Attributes.Reserved[0] = Codepoint;
+					Buffer.back().Reserved1 = Codepoint;
 				}
 				else
 				{
 					// Classic grid mode, nothing we can do :(
 					// Expect the broken UI
-					Buffer.push_back({ Char[1], CurColor });
+					Buffer.push_back({ Char[1], {}, {}, CurColor });
 				}
 			}
 			else
@@ -1146,18 +1146,18 @@ string escape_ampersands(string_view const Str)
 
 void SetScreen(rectangle const Where, wchar_t Ch, const FarColor& Color)
 {
-	Global->ScrBuf->FillRect(Where, { Ch, Color });
+	Global->ScrBuf->FillRect(Where, { Ch, {}, {}, Color });
 }
 
-void MakeShadow(rectangle const Where, bool const IsLegacy)
+void MakeShadow(rectangle const Where)
 {
-	Global->ScrBuf->ApplyShadow(Where, IsLegacy);
+	Global->ScrBuf->ApplyShadow(Where);
 }
 
-void DropShadow(rectangle const Where, bool const IsLegacy)
+void DropShadow(rectangle const Where)
 {
-	MakeShadow({ Where.left + 2, Where.bottom + 1, Where.right + 2, Where.bottom + 1 }, IsLegacy);
-	MakeShadow({ Where.right + 1, Where.top + 1, Where.right + 2, Where.bottom }, IsLegacy);
+	MakeShadow({ Where.left + 2, Where.bottom + 1, Where.right + 2, Where.bottom + 1 });
+	MakeShadow({ Where.right + 1, Where.top + 1, Where.right + 2, Where.bottom });
 }
 
 void SetColor(int Color)
@@ -1180,29 +1180,12 @@ void SetRealColor(const FarColor& Color)
 	console.SetTextAttributes(Color);
 }
 
-void ClearScreen(const FarColor& Color)
-{
-	Global->ScrBuf->FillRect({ 0, 0, ScrX, ScrY }, { L' ', Color });
-	if(Global->Opt->WindowMode)
-	{
-		console.ClearExtraRegions(Color, CR_BOTH);
-	}
-	Global->ScrBuf->Flush();
-	console.SetTextAttributes(Color);
-}
-
 const FarColor& GetColor()
 {
 	return CurColor;
 }
 
-
-void ScrollScreen(int Count)
-{
-	Global->ScrBuf->Scroll(Count);
-}
-
-bool DoWeReallyHaveToScroll(short Rows)
+size_t NumberOfEmptyLines(size_t const Desired)
 {
 	/*
 	Q: WTF is this magic?
@@ -1217,13 +1200,19 @@ bool DoWeReallyHaveToScroll(short Rows)
 	This function reads the specified number of the last lines from the screen buffer and checks if there's anything else in them but spaces.
 	*/
 
-	rectangle const Region{ 0, ScrY - Rows + 1, ScrX, ScrY };
+	rectangle const Region{ 0, static_cast<int>(ScrY - Desired + 1), ScrX, ScrY };
 
 	// TODO: matrix_view to avoid copying
-	matrix<FAR_CHAR_INFO> BufferBlock(Rows, ScrX + 1);
+	matrix<FAR_CHAR_INFO> BufferBlock(Desired, ScrX + 1);
 	Global->ScrBuf->Read(Region, BufferBlock);
 
-	return !std::all_of(ALL_CONST_RANGE(BufferBlock.vector()), [](const FAR_CHAR_INFO& i) { return i.Char == L' '; });
+	for (const auto Row: std::views::reverse(BufferBlock))
+	{
+		if (!std::ranges::all_of(Row, [](const FAR_CHAR_INFO& i){ return i.Char == L' '; }))
+			return BufferBlock.height() - 1 - BufferBlock.row_number(Row);
+	}
+
+	return Desired;
 }
 
 size_t string_pos_to_visual_pos(string_view Str, size_t const StringPos, size_t const TabSize, position_parser_state* SavedState)
@@ -1257,7 +1246,7 @@ size_t string_pos_to_visual_pos(string_view Str, size_t const StringPos, size_t 
 		{
 			const auto Codepoint = encoding::utf16::extract_codepoint(Str.substr(State.StringIndex));
 			CharStringIncrement = Codepoint > std::numeric_limits<char16_t>::max()? 2 : 1;
-			CharVisualIncrement = char_width::is_wide(Codepoint)? 2 : 1;
+			CharVisualIncrement = char_width::get(Codepoint);
 		}
 		else
 		{
@@ -1312,7 +1301,7 @@ size_t visual_pos_to_string_pos(string_view Str, size_t const VisualPos, size_t 
 		else if (CharWidthEnabled)
 		{
 			const auto Codepoint = encoding::utf16::extract_codepoint(Str.substr(State.StringIndex));
-			CharVisualIncrement = char_width::is_wide(Codepoint)? 2 : 1;
+			CharVisualIncrement = char_width::get(Codepoint);
 			CharStringIncrement = Codepoint > std::numeric_limits<char16_t>::max()? 2 : 1;
 		}
 		else
@@ -1420,51 +1409,81 @@ bool ScrollBarRequired(size_t Length, unsigned long long ItemsCount)
 
 bool ScrollBar(size_t X1, size_t Y1, size_t Length, unsigned long long TopItem, unsigned long long ItemsCount)
 {
-	return ScrollBarRequired(Length, ItemsCount) && ScrollBarEx(X1, Y1, Length, TopItem, TopItem + Length, ItemsCount);
+	if (!ScrollBarRequired(Length, ItemsCount))
+		return false;
+
+	return ScrollBarEx(X1, Y1, Length, TopItem, TopItem + Length, ItemsCount);
+}
+
+static string MakeScrollBarEx(
+	size_t const Length,
+	unsigned long long const Start,
+	unsigned long long End,
+	unsigned long long const Size,
+	wchar_t const FirstButton,
+	wchar_t const SecondButton,
+	wchar_t const BackgroundChar,
+	wchar_t const SliderChar
+)
+{
+	assert(Start <= End);
+
+	if (Length < 2)
+		return {};
+
+	string Buffer(Length, BackgroundChar);
+	Buffer.front() = FirstButton;
+	Buffer.back() = SecondButton;
+
+	if (Buffer.size() == 2)
+		return Buffer;
+
+	const auto FieldBegin = Buffer.begin() + 1;
+	const auto FieldSize = static_cast<unsigned>(Buffer.size() - 2);
+
+	if (FieldSize == 1)
+	{
+		Buffer[1] = SliderChar;
+		return Buffer;
+	}
+
+	End = std::min(End, Size);
+
+	const auto rounded = [FieldSize](unsigned long long const Nom, unsigned long long const Den)
+	{
+		return static_cast<unsigned long long>(std::round(ToPercent(Nom, Den, FieldSize * 10) / 10.0));
+	};
+
+	auto SliderBegin = std::max(Start? 1ull : 0ull, rounded(Start, Size));
+	if (!SliderBegin && Start)
+		++SliderBegin;
+	if (SliderBegin == FieldSize)
+		--SliderBegin;
+
+	const auto SliderSize = std::max(1ull, rounded(End - Start, Size));
+
+	auto SliderEnd = End == Size? FieldSize : SliderBegin + SliderSize;
+	if (SliderEnd == FieldSize && End < Size)
+	{
+		--SliderEnd;
+		if (SliderBegin > 1)
+			--SliderBegin;
+	}
+
+	if (SliderEnd > SliderBegin)
+		std::fill(FieldBegin + SliderBegin, FieldBegin + SliderEnd, SliderChar);
+
+	return Buffer;
 }
 
 bool ScrollBarEx(size_t X1, size_t Y1, size_t Length, unsigned long long Start, unsigned long long End, unsigned long long Size)
 {
-	if ( Length < 2)
+	const auto Scrollbar = MakeScrollBarEx(Length, Start, End, Size, L'▲', L'▼', BoxSymbols[BS_X_B0], BoxSymbols[BS_X_DB]);
+	if (Scrollbar.empty())
 		return false;
 
-	string Buffer(Length, BoxSymbols[BS_X_B0]);
-	Buffer.front() = L'▲';
-	Buffer.back() = L'▼';
-
-	const auto FieldBegin = Buffer.begin() + 1;
-	const auto FieldEnd = Buffer.end() - 1;
-	const size_t FieldSize = FieldEnd - FieldBegin;
-
-	End = std::min(End, Size);
-
-	auto SliderBegin = FieldBegin, SliderEnd = SliderBegin;
-
-	if (Size && Start < End)
-	{
-		const auto SliderSize = std::max(1ull, (End - Start) * FieldSize / Size);
-
-		if (SliderSize >= FieldSize)
-		{
-			SliderBegin = FieldBegin;
-			SliderEnd = FieldEnd;
-		}
-		else if (End >= Size)
-		{
-			SliderBegin = FieldEnd - SliderSize;
-			SliderEnd = FieldEnd;
-		}
-		else
-		{
-			SliderBegin = std::min(FieldBegin + Start * FieldSize / Size, FieldEnd);
-			SliderEnd = std::min(SliderBegin + SliderSize, FieldEnd);
-		}
-	}
-
-	std::fill(SliderBegin, SliderEnd, BoxSymbols[BS_X_DB]);
-
 	GotoXY(static_cast<int>(X1), static_cast<int>(Y1));
-	VText(Buffer);
+	VText(Scrollbar);
 
 	return true;
 }
@@ -1510,7 +1529,7 @@ string MakeLine(int const Length, line_type const Type, string_view const UserLi
 	}
 	else
 	{
-		std::transform(ALL_CONST_RANGE(Predefined[static_cast<size_t>(Type)]), Buffer, [](size_t i){ return BoxSymbols[i]; });
+		std::ranges::transform(Predefined[static_cast<size_t>(Type)], Buffer, [](size_t i){ return BoxSymbols[i]; });
 	}
 
 	string Result(Length, Buffer[1]);
@@ -1547,7 +1566,7 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 		Size = Size > StrPercent.size()? Size - StrPercent.size(): 0;
 	}
 	string Str(Size, BoxSymbols[BS_X_B0]);
-	const auto Pos = std::min(Percent, size_t{ 100 })* Size / 100;
+	const auto Pos = std::min(Percent, 100uz) * Size / 100;
 	std::fill_n(Str.begin(), Pos, BoxSymbols[BS_X_DB]);
 	if (ShowPercent)
 	{
@@ -1579,7 +1598,7 @@ size_t HiStrlen(string_view const Str)
 
 		const auto Codepoint = First && IsLow? encoding::utf16::extract_codepoint(*First, Char) : Char;
 
-		Result += char_width::is_wide(Codepoint)? 2 : 1;
+		Result += char_width::get(Codepoint);
 		return true;
 	});
 
@@ -1655,7 +1674,7 @@ void AdjustConsoleScreenBufferSize()
 void SetPalette()
 {
 	if (Global->Opt->SetPalette)
-		console.SetPalette(colors::nt_palette());
+		console.SetPalette(colors::default_palette());
 }
 
 static point& NonMaximisedBufferSize()
@@ -1929,5 +1948,62 @@ TEST_CASE("tabs")
 			REQUIRE(i.VisualPos == string_pos_to_visual_pos(Strs[i.Str], i.RealPos, i.TabSize));
 	}
 }
+TEST_CASE("Scrollbar")
+{
+	static const struct
+	{
+		size_t const Length;
+		unsigned long long const Start, Size;
+		string_view Expected;
+	}
+	Tests[]
+	{
+		{},
+		{  1,  0,   1 },
 
+		{  2,  0,   1, L"<>"sv },
+		{  2,  0,   2, L"<>"sv },
+		{  2,  0,   3, L"<>"sv },
+		{  2,  1,   3, L"<>"sv },
+
+		{  3,  0,   4, L"<->"sv },
+
+		{  4,  0,   5, L"<- >"sv },
+		{  4,  1,   5, L"< ->"sv },
+
+		{  5,  0,   6, L"<-- >"sv },
+		{  5,  1,   6, L"< -->"sv },
+		{  5,  0,   7, L"<-- >"sv },
+		{  5,  1,   7, L"< - >"sv },
+		{  5,  0,   8, L"<-- >"sv },
+		{  5,  1,   8, L"< - >"sv },
+		{  5,  2,   8, L"< - >"sv },
+		{  5,  3,   8, L"< -->"sv },
+
+		{ 10,  0,   1, L"<-------->"sv },
+		{ 10,  0,  10, L"<-------->"sv },
+		{ 10,  0,  11, L"<------- >"sv },
+		{ 10,  1,  11, L"< ------->"sv },
+		{ 10,  0,  12, L"<------- >"sv },
+		{ 10,  1,  12, L"< ------ >"sv },
+		{ 10,  2,  12, L"< ------->"sv },
+
+		{ 8,  0,   50, L"<-     >"sv },
+		{ 8,  1,   50, L"< -    >"sv },
+		{ 8, 10,   50, L"< -    >"sv },
+		{ 8, 11,   50, L"< -    >"sv },
+		{ 8, 12,   50, L"< -    >"sv },
+		{ 8, 13,   50, L"<  -   >"sv },
+		{ 8, 41,   50, L"<    - >"sv },
+		{ 8, 42,   50, L"<     ->"sv },
+
+		{ 8, 0, 10000, L"<-     >"sv },
+	};
+
+	for (const auto& i: Tests)
+	{
+		const auto Scrollbar = MakeScrollBarEx(i.Length, i.Start, i.Start + i.Length, i.Size, L'<', L'>', L' ', L'-');
+		REQUIRE(i.Expected == Scrollbar);
+	}
+}
 #endif

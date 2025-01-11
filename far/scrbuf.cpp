@@ -100,14 +100,15 @@ static void invalidate_broken_pairs_in_cache(matrix<FAR_CHAR_INFO>const& Buf, ma
 		&Buf0 = BufRowData[X1X2.first],
 		&Buf1 = BufRowData[X1X2.second];
 
-	std::array Pair{ Buf0, Buf1 };
-	sanitise_pair(Pair[0], Pair[1]);
+	auto Pair0 = Buf0, Pair1 = Buf1;
+	if (sanitise_pair(Pair0, Pair1))
+	{
+		if (Pair0 != Buf0)
+			ShadowRowData[X1X2.first] = {};
 
-	if (Pair[0] != Buf0)
-		ShadowRowData[X1X2.first] = {};
-
-	if (Pair[1] != Buf1)
-		ShadowRowData[X1X2.second] = {};
+		if (Pair1 != Buf1)
+			ShadowRowData[X1X2.second] = {};
+	}
 }
 
 ScreenBuf::ScreenBuf():
@@ -121,10 +122,10 @@ void ScreenBuf::DebugDump() const
 	string s;
 	s.reserve(Buf.width() + 1);
 
-	for (const auto& row_num: irange(Buf.height()))
+	for (const auto row_num: std::views::iota(0uz, Buf.height()))
 	{
 		const auto& row = Buf[row_num];
-		std::transform(ALL_CONST_RANGE(row), std::back_inserter(s), [](const auto& i) { return i.Char; });
+		std::ranges::transform(row, std::back_inserter(s), &FAR_CHAR_INFO::Char);
 		s.push_back(L'\n');
 		os::debug::print(s);
 		s.clear();
@@ -151,6 +152,16 @@ void ScreenBuf::FillBuf()
 
 	rectangle const ReadRegion{ 0, 0, static_cast<int>(Buf.width() - 1), static_cast<int>(Buf.height() - 1) };
 	console.ReadOutput(Buf, ReadRegion);
+
+	for (auto& i: Buf.vector())
+	{
+		colors::make_transparent(i.Attributes.ForegroundColor);
+		colors::make_transparent(i.Attributes.BackgroundColor);
+		i.Attributes.Flags |= FCF_FOREIGN;
+	}
+
+	console.stash_output();
+
 	Shadow = Buf;
 	point CursorPosition;
 	console.GetCursorPosition(CursorPosition);
@@ -159,7 +170,7 @@ void ScreenBuf::FillBuf()
 
 /* Записать Text в виртуальный буфер
 */
-void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
+void ScreenBuf::Write(int X, int Y, std::span<const FAR_CHAR_INFO> Text)
 {
 	SCOPED_ACTION(std::scoped_lock)(CS);
 
@@ -175,7 +186,7 @@ void ScreenBuf::Write(int X, int Y, span<const FAR_CHAR_INFO> Text)
 	if (X + Text.size() > Buf.width())
 		Text = Text.first(Buf.width() - X);
 
-	for (const auto& i: irange(Text.size()))
+	for (const auto i: std::views::iota(0uz, Text.size()))
 	{
 		Buf[Y][X + i] = Text[i];
 	}
@@ -201,26 +212,26 @@ void ScreenBuf::Read(rectangle Where, matrix<FAR_CHAR_INFO>& Dest)
 
 	fix_coordinates(Where);
 
-	for (const auto& i: irange(Where.top + 0, Where.bottom + 1))
+	for (const auto i: std::views::iota(Where.top + 0, Where.bottom + 1))
 	{
 		const auto Row = Buf[i];
-		std::copy_n(Row.cbegin() + Where.left, Where.width(), Dest[i - Where.top].begin());
+		std::copy_n(Row.begin() + Where.left, Where.width(), Dest[i - Where.top].begin());
 	}
 }
 
 static unsigned char apply_nt_index_shadow(unsigned char const Color)
 {
 	// If it's intense then remove the intensity.
-	if (Color & FOREGROUND_INTENSITY)
-		return Color & ~FOREGROUND_INTENSITY;
+	if (Color & C_INTENSE)
+		return Color & ~C_INTENSE;
 
 	// 0x07 (silver) is technically "non-intense white", so it should become black as all the other non-intense colours.
 	// However, making it 0x08 (grey or "intense black") instead gives better results.
-	if (Color == F_LIGHTGRAY)
-		return F_DARKGRAY;
+	if (Color == C_LIGHTGRAY)
+		return C_DARKGRAY;
 
 	// Non-intense can't get any darker, so just return black.
-	return F_BLACK;
+	return C_BLACK;
 }
 
 static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, bool const Is256ColorAvailable)
@@ -230,6 +241,8 @@ static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccess
 	// Reduce the intensity or make black.
 	// Technically the other branch can merge index colours too,
 	// but this should give more predictable results than the approximation.
+
+	Color = colors::resolve_defaults(Color);
 	auto& ColorPart = std::invoke(ColorAccessor, Color);
 	const auto Index = colors::index_value(ColorPart);
 	const auto Alpha = colors::alpha_bits(ColorPart);
@@ -243,6 +256,9 @@ static bool apply_index_shadow(FarColor& Color, COLORREF FarColor::* ColorAccess
 	if (!Is256ColorAvailable)
 		return false;
 
+	// This is ultimately dead code in the current ecosystem:
+	// Windows added support for 256 and TrueColor at the same time, so it's either everything or nothing.
+	// But just in case.
 	if (Index <= cube_last)
 	{
 		const auto CubeIndex = Index - cube_first;
@@ -271,7 +287,43 @@ static void apply_shadow(FarColor& Color, COLORREF FarColor::* ColorAccessor, co
 	Color = colors::merge(Color, TrueShadow);
 }
 
-void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
+static void bake_shadows(matrix<FAR_CHAR_INFO>& Buffer, std::span<rectangle const> const WriteRegions)
+{
+	const auto IsTrueColorAvailable = console.IsVtActive() || console.ExternalRendererLoaded();
+	const auto Is256ColorAvailable = IsTrueColorAvailable;
+
+	static constexpr FarColor
+		TrueShadowFull{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x80'000000 }, { 0x80'000000 } },
+		TrueShadowFore{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x00'000000 }, { 0x00'000000 } },
+		TrueShadowBack{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x80'000000 }, { 0x00'000000 } },
+		TrueShadowUndl{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x00'000000 }, { 0x80'000000 } };
+
+	for (const auto& i: WriteRegions)
+	{
+		for_submatrix(Buffer, i, [&](FAR_CHAR_INFO& Cell)
+		{
+			if (IsTrueColorAvailable)
+			{
+				if (Cell.Reserved0 != 1)
+					return;
+
+				// We have TrueColor, so just fill whatever is there with half-transparent black.
+				Cell.Attributes = colors::merge(Cell.Attributes, TrueShadowFull);
+			}
+			else
+			{
+				if (Cell.Reserved0 != 1)
+					return;
+
+				apply_shadow(Cell.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
+				apply_shadow(Cell.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
+				apply_shadow(Cell.Attributes, &FarColor::UnderlineColor, FCF_FG_UNDERLINE_INDEX, TrueShadowUndl, Is256ColorAvailable);
+			}
+		});
+	}
+}
+
+void ScreenBuf::ApplyShadow(rectangle Where)
 {
 	if (!is_visible(Where))
 		return;
@@ -281,75 +333,10 @@ void ScreenBuf::ApplyShadow(rectangle Where, bool const IsLegacy)
 	fix_coordinates(Where);
 
 	const auto CharWidthEnabled = char_width::is_enabled();
-	const auto IsTrueColorAvailable = console.IsVtActive() || console.ExternalRendererLoaded();
-	const auto Is256ColorAvailable = IsTrueColorAvailable;
-
-	static constexpr FarColor
-		TrueShadowFull{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x80'000000 } },
-		TrueShadowFore{ FCF_INHERIT_STYLE, { 0x80'000000 }, { 0x00'000000 } },
-		TrueShadowBack{ FCF_INHERIT_STYLE, { 0x00'000000 }, { 0x80'000000 } };
 
 	for_submatrix(Buf, Where, [&](FAR_CHAR_INFO& Element, point const Point)
 	{
-		if (IsLegacy)
-		{
-			// This piece is for usage with repeated Message() calls.
-			// It generates a stable shadow that does not fade to black when reapplied over and over.
-			// We really, really should ditch the Message pattern.
-			Element.Attributes.IsBgIndex()?
-				colors::set_index_value(Element.Attributes.BackgroundColor, F_BLACK) :
-				colors::set_color_value(Element.Attributes.BackgroundColor, 0);
-
-			if (Element.Attributes.IsFgIndex())
-			{
-				const auto Mask = FOREGROUND_INTENSITY;
-				auto ForegroundColor = colors::index_value(Element.Attributes.ForegroundColor);
-
-				if (ForegroundColor <= colors::index::nt_last)
-				{
-					if (ForegroundColor != Mask)
-						ForegroundColor &= ~Mask;
-				}
-				else if (ForegroundColor <= colors::index::cube_last)
-				{
-					// Just to stop GCC from complaining about identical branches
-					[[maybe_unused]] constexpr auto Cube = true;
-
-					// Subpar
-					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
-				}
-				else
-				{
-					// Just to stop GCC from complaining about identical branches
-					[[maybe_unused]] constexpr auto Ramp = true;
-
-					// Subpar
-					colors::set_index_value(Element.Attributes.ForegroundColor, F_DARKGRAY);
-				}
-
-				colors::set_index_value(Element.Attributes.ForegroundColor, ForegroundColor);
-			}
-			else
-			{
-				const auto Mask = 0x808080;
-				auto ForegroundColor = colors::color_value(Element.Attributes.ForegroundColor);
-
-				if (ForegroundColor != Mask)
-					ForegroundColor &= ~Mask;
-
-				colors::set_color_value(Element.Attributes.ForegroundColor, ForegroundColor);
-			}
-		}
-		else if (IsTrueColorAvailable)
-		{
-			// We have TrueColor, so just fill whatever is there with half-transparent black.
-			Element.Attributes = colors::merge(Element.Attributes, TrueShadowFull);
-		}
-		else
-		{
-			apply_shadow(Element.Attributes, &FarColor::ForegroundColor, FCF_FG_INDEX, TrueShadowFore, Is256ColorAvailable);
-			apply_shadow(Element.Attributes, &FarColor::BackgroundColor, FCF_BG_INDEX, TrueShadowBack, Is256ColorAvailable);
-		}
+		Element.Reserved0 = 1;
 
 		if (CharWidthEnabled)
 			invalidate_broken_pairs_in_cache(Buf, Shadow, Where, Point);
@@ -410,16 +397,16 @@ void ScreenBuf::FillRect(rectangle Where, const FAR_CHAR_INFO& Info)
 
 void ScreenBuf::Invalidate(flush_type const FlushType)
 {
-	if (FlushType & flush_type::screen)
+	if (flags::check_one(FlushType, flush_type::screen))
 	{
 		SBFlags.Clear(SBFLAGS_FLUSHED);
 		Shadow.vector().assign(Shadow.vector().size(), {});
 	}
 
-	if (FlushType & flush_type::cursor)
+	if (flags::check_one(FlushType, flush_type::cursor))
 		SBFlags.Clear(SBFLAGS_FLUSHEDCURPOS | SBFLAGS_FLUSHEDCURTYPE);
 
-	if (FlushType & flush_type::title)
+	if (flags::check_one(FlushType, flush_type::title))
 		SBFlags.Clear(SBFLAGS_FLUSHEDTITLE);
 }
 
@@ -442,7 +429,7 @@ static void expand_write_region_if_needed(matrix<FAR_CHAR_INFO>& Buf, rectangle&
 			LeftChanged = false,
 			RightChanged = false;
 
-		for (const auto& Row: irange(WriteRegion.top + 0, WriteRegion.bottom + 1))
+		for (const auto Row: std::views::iota(WriteRegion.top + 0, WriteRegion.bottom + 1))
 		{
 			const auto RowData = Buf[Row];
 
@@ -486,7 +473,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 {
 	SCOPED_ACTION(std::scoped_lock)(CS);
 
-	if (FlushType & flush_type::title && !SBFlags.Check(SBFLAGS_FLUSHEDTITLE))
+	if (flags::check_one(FlushType, flush_type::title) && !SBFlags.Check(SBFLAGS_FLUSHEDTITLE))
 	{
 		console.SetTitle(m_Title);
 		SBFlags.Set(SBFLAGS_FLUSHEDTITLE);
@@ -498,7 +485,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 	if (!console.IsViewportVisible())
 		return;
 
-	if (FlushType & flush_type::screen)
+	if (flags::check_one(FlushType, flush_type::screen))
 	{
 		ShowTime();
 
@@ -538,7 +525,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 		if (!SBFlags.Check(SBFLAGS_FLUSHED))
 		{
 			std::vector<rectangle> WriteList;
-			bool Changes=false;
 
 			if (m_ClearTypeFix == BSTATE_CHECKED)
 			{
@@ -564,7 +550,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 					if (WriteRegion.bottom >= WriteRegion.top)
 					{
 						WriteList.emplace_back(WriteRegion);
-						Changes=true;
 					}
 				}
 			}
@@ -576,7 +561,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 				const auto CharWidthEnabled = char_width::is_enabled();
 
 				auto PtrBuf = Buf.data(), PtrShadow = Shadow.data();
-				for (const auto& I: irange(Buf.height()))
+				for (const auto I: std::views::iota(0uz, Buf.height()))
 				{
 					for (size_t J = 0, Width = Buf.width(); J < Width; ++J, ++PtrBuf, ++PtrShadow)
 					{
@@ -586,7 +571,6 @@ void ScreenBuf::Flush(flush_type FlushType)
 							WriteRegion.top = std::min(WriteRegion.top, static_cast<int>(I));
 							WriteRegion.right = std::max(WriteRegion.right, static_cast<int>(J));
 							WriteRegion.bottom = std::max(WriteRegion.bottom, static_cast<int>(I));
-							Changes=true;
 							Started=true;
 						}
 						else if (Started && static_cast<int>(I) > WriteRegion.bottom && static_cast<int>(J) >= WriteRegion.left)
@@ -649,29 +633,34 @@ void ScreenBuf::Flush(flush_type FlushType)
 				}
 			}
 
-			if (Changes)
+			if (!WriteList.empty())
 			{
 				if (IsConsoleViewportSizeChanged())
 				{
 					// We must draw something, but canvas has been changed, drawing on it will make things only worse
-					Changes = false;
+					WriteList.clear();
 					GenerateWINDOW_BUFFER_SIZE_EVENT();
 				}
 			}
 
-			if (Changes)
+			if (!WriteList.empty())
 			{
-				// WriteOutput can make changes to the buffer to patch DBSC collisions,
-				// which means that the screen output will effectively be different from Shadow
-				// and certain areas won't be updated properly.
-				// To address this, we allow it to write into the buffer and pass Shadow instead:
-
 				Shadow = Buf;
 
-				for (const auto& i: WriteList)
-				{
-					console.WriteOutput(Shadow, { i.left, i.top }, i);
-				}
+				// TODO
+				// Legalize shadows as a FarColor flag and move this to console layer?
+				bake_shadows(Buf, WriteList);
+
+				console.WriteOutputGather(Buf, WriteList);
+
+				// TODO
+				// WriteOutput can make changes to the buffer to patch DBSC collisions,
+				// which means that the screen output will effectively be different from Shadow
+				// and certain areas won't be updated properly in certain corner cases.
+
+				// No easy way to fix it without falling into a flickering loop of constant redraw,
+				// so just ignore and revert for now.
+				Buf = Shadow;
 
 				console.Commit();
 			}
@@ -690,7 +679,7 @@ void ScreenBuf::Flush(flush_type FlushType)
 		}
 	}
 
-	if (FlushType & flush_type::cursor)
+	if (flags::check_one(FlushType, flush_type::cursor))
 	{
 		// Example: a dialog with an edit control, dragged beyond the screen
 		const auto IsCursorInBuffer = is_visible(m_CurPos);
@@ -807,51 +796,6 @@ void ScreenBuf::RestoreElevationChar()
 		Write(static_cast<int>(Buf.width() - 1), static_cast<int>(Buf.height() - 1), { &ElevationChar, 1 });
 		ElevationCharUsed=false;
 	}
-}
-
-//  проскроллировать буфер вверх.
-void ScreenBuf::Scroll(size_t Count)
-{
-	assert(Count);
-
-	SCOPED_ACTION(std::scoped_lock)(CS);
-
-	const FAR_CHAR_INFO Fill{ L' ', colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN) };
-
-	if (Global->Opt->WindowMode)
-	{
-		if (console.IsScrollbackPresent())
-		{
-			rectangle Region{ 0, 0, ScrX, static_cast<int>(Count - 1) };
-
-			// TODO: matrix_view to avoid copying
-			matrix<FAR_CHAR_INFO> BufferBlock(Count, ScrX + 1);
-			Read(Region, BufferBlock);
-
-			console.ScrollNonClientArea(Count, Fill);
-
-			Region.top = -static_cast<int>(Count);
-			Region.bottom = -1;
-			console.WriteOutput(BufferBlock, Region);
-		}
-		else
-		{
-			// Even if there's no scrollback there might be the right area
-			console.ScrollNonClientArea(Count, Fill);
-		}
-	}
-
-	if (Count && Count < Buf.height())
-	{
-		auto& RawBuf = Buf.vector();
-		const auto size = RawBuf.size();
-		RawBuf.erase(RawBuf.begin(), RawBuf.begin() + Count * Buf.width());
-		RawBuf.resize(size, Fill);
-
-		SBFlags.Clear(SBFLAGS_FLUSHED);
-	}
-
-	debug_flush();
 }
 
 void ScreenBuf::SetClearTypeFix(int const ClearTypeFix)
