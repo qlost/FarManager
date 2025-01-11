@@ -49,7 +49,7 @@
       <Configuration>Release</Configuration>
       <Platform>ARM</Platform>
     </ProjectConfiguration>
-    -->
+
     <ProjectConfiguration Include="Release_no_LTCG|ARM">
       <Configuration>Release_no_LTCG</Configuration>
       <Platform>ARM</Platform>

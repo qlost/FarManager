@@ -27,6 +27,20 @@ Temporary panel plugin class implementation
 #include <string_utils.hpp>
 #include <view/zip.hpp>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+	int _fltused = 0;
+
+	float ceilf(float X)
+	{
+		int Y = (int)X;
+		return Y < X ? Y+1 : Y;
+	}
+#ifdef __cplusplus
+}
+#endif
+
 constexpr auto REMOVE_FLAG = 1;
 
 static bool IsLinksDisplayed(const string_view ColumnTypes)
