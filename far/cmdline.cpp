@@ -857,15 +857,16 @@ void CommandLine::ShowViewEditHistory()
 	case HRT_ENTER:
 	case HRT_SHIFTENTER:
 		{
+			const auto DisableHistory = SelectType == HRT_SHIFTENTER;
 			auto Suppressor = Global->CtrlObject->ViewHistory->suppressor();
-			if (SelectType != HRT_SHIFTENTER)
+			if (DisableHistory)
 				Suppressor.reset();
 
 			switch (Type)
 			{
 				case HR_VIEWER:
 				{
-					FileViewer::create(strStr, true);
+					FileViewer::create(strStr, true, DisableHistory);
 					break;
 				}
 
@@ -876,7 +877,7 @@ void CommandLine::ShowViewEditHistory()
 					const auto FEdit = FileEditor::create(
 						strStr,
 						CP_DEFAULT,
-						FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | (Type == HR_EDITOR_RO? FFILEEDIT_LOCKED : 0)
+						FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | (Type == HR_EDITOR_RO? FFILEEDIT_LOCKED : 0) | (DisableHistory? FFILEEDIT_DISABLEHISTORY : 0)
 					);
 
 					break;
@@ -1163,8 +1164,20 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 		if (FindKey(Arguments, L'A') || FindKey(Arguments, L'P'))
 			return false; //todo: /p - dialog, /a - calculation; then set variable ...
 
+		// cmd unquoting logic is rather weird, but when in Rome, do as the Romans do.
+		const auto set_unquote = [](string_view Str)
+		{
+			if (!Str.starts_with(L'"'))
+				return Str;
+
+			Str.remove_prefix(1);
+			inplace::trim_left(Str);
+
+			return Str.substr(0, Str.rfind(L'"'));
+		};
+
 		size_t pos;
-		const auto SetParams = unquote(trim_right(Arguments));
+		const auto SetParams = set_unquote(trim_right(Arguments));
 
 		// "set" (display all) or "set var" (display all that begin with "var")
 		if (SetParams.empty() || ((pos = SetParams.find(L'=')) == string::npos) || !pos)

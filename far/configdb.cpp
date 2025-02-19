@@ -45,7 +45,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "farversion.hpp"
 #include "lang.hpp"
 #include "message.hpp"
-#include "regex_helpers.hpp"
 #include "global.hpp"
 #include "stddlg.hpp"
 #include "log.hpp"
