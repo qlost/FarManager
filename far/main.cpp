@@ -410,6 +410,8 @@ static void InitProfile(string &strProfilePath, string &strLocalProfilePath)
 			Global->Opt->ReadOnlyConfig = true;
 		}
 	}
+
+	set_report_location(Global->Opt->LocalProfilePath);
 }
 
 static bool is_arg(string_view const Str)
@@ -803,8 +805,6 @@ static int mainImpl(std::span<const wchar_t* const> const Args)
 	if (FarColor InitAttributes; console.GetTextAttributes(InitAttributes))
 		colors::store_default_color(InitAttributes);
 
-	SCOPE_EXIT{ console.SetTextAttributes(colors::default_color()); };
-
 	SCOPED_ACTION(global);
 
 	std::optional<elevation::suppress> NoElevationDuringBoot(std::in_place);
@@ -963,6 +963,8 @@ static void configure_exception_handling(std::span<wchar_t const* const> const A
 		if (equal_icase(i + 1, L"service"sv))
 		{
 			os::debug::crt_report_to_stderr();
+			report_to_stderr();
+			suppress_console_confirmations();
 			continue;
 		}
 	}

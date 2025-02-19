@@ -48,6 +48,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
+void report_to_stderr();
+void set_report_location(string_view Directory);
+
 void disable_exception_handling();
 
 bool exception_handling_in_progress();

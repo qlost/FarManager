@@ -128,6 +128,26 @@ static bool HandleCppExceptions = true;
 static bool HandleSehExceptions = true;
 static bool ForceStderrExceptionUI = false;
 
+static bool s_ReportToStdErr = false;
+
+// On CI we can't access the filesystem, so just drop everything to stderr.
+void report_to_stderr()
+{
+	s_ReportToStdErr = true;
+}
+
+static wchar_t s_ReportLocation[MAX_PATH];
+
+// We can crash in the cleanup phase when profile paths are already destroyed.
+// Keeping the location in a static buffer increases the chance of using the proper path.
+void set_report_location(string_view Directory)
+{
+	if (Directory.size() < std::size(s_ReportLocation))
+	{
+		std::copy(ALL_CONST_RANGE(Directory), s_ReportLocation);
+	}
+}
+
 void disable_exception_handling()
 {
 	if (!HandleCppExceptions && !HandleSehExceptions)
@@ -220,7 +240,12 @@ static string get_report_location()
 {
 	const auto SubDir = unique_name();
 
-	if (const auto CrashLogs = path::join(Global? Global->Opt->LocalProfilePath : L"."sv, L"CrashLogs"); os::fs::is_directory(CrashLogs) || os::fs::create_directory(CrashLogs))
+	string_view ReportLocationBase =
+		Global? Global->Opt->LocalProfilePath :
+		*s_ReportLocation? s_ReportLocation :
+		L"."sv;
+
+	if (const auto CrashLogs = path::join(ReportLocationBase, L"CrashLogs"); os::fs::is_directory(CrashLogs) || os::fs::create_directory(CrashLogs))
 	{
 		if (const auto Path = path::join(CrashLogs, SubDir); os::fs::create_directory(Path))
 		{
@@ -1290,27 +1315,12 @@ static string ExtractObjectType(EXCEPTION_RECORD const& xr)
 	if (Iterator != CatchableTypesEnumerator.cend())
 		return encoding::utf8::get_chars(*Iterator);
 
-#if IS_MICROSOFT_SDK()
-	return {};
-#else
-	const auto TypeInfo = abi::__cxa_current_exception_type();
-	if (!TypeInfo)
-		return {};
-
-	const auto Name = TypeInfo->name();
-	auto Status = -1;
-
-	struct free_deleter
-	{
-		void operator()(void* Ptr) const
-		{
-			free(Ptr);
-		}
-	};
-
-	std::unique_ptr<char, free_deleter> const DemangledName(abi::__cxa_demangle(Name, {}, {}, &Status));
-	return encoding::utf8::get_chars(DemangledName.get());
+#if !IS_MICROSOFT_SDK()
+	if (const auto TypeInfo = abi::__cxa_current_exception_type(); TypeInfo)
+		return os::debug::demangle(TypeInfo->name());
 #endif
+
+	return {};
 }
 
 static string_view exception_name(NTSTATUS const Code)
@@ -1794,7 +1804,7 @@ static handler_result handle_generic_exception(
 
 	SCOPED_ACTION(tracer_detail::tracer::with_symbols)(PluginModule? ModuleName : L""sv);
 
-	const auto ReportLocation = get_report_location();
+	const auto ReportLocation = s_ReportToStdErr? L"below"s : get_report_location();
 
 	LOGERROR(L"Unhandled exception, see {} for details"sv, ReportLocation);
 
@@ -1822,12 +1832,12 @@ static handler_result handle_generic_exception(
 		MiniDumpIgnoreInaccessibleMemory
 	);
 
-	const auto MinidumpNormal = write_minidump(Context, path::join(ReportLocation, WIDE_SV(MINIDUMP_NAME)), MinidumpFlags);
-	const auto MinidumpFull = write_minidump(Context, path::join(ReportLocation, WIDE_SV(FULLDUMP_NAME)), FulldumpFlags);
+	const auto MinidumpNormal = !s_ReportToStdErr && write_minidump(Context, path::join(ReportLocation, WIDE_SV(MINIDUMP_NAME)), MinidumpFlags);
+	const auto MinidumpFull = !s_ReportToStdErr && write_minidump(Context, path::join(ReportLocation, WIDE_SV(FULLDUMP_NAME)), FulldumpFlags);
 	const auto BugReport = collect_information(Context, Location, PluginInfo, ModuleName, Type, Message, ErrorState, NestedStack);
-	const auto ReportOnDisk = write_report(BugReport, path::join(ReportLocation, WIDE_SV(BUGREPORT_NAME)));
-	const auto ReportInClipboard = !ReportOnDisk && SetClipboardText(BugReport);
-	const auto ReadmeOnDisk = write_readme(path::join(ReportLocation, L"README.txt"sv));
+	const auto ReportOnDisk = !s_ReportToStdErr && write_report(BugReport, path::join(ReportLocation, WIDE_SV(BUGREPORT_NAME)));
+	const auto ReportInClipboard = !s_ReportToStdErr && !ReportOnDisk && SetClipboardText(BugReport);
+	const auto ReadmeOnDisk = !s_ReportToStdErr && write_readme(path::join(ReportLocation, L"README.txt"sv));
 	const auto AnythingOnDisk = ReportOnDisk || MinidumpNormal || MinidumpFull || ReadmeOnDisk;
 
 	if (AnythingOnDisk && os::is_interactive_user_session())

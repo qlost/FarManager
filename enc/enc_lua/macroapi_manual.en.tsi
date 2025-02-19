@@ -1336,7 +1336,7 @@ lv=3
 dt=Text
 nm=mainmenu
 ctime=3923468674
-mtime=3924000506
+mtime=3948699128
 <article>
 #_mf.mainmenu (Param)
 #_
@@ -1348,7 +1348,7 @@ mtime=3924000506
 #_
 #_**Param values:**
 #_  "fileassociations" : call "File associations" menu
-#_  "filehighlighting" : call "Files highlighting and sort groups" menu
+#_  "filehighlight"    : call "Files highlighting and sort groups" menu
 #_  "filemaskgroups"   : call "Groups of file masks" menu
 #_  "filepanelmodes"   : call "File panel modes" menu
 #_  "foldershortcuts"  : call "Folder shortcuts" menu
@@ -2239,8 +2239,9 @@ mtime=3607109038
 #_
 #_**Properties:**
 #_
-#_  Id:     string (GUID)
-#_  Value:  string
+#_  HorizontalAlignment:    number
+#_  Id:                     string (GUID)
+#_  Value:                  string
 #_
 #_**Functions:**
 #_
@@ -2255,6 +2256,7 @@ mtime=3607109038
 #_{filterstr}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.FilterStr
 #_{filter}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.Filter
 #_{getvalue}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.GetValue
+#_{horizontalalignment}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.HorizontalAlignment
 #_{id}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.Info.Id
 #_{itemstatus}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.ItemStatus
 #_{select}: http://api.farmanager.com/ru/macro/macrocmd/prop_func/menus.html#Menu.Select
