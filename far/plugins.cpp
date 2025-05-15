@@ -1168,7 +1168,11 @@ void PluginManager::GetOpenPanelInfo(const plugin_panel* hPlugin, OpenPanelInfo 
 
 	Info->StructSize = sizeof(*Info);
 	Info->hPanel = hPlugin->panel();
-	hPlugin->plugin()->GetOpenPanelInfo(Info);
+
+	// See m_CachedOpenPanelInfo
+	auto InfoCopy = *Info;
+	hPlugin->plugin()->GetOpenPanelInfo(&InfoCopy);
+	*Info = InfoCopy;
 
 	if (Info->CurDir && *Info->CurDir && (Info->Flags & OPIF_REALNAMES) && (Global->CtrlObject->Cp()->ActivePanel()->GetPluginHandle() == hPlugin) && ParsePath(Info->CurDir)!=root_type::unknown)
 		os::fs::set_current_directory(Info->CurDir, false);
@@ -1324,7 +1328,7 @@ void PluginManager::Configure(int StartPos) const
 				}
 			}
 
-			PluginList->AssignHighlights();
+			PluginList->EnableAutoHighlight();
 			PluginList->SetBottomTitle(KeysToLocalizedText(KEY_SHIFTF1, KEY_F4, KEY_F3));
 			PluginList->SortItems(false, HotKeysPresent? 3 : 0);
 			PluginList->SetSelectPos(StartPos,1);
@@ -1492,7 +1496,7 @@ bool PluginManager::CommandsMenu(int ModalType,int StartPos,const wchar_t *Histo
 					}
 				}
 
-				PluginList->AssignHighlights();
+				PluginList->EnableAutoHighlight();
 				PluginList->SetBottomTitle(KeysToLocalizedText(KEY_SHIFTF1, KEY_F4, KEY_F3));
 				PluginList->SortItems(false, HotKeysPresent? 3 : 0);
 				PluginList->SetSelectPos(StartPos,1);
@@ -2109,7 +2113,7 @@ bool PluginManager::CallPlugin(const UUID& SysID,int OpenFrom, void *Data,void *
 
 	const auto pPlugin = FindPlugin(SysID);
 
-	if (exception_handling_in_progress() || !pPlugin || !pPlugin->has(iOpen))
+	if (exception_handling_in_progress() || !pPlugin || !pPlugin->has(iOpen) || (!pPlugin->m_Instance && pPlugin->WorkFlags.Check(PIWF_LOADED)))
 		return false;
 
 	auto PluginPanel = Open(pPlugin, OpenFrom, FarUuid, std::bit_cast<intptr_t>(Data));

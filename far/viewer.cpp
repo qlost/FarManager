@@ -799,6 +799,7 @@ void Viewer::ShowPage(int nMode)
 
 	DrawScrollbar();
 	ShowStatus();
+	GetOwner()->ShowChildren();
 }
 
 void Viewer::DisplayObject()
@@ -2436,7 +2437,7 @@ void Viewer::Up(int nlines, bool adjust)
 					if (process_back<char>(buff_size, j, fpos, BufferReader, eol))
 						break;
 				}
-				catch (far_exception const&)
+				catch (std::exception const&)
 				{
 					return; //??? error handling
 				}
@@ -2452,7 +2453,7 @@ void Viewer::Up(int nlines, bool adjust)
 					if (process_back<wchar_t>(buff_size, j, fpos, BufferReader, eol))
 						break;
 				}
-				catch (far_exception const&)
+				catch (std::exception const&)
 				{
 					return; //??? error handling
 				}
@@ -2749,7 +2750,6 @@ SEARCHER_RESULT Viewer::search_text_forward(search_data* sd)
 		*sd->searcher,
 		sd->Rex,
 		sd->RexMatch,
-		{},
 		CurPos,
 		{
 			.CaseSensitive = m_SearchDlgParams.CaseSensitive.value(),
@@ -2844,7 +2844,6 @@ SEARCHER_RESULT Viewer::search_text_backward(search_data* sd)
 		*sd->searcher,
 		sd->Rex,
 		sd->RexMatch,
-		{},
 		CurPos,
 		{
 			.CaseSensitive = m_SearchDlgParams.CaseSensitive.value(),
