@@ -366,12 +366,13 @@ string error_state::to_string() const
 	return join(L", "sv, Errors | std::views::filter([](string_view const Str){ return !Str.empty(); }));
 }
 
-error_state last_error()
+error_state last_error(source_location const& Location)
 {
 	return
 	{
 		GetLastError(),
 		get_last_nt_status(),
+		Location
 	};
 }
 
@@ -654,7 +655,7 @@ static auto get_keyboard_layout_list_registry_ctf()
 			const auto LanguageId = from_string<uint32_t>(LanguageIdStr, {}, 16);
 			Languages.emplace_back(Index, LanguageId, LanguageIdStr);
 		}
-		catch (far_exception const& e)
+		catch (std::exception const& e)
 		{
 			LOGWARNING(L"{}"sv, e);
 		}
@@ -692,7 +693,7 @@ static auto get_keyboard_layout_list_registry_ctf()
 				else
 					Layouts.emplace_back(Index, *Layout);
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				LOGWARNING(L"{}"sv, e);
 			}
@@ -849,7 +850,7 @@ static std::vector<HKL> try_get_keyboard_list(function_ref<std::vector<HKL>()> C
 	{
 		return Callable();
 	}
-	catch (far_exception const& e)
+	catch (std::exception const& e)
 	{
 		LOGWARNING(L"{}", e);
 		return {};

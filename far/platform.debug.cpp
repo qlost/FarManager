@@ -262,7 +262,7 @@ namespace os::debug
 	static auto address(DWORD64 const Offset)
 	{
 		return ADDRESS64{ Offset, 0, AddrModeFlat };
-	};
+	}
 
 	static BOOL WINAPI legacy_walk(DWORD const MachineType, HANDLE const Process, HANDLE const Thread, LPSTACKFRAME_EX const StackFrame, PVOID const ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE64 const ReadMemoryRoutine, PFUNCTION_TABLE_ACCESS_ROUTINE64 const FunctionTableAccessRoutine, PGET_MODULE_BASE_ROUTINE64 const GetModuleBaseRoutine, PTRANSLATE_ADDRESS_ROUTINE64 const TranslateAddress, DWORD)
 	{
@@ -367,9 +367,10 @@ namespace os::debug
 		// Empty or the same or failed to demangle
 		// For non-MSVC builds try to demangle it using ABI
 #if !IS_MICROSOFT_SDK()
-		return debug::demangle_abi(SymbolName, Dest);
-#endif
+		return demangle_abi(SymbolName, Dest);
+#else
 		return false;
+#endif
 	}
 
 	string demangle(const char* const SymbolName)
@@ -403,7 +404,7 @@ namespace os::debug
 		// Empty or the same or failed to demangle
 		// For non-MSVC builds try to demangle it using ABI
 #if !IS_MICROSOFT_SDK()
-		debug::demangle_abi(encoding::ansi::get_bytes(SymbolName).c_str(), SymbolName);
+		demangle_abi(encoding::ansi::get_bytes(SymbolName).c_str(), SymbolName);
 #endif
 	}
 
@@ -522,7 +523,7 @@ namespace os::debug::symbols
 	static void append_to_search_path(string& Path, string_view const Str)
 	{
 		append(Path, Path.empty()? L""sv : L";"sv, Str);
-	};
+	}
 
 	static void update_symbols_search_path(HANDLE const Process, string_view const NewPath)
 	{

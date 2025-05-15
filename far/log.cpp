@@ -353,7 +353,7 @@ namespace
 			{
 				process(m_Buffer.native_handle(), Message);
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				m_Buffer.close();
 
@@ -415,7 +415,7 @@ namespace
 			{
 				console.OriginalOutputStream() << far::format(L"[{}][{}][{}] {} [{}]"sv, Message.m_Time, Message.m_ThreadId, Message.m_LevelString, Message.m_Data, Message.m_Location) << std::endl;
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				LOGERROR(L"{}"sv, e);
 			}
@@ -521,7 +521,7 @@ namespace
 					Message.m_Location
 				);
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				disconnect();
 
@@ -736,7 +736,7 @@ namespace
 					else
 						LOGWARNING(L"Unknown sink {}"sv, i);
 				}
-				catch (far_exception const& e)
+				catch (std::exception const& e)
 				{
 					LOGERROR(L"{}"sv, e);
 				}
@@ -1007,7 +1007,7 @@ namespace logging
 		static auto debug_message(void const* Ptr, size_t const Size)
 		{
 			std::basic_string_view<T> Str{ static_cast<T const*>(Ptr), Size };
-			while (!Str.empty() && (Str.back() == L'\r' || Str.back() == L'\n'))
+			while (!Str.empty() && IsEol(Str.back()))
 				Str.remove_suffix(1);
 
 			return Str;
@@ -1187,7 +1187,7 @@ namespace logging
 			{
 				sink_console::process(GetStdHandle(STD_OUTPUT_HANDLE), Message);
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				std::wcerr << far::format(L"sink_console::process(): {}"sv, e) << std::endl;
 			}

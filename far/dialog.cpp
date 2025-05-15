@@ -766,9 +766,6 @@ void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 				ListPtr->ChangeFlags(VMENU_AUTOHIGHLIGHT, (Item.Flags & DIF_LISTAUTOHIGHLIGHT) != 0);
 				ListPtr->ChangeFlags(VMENU_NOMERGEBORDER, (Item.Flags & DIF_LISTNOMERGEBORDER) != 0);
 
-				if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
-					ListPtr->AssignHighlights();
-
 				ListPtr->SetDialogStyle(DialogMode.Check(DMODE_WARNINGSTYLE));
 				ListPtr->SetPosition(
 					{
@@ -827,9 +824,6 @@ void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 					ListPtr->ChangeFlags(VMENU_DISABLED, (Item.Flags& DIF_DISABLE) != 0);
 					ListPtr->ChangeFlags(VMENU_SHOWAMPERSAND, (Item.Flags& DIF_LISTNOAMPERSAND) == 0);
 					ListPtr->ChangeFlags(VMENU_AUTOHIGHLIGHT, (Item.Flags& DIF_LISTAUTOHIGHLIGHT) != 0);
-
-					if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
-						ListPtr->AssignHighlights();
 
 					if (Item.ListItems && !DialogMode.Check(DMODE_OBJECTS_CREATED))
 						ListPtr->AddItem(Item.ListItems);
@@ -940,10 +934,12 @@ void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 				const auto ItemIterator = std::ranges::find_if(ListItems, [](FarListItem const& i) { return (i.Flags & LIF_SELECTED) != 0; });
 				if (ItemIterator != ListItems.end())
 				{
-					if (Item.Flags & (DIF_DROPDOWNLIST | DIF_LISTNOAMPERSAND))
-						Item.strData = HiText2Str(ItemIterator->Text);
+					const auto Text = NullToEmpty(ItemIterator->Text);
+
+					if (Item.Flags & DIF_LISTNOAMPERSAND)
+						Item.strData = HiText2Str(Text);
 					else
-						Item.strData = ItemIterator->Text;
+						Item.strData = Text;
 				}
 			}
 
@@ -1300,8 +1296,6 @@ void Dialog::GetDialogObjectsData()
 {
 	for (auto& i: Items)
 	{
-		const auto IFlags = i.Flags;
-
 		switch (i.Type)
 		{
 			case DI_MEMOEDIT:
@@ -1312,49 +1306,7 @@ void Dialog::GetDialogObjectsData()
 			case DI_COMBOBOX:
 			{
 				if (i.ObjPtr)
-				{
-					const auto EditPtr = static_cast<const DlgEdit*>(i.ObjPtr);
-
-					// подготовим данные
-					// получим данные
-					const auto& strData = EditPtr->GetString();
-
-					if (m_ExitCode >=0 &&
-					        (IFlags & DIF_HISTORY) &&
-					        !(IFlags & DIF_MANUALADDHISTORY) && // при мануале не добавляем
-					        !i.strHistory.empty() &&
-					        Global->Opt->Dialogs.EditHistory)
-					{
-						AddToEditHistory(i, strData);
-					}
-#if 0
-					/* $ 01.08.2000 SVS
-					   ! В History должно заносится значение (для DIF_EXPAND...) перед
-					    расширением среды!
-					*/
-					/*$ 05.07.2000 SVS $
-					Проверка - этот элемент предполагает расширение переменных среды?
-					т.к. функция GetDialogObjectsData() может вызываться самостоятельно
-					Но надо проверить!*/
-					/* $ 04.12.2000 SVS
-					  ! Для DI_PSWEDIT и DI_FIXEDIT обработка DIF_EDITEXPAND не нужна
-					   (DI_FIXEDIT допускается для случая если нету маски)
-					*/
-
-					if ((IFlags&DIF_EDITEXPAND) && i.Type != DI_PSWEDIT && i.Type != DI_FIXEDIT)
-					{
-						strData = os::env::expand(strData);
-						//как бы грязный хак, нам нужно обновить строку чтоб отдавалась правильная строка
-						//для различных DM_* после закрытия диалога, но ни в коем случае нельзя чтоб
-						//высылался DN_EDITCHANGE для этого изменения, ибо диалог уже закрыт.
-						EditPtr->SetCallbackState(false);
-						EditPtr->SetString(strData);
-						EditPtr->SetCallbackState(true);
-
-					}
-#endif
-					i.strData = strData;
-				}
+					i.strData = static_cast<const DlgEdit*>(i.ObjPtr)->GetString();
 
 				break;
 			}
@@ -1598,6 +1550,7 @@ void Dialog::ShowDialog(size_t ID)
 	   другим контролом (по координатам), то для "позднего"
 	   контрола тоже нужна прорисовка.
 	*/
+	if (!IsBypassInput())
 	{
 		bool CursorVisible=false;
 		DWORD CursorSize=0;
@@ -1735,13 +1688,14 @@ void Dialog::ShowDialog(size_t ID)
 					else if (CX1 != -1 && CX2 > CX1)
 					{
 						MaxWidth = CX2 - CX1 + 1;
+						size_t MaxWidthFixed = MaxWidth + (Item.Flags & DIF_SHOWAMPERSAND ? 0 : visual_string_length(strStr) - HiStrlen(strStr));
 
 						if (Item.Flags & DIF_RIGHTTEXT)
-							inplace::fit_to_right(strStr, MaxWidth);
+							inplace::fit_to_right(strStr, MaxWidthFixed);
 						if (Item.Flags & DIF_CENTERTEXT)
-							inplace::fit_to_center(strStr, MaxWidth);
+							inplace::fit_to_center(strStr, MaxWidthFixed);
 						else
-							inplace::fit_to_left(strStr, MaxWidth);
+							inplace::fit_to_left(strStr, MaxWidthFixed);
 					}
 
 					auto LenText = LenStrItem(I, strStr);
@@ -2458,6 +2412,11 @@ bool Dialog::ProcessKey(const Manager::Key& Key)
 			return true;
 	}
 
+	if(IsBypassInput())
+	{
+		return false;
+	}
+
 	if (LocalKey() == KEY_NONE)
 	{
 		return false;
@@ -2553,7 +2512,6 @@ bool Dialog::ProcessKey(const Manager::Key& Key)
 			case KEY_MSWHEEL_RIGHT:
 			case KEY_NUMENTER:
 			case KEY_ENTER:
-			case KEY_NUMPAD5:
 				auto& List = Items[m_FocusPos].ListPtr;
 				int CurListPos=List->GetSelectPos();
 				List->ProcessKey(Key);
@@ -3133,6 +3091,11 @@ bool Dialog::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 	{
 		if (!DlgProc(DN_INPUT,0,&mouse))
 			return true;
+	}
+
+	if(IsBypassInput())
+	{
+		return false;
 	}
 
 	if (!DialogMode.Check(DMODE_SHOW))
@@ -3897,7 +3860,7 @@ int Dialog::SelectFromComboBox(DialogItemEx& CurItem, DlgEdit& EditLine)
 		// if(EditLine.GetDropDownBox()) //???
 		auto strStr = EditLine.GetString();
 
-		if (CurItem.Flags & (DIF_DROPDOWNLIST|DIF_LISTNOAMPERSAND))
+		if (CurItem.Flags & DIF_LISTNOAMPERSAND)
 			strStr = HiText2Str(strStr);
 
 		ComboBox->SetSelectPos(ComboBox->FindItem(0,strStr,LIFIND_EXACTMATCH),1);
@@ -3927,7 +3890,7 @@ int Dialog::SelectFromComboBox(DialogItemEx& CurItem, DlgEdit& EditLine)
 
 		const auto& ItemPtr = ComboBox->at(Dest);
 
-		if (CurItem.Flags & (DIF_DROPDOWNLIST|DIF_LISTNOAMPERSAND))
+		if (CurItem.Flags & DIF_LISTNOAMPERSAND)
 		{
 			strStr = HiText2Str(ItemPtr.Name);
 			EditLine.SetString(strStr);
@@ -4228,6 +4191,15 @@ intptr_t Dialog::CloseDialog()
 	if (!result)
 		return 0;
 
+	if (m_ExitCode >= 0 && Global->Opt->Dialogs.EditHistory)
+	{
+		for (auto& i: Items)
+		{
+			if (i.Flags & DIF_HISTORY && !(i.Flags & DIF_MANUALADDHISTORY) && !i.strHistory.empty())
+				AddToEditHistory(i, i.strData);
+		}
+	}
+
 	GetDialogObjectsExpandData();
 	DialogMode.Set(DMODE_ENDLOOP);
 	Hide();
@@ -4235,8 +4207,11 @@ intptr_t Dialog::CloseDialog()
 	if (DialogMode.Check(DMODE_BEGINLOOP))
 	{
 		DialogMode.Clear(DMODE_BEGINLOOP);
-		Global->WindowManager->DeleteWindow(shared_from_this());
-		Global->WindowManager->PluginCommit();
+		if (!IsBypassInput())
+		{
+			Global->WindowManager->DeleteWindow(shared_from_this());
+			Global->WindowManager->PluginCommit();
+		}
 	}
 	return result;
 }
@@ -4321,7 +4296,7 @@ void Dialog::ResizeConsole()
 intptr_t Dialog::DlgProc(intptr_t Msg,intptr_t Param1,void* Param2)
 {
 	if (DialogMode.Check(DMODE_ENDLOOP))
-		return 0;
+		return Msg==DN_INPUT?TRUE:FALSE;
 
 	FarDialogEvent de{ sizeof(de), this, Msg, Param1, Param2 };
 
@@ -4460,7 +4435,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 	{
 		if (DialogMode.Check(DMODE_OBJECTS_INITED) && !DialogMode.Check(DMODE_DRAWING) && IsRedrawEnabled())
 		{
-			Global->WindowManager->RefreshWindow(shared_from_this());
+			Global->WindowManager->RefreshWindow(IsBypassInput() ? GetOwner() : shared_from_this());
 			Global->WindowManager->PluginCommit();
 			if (Flush)
 				Global->ScrBuf->Flush();
@@ -5047,11 +5022,11 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 					// уточнение для DI_COMBOBOX - здесь еще и DlgEdit нужно корректно заполнить
 					if (!CurItem.IFlags.Check(DLGIIF_COMBOBOXNOREDRAWEDIT) && Type==DI_COMBOBOX && CurItem.ObjPtr)
 					{
-						if (ListBox->HasVisible())
+						if (ListBox->HasVisible() && (CurItem.Flags & DIF_DROPDOWNLIST || Msg==DM_LISTSETCURPOS))
 						{
 							const auto& ListMenuItem = ListBox->at(ListBox->GetSelectPos());
 							const auto Edit = static_cast<DlgEdit*>(CurItem.ObjPtr);
-							if (CurItem.Flags & (DIF_DROPDOWNLIST|DIF_LISTNOAMPERSAND))
+							if (CurItem.Flags & DIF_LISTNOAMPERSAND)
 								Edit->SetHiString(ListMenuItem.Name);
 							else
 								Edit->SetString(ListMenuItem.Name);
@@ -6126,7 +6101,8 @@ void Dialog::SetDeleting()
 
 void Dialog::ShowConsoleTitle()
 {
-	ConsoleTitle::SetFarTitle(DialogMode.Check(DMODE_KEEPCONSOLETITLE)? m_ConsoleTitle : GetTitle());
+	if(!IsBypassInput())
+		ConsoleTitle::SetFarTitle(DialogMode.Check(DMODE_KEEPCONSOLETITLE)? m_ConsoleTitle : GetTitle());
 }
 
 Dialog::suppress_redraw::suppress_redraw(Dialog* Dlg):

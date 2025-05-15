@@ -1,4 +1,238 @@
 --------------------------------------------------------------------------------
+johnd0e 2025-05-09 23:37:26+02:00 - build 6480
+
+1. gh-951: Fix editable combobox behavior in dialogs.
+
+--------------------------------------------------------------------------------
+skipik 2025-05-07 19:52:21+03:00 - build 6479
+
+1. SQLite v3.49.2.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-06 00:45:37+02:00 - build 6478
+
+1. gh-945: Edit box histories should not be saved on cancelled DN_CLOSE.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-05 17:05:48+01:00 - build 6477
+
+1. Error handling improvements.
+
+2. gh-920: Initialization issue with inaccessible paths.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-05 13:31:13+01:00 - build 6476
+
+1. A few fixes in setting file attributes:
+   - redundant attempts to set file owner when processing multiple file
+   - make setting file owner work on network paths (hopefully)
+   - UB during time comparison.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-03 23:42:50+01:00 - build 6475
+
+1. From MZK: continue 6473.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-03 22:26:40+01:00 - build 6474
+
+1. Continue (and fix) 6398.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+MZK 2025-05-03 16:58:59-04:00 - build 6473
+
+1. The found positions (row, character) in the Find All menu of the Internal Editor
+   are now displayed in two fixed columns at the left. These columns are always
+   visible and do not scroll horizontally with the found lines. The Shift+F5 key
+   combination toggles visibility of these columns.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-05-03 16:58:08+01:00 - build 6472
+
+1. gh-944: Properly take character widths into account in a few more places.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-29 19:42:21+01:00 - build 6471
+
+1. From Shmuel: crash on incorrect data from plugin.
+
+--------------------------------------------------------------------------------
+johnd0e 2025-04-29 18:27:59+02:00 - build 6470
+
+1. Fix incorrect item selection when opening combobox.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-25 22:04:11+01:00 - build 6469
+
+1. Correction of 1434: restore trailing spaces trimming in command line history.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-24 17:44:08+01:00 - build 6468
+
+1. gh-940: Editor Find All does not work.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-22 21:28:12+01:00 - build 6467
+
+1. Fix replace in far:regex.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-22 02:04:56+01:00 - build 6466
+
+1. far:regex: selecting matches in the list selects the corresponding part of the test string.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-21 12:47:09+01:00 - build 6465
+
+1. Exception handling improvements.
+
+2. Regex improvements:
+   - Replace stops on unknown numbered or named groups.
+   - Minor far:regex UI improvements.
+   - Minor RECTL_GETNAMEDGROUPS changes:
+     - Returns all compiled groups, not only found ones.
+     - Results are valid till the next compile, not search/match.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-20 21:28:54+01:00 - build 6464
+
+1. Fix inconsistency in regex replace.
+   Replace not found named groups with empty strings, same as not found numbered groups.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-20 02:08:46+01:00 - build 6463
+
+1. Remove extra complexity from conversions between visual and real positions in edit controls.
+
+2. Optimize adding colors to editor.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-16 21:31:45+01:00 - build 6462
+
+1. From Shmuel:
+   Plugin API: RECTL_GETNAMEDGROUPS.
+   Allows the caller to query named groups and their indices in the latest search/match.
+   Param2 - an out pointer to RegExpNamedGroup*.
+   Return value: the number of groups.
+   Results are valid until the next search/match.
+
+--------------------------------------------------------------------------------
+drkns 2025-04-16 20:01:22+01:00 - build 6461
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2025-04-10 23:18:19+03:00 - build 6460
+
+1. Continue 6459.
+
+--------------------------------------------------------------------------------
+shmuel 2025-04-10 21:43:20+03:00 - build 6459
+
+1. MacroAPI: Correct Dlg.GetValue to return -1 where it should, according to the Encyclopedia.
+
+--------------------------------------------------------------------------------
+zg 2025-04-04 05:18:56+03:00 - build 6458
+
+1. continue 6454: various redraw fixes.
+
+--------------------------------------------------------------------------------
+zg 2025-03-29 11:52:25+02:00 - build 6457
+
+1. correction 6456.
+
+2. in some cases dialogs with FDLG_STAY_ON_TOP flag crashed on close.
+
+--------------------------------------------------------------------------------
+zg 2025-03-27 22:52:14+02:00 - build 6456
+
+1. crash at exit when dialog didn't free by far.DialogFree in LuaMacro.
+
+--------------------------------------------------------------------------------
+zg 2025-03-27 21:37:40+02:00 - build 6455
+
+1. DI_TEXT content could be cut off when hotkeys were present.
+
+--------------------------------------------------------------------------------
+zg 2025-03-26 13:38:18+02:00 - build 6454
+
+1. very experimental dialog flag FDLG_STAY_ON_TOP.
+
+--------------------------------------------------------------------------------
+drkns 2025-03-18 23:22:05+00:00 - build 6453
+
+1. Respect panel visibility in FCTL_SETSORTORDER & FCTL_SETDIRECTORIESFIRST API calls.
+
+--------------------------------------------------------------------------------
+drkns 2025-03-18 22:06:19+00:00 - build 6452
+
+1. Ensure that plugins cannot break recursive GetOpenPanelInfoW calls.
+
+--------------------------------------------------------------------------------
+MZK 2025-03-16 17:21:12-04:00 - build 6451
+
+1. gh-918: Introduced type segment
+   Using segment instead of std::pair<int, int> (or similar) because there
+   is no way to remember what the second item represents: length, end, or last.
+
+--------------------------------------------------------------------------------
+drkns 2025-03-07 17:43:00+00:00 - build 6450
+
+1. Revert 6449.
+
+--------------------------------------------------------------------------------
+drkns 2025-03-06 19:58:42+00:00 - build 6449
+
+1. Continue gh-924: make percentage rounding more explicit.
+
+--------------------------------------------------------------------------------
+Yegor 2025-03-04 19:00:00-08:00 - build 6448
+
+1. Added 'Used' space and memory values to the Panel Info
+
+--------------------------------------------------------------------------------
+drkns 2025-03-01 19:36:11+00:00 - build 6447
+
+1. More gh-909.
+
+--------------------------------------------------------------------------------
+drkns 2025-03-01 16:34:12+00:00 - build 6446
+
+1. Refactoring.
+
+2. Minor fix in color picker preview.
+
+--------------------------------------------------------------------------------
+drkns 2025-02-27 03:04:51+00:00 - build 6445
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-02-26 20:59:10+00:00 - build 6444
+
+1. Experimental: custom color themes (%FARHOME%\Addons\Colors\Interface) can be selected directly from the UI (Options - Colors - Themes).
+
+--------------------------------------------------------------------------------
+drkns 2025-02-25 20:39:35+00:00 - build 6443
+
+1. Continue 6385.5.
+
+--------------------------------------------------------------------------------
+drkns 2025-02-19 19:47:29+00:00 - build 6442
+
+1. Update thirdparty libraries.
+
+2. Warnings.
+
+--------------------------------------------------------------------------------
 drkns 2025-02-15 23:02:07+00:00 - build 6441
 
 1. Continue gh-909.

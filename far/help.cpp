@@ -1958,7 +1958,6 @@ void Help::Search(lang_file& HelpFile)
 	string strCurTopic, strEntryName;
 
 	regex_match Match;
-	named_regex_match NamedMatch;
 	RegExp re;
 
 	if (m_SearchDlgParams.Regex.value())
@@ -2018,7 +2017,6 @@ void Help::Search(lang_file& HelpFile)
 				Searcher,
 				re,
 				Match,
-				&NamedMatch,
 				CurPos,
 				{
 					.CaseSensitive = m_SearchDlgParams.CaseSensitive.value(),
@@ -2200,7 +2198,7 @@ namespace help
 		{
 			return !Help::create(Topic, Mask, Flags)->GetError();
 		}
-		catch (far_exception const& e)
+		catch (std::exception const& e)
 		{
 			if (!(Flags & FHELP_NOSHOWERROR))
 			{

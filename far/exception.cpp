@@ -61,25 +61,39 @@ string source_location_to_string(source_location const& Location)
 		Location.line());
 }
 
+static auto with_exception_stacktrace(string_view const Str)
+{
+	string Result;
+
+	tracer.exception_stacktrace({}, [&](string_view const Line)
+	{
+		append(Result, Line, L'\n');
+	});
+
+	return Result.empty()? string(Str) : concat(Str, L"\n\n"sv, Result);
+}
+
 namespace detail
 {
 	string far_base_exception::to_string() const
 	{
-		return any()?
-			far::format(L"far_base_exception: {}, Error: {}"sv, full_message(), error_state::to_string()) :
-			far::format(L"far_base_exception: {}"sv, full_message());
+		return with_exception_stacktrace(far::format(L"far_base_exception: {{{}}}"sv, error_state_ex::to_string()));
 	}
 
-	far_base_exception::far_base_exception(error_state_ex ErrorState, source_location const& Location):
-		error_state_ex(std::move(ErrorState)),
-		m_Location(Location),
-		m_FullMessage(m_Location.function_name()? far::format(L"{} ({})"sv, What, source_location_to_string(m_Location)) : What)
+	far_base_exception::far_base_exception(error_state_ex ErrorState):
+		error_state_ex(std::move(ErrorState))
 	{
 		LOGTRACE(L"{}"sv, *this);
 	}
 
+	far_std_exception::far_std_exception(error_state_ex ErrorState):
+		far_base_exception(std::move(ErrorState)),
+		std::runtime_error(convert_message(message()))
+	{
+	}
+
 	far_std_exception::far_std_exception(string_view const Message, bool const CaptureErrors, source_location const& Location):
-		far_std_exception({ CaptureErrors? os::last_error() : error_state{}, Message, CaptureErrors? errno : 0 }, Location)
+		far_std_exception({ CaptureErrors? os::last_error(Location) : error_state{ .Location = Location }, Message, CaptureErrors? errno : 0 })
 	{
 	}
 
@@ -94,6 +108,18 @@ namespace detail
 	}
 }
 
+error_state_ex::error_state_ex(std::exception const& e)
+{
+	if (const auto FarException = dynamic_cast<far_exception const*>(&e))
+	{
+		*this = static_cast<error_state_ex const&>(*FarException);
+	}
+	else
+	{
+		What = encoding::utf8_or_ansi::get_chars(e.what());
+	}
+}
+
 string error_state_ex::ErrnoStr() const
 {
 	return os::format_errno(Errno);
@@ -105,18 +131,6 @@ string error_state_ex::system_error() const
 	return UseNtMessages? NtErrorStr() : Win32ErrorStr();
 }
 
-static auto with_exception_stacktrace(string_view const Str)
-{
-	string Result;
-
-	tracer.exception_stacktrace({}, [&](string_view const Line)
-	{
-		append(Result, Line, L'\n');
-	});
-
-	return Result.empty()? string(Str) : concat(Str, L"\n\n"sv, Result);
-}
-
 string error_state_ex::to_string() const
 {
 	if (any())
@@ -125,18 +139,26 @@ string error_state_ex::to_string() const
 		if (Errno)
 			Str = concat(ErrnoStr(), L", "sv, Str);
 
-		return with_exception_stacktrace(far::format(L"Message: {}, Error: {}"sv, What, Str));
+		return far::format(L"Message: {}, Error: {{{}}} ({})"sv, What, Str, source_location_to_string(Location));
 	}
 
-	return with_exception_stacktrace(far::format(L"Message: {}"sv, What));
+	return far::format(L"Message: {} ({})"sv, What, source_location_to_string(Location));
 }
 
 string formattable<std::exception>::to_string(std::exception const& e)
 {
+	if (const auto FarException = dynamic_cast<far_exception const*>(&e))
+		return FarException->to_string();
+
 	return with_exception_stacktrace(far::format(L"std::exception: {}"sv, encoding::utf8_or_ansi::get_chars(e.what())));
 }
 
 string unknown_exception_t::to_string()
 {
 	return with_exception_stacktrace(L"Unknown exception"sv);
+}
+
+void throw_far_exception(std::string_view const Message, source_location const& Location)
+{
+	throw far_exception(encoding::utf8::get_chars(Message), true, Location);
 }

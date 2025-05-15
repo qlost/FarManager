@@ -39,6 +39,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 #include "elevation.hpp"
 #include "exception_handler.hpp"
+#include "imports.hpp"
 #include "pathmix.hpp"
 #include "log.hpp"
 #include "notification.hpp"
@@ -220,7 +221,8 @@ FileSystemWatcher::FileSystemWatcher(const string_view EventId, const string_vie
 
 FileSystemWatcher::~FileSystemWatcher()
 {
-	background_watcher::instance().remove(this);
+	if (m_Overlapped.hEvent)
+		background_watcher::instance().remove(this);
 
 	{
 		SCOPED_ACTION(std::scoped_lock)(m_CS);
@@ -230,12 +232,18 @@ FileSystemWatcher::~FileSystemWatcher()
 
 		LOGDEBUG(L"Stop monitoring {}"sv, m_Directory);
 
+		if (const auto Handle = m_DirectoryHandle.native_handle(); imports.CancelIoEx)
+			imports.CancelIoEx(Handle, &m_Overlapped);
+		else
+			CancelIo(Handle);
+
 		m_DirectoryHandle = {};
 
 		switch (const auto Status = static_cast<NTSTATUS>(m_Overlapped.Internal))
 		{
 		case STATUS_NOTIFY_CLEANUP:
 		case STATUS_NOTIFY_ENUM_DIR:
+		case STATUS_CANCELLED:
 			break;
 
 		case STATUS_PENDING:
