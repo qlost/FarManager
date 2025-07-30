@@ -3468,6 +3468,12 @@ string is changed to that of the found string. For example:
 $ #Editor: All matching entries menu#
  The following key combinations are available in this menu:
 
+ #F4#
+ Copy all found lines into a new editor and close this menu.
+
+ #Alt+F4#
+ Copy all lines matching the current filter into a new editor and close this menu.
+
  #F5#
  Toggle menu size.
 
@@ -6612,6 +6618,25 @@ by the Editor.
  True  - Files are created with Unix line break style (LF).
 
  Default value: False (Windows line break style).
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
+@Editor.SearchAllUseAltFileNameFormat
+$ #far:config Editor.SearchAllUseAltFileNameFormat#
+ This string parameter controls composing of the file name used by the
+new Editor containing ~all matching entries~@FindAllMenu@. The value
+is one or more ~file masks~@FileMasks@.
+
+ The new filename is created from the stem filename and the extension
+of the file currently opened in the Editor. Depending on the original
+file name, the new file name is formatted using one of the two
+alternative UI format strings defined in ~.lng files~@CustomizingUI@.
+The string with the ID #MEditSearchAllFileNameFormatAlt# is used if the
+original file name matches one of the file masks; otherwise,
+#MEditSearchAllFileNameFormat# is used.
+
+ Default value: #*.txt,*.log,*.md,*.csv,*.ini,*.cmd,*.map#
 
  This parameter can be changed via ~far:config~@FarConfig@ only.
 

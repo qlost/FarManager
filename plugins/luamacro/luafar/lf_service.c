@@ -1695,20 +1695,10 @@ static int far_Menu(lua_State *L)
 	};
 
 	TPluginData *pd = GetPluginData(L);
-	int X = -1, Y = -1, MaxHeight = 0;
-	UINT64 Flags = FMENU_WRAPMODE;
-	const wchar_t *Title = L"Menu", *Bottom = NULL, *HelpTopic = NULL;
-	intptr_t SelectIndex = 0, ItemsNumber, ret;
-	int i;
-	intptr_t BreakCode = 0, *pBreakCode;
-	int NumBreakCodes = 0;
-	const GUID* MenuGuid = NULL;
-	struct FarMenuItem *Items, *pItem;
-	struct FarKey *pBreakKeys;
 
 	luaL_checktype(L, POS_PROPS, LUA_TTABLE);
 	luaL_checktype(L, POS_ITEMS, LUA_TTABLE);
-	ItemsNumber = lua_objlen(L, POS_ITEMS);
+	intptr_t ItemsNumber = lua_objlen(L, POS_ITEMS);
 
 	lua_settop(L, POS_BKEYS);     // cut unneeded parameters; make stack predictable
 	lua_newtable(L); // temporary store; at stack position 4
@@ -1718,26 +1708,32 @@ static int far_Menu(lua_State *L)
 
 	// Properties
 	lua_pushvalue(L, POS_PROPS);
-	X = GetOptIntFromTable(L, "X", -1);
-	Y = GetOptIntFromTable(L, "Y", -1);
-	MaxHeight = GetOptIntFromTable(L, "MaxHeight", 0);
+	int X = GetOptIntFromTable(L, "X", -1);
+	int Y = GetOptIntFromTable(L, "Y", -1);
+	int MaxHeight = GetOptIntFromTable(L, "MaxHeight", 0);
 
+	UINT64 Flags = FMENU_WRAPMODE;
 	lua_getfield(L, POS_PROPS, "Flags");
 	if (!lua_isnil(L, -1)) Flags = CheckFlags(L, -1);
 
+	const wchar_t *Title = L"Menu";
 	lua_getfield(L, POS_PROPS, "Title");
 	if (lua_isstring(L,-1))    Title = StoreTempString(L, POS_STORE);
 
+	const wchar_t *Bottom = NULL;
 	lua_getfield(L, POS_PROPS, "Bottom");
 	if (lua_isstring(L,-1))    Bottom = StoreTempString(L, POS_STORE);
 
+	const wchar_t *HelpTopic = NULL;
 	lua_getfield(L, POS_PROPS, "HelpTopic");
 	if (lua_isstring(L,-1))    HelpTopic = StoreTempString(L, POS_STORE);
 
+	intptr_t SelectIndex = 0;
 	lua_getfield(L, POS_PROPS, "SelectIndex");
 	if ((SelectIndex = lua_tointeger(L,-1)) > ItemsNumber)
 		SelectIndex = 0;
 
+	const GUID* MenuGuid = NULL;
 	lua_getfield(L, POS_PROPS, "Id");
 	if (lua_type(L,-1)==LUA_TSTRING && lua_objlen(L,-1)==sizeof(GUID))
 		MenuGuid = (const GUID*)lua_tostring(L, -1);
@@ -1745,18 +1741,24 @@ static int far_Menu(lua_State *L)
 	lua_settop (L, POS_STORE);
 
 	// Items
-	Items = (struct FarMenuItem*)lua_newuserdata(L, ItemsNumber*sizeof(struct FarMenuItem));
+	struct FarMenuItem *Items =
+		(struct FarMenuItem*)lua_newuserdata(L, ItemsNumber*sizeof(struct FarMenuItem));
 	memset(Items, 0, ItemsNumber*sizeof(struct FarMenuItem));
-	pItem = Items;
+	struct FarMenuItem *pItem = Items;
 
-	for(i=0; i < ItemsNumber; i++,pItem++,lua_pop(L,1))
+	for(int i=0; i < ItemsNumber; i++,pItem++,lua_pop(L,1))
 	{
 		static const char key[] = "text";
 		lua_pushinteger(L, i+1);
 		lua_gettable(L, POS_ITEMS);
 
-		if (!lua_istable(L, -1))
-			return luaLF_SlotError(L, i+1, "table");
+		if (lua_isstring(L, -1)) { // convert a string to a table element
+			lua_createtable(L, 0, 1);
+			lua_insert(L, -2);
+			lua_setfield(L, -2, key);
+		}
+		else if (!lua_istable(L, -1))
+			return luaLF_SlotError(L, i+1, "string or table");
 
 		//-------------------------------------------------------------------------
 		lua_getfield(L, -1, key);
@@ -1817,8 +1819,10 @@ static int far_Menu(lua_State *L)
 		Items[SelectIndex-1].Flags |= MIF_SELECTED;
 
 	// Break Keys
-	pBreakKeys = NULL;
-	pBreakCode = NULL;
+	intptr_t BreakCode = 0;
+	int NumBreakCodes = 0;
+	struct FarKey *pBreakKeys = NULL;
+	intptr_t *pBreakCode = NULL;
 	if (lua_type(L, POS_BKEYS) == LUA_TSTRING)
 	{
 		const char *q, *ptr = lua_tostring(L, POS_BKEYS);
@@ -1929,7 +1933,7 @@ static int far_Menu(lua_State *L)
 		pBreakCode = &BreakCode;
 	}
 
-	ret = pd->Info->Menu(pd->PluginId, MenuGuid, X, Y, MaxHeight, Flags, Title,
+	intptr_t ret = pd->Info->Menu(pd->PluginId, MenuGuid, X, Y, MaxHeight, Flags, Title,
 	                     Bottom, HelpTopic, pBreakKeys, pBreakCode, Items, ItemsNumber);
 
 	if (NumBreakCodes && (BreakCode != -1))
@@ -2147,23 +2151,9 @@ static int far_Message(lua_State *L)
 	lua_settop(L,6);
 	Msg = NULL;
 
-	if (lua_isstring(L, 1))
-		Msg = check_utf8_string(L, 1, NULL);
-	else
-	{
-		lua_getglobal(L, "tostring");
-
-		if (lua_isfunction(L,-1))
-		{
-			lua_pushvalue(L,1);
-			lua_call(L,1,1);
-			Msg = check_utf8_string(L,-1,NULL);
-		}
-
-		if (Msg == NULL) luaL_argerror(L, 1, "cannot convert to string");
-
-		lua_replace(L,1);
-	}
+	luaL_tolstring(L, 1, NULL);
+	Msg = check_utf8_string(L, -1, NULL);
+	lua_replace(L,1);
 
 	Title   = opt_utf8_string(L, 2, L"Message");
 	Buttons = opt_utf8_string(L, 3, L";OK");
@@ -5339,23 +5329,11 @@ static int far_MakeMenuItems(lua_State *L)
 			const char *start;
 			char* str;
 
-			lua_getglobal(L, "tostring");          //+2
-
-			if (i == 1 && lua_type(L,-1) != LUA_TFUNCTION)
-				luaL_error(L, "global `tostring' is not function");
-
-			lua_pushvalue(L, i);                   //+3
-
-			if (0 != lua_pcall(L, 1, 1, 0))         //+2 (items,str)
-				luaL_error(L, lua_tostring(L, -1));
-
-			if (lua_type(L, -1) != LUA_TSTRING)
-				luaL_error(L, "tostring() returned a non-string value");
-
+			start = luaL_tolstring(L, i, &len_arg); //+2
 			sprintf(buf_prefix, "%*d%s ", maxno, i, delim);
-			start = lua_tolstring(L, -1, &len_arg);
 			str = (char*) malloc(len_arg + 1);
 			memcpy(str, start, len_arg + 1);
+			lua_pop(L, 1);                         //+1 (items)
 
 			for (j=0; j<len_arg; j++)
 				if (str[j] == '\0') str[j] = ' ';
@@ -5366,7 +5344,7 @@ static int far_MakeMenuItems(lua_State *L)
 				char *line;
 				const char* nl = strchr(start, '\n');
 
-				lua_newtable(L);                     //+3 (items,str,curr_item)
+				lua_newtable(L);                     //+2 (items,curr_item)
 				len_text = nl ? (nl++) - start : (str+len_arg) - start;
 				line = (char*) malloc(len_prefix + len_text);
 				memcpy(line, buf_prefix, len_prefix);
@@ -5374,16 +5352,15 @@ static int far_MakeMenuItems(lua_State *L)
 
 				lua_pushlstring(L, line, len_prefix + len_text);
 				free(line);
-				lua_setfield(L, -2, "text");         //+3
+				lua_setfield(L, -2, "text");         //+2
 				lua_pushvalue(L, i);
-				lua_setfield(L, -2, "arg");          //+3
-				lua_rawseti(L, -3, item++);          //+2 (items,str)
+				lua_setfield(L, -2, "arg");          //+2
+				lua_rawseti(L, -2, item++);          //+1 (items)
 				strcpy(buf_prefix, buf_space);
 				start = nl;
 			}
 
 			free(str);
-			lua_pop(L, 1);                         //+1 (items)
 		}
 	}
 
@@ -6286,6 +6263,12 @@ static int far_DetectCodePage(lua_State *L)
 	return 1;
 }
 
+static int far_GetPluginId(lua_State *L)
+{
+	lua_pushlstring(L, (char*)GetPluginData(L)->PluginId, sizeof(UUID));
+	return 1;
+}
+
 #define PAIR(prefix,txt) {#txt, prefix ## _ ## txt}
 
 const luaL_Reg timer_methods[] =
@@ -6557,6 +6540,7 @@ const luaL_Reg far_funcs[] =
 	PAIR( far, GetNumberOfLinks),
 	PAIR( far, GetPathRoot),
 	PAIR( far, GetPluginDirList),
+	PAIR( far, GetPluginId),
 	PAIR( far, GetPluginInformation),
 	PAIR( far, GetPlugins),
 	PAIR( far, GetReparsePointInfo),
@@ -6851,7 +6835,10 @@ void LF_InitLuaState1(lua_State *L, lua_CFunction aOpenLibs)
 	}
 #endif
 
-	if (aOpenLibs) aOpenLibs(L);
+	if (aOpenLibs) {
+		lua_pushcfunction(L, aOpenLibs);
+		lua_call(L, 0, 0);
+	}
 
 	lua_pushcfunction(L, luaB_dofileW);
 	lua_setglobal(L, "dofile");

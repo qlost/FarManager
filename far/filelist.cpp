@@ -274,9 +274,8 @@ static bool SortFileList(CustomSort* cs, wchar_t* indicator)
 	FarMacroValue values[]{ cs };
 	FarMacroCall fmc{ sizeof(fmc), std::size(values), values };
 	OpenMacroPluginInfo info{ MCT_PANELSORT, &fmc };
-	void *ptr;
 
-	if (!Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &info, &ptr) || !ptr)
+	if (!Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &info))
 		return false;
 
 	indicator[0] = info.Ret.Values[0].String[0];
@@ -289,9 +288,8 @@ static bool CanSort(int SortMode)
 	FarMacroValue values[]{ static_cast<double>(SortMode) };
 	FarMacroCall fmc{ sizeof(fmc), std::size(values), values };
 	OpenMacroPluginInfo info{ MCT_CANPANELSORT, &fmc };
-	void *ptr;
 
-	return Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &info, &ptr) && ptr;
+	return Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &info);
 }
 
 }
@@ -4853,8 +4851,7 @@ void FileList::SelectSortMode()
 	MacroPluginReturn const* mpr{};
 	size_t extra = 0; // number of additional menu items due to custom sort modes
 	{
-		void *ptr;
-		if (Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &ompInfo, &ptr) && ptr)
+		if (Global->CtrlObject->Plugins->CallPlugin(Global->Opt->KnownIDs.Luamacro.Id, OPEN_LUAMACRO, &ompInfo))
 		{
 			mpr = &ompInfo.Ret;
 			if (mpr->Count >= 3)
@@ -5174,7 +5171,9 @@ bool FileList::ApplyCommand()
 	++UpdateDisabled;
 	Parent()->GetCmdLine()->LockUpdatePanel(true);
 	{
-		const auto ExecutionContext = Global->WindowManager->Desktop()->ConsoleSession().GetContext();
+		Global->WindowManager->Desktop()->ConsoleSession().pin();
+		SCOPE_EXIT{ Global->WindowManager->Desktop()->ConsoleSession().unpin(); };
+
 		for (const auto& i: enum_selected())
 		{
 			if (CheckForEscAndConfirmAbort())
@@ -8967,7 +8966,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 							const auto& Owner = m_ListData[ListPos].Owner(this);
 							size_t Offset = 0;
 
-							if (!(Columns[K].type_flags & COLFLAGS_FULLOWNER) && m_PanelMode != panel_mode::PLUGIN_PANEL)
+							if (!(Columns[K].type_flags & COLFLAGS_FULLOWNER))
 							{
 								const auto SlashPos = FindSlash(Owner);
 								if (SlashPos != string::npos)

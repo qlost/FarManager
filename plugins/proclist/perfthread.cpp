@@ -1,41 +1,46 @@
 ﻿#include <algorithm>
 #include <mutex>
+#include <cassert>
 #include <cstddef>
 #include <cassert>
 
 #include "Proclist.hpp"
 #include "Proclng.hpp"
 #include "perfthread.hpp"
+#include "ipc.hpp"
 #include "guid.hpp"
 
+#include <algorithm.hpp>
+#include <smart_ptr.hpp>
 #include <utility.hpp>
 
 #include <winperf.h>
 
 const counters Counters[]
 {
-	{L"% Processor Time",        MProcessorTime     , MColProcessorTime     },
-	{L"% Privileged Time",       MPrivilegedTime    , MColPrivilegedTime    },
-	{L"% User Time",             MUserTime          , MColUserTime          },
-	{L"Handle Count",            MHandleCount       , MColHandleCount       },
-	{L"Page File Bytes",         MPageFileBytes     , MColPageFileBytes     },
-	{L"Page File Bytes Peak",    MPageFileBytesPeak , MColPageFileBytesPeak },
-	{L"Working Set",             MWorkingSet        , MColWorkingSet        },
-	{L"Working Set Peak",        MWorkingSetPeak    , MColWorkingSetPeak    },
-	{L"Pool Nonpaged Bytes",     MPoolNonpagedBytes , MColPoolNonpagedBytes },
-	{L"Pool Paged Bytes",        MPoolPagedBytes    , MColPoolPagedBytes    },
-	{L"Private Bytes",           MPrivateBytes      , MColPrivateBytes      },
-	{L"Page Faults/sec",         MPageFaults        , MColPageFaults        },
-	{L"Virtual Bytes",           MVirtualBytes      , MColVirtualBytes      },
-	{L"Virtual Bytes Peak",      MVirtualBytesPeak  , MColVirtualBytesPeak  },
-	{L"IO Data Bytes/sec",       MIODataBytes       , MColIODataBytes       },
-	{L"IO Read Bytes/sec",       MIOReadBytes       , MColIOReadBytes       },
-	{L"IO Write Bytes/sec",      MIOWriteBytes      , MColIOWriteBytes      },
-	{L"IO Other Bytes/sec",      MIOOtherBytes      , MColIOOtherBytes      },
-	{L"IO Data Operations/sec",  MIODataOperations  , MColIODataOperations  },
-	{L"IO Read Operations/sec",  MIOReadOperations  , MColIOReadOperations  },
-	{L"IO Write Operations/sec", MIOWriteOperations , MColIOWriteOperations },
-	{L"IO Other Operations/sec", MIOOtherOperations , MColIOOtherOperations },
+	{ L"% Processor Time",        MProcessorTime,     MColProcessorTime,     counter_type::duration, },
+	{ L"% Privileged Time",       MPrivilegedTime,    MColPrivilegedTime,    counter_type::duration, },
+	{ L"% User Time",             MUserTime,          MColUserTime,          counter_type::duration, },
+	{ L"Handle Count",            MHandleCount,       MColHandleCount,       counter_type::number,   },
+	{ L"Page File Bytes",         MPageFileBytes,     MColPageFileBytes,     counter_type::bytes,    },
+	{ L"Page File Bytes Peak",    MPageFileBytesPeak, MColPageFileBytesPeak, counter_type::bytes,    },
+	{ L"Working Set",             MWorkingSet,        MColWorkingSet,        counter_type::bytes,    },
+	{ L"Working Set Peak",        MWorkingSetPeak,    MColWorkingSetPeak,    counter_type::bytes,    },
+	{ L"Pool Nonpaged Bytes",     MPoolNonpagedBytes, MColPoolNonpagedBytes, counter_type::bytes,    },
+	{ L"Pool Paged Bytes",        MPoolPagedBytes,    MColPoolPagedBytes,    counter_type::bytes,    },
+	{ L"Private Bytes",           MPrivateBytes,      MColPrivateBytes,      counter_type::bytes,    },
+	{ L"Page Faults/sec",         MPageFaults,        MColPageFaults,        counter_type::number,   },
+	{ L"Virtual Bytes",           MVirtualBytes,      MColVirtualBytes,      counter_type::bytes,    },
+	{ L"Virtual Bytes Peak",      MVirtualBytesPeak,  MColVirtualBytesPeak,  counter_type::bytes,    },
+	{ L"IO Data Bytes/sec",       MIODataBytes,       MColIODataBytes,       counter_type::bytes,    },
+	{ L"IO Read Bytes/sec",       MIOReadBytes,       MColIOReadBytes,       counter_type::bytes,    },
+	{ L"IO Write Bytes/sec",      MIOWriteBytes,      MColIOWriteBytes,      counter_type::bytes,    },
+	{ L"IO Other Bytes/sec",      MIOOtherBytes,      MColIOOtherBytes,      counter_type::bytes,    },
+	{ L"IO Data Operations/sec",  MIODataOperations,  MColIODataOperations,  counter_type::number,   },
+	{ L"IO Read Operations/sec",  MIOReadOperations,  MColIOReadOperations,  counter_type::number,   },
+	{ L"IO Write Operations/sec", MIOWriteOperations, MColIOWriteOperations, counter_type::number,   },
+	{ L"IO Other Operations/sec", MIOOtherOperations, MColIOOtherOperations, counter_type::number,   },
+	{ L"Working Set - Private",   MWorkingSetPrivate, MColWorkingSetPrivate, counter_type::bytes,    },
 };
 
 // A wrapper class to provide auto-closing of registry key
@@ -73,14 +78,13 @@ static bool Is64BitWindows()
 #else
 	// 32-bit programs run on both 32-bit and 64-bit Windows
 	// so must sniff
-	static const auto IsWow64 = is_wow64_process(GetCurrentProcess());
-	return IsWow64;
+	return is_wow64_itself();
 #endif
 }
 
 PerfThread::PerfThread(Plist* const Owner, const wchar_t* hostname, const wchar_t* pUser, const wchar_t* pPasw) :
 	m_Owner(Owner),
-	DefaultBitness(Is64BitWindows()? 64 : 32)
+	DefaultBitness(hostname? -1 : Is64BitWindows()? 64 : 32)
 {
 	if (pUser && *pUser)
 	{
@@ -159,14 +163,30 @@ PerfThread::PerfThread(Plist* const Owner, const wchar_t* hostname, const wchar_
 	hEvtRefreshDone.reset(CreateEvent({}, 0, 0, {}));
 	Refresh();
 	hThread.reset(CreateThread({}, 0, ThreadProc, this, 0, {}));
-	hWmiThread.reset(CreateThread({}, 0, WmiThreadProc, this, 0, {}));
+
+	if (Opt.EnableWMI)
+	{
+		EventWMIReady.reset(CreateEvent({}, TRUE, FALSE, {}));
+		EventMTARefresh.reset(CreateEvent({}, 0, 0, {}));
+		EventMTARefreshDone.reset(CreateEvent({}, 0, 0, {}));
+
+		hWmiThread.reset(CreateThread({}, 0, WmiThreadProc, this, 0, {}));
+		MTAThread.reset(CreateThread({}, 0, MTAThreadProc, this, 0, {}));
+	}
+
 	bOK = true;
 }
 PerfThread::~PerfThread()
 {
 	SetEvent(hEvtBreak.get());
+
+	if (Opt.EnableWMI)
+	{
+		WaitForSingleObject(MTAThread.get(), INFINITE);
+		WaitForSingleObject(hWmiThread.get(), INFINITE);
+	}
+
 	WaitForSingleObject(hThread.get(), INFINITE);
-	WaitForSingleObject(hWmiThread.get(), INFINITE);
 
 	if (hHKLM)
 		RegCloseKey(hHKLM);
@@ -185,43 +205,142 @@ void PerfThread::unlock()
 	ReleaseMutex(hMutex.get());
 }
 
-ProcessPerfData* PerfThread::GetProcessData(DWORD dwPid, DWORD dwThreads)
+ProcessPerfData* PerfThread::GetProcessData(DWORD const Pid)
 {
-	std::pair<ProcessPerfData*, size_t> ZeroPid[10];
-	auto ZeroPidIterator = std::begin(ZeroPid);
+	if (const auto Iterator = m_ProcessesData.find(Pid); Iterator != m_ProcessesData.end())
+		return &Iterator->second;
 
-	if (dwPid)
+	return {};
+}
+
+static size_t get_logical_processor_count()
+{
+	block_ptr<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX> Buffer(1024);
+	DWORD Size{};
+
+	for (;;)
 	{
-		if (const auto Iterator = m_ProcessesData.find(dwPid); Iterator != m_ProcessesData.end())
+		Size = static_cast<DWORD>(Buffer.size());
+		if (pGetLogicalProcessorInformationEx(RelationProcessorCore, Buffer.data(), &Size))
+			break;
+
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
 		{
-			return &Iterator->second;
+			SYSTEM_INFO sysInfo;
+			GetSystemInfo(&sysInfo);
+			return sysInfo.dwNumberOfProcessors;
 		}
 
-		return {};
+		Buffer.reset(Size);
 	}
 
-	if (ZeroPidIterator == ZeroPid + 1)
-		return ZeroPidIterator->first;
+	size_t LogicalProcessorCount{};
 
-	const auto threads_delta = [dwThreads](ProcessPerfData* Data)
+	for (size_t Offset{}; Offset != Size;)
 	{
-		return dwThreads > Data->dwThreads?
-			dwThreads - Data->dwThreads :
-			Data->dwThreads - dwThreads;
-	};
+		const auto& Info = *static_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX const*>(static_cast<void const*>(Buffer.bytes().data() + Offset));
 
-	return std::min_element(std::begin(ZeroPid), ZeroPidIterator, [&](const auto& a, const auto& b)
-	{
-		return threads_delta(a.first) < threads_delta(b.first);
-	})->first;
+		Offset += Info.Size;
+
+		if (Info.Relationship != RelationProcessorCore)
+			continue;
+
+		for (const auto& i: std::span{ Info.Processor.GroupMask, Info.Processor.GroupCount })
+		{
+			LogicalProcessorCount += std::popcount(i.Mask);
+		}
+	}
+
+	return LogicalProcessorCount;
 }
+
+struct PROCLIST_SYSTEM_PROCESS_INFORMATION
+{
+	ULONG NextEntryOffset;
+	ULONG NumberOfThreads;
+	LARGE_INTEGER WorkingSetPrivateSize;
+	ULONG HardFaultCount;
+	ULONG NumberOfThreadsHighWatermark;
+	ULONGLONG CycleTime;
+	LARGE_INTEGER CreateTime;
+	LARGE_INTEGER UserTime;
+	LARGE_INTEGER KernelTime;
+	UNICODE_STRING ImageName;
+	KPRIORITY BasePriority;
+	HANDLE UniqueProcessId;
+	HANDLE InheritedFromUniqueProcessId;
+	ULONG HandleCount;
+	ULONG SessionId;
+	ULONG_PTR UniqueProcessKey;
+	SIZE_T PeakVirtualSize;
+	SIZE_T VirtualSize;
+	ULONG PageFaultCount;
+	SIZE_T PeakWorkingSetSize;
+	SIZE_T WorkingSetSize;
+	SIZE_T QuotaPeakPagedPoolUsage;
+	SIZE_T QuotaPagedPoolUsage;
+	SIZE_T QuotaPeakNonPagedPoolUsage;
+	SIZE_T QuotaNonPagedPoolUsage;
+	SIZE_T PagefileUsage;
+	SIZE_T PeakPagefileUsage;
+	SIZE_T PrivatePageCount;
+	LARGE_INTEGER ReadOperationCount;
+	LARGE_INTEGER WriteOperationCount;
+	LARGE_INTEGER OtherOperationCount;
+	LARGE_INTEGER ReadTransferCount;
+	LARGE_INTEGER WriteTransferCount;
+	LARGE_INTEGER OtherTransferCount;
+	SYSTEM_THREAD_INFORMATION Threads[1];
+};
 
 bool PerfThread::RefreshImpl()
 {
+	block_ptr<PROCLIST_SYSTEM_PROCESS_INFORMATION> Info;
+	std::unordered_map<uintptr_t, PROCLIST_SYSTEM_PROCESS_INFORMATION const*> ProcessMap;
+
+	if (m_HostName.empty())
+	{
+		Info.reset(sizeof(*Info));
+
+		for (;;)
+		{
+			ULONG ReturnSize{};
+			const auto Result = pNtQuerySystemInformation(SystemProcessInformation, Info.data(), static_cast<ULONG>(Info.size()), &ReturnSize);
+			if (NT_SUCCESS(Result))
+				break;
+
+			if (any_of(Result, STATUS_INFO_LENGTH_MISMATCH, STATUS_BUFFER_OVERFLOW, STATUS_BUFFER_TOO_SMALL))
+			{
+				Info.reset(ReturnSize? ReturnSize : grow_exp(Info.size(), {}));
+				continue;
+			}
+
+			Info.reset();
+		}
+
+		if (!Info.empty())
+		{
+			for (size_t Offset = 0;;)
+			{
+				const auto& ProcessInfo = view_as<PROCLIST_SYSTEM_PROCESS_INFORMATION>(Info.data(), Offset);
+				ProcessMap.emplace(std::bit_cast<uintptr_t>(ProcessInfo.UniqueProcessId), &ProcessInfo);
+
+				if (ProcessInfo.NextEntryOffset)
+					Offset += ProcessInfo.NextEntryOffset;
+				else
+					break;
+			}
+		}
+	}
+
+	// TODO: call NtQuerySystemInformation for fallbacks?
+
 	DebugToken token;
 	const auto dwTicksBeforeRefresh = GetTickCount();
 	std::vector<BYTE> buf(512 * 1024);
 	DWORD dwDeltaTickCount{};
+
+	FILETIME SystemTime;
 
 	for (bool Read = false; !Read;)
 	{
@@ -232,6 +351,10 @@ bool PerfThread::RefreshImpl()
 		{
 		case ERROR_SUCCESS:
 			Read = true;
+
+			// To subtract dwElapsedTime. As close to the read as possible for best accuracy.
+			GetSystemTimeAsFileTime(&SystemTime);
+
 			break;
 
 		case ERROR_LOCK_FAILED:
@@ -318,53 +441,76 @@ bool PerfThread::RefreshImpl()
 		if (!pProcessId)
 			return false;
 
-		auto& Task = NewPData.emplace(*pProcessId, ProcessPerfData{})->second;
+		const auto IsTotal = *pProcessId == 0 && ProcessName == L"_Total"sv;
 
-		Task.dwProcessId = *pProcessId;
-		Task.Bitness = DefaultBitness;
+		// Real process ids can't be odd, so it's fine
+		auto& Task = NewPData.emplace(IsTotal? static_cast<DWORD>(-1) : *pProcessId, ProcessPerfData{}).first->second;
 
-		if (const auto Ptr = view_as_opt<DWORD>(pCounter, DataEnd, dwProcessIdCounter))
-			Task.dwProcessId = *Ptr;
-		else
-			return false;
-
-		if (dwThreadCounter)
+		if (IsTotal)
 		{
-			if (const auto Ptr = view_as_opt<DWORD>(pCounter, DataEnd, dwThreadCounter))
-				Task.dwThreads = *Ptr;
-			else
-				return false;
+			Task.dwProcessId = static_cast<DWORD>(-1);
 		}
+		else
+		{
+			Task.dwProcessId = *pProcessId;
+			Task.Bitness = DefaultBitness;
+		}
+
+		const auto ProcessInfo = [&]() -> PROCLIST_SYSTEM_PROCESS_INFORMATION const*
+		{
+			if (IsTotal)
+				return nullptr;
+
+			const auto ProcesInfoIterator = ProcessMap.find(Task.dwProcessId);
+			return ProcesInfoIterator != ProcessMap.cend()? ProcesInfoIterator->second : nullptr;
+		}();
 
 		ProcessPerfData* pOldTask = {};
 		if (!m_ProcessesData.empty())  // Use prev data if any
 		{
 			//Get the pointer to the previous instance of this process
-			pOldTask = GetProcessData(Task.dwProcessId, Task.dwThreads);
+			pOldTask = GetProcessData(Task.dwProcessId);
 			if (pOldTask)  // copy process' data from pOldTask to Task
 			{
 				Task = *pOldTask;
 			}
 		}
 
-		if (const auto Ptr = view_as_opt<DWORD>(pCounter, DataEnd, dwPriorityCounter))
-			Task.dwProcessPriority = *Ptr;
+		if (const auto Ptr = dwThreadCounter? view_as_opt<DWORD>(pCounter, DataEnd, dwThreadCounter) : nullptr)
+			Task.dwThreads = *Ptr;
+		else if (ProcessInfo)
+			Task.dwThreads = ProcessInfo->NumberOfThreads;
 		else
 			return false;
 
-		if (dwCreatingPIDCounter)
-		{
-			if (const auto Ptr = view_as_opt<DWORD>(pCounter, DataEnd, dwCreatingPIDCounter))
-				Task.dwCreatingPID = *Ptr;
-			else
-				return false;
-		}
 
-		if (const auto Ptr = view_as_opt<LONGLONG>(pCounter, DataEnd, dwElapsedCounter))
+		if (const auto Ptr = dwPriorityCounter? view_as_opt<DWORD>(pCounter, DataEnd, dwPriorityCounter) : nullptr)
+			Task.dwProcessPriority = *Ptr;
+		else if (ProcessInfo)
+			Task.dwProcessPriority = ProcessInfo->BasePriority;
+		else
+			return false;
+
+
+		if (const auto Ptr = dwCreatingPIDCounter? view_as_opt<DWORD>(pCounter, DataEnd, dwCreatingPIDCounter) : nullptr)
+			Task.dwCreatingPID = *Ptr;
+		else if (ProcessInfo)
+			Task.dwCreatingPID = static_cast<DWORD>(std::bit_cast<uintptr_t>(ProcessInfo->InheritedFromUniqueProcessId));
+		else
+			return false;
+
+
+		if (const auto Ptr = dwElapsedCounter? view_as_opt<LONGLONG>(pCounter, DataEnd, dwElapsedCounter) : nullptr)
 		{
 			if (*Ptr && pObj->PerfFreq.QuadPart)
-				Task.dwElapsedTime = ((pObj->PerfTime.QuadPart - *Ptr) / pObj->PerfFreq.QuadPart);
+			{
+				assert(pObj->PerfFreq.QuadPart == 10'000'000); // 100 ns
+
+				Task.dwElapsedTime = pObj->PerfTime.QuadPart - *Ptr;
+			}
 		}
+		else if (ProcessInfo)
+			Task.dwElapsedTime = ProcessInfo->CreateTime.QuadPart;
 		else
 			return false;
 
@@ -411,8 +557,14 @@ bool PerfThread::RefreshImpl()
 				// 64-bit Timer in 100 nsec units. Display suffix: "%"
 				if (pOldTask)
 				{
+					static const auto LogicalProcessorCount = get_logical_processor_count();
+					const auto Factor = m_HostName.empty()? LogicalProcessorCount : 1;
+
+					// For _Total this can get negative, e.g. if the process that was in the previsous snapshot is gone.
 					if (const auto Ptr = view_as_opt<LONGLONG>(pCounter, DataEnd, dwCounterOffsets[ii]))
-						Task.qwResults[ii] = (*Ptr - pOldTask->qwCounters[ii]) / (dwDeltaTickCount * 100);
+						Task.qwResults[ii] = *Ptr > pOldTask->qwCounters[ii]?
+							(*Ptr - pOldTask->qwCounters[ii]) / (dwDeltaTickCount * 100) / Factor :
+							0;
 					else
 						return false;
 				}
@@ -421,26 +573,70 @@ bool PerfThread::RefreshImpl()
 			case PERF_COUNTER_COUNTER:
 			case PERF_COUNTER_BULK_COUNT:
 				if (pOldTask)
-					Task.qwResults[ii] = (Task.qwCounters[ii] - pOldTask->qwCounters[ii]) * 1000 / dwDeltaTickCount;
+					// For _Total this can get negative, e.g. if the process that was in the previsous snapshot is gone.
+					Task.qwResults[ii] = Task.qwCounters[ii] > pOldTask->qwCounters[ii]?
+						(Task.qwCounters[ii] - pOldTask->qwCounters[ii]) * 1000 / dwDeltaTickCount :
+						0;
 				break;
 			}
 		}
 
-		if (!pOldTask)
+		if (ProcessInfo)
 		{
-			if (const auto hProcess = !m_HostName.empty() || Task.dwProcessId <= 8? nullptr :
-				handle(OpenProcessForced(&token, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | READ_CONTROL, Task.dwProcessId)))
+			Task.CreationTime = ProcessInfo->CreateTime.QuadPart;
+			Task.ProcessName = { ProcessInfo->ImageName.Buffer, ProcessInfo->ImageName.Length / sizeof(wchar_t) };
+			Task.SessionId = ProcessInfo->SessionId;
+		}
+
+		if (!pOldTask && m_HostName.empty() && Task.dwProcessId > 8)
+		{
+			auto hProcess = handle(OpenProcessForced(&token, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, Task.dwProcessId));
+
+			// Try limited to at least get the times etc.
+			if (!hProcess)
+				hProcess = handle(OpenProcessForced(&token, PROCESS_QUERY_LIMITED_INFORMATION, Task.dwProcessId));
+
+			if (hProcess)
 			{
-				GetOpenProcessData(hProcess.get(), &Task.ProcessName, &Task.FullPath, &Task.CommandLine);
-				FILETIME ftExit, ftKernel, ftUser;
-				GetProcessTimes(hProcess.get(), &Task.ftCreation, &ftExit, &ftKernel, &ftUser);
-				SetLastError(ERROR_SUCCESS);
-				Task.dwGDIObjects = pGetGuiResources(hProcess.get(), 0/*GR_GDIOBJECTS*/);
-				Task.dwUSERObjects = pGetGuiResources(hProcess.get(), 1/*GR_USEROBJECTS*/);
+				Task.FullPath.emplace();
+				Task.CommandLine.emplace();
+
+				get_open_process_data(hProcess.get(), &Task.ProcessName, &*Task.FullPath, &*Task.CommandLine, {}, {});
+
+				if (Task.FullPath->empty())
+					Task.FullPath.reset();
+
+				if (Task.CommandLine->empty())
+					Task.CommandLine.reset();
+
+				if (!Task.CreationTime)
+				{
+					FILETIME ftCreation, ftExit, ftKernel, ftUser;
+					GetProcessTimes(hProcess.get(), &ftCreation, &ftExit, &ftKernel, &ftUser);
+					Task.CreationTime = ULARGE_INTEGER
+					{
+						.LowPart = ftCreation.dwLowDateTime,
+						.HighPart = ftCreation.dwHighDateTime,
+					}
+					.QuadPart;
+				}
+
+				Task.dwGDIObjects = GetGuiResources(hProcess.get(), GR_GDIOBJECTS);
+				Task.dwUSERObjects = GetGuiResources(hProcess.get(), GR_USEROBJECTS);
 
 				if (is_wow64_process(hProcess.get()))
 					Task.Bitness = 32;
 			}
+		}
+
+		if (!Task.CreationTime && Task.dwElapsedTime)
+		{
+			Task.CreationTime = ULARGE_INTEGER
+			{
+				.LowPart = SystemTime.dwLowDateTime,
+				.HighPart = SystemTime.dwHighDateTime,
+			}
+			.QuadPart - Task.dwElapsedTime;
 		}
 
 		if (Task.ProcessName.empty() && !ProcessName.empty())  // if after all this it's still unfilled...
@@ -448,7 +644,7 @@ bool PerfThread::RefreshImpl()
 			// pointer to the process name
 			Task.ProcessName.assign(ProcessName);
 
-			if (Task.dwProcessId > 8)
+			if (!IsTotal && Task.dwProcessId > 8)
 				Task.ProcessName += L".exe";
 		}
 
@@ -530,14 +726,25 @@ void PerfThread::Refresh()
 	SetEvent(hEvtRefreshDone.get());
 }
 
-void PerfThread::RefreshWMIData()
+void PerfThread::RefreshWMIData(std::optional<DWORD> const Pid)
 {
 	std::vector<ProcessPerfData> DataCopy;
-	DataCopy.reserve(m_ProcessesData.size());
+	DataCopy.reserve(Pid? 1 : m_ProcessesData.size());
 
 	{
 		const std::scoped_lock l(*this);
-		std::transform(m_ProcessesData.cbegin(), m_ProcessesData.cend(), std::back_inserter(DataCopy), [](const auto& i) { return i.second; });
+		if (Pid)
+		{
+			const auto* Data = GetProcessData(*Pid);
+			if (!Data)
+				return;
+
+			DataCopy = { *Data };
+		}
+		else
+		{
+			std::ranges::transform(m_ProcessesData, std::back_inserter(DataCopy), [](const auto& i) { return i.second; });
+		}
 	}
 
 	for (auto& i: DataCopy)
@@ -547,39 +754,64 @@ void PerfThread::RefreshWMIData()
 
 		auto AnythingRead = false;
 
-		if (!m_HostName.empty() && !i.FullPathRead)
+		if (!i.FullPath)
 		{
-			i.FullPath = WMI.GetProcessExecutablePath(i.dwProcessId);
-			i.FullPathRead = true;
-			AnythingRead = true;
+			if (const auto Result = WMI.GetProcessExecutablePath(i.dwProcessId))
+			{
+				i.FullPath = *Result;
+				AnythingRead = true;
+			}
 		}
 
-		if (!i.OwnerRead)
+		if (!i.Owner)
 		{
-			i.Owner = WMI.GetProcessOwner(i.dwProcessId);
+			const auto [Owner, Domain] = WMI.GetProcessOwner(i.dwProcessId);
 
-			if (const auto SessionId = WMI.GetProcessSessionId(i.dwProcessId); SessionId)
+			if (Owner)
 			{
-				i.Owner += L':';
-				i.Owner += str(SessionId);
+				i.Owner = *Owner;
+				AnythingRead = true;
 			}
 
-			i.OwnerRead = true;
-			AnythingRead = true;
+			if (Domain)
+			{
+				i.Domain = *Domain;
+				AnythingRead = true;
+			}
 		}
 
-		if (!i.CommandLineRead)
+		if (!i.SessionId)
 		{
-			i.CommandLine = WMI.GetProcessCommandLine(i.dwProcessId);
-			i.CommandLineRead = true;
-			AnythingRead = true;
+			if (const auto Result = WMI.GetProcessSessionId(i.dwProcessId))
+			{
+				i.SessionId = *Result;
+				AnythingRead = true;
+			}
+		}
+
+		if (!i.Sid)
+		{
+			if (const auto Result = WMI.GetProcessUserSid(i.dwProcessId))
+			{
+				i.Sid = *Result;
+				AnythingRead = true;
+			}
+		}
+
+		if (!i.CommandLine)
+		{
+			if (const auto Result = WMI.GetProcessCommandLine(i.dwProcessId))
+			{
+				i.CommandLine = *Result;
+				AnythingRead = true;
+			}
 		}
 
 		if (AnythingRead)
 		{
 			const std::scoped_lock l(*this);
 
-			if (auto* Data = GetProcessData(i.dwProcessId, i.dwThreads))
+			if (auto* Data = GetProcessData(i.dwProcessId))
 				*Data = i;
 		}
 	}
@@ -610,33 +842,66 @@ void PerfThread::WmiThreadProc()
 		hEvtBreak.get(), hEvtRefresh.get()
 	};
 
-	const auto CoInited = SUCCEEDED(CoInitialize({}));
+	const auto CoInited = SUCCEEDED(CoInitializeEx({}, COINIT_DISABLE_OLE1DDE | COINIT_MULTITHREADED));
+
+	WMIConnectionStatus = WMI.Connect(
+		m_HostName.c_str(),
+		m_UserName.empty()? nullptr : m_UserName.c_str(),
+		m_UserName.empty()? nullptr : m_Password.c_str()
+	);
+
+	SetEvent(EventWMIReady.get());
 
 	for (;;)
 	{
-		if (!bConnectAttempted && Opt.EnableWMI)
-		{
-			WMI.Connect(
-				m_HostName.c_str(),
-				m_UserName.empty()? nullptr : m_UserName.c_str(),
-				m_UserName.empty()? nullptr : m_Password.c_str()
-			);
-			bConnectAttempted = true;
-		}
-
 		if (WMI)
 			RefreshWMIData();
 
 		if (WaitForMultipleObjects(static_cast<DWORD>(std::size(handles)), handles, 0, dwRefreshMsec) == WAIT_OBJECT_0)
 			break;
-
-		PsInfo.AdvControl(&MainGuid, ACTL_SYNCHRO, 0, m_Owner);
 	}
 
 	WMI.Disconnect();
 
 	if (CoInited)
 		CoUninitialize();
+}
+
+void PerfThread::MTAThreadProc() const
+{
+	const HANDLE RefreshHandles[]
+	{
+		hEvtBreak.get(), EventMTARefresh.get()
+	};
+
+	const HANDLE ReadyHandles[]
+	{
+		hEvtBreak.get(), EventWMIReady.get()
+	};
+
+	const auto CoInited = SUCCEEDED(CoInitializeEx({}, COINIT_DISABLE_OLE1DDE | COINIT_MULTITHREADED));
+
+	for (;;)
+	{
+		if (WaitForMultipleObjects(static_cast<DWORD>(std::size(RefreshHandles)), RefreshHandles, 0, INFINITE) == WAIT_OBJECT_0)
+			break;
+
+		if (WaitForMultipleObjects(static_cast<DWORD>(std::size(ReadyHandles)), ReadyHandles, 0, INFINITE) == WAIT_OBJECT_0)
+			break;
+
+		MTACallable(WMI);
+		SetEvent(EventMTARefreshDone.get());
+	}
+
+	if (CoInited)
+		CoUninitialize();
+}
+
+void PerfThread::RunMTA(std::function<void(WMIConnection const& WMI)> Callable)
+{
+	MTACallable = Callable;
+	SetEvent(EventMTARefresh.get());
+	WaitForSingleObject(EventMTARefreshDone.get(), INFINITE);
 }
 
 DWORD WINAPI PerfThread::ThreadProc(void* Param)
@@ -651,9 +916,24 @@ DWORD WINAPI PerfThread::WmiThreadProc(void* Param)
 	return 0;
 }
 
-void PerfThread::SyncReread()
+DWORD WINAPI PerfThread::MTAThreadProc(void* Param)
+{
+	static_cast<PerfThread*>(Param)->MTAThreadProc();
+	return 0;
+}
+
+void PerfThread::SyncReread() const
 {
 	ResetEvent(hEvtRefreshDone.get());
 	AsyncReread();
 	WaitForSingleObject(hEvtRefreshDone.get(), INFINITE);
+}
+
+HRESULT PerfThread::GetWMIStatus() const
+{
+	const auto Result = WaitForSingleObject(EventWMIReady.get(), INFINITE);
+	if (Result != WAIT_OBJECT_0)
+		return HRESULT_FROM_WIN32(Result);
+
+	return WMIConnectionStatus;
 }

@@ -46,31 +46,26 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class SaveScreen;
 
-class i_context
-{
-public:
-	virtual ~i_context() = default;
-
-	virtual void Activate() = 0;
-	virtual void Deactivate() = 0;
-	virtual void DrawCommand(string_view Command) = 0;
-	virtual void DoPrologue() = 0;
-	virtual void DoEpilogue(bool Scroll, bool IsLastInstance) = 0;
-	virtual void Consolise(bool SetTextColour = true) = 0;
-};
-
 class console_session
 {
 public:
-	void EnterPluginContext(bool Scroll);
-	void LeavePluginContext(bool Scroll);
-	std::shared_ptr<i_context> GetContext();
+	void activate(std::optional<string_view> Command = {}, bool NewLine = true);
+	void deactivate(bool NewLine = true);
+
+	void snap(bool NewLine);
+
+	void pin();
+	void unpin();
 
 private:
+	void finalize();
+
+	bool scroll(size_t SpaceNeeded);
+
+	size_t m_Activations{};
 	std::unique_ptr<SaveScreen> m_Background;
-	std::weak_ptr<i_context> m_Context;
-	std::shared_ptr<i_context> m_PluginContext;
-	unsigned m_PluginContextInvocations{};
+	bool m_Pinned{};
+	bool m_Activated{};
 };
 
 #endif // CONSOLE_SESSION_HPP_807900C8_23FD_4505_AEB4_B63E7AF2FF7F

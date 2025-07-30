@@ -52,195 +52,146 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
+#include "common/scope_exit.hpp"
 
 // External:
 
 //----------------------------------------------------------------------------
 
-class context final: noncopyable, public i_context
+static size_t margin(bool const NewLine, bool const CmdLine)
 {
-public:
-	void Activate() override
-	{
-		if (m_Activated)
-			return;
-
-		m_Activated = true;
-		++Global->SuppressIndicators;
-		++Global->SuppressClock;
-
-		Global->WindowManager->ModalDesktopWindow();
-		Global->WindowManager->PluginCommit();
-	}
-
-	void Deactivate() override
-	{
-		if (!m_Activated)
-			return;
-
-		m_Activated = false;
-		Global->WindowManager->UnModalDesktopWindow();
-		Global->WindowManager->PluginCommit();
-		--Global->SuppressClock;
-		--Global->SuppressIndicators;
-	}
-
-	void DrawCommand(string_view const Command) override
-	{
-		Global->CtrlObject->CmdLine()->DrawFakeCommand(Command);
-
-		m_Command = Command;
-	}
-
-	void Consolise(bool SetTextColour) override
-	{
-		assert(m_Activated);
-
-		if (m_Consolised)
-			return;
-		m_Consolised = true;
-
-		Global->ScrBuf->MoveCursor({ 0, WhereY() });
-		SetInitialCursorType();
-
-		if (!m_Command.empty())
-			ConsoleTitle::SetFarTitle(m_Command);
-
-		// BUGBUG, implement better & safer way to do this
-		const auto LockCount = Global->ScrBuf->GetLockCount();
-		Global->ScrBuf->SetLockCount(0);
-
-		Global->ScrBuf->Flush();
-
-		// BUGBUG, implement better & safer way to do this
-		Global->ScrBuf->SetLockCount(LockCount);
-
-		if (SetTextColour)
-			console.SetTextAttributes(colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN));
-
-		console.start_output();
-	}
-
-	void DoPrologue() override
-	{
-		Global->WindowManager->Desktop()->TakeSnapshot();
-
-		const auto XPos = 0;
-		const auto YPos = ScrY - (Global->Opt->ShowKeyBar? 1 : 0);
-
-		GotoXY(XPos, YPos);
-		m_Finalised = false;
-	}
-
-	void DoEpilogue(bool Scroll, bool IsLastInstance) override
-	{
-		if (!m_Activated)
-			return;
-
-		if (m_Finalised)
-			return;
-
-		if (m_Consolised)
-		{
-			if (Global->Opt->ShowKeyBar)
-			{
-				std::wcout << L'\n';
-			}
-			std::wcout.flush();
-			Global->ScrBuf->FillBuf();
-
-			if (IsLastInstance)
-				m_Consolised = false;
-		}
-
-		if (Scroll)
-		{
-			const auto SpaceNeeded = Global->Opt->ShowKeyBar? 3uz : 2uz;
-
-			if (const auto SpaceAvailable = NumberOfEmptyLines(SpaceNeeded); SpaceAvailable < SpaceNeeded)
-				std::wcout << string_view(L"\n\n\n", SpaceNeeded - SpaceAvailable) << std::flush;
-
-			Global->ScrBuf->FillBuf();
-		}
-
-		console.ResetViewportPosition();
-
-		Global->WindowManager->Desktop()->TakeSnapshot();
-
-		if (IsLastInstance)
-			m_Finalised = true;
-	}
-
-	~context() override
-	{
-		context::Deactivate();
-	}
-
-private:
-	string m_Command;
-	bool m_Activated{};
-	bool m_Finalised{};
-	bool m_Consolised{};
-};
-
-void console_session::EnterPluginContext(bool Scroll)
-{
-	++m_PluginContextInvocations;
-	if (1 == m_PluginContextInvocations)
-	{
-		m_PluginContext = GetContext();
-		m_PluginContext->Activate();
-	}
-	else
-	{
-		m_PluginContext->DoEpilogue(Scroll, false);
-	}
-
-	m_PluginContext->DoPrologue();
-	m_PluginContext->Consolise(!m_PluginContextInvocations);
+	return Global->Opt->ShowKeyBar + CmdLine + NewLine;
 }
 
-void console_session::LeavePluginContext(bool Scroll)
+static void command(std::optional<string_view> const Command)
 {
-	if (m_PluginContextInvocations)
-		--m_PluginContextInvocations;
-
-	if (m_PluginContext)
-	{
-		m_PluginContext->DoEpilogue(Scroll, !m_PluginContextInvocations);
-	}
-	else
-	{
-		// FCTL_SETUSERSCREEN without corresponding FCTL_GETUSERSCREEN
-		// Old (1.x) behaviour emulation:
-		if (Global->Opt->ShowKeyBar)
-				std::wcout << L'\n';
-
-		if (Scroll)
-			std::wcout << L'\n';
-
-		std::wcout.flush();
-		Global->ScrBuf->FillBuf();
-		Global->WindowManager->Desktop()->TakeSnapshot();
-	}
-
-	if (m_PluginContextInvocations)
+	if (!Command.has_value())
 		return;
 
-	if (m_PluginContext) m_PluginContext->Deactivate();
-	m_PluginContext.reset();
+	Global->CtrlObject->CmdLine()->DrawFakeCommand(*Command);
+	ConsoleTitle::SetFarTitle(*Command);
 }
 
-std::shared_ptr<i_context> console_session::GetContext()
+void console_session::activate(std::optional<string_view> const Command, bool const NewLine)
 {
-	if (auto Result = m_Context.lock())
+	if (m_Activations++)
 	{
-		return Result;
+		scroll(margin(NewLine, Command.has_value()));
+		command(Command);
+		return;
 	}
-	else
+
+	if (m_Activated)
 	{
-		Result = std::make_shared<context>();
-		m_Context = Result;
-		return Result;
+		command(Command);
+		return;
 	}
+
+	++Global->SuppressIndicators;
+	++Global->SuppressClock;
+
+	Global->WindowManager->ModalDesktopWindow();
+	Global->WindowManager->PluginCommit();
+
+
+	// BUGBUG, implement better & safer way to do this
+	const auto LockCount = Global->ScrBuf->GetLockCount();
+	Global->ScrBuf->SetLockCount(0);
+
+	// BUGBUG, implement better & safer way to do this
+	SCOPE_EXIT{ Global->ScrBuf->SetLockCount(LockCount); };
+
+	Global->ScrBuf->Flush();
+
+	console.SetTextAttributes(colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN));
+
+	scroll(margin(NewLine, true));
+
+	MoveRealCursor(0, ScrY - (Global->Opt->ShowKeyBar? 1 : 0));
+	SetInitialCursorType();
+
+	command(Command);
+
+	m_Activated = true;
+}
+
+void console_session::deactivate(bool const NewLine)
+{
+	if (!m_Activations)
+		return;
+
+	--m_Activations;
+
+	snap(NewLine);
+
+	if (m_Activations)
+		return;
+
+	if (!m_Pinned)
+		finalize();
+}
+
+void console_session::finalize()
+{
+	if (!m_Activated)
+		return;
+
+	--Global->SuppressClock;
+	--Global->SuppressIndicators;
+
+	Global->WindowManager->UnModalDesktopWindow();
+	Global->WindowManager->PluginCommit();
+
+	// BUGBUG, implement better & safer way to do this
+	const auto LockCount = Global->ScrBuf->GetLockCount();
+	Global->ScrBuf->SetLockCount(0);
+
+	// BUGBUG, implement better & safer way to do this
+	SCOPE_EXIT{ Global->ScrBuf->SetLockCount(LockCount); };
+
+	Global->ScrBuf->Flush();
+
+	m_Activated = false;
+}
+
+void console_session::snap(bool const NewLine)
+{
+	Global->ScrBuf->FillBuf();
+
+	if (NewLine && scroll(2))
+		Global->ScrBuf->FillBuf();
+
+	if (!m_Activations && scroll(margin(NewLine, true)))
+		Global->ScrBuf->FillBuf();
+
+	console.ResetViewportPosition();
+
+	Global->WindowManager->Desktop()->TakeSnapshot();
+}
+
+void console_session::pin()
+{
+	m_Pinned = true;
+}
+
+void console_session::unpin()
+{
+	assert(m_Pinned);
+
+	m_Pinned = false;
+	finalize();
+}
+
+bool console_session::scroll(size_t const SpaceNeeded)
+{
+	assert(SpaceNeeded <= 3);
+
+	const auto SpaceAvailable = NumberOfEmptyLines(SpaceNeeded);
+
+	if (SpaceAvailable >= SpaceNeeded)
+		return false;
+
+	MoveRealCursor(0, ScrY);
+	std::wcout << L"\n\n\n"sv.substr(0, SpaceNeeded - SpaceAvailable) << std::flush;
+	return true;
 }
