@@ -53,6 +53,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "xlat.hpp"
 #include "datetime.hpp"
 #include "strmix.hpp"
+#include "pathmix.hpp"
 #include "wakeful.hpp"
 #include "colormix.hpp"
 #include "vmenu.hpp"
@@ -61,6 +62,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "uuids.far.hpp"
 #include "uuids.far.dialogs.hpp"
 #include "RegExp.hpp"
+#include "filemasks.hpp"
 #include "plugins.hpp"
 #include "lang.hpp"
 #include "string_utils.hpp"
@@ -228,6 +230,11 @@ void Editor::DisplayObject()
 	ShowEditor();
 }
 
+fileeditor_ptr Editor::GetHostFileEditor() const
+{
+	return std::dynamic_pointer_cast<FileEditor>(m_Owner.lock());
+}
+
 void Editor::ShowEditor()
 {
 	if (Lines.empty())
@@ -368,7 +375,7 @@ void Editor::ShowEditor()
 	}
 
 	// BUGBUG
-	if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
+	if (const auto HostFileEditor = GetHostFileEditor())
 	{
 		HostFileEditor->ShowStatus();
 		HostFileEditor->ShowChildren();
@@ -2334,7 +2341,7 @@ bool Editor::ProcessKeyInternal(unsigned const KeyCode, bool& Refresh, Manager::
 				m_Flags.Set(FEDITOR_PROCESSCTRLQ);
 
 				// BUGBUG
-				if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
+				if (const auto HostFileEditor = GetHostFileEditor())
 					HostFileEditor->ShowStatus();
 
 				Pasting++;
@@ -2769,7 +2776,7 @@ bool Editor::ProcessMouse(const MOUSE_EVENT_RECORD *MouseEvent)
 	if (m_it_CurLine->ProcessMouse(MouseEvent))
 	{
 		// BUGBUG
-		if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
+		if (const auto HostFileEditor = GetHostFileEditor())
 			HostFileEditor->ShowStatus();
 
 		Show();
@@ -3405,8 +3412,9 @@ namespace
 	class find_all_list
 	{
 	public:
-		explicit find_all_list(int MaxLinesCount)
-			: m_LineNumColumnMaxWidth{ radix10_formatted_width(MaxLinesCount) }
+		find_all_list(const size_t MaxLinesCount, const bool CanSaveFoundItemsToNewEditor)
+			: m_CanSaveFoundItemsToNewEditor{ CanSaveFoundItemsToNewEditor }
+			, m_LineNumColumnMaxWidth{ radix10_formatted_width(MaxLinesCount) }
 		{}
 
 		void add_item(FindCoord FoundCoords, string_view ItemText)
@@ -3435,7 +3443,10 @@ namespace
 			m_Menu->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND | VMENU_ENABLEALIGNANNOTATIONS);
 			m_Menu->SetPosition({ -1, m_MenuY1, 0, m_MenuY2 });
 			m_Menu->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), m_Menu->size(), m_UniqueLineCount));
-			m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+			if (m_CanSaveFoundItemsToNewEditor)
+				m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F4, KEY_ALTF4, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+			else
+				m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
 			m_Menu->SetHelp(L"FindAllMenu"sv);
 			m_Menu->SetId(EditorFindAllListId);
 
@@ -3475,6 +3486,7 @@ namespace
 		}
 
 		const vmenu2_ptr m_Menu{ VMenu2::create({}, {}) };
+		const bool m_CanSaveFoundItemsToNewEditor{};
 
 	private:
 		const short m_LineNumColumnMaxWidth{};
@@ -3503,7 +3515,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 	bool MatchFound{}, UserBreak{};
 	std::optional<undo_block> UndoBlock;
 	string QuotedStr;
-	auto FindAllList{ FindAll ? std::optional<find_all_list>{ Lines.size() } : std::nullopt };
+	auto FindAllList{ FindAll ? std::optional{ find_all_list{ Lines.size(), CanSaveFoundItemsToNewEditor() } } : std::nullopt };
 
 	{
 		HideCursor();
@@ -3858,6 +3870,8 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 	if(FindAllList && MatchFound)
 	{
 		FindAllList->make_ready();
+		enum class save_to_new_editor { none, all, matching_filter };
+		auto SaveToNewEditor{ save_to_new_editor::none };
 
 		const auto ExitCode = FindAllList->m_Menu->Run([&](const Manager::Key& RawKey)
 		{
@@ -3883,22 +3897,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 						if (SelectedPos == -1)
 							break;
 
-						const auto& coord = *FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(SelectedPos);
-						GoToLine(coord.Line);
-						m_it_CurLine->SetCurPos(coord.Pos);
-						if (EdOpt.SearchSelFound)
-						{
-							Pasting++;
-							// if (!EdOpt.PersistentBlocks)
-							UnmarkBlock();
-							BeginStreamMarking(m_it_CurLine);
-							m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
-							Pasting--;
-						}
-						if (EdOpt.SearchCursorAtEnd)
-						{
-							m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
-						}
+						SelectFoundPattern(*FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(SelectedPos));
 						Refresh();
 					}
 					break;
@@ -3912,6 +3911,22 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 						{
 							Refresh();
 						}
+					}
+					break;
+
+				case KEY_F4:
+					if (FindAllList->m_CanSaveFoundItemsToNewEditor && !FindAllList->m_Menu->ListBox().empty())
+					{
+						SaveToNewEditor = save_to_new_editor::all;
+						FindAllList->m_Menu->Close();
+					}
+					break;
+
+				case KEY_ALTF4: case KEY_RALTF4:
+					if (FindAllList->m_CanSaveFoundItemsToNewEditor && FindAllList->m_Menu->ListBox().HasVisible())
+					{
+						SaveToNewEditor = save_to_new_editor::matching_filter;
+						FindAllList->m_Menu->Close();
 					}
 					break;
 
@@ -3939,23 +3954,15 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 			return KeyProcessed;
 		});
 
+		if (SaveToNewEditor != save_to_new_editor::none)
+		{
+			SaveFoundItemsToNewEditor(FindAllList->m_Menu->ListBox(), SaveToNewEditor == save_to_new_editor::matching_filter, ExitCode);
+			return;
+		}
+
 		if(ExitCode >= 0)
 		{
-			const auto& coord = *FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(ExitCode);
-			GoToLine(coord.Line);
-			m_it_CurLine->SetCurPos(coord.Pos);
-			if (EdOpt.SearchSelFound)
-			{
-				Pasting++;
-				UnmarkBlock();
-				BeginStreamMarking(m_it_CurLine);
-				m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
-				Pasting--;
-			}
-			if (EdOpt.SearchCursorAtEnd)
-			{
-				m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
-			}
+			SelectFoundPattern(*FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(ExitCode));
 			Show();
 		}
 	}
@@ -3968,6 +3975,96 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 				QuotedStr
 			},
 			{ lng::MOk });
+}
+
+bool Editor::CanSaveFoundItemsToNewEditor() const
+{
+	const auto HostFileEditor = GetHostFileEditor();
+	if (!HostFileEditor) return false;
+	return HostFileEditor->GetCanLoseFocus();
+}
+
+void Editor::SelectFoundPattern(FindCoord coord)
+{
+	GoToLine(coord.Line);
+	m_it_CurLine->SetCurPos(coord.Pos);
+	if (EdOpt.SearchSelFound)
+	{
+		Pasting++;
+		// if (!EdOpt.PersistentBlocks)
+		UnmarkBlock();
+		BeginStreamMarking(m_it_CurLine);
+		m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
+		Pasting--;
+	}
+	if (EdOpt.SearchCursorAtEnd)
+	{
+		m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
+	}
+}
+
+void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter, intptr_t const ExitCode)
+{
+	const auto ShellEditor{
+		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_EPHEMERAL) };
+	auto& NewEditor{ *ShellEditor->GetEditor() };
+	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
+
+	std::optional<FindCoord> NewEditorFoundCoord;
+
+	int ThisEditorLastLine = -1;
+	for (const auto& [Item, Index] : enumerate(ListBox.GetItems()))
+	{
+		if (Item.Flags & FilterFlags) continue;
+
+		const auto ThisEditorCoord{ std::any_cast<FindCoord>(Item.ComplexUserData) };
+
+		if (ThisEditorCoord.Line != ThisEditorLastLine)
+		{
+			ThisEditorLastLine = ThisEditorCoord.Line;
+
+			const auto CurString{ GetStringByNumber(ThisEditorCoord.Line) };
+			const auto NewEditorLine{ NewEditor.InsertString(CurString->GetString(), NewEditor.LastLine()) };
+			NewEditorLine->SetEOL(CurString->GetEOL());
+		}
+
+		if (static_cast<intptr_t>(Index) == ExitCode)
+		{
+			const auto CurrentFoundCoord{ *ListBox.GetComplexUserDataPtr<const FindCoord>(ExitCode) };
+			NewEditorFoundCoord =
+			{
+				.Line = std::prev(NewEditor.LastLine()).Number(),
+				.Pos = CurrentFoundCoord.Pos,
+				.SearchLen = CurrentFoundCoord.SearchLen
+			};
+		}
+	}
+
+	if (NewEditorFoundCoord)
+		NewEditor.SelectFoundPattern(*NewEditorFoundCoord);
+	else
+		NewEditor.SetCurPos(0, 0);
+}
+
+string Editor::GetSearchAllFileName() const
+{
+	const auto OriginalFilename = [&]() -> string
+	{
+		const auto HostFileEditor{ GetHostFileEditor() };
+		if (!HostFileEditor) return {};
+
+		string Type, Name;
+		HostFileEditor->GetTypeAndName(Type, Name);
+		return Name;
+	}();
+
+	filemasks Mask;
+	const auto MsgId = Mask.assign(EdOpt.SearchAllUseAltFileNameFormat) && Mask.check(OriginalFilename)?
+		lng::MEditSearchAllFileNameFormatAlt :
+		lng::MEditSearchAllFileNameFormat;
+
+	const auto [Stem, Ext] { name_ext(OriginalFilename) };
+	return far::vformat(msg(MsgId), Stem, Ext);
 }
 
 void Editor::PasteFromClipboard()
@@ -5792,7 +5889,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			{
 				const uintptr_t cp = espar->iParam;
 				// BUGBUG
-				if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
+				if (const auto HostFileEditor = GetHostFileEditor())
 				{
 					if (!HostFileEditor->SetCodePageEx(cp))
 						return false;
@@ -6728,14 +6825,14 @@ void Editor::GetCacheParams(EditorPosCache &pc) const
 	pc.bm=m_SavePos;
 }
 
-static std::string_view GetLineBytes(string_view const Str, std::vector<char>& Buffer, uintptr_t const Codepage, encoding::diagnostics* const Diagnostics)
+static bytes_view GetLineBytes(string_view const Str, std::vector<char>& Buffer, uintptr_t const Codepage, encoding::diagnostics* const Diagnostics)
 {
 	for (;;)
 	{
 		auto const Length = encoding::get_bytes(Codepage, Str, Buffer, Diagnostics);
 
 		if (Length <= Buffer.size())
-			return { Buffer.data(), Length };
+			return view_bytes(Buffer.data(), Length);
 
 		resize_exp(Buffer, Length);
 	}
@@ -6756,7 +6853,7 @@ bool Editor::SetLineCodePage(Edit& Line, uintptr_t CurrentCodepage, uintptr_t co
 	return Result;
 }
 
-bool Editor::TryCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCodepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, wchar_t& ErrorChar)
+bool Editor::TryCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCodepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, std::variant<wchar_t, bytes>& Data, string& EditorData)
 {
 	if (CurrentCodepage == NewCodepage)
 		return true;
@@ -6776,7 +6873,7 @@ bool Editor::TryCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCod
 			ErrorCodepage = CurrentCodepage;
 			ErrorLine = LineNumber;
 			ErrorPos = *Diagnostics.ErrorPosition;
-			ErrorChar = i->m_Str[ErrorPos];
+			Data = i->m_Str[ErrorPos];
 			return false;
 		}
 
@@ -6784,21 +6881,19 @@ bool Editor::TryCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCod
 		{
 			ErrorCodepage = NewCodepage;
 			ErrorLine = LineNumber;
+			ErrorPos = Diagnostics.ErrorPositionRollback.value_or(*Diagnostics.ErrorPosition);
+			Data = Diagnostics.error_data(Bytes);
+
+			auto ErrorEnd = *Diagnostics.ErrorPosition + 1;
 
 			// Position is in bytes, we might need to convert it back to chars
-			const auto Info = GetCodePageInfo(CurrentCodepage);
-			if (Info && Info->MaxCharSize == 1)
+			if (const auto Info = GetCodePageInfo(CurrentCodepage); Info && Info->MaxCharSize > 1)
 			{
-				ErrorPos = *Diagnostics.ErrorPosition;
-			}
-			else
-			{
-				const auto BytesCount = encoding::get_bytes(CurrentCodepage, i->m_Str, decoded, &Diagnostics);
-				ErrorPos = encoding::get_chars_count(CurrentCodepage, { decoded.data(), std::min(*Diagnostics.ErrorPosition, BytesCount) });
+				ErrorPos = encoding::get_chars_count(CurrentCodepage, { decoded.data(), std::min(ErrorPos, Bytes.size()) });
+				ErrorEnd = encoding::get_chars_count(CurrentCodepage, { decoded.data(), std::min(ErrorEnd, Bytes.size()) });
 			}
 
-			ErrorChar = i->m_Str[ErrorPos];
-
+			EditorData = i->m_Str.substr(ErrorPos, ErrorEnd - ErrorPos);
 			return false;
 		}
 	}
@@ -6840,7 +6935,7 @@ bool Editor::SetCodePage(uintptr_t const CurrentCodepage, uintptr_t const NewCod
 
 uintptr_t Editor::GetCodePage() const
 {
-	if (const auto HostFileEditor = std::dynamic_pointer_cast<FileEditor>(m_Owner.lock()))
+	if (const auto HostFileEditor = GetHostFileEditor())
 		return HostFileEditor->GetCodePage();
 
 	throw far_exception(L"HostFileEditor is nullptr"sv);

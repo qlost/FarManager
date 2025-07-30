@@ -125,6 +125,7 @@ enum
 	MIOWriteOperations,
 	MVirtualBytes,
 	MVirtualBytesPeak,
+	MWorkingSetPrivate,
 
 	MColProcessorTime,
 	MColProcessorTimeS,
@@ -160,6 +161,7 @@ enum
 	MColIOWriteOperationsS,
 	MColVirtualBytes,
 	MColVirtualBytesPeak,
+	MColWorkingSetPrivate,
 
 	MPerSec,
 
@@ -176,10 +178,6 @@ enum
 
 	MTitleUsername,
 	MTitleSessionId,
-
-	MTAccessDenied,
-	MTInsufficientPrivilege,
-	MTUnknownFailure,
 
 	MViewDDD,
 	MViewWithOptions,

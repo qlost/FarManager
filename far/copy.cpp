@@ -90,6 +90,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 enum COPY_CODES
 {
+	COPY_FILTERED,
 	COPY_SKIPPED,
 	COPY_FAILURE,
 	COPY_SUCCESS,
@@ -140,7 +141,7 @@ private:
 	bool DeleteAfterMove(string_view Name, os::fs::attributes Attr);
 
 	// called by ShellCopyOneFile
-	bool AskOverwrite(const os::fs::find_data& SrcData, string_view SrcName, string_view DestName, os::fs::attributes DestAttr, bool SameName, bool Rename, bool AskAppend, bool& Append, string& strNewName, COPY_CODES& RetCode);
+	bool AskOverwrite(const os::fs::find_data& SrcData, string_view SrcName, string_view DestName, os::fs::attributes DestAttr, bool SameName, bool Rename, bool AskAppend, bool& Append, string& strNewName, bool& Retry);
 
 	os::security::descriptor GetSecurity(string_view FileName);
 	void SetSecurity(string_view FileName, const os::security::descriptor& sd);
@@ -1592,8 +1593,12 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 				}
 				while (CopyCode==COPY_RETRY);
 
-				if (CopyCode==COPY_SUCCESS_MOVE)
+				switch (CopyCode)
 				{
+				case COPY_RETRY:
+					std::unreachable();
+
+				case COPY_SUCCESS_MOVE:
 					if (!strDestDizPath.empty())
 					{
 						if (!strRenamedName.empty())
@@ -1613,15 +1618,21 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 
 					CP->next();
 					continue;
-				}
-				else if (CopyCode == COPY_SKIPPED)
-				{
+
+				case COPY_SKIPPED:
 					CP->skip(i.FileSize);
 					continue;
-				}
-				else if (CopyCode == COPY_SUCCESS)
-				{
+
+				case COPY_FILTERED:
+					continue;
+
+				case COPY_SUCCESS:
 					CP->next();
+					break;
+
+				case COPY_FAILURE:
+					// Handled below
+					break;
 				}
 			}
 		}
@@ -1638,12 +1649,21 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 			}
 			while (CopyCode==COPY_RETRY);
 
-			if (CopyCode == COPY_SUCCESS)
+			switch (CopyCode)
 			{
+			case COPY_RETRY:
+			case COPY_SUCCESS_MOVE:
+				std::unreachable();
+
+			case COPY_SUCCESS:
 				CP->next();
-			}
-			else
-			{
+				break;
+
+			case COPY_FILTERED:
+				continue;
+
+			case COPY_SKIPPED:
+			case COPY_FAILURE:
 				CP->skip(i.FileSize);
 				continue;
 			}
@@ -1710,6 +1730,9 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 
 						switch (Ret) // 1
 						{
+							case COPY_FILTERED:
+								continue;
+
 							case COPY_SKIPPED:
 							{
 								CP->skip(SrcData.FileSize);
@@ -1753,13 +1776,23 @@ void ShellCopy::copy_selected_items(const string_view Dest, std::optional<error_
 					if (AttemptToMove)
 						OvrMode=SaveOvrMode;
 
-					if (SubCopyCode == COPY_SUCCESS)
+					switch (SubCopyCode)
 					{
+					case COPY_RETRY:
+						std::unreachable();
+
+					case COPY_FILTERED:
+						break;
+
+					case COPY_SUCCESS:
+					case COPY_SUCCESS_MOVE:
 						CP->next();
-					}
-					else
-					{
+						break;
+
+					case COPY_SKIPPED:
+					case COPY_FAILURE:
 						CP->skip(SrcData.FileSize);
+						break;
 					}
 				}
 
@@ -1825,7 +1858,7 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 	if (m_UseFilter)
 	{
 		if (!m_Filter->FileInFilter(SrcData, Src))
-			return COPY_SKIPPED;
+			return COPY_FILTERED;
 	}
 
 	bool Append{};
@@ -2079,13 +2112,13 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 
 		if (DestAttr!=INVALID_FILE_ATTRIBUTES && !(DestAttr & FILE_ATTRIBUTE_DIRECTORY))
 		{
-			auto RetCode = COPY_FAILURE;
+			bool Retry = false;
 			string strNewName;
 
-			if (!AskOverwrite(SrcData,Src,strDestPath,DestAttr,SameName,Rename,((Flags&FCOPY_LINK)?0:1),Append,strNewName,RetCode))
+			if (!AskOverwrite(SrcData, Src, strDestPath, DestAttr, SameName, Rename, ((Flags & FCOPY_LINK)? 0 : 1), Append, strNewName, Retry))
 				return COPY_SKIPPED;
 
-			if (RetCode==COPY_RETRY)
+			if (Retry)
 			{
 				strDest=strNewName;
 
@@ -2310,13 +2343,13 @@ COPY_CODES ShellCopy::ShellCopyOneFile(
 				}
 			}
 
-			auto RetCode = COPY_FAILURE;
+			bool Retry = false;
 			string strNewName;
 
-			if (!AskOverwrite(SrcData,Src,strDestPath,DestAttr,SameName,Rename,((Flags&FCOPY_LINK)?0:1),Append,strNewName,RetCode))
+			if (!AskOverwrite(SrcData, Src, strDestPath, DestAttr, SameName, Rename, ((Flags & FCOPY_LINK)?0:1), Append, strNewName, Retry))
 				return COPY_SKIPPED;
 
-			if (RetCode==COPY_RETRY)
+			if (Retry)
 			{
 				strDest=strNewName;
 
@@ -2946,7 +2979,7 @@ bool ShellCopy::AskOverwrite(
 	bool AskAppend,
 	bool &Append,
 	string& strNewName,
-	COPY_CODES& RetCode
+	bool& Retry
 )
 {
 	if (Flags & FCOPY_COPYTONUL)
@@ -3093,7 +3126,7 @@ bool ShellCopy::AskOverwrite(
 			strDestName = GenerateName(strDestName, strRenamedFilesPath);
 			[[fallthrough]];
 		case overwrite::rename:
-			RetCode = COPY_RETRY;
+			Retry = true;
 			strNewName = strDestName;
 			return true;
 

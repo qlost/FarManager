@@ -55,6 +55,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class FileEditor;
 class KeyBar;
 class Edit;
+struct FindCoord;
 struct ColorItem;
 
 class Editor final: public SimpleScreenObject
@@ -69,7 +70,7 @@ public:
 
 	void SetCacheParams(EditorPosCache &pc, bool count_bom = false);
 	void GetCacheParams(EditorPosCache &pc) const;
-	bool TryCodePage(uintptr_t CurrentCodepage, uintptr_t NewCodepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, wchar_t& ErrorChar); //BUGBUG does not belong here
+	bool TryCodePage(uintptr_t CurrentCodepage, uintptr_t NewCodepage, uintptr_t& ErrorCodepage, size_t& ErrorLine, size_t& ErrorPos, std::variant<wchar_t, bytes>& Data, string& EditorData); //BUGBUG does not belong here
 	bool SetCodePage(uintptr_t CurrentCodepage, uintptr_t NewCodepage, bool *BOM=nullptr, bool ShowMe=true); //BUGBUG does not belong here
 	void KeepInitParameters() const;
 	void SetStartPos(int LineNum, int CharNum);
@@ -196,6 +197,7 @@ private:
 	enum class undo_type: char;
 
 	void DisplayObject() override;
+	fileeditor_ptr GetHostFileEditor() const;
 
 	void ShowEditor();
 	numbered_iterator DeleteString(numbered_iterator DelPtr, bool DeleteLast);
@@ -287,6 +289,10 @@ private:
 	void DoSearchReplace(SearchReplaceDisposition Disposition);
 	int CalculateSearchStartPosition(bool Continue, bool Backward, bool Regex) const;
 	int CalculateSearchNextPositionInTheLine(bool Backward, bool Regex) const;
+	bool CanSaveFoundItemsToNewEditor() const;
+	void SelectFoundPattern(FindCoord coord);
+	void SaveFoundItemsToNewEditor(const VMenu& ListBox, bool MatchingFilter, intptr_t ExitCode);
+	string GetSearchAllFileName() const;
 
 	void UpdateIteratorAndKeepPos(numbered_iterator& Iter, const auto& Func);
 
@@ -320,6 +326,7 @@ private:
 	void DeleteColor(numbered_iterator const& It, delete_color_condition Condition);
 	bool GetColor(numbered_iterator const& It, ColorItem& Item, size_t Index) const;
 	std::multiset<ColorItem> const* GetColors(Edit* It) const;
+
 	// Младший байт (маска 0xFF) юзается классом ScreenObject!!!
 	enum editor_flags
 	{

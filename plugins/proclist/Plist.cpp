@@ -28,8 +28,9 @@ bool GetPData(ProcessData& Data, const ProcessPerfData& pd)
 	Data.dwPrBase = pd.dwProcessPriority;
 	Data.dwParentPID = pd.dwCreatingPID;
 	Data.dwElapsedTime = pd.dwElapsedTime;
-	Data.FullPath.assign(pd.FullPath, !std::wmemcmp(pd.FullPath.data(), L"\\??\\", 4)? 4 : 0);
-	Data.CommandLine = pd.CommandLine;
+	Data.FullPath = pd.FullPath.value_or(L""s);
+	Data.Sid = pd.Sid.value_or(L""s);
+	Data.CommandLine = pd.CommandLine.value_or(L""s);
 	Data.Bitness = pd.Bitness;
 	return true;
 }
@@ -42,9 +43,6 @@ static void WINAPI FreeUserData(void* const UserData, const FarPanelItemFreeInfo
 bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thread)
 {
 	//    Lock l(&Thread); // it's already locked in Plist::GetFindData
-	FILETIME ftSystemTime;
-	//Prepare system time to subtract dwElapsedTime
-	GetSystemTimeAsFileTime(&ftSystemTime);
 	auto pData = Thread.ProcessData();
 
 	if (pData.empty() || !Thread.IsOK())
@@ -60,31 +58,35 @@ bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thre
 		++PanelItemIterator;
 
 		auto& pd = i.second;
-		//delete CurItem.FileName;  // ???
-		CurItem.FileName = new wchar_t[pd.ProcessName.size() + 1];
-		*std::copy(pd.ProcessName.cbegin(), pd.ProcessName.cend(), const_cast<wchar_t*>(CurItem.FileName)) = L'\0';
 
-		if (!pd.Owner.empty())
+		CurItem.FileName = new wchar_t[pd.ProcessName.size() + 1];
+		*std::ranges::copy(pd.ProcessName, const_cast<wchar_t*>(CurItem.FileName)).out = L'\0';
+
+		if (pd.Owner)
 		{
-			CurItem.Owner = new wchar_t[pd.Owner.size() + 1];
-			*std::copy(pd.Owner.cbegin(), pd.Owner.cend(), const_cast<wchar_t*>(CurItem.Owner)) = L'\0';
+			const auto FullOwner = far::format(L"{}{}{}{}{}"sv,
+				pd.Domain? *pd.Domain : L""sv,
+				pd.Domain? L"\\" : L""sv,
+				*pd.Owner,
+				pd.SessionId? L":"sv : L""sv,
+				pd.SessionId? str(*pd.SessionId) : L""sv
+			);
+
+			CurItem.Owner = new wchar_t[FullOwner.size() + 1];
+			*std::ranges::copy(FullOwner, const_cast<wchar_t*>(CurItem.Owner)).out = L'\0';
 		}
 
 		CurItem.UserData.Data = new ProcessData();
 		CurItem.UserData.FreeData = FreeUserData;
 
-		if (!pd.ftCreation.dwHighDateTime && pd.dwElapsedTime)
+		ULARGE_INTEGER const CreationTime{ .QuadPart = pd.CreationTime };
+		FILETIME const CreationFileTime
 		{
-			ULARGE_INTEGER St;
-			St.LowPart = ftSystemTime.dwLowDateTime;
-			St.HighPart = ftSystemTime.dwHighDateTime;
-			ULARGE_INTEGER Cr;
-			Cr.QuadPart = St.QuadPart - pd.dwElapsedTime * 10000000;
-			pd.ftCreation.dwLowDateTime = Cr.LowPart;
-			pd.ftCreation.dwHighDateTime = Cr.HighPart;
-		}
+			.dwLowDateTime = CreationTime.LowPart,
+			.dwHighDateTime = CreationTime.HighPart,
+		};
 
-		CurItem.CreationTime = CurItem.LastWriteTime = CurItem.LastAccessTime = CurItem.ChangeTime = pd.ftCreation;
+		CurItem.CreationTime = CurItem.LastWriteTime = CurItem.LastAccessTime = CurItem.ChangeTime = CreationFileTime;
 		const auto ullSize = pd.qwCounters[IDX_WORKINGSET] + pd.qwCounters[IDX_PAGEFILE];
 		CurItem.FileSize = ullSize;
 		CurItem.AllocationSize = pd.qwResults[IDX_PAGEFILE];
@@ -96,12 +98,10 @@ bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thre
 		CurItem.NumberOfLinks = pd.dwThreads;
 		GetPData(*static_cast<ProcessData*>(CurItem.UserData.Data), pd);
 
-		if (pd.dwProcessId == 0 && pd.ProcessName == L"_Total")
+		if (Plist::is_total(pd.dwProcessId))
 			CurItem.FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
-
-		if (pd.Bitness != Thread.GetDefaultBitness())
-			CurItem.FileAttributes |= FILE_ATTRIBUTE_READONLY;
-
+		else if (pd.Bitness != Thread.GetDefaultBitness())
+			CurItem.FileAttributes |= FILE_ATTRIBUTE_VIRTUAL;
 	}
 
 	return true;
@@ -276,7 +276,7 @@ static void print_module_impl(HANDLE const InfoFile, const std::wstring& Module,
 
 static void print_module(HANDLE const InfoFile, ULONG64 const Module, DWORD const SizeOfImage, int const ProcessBitness, std::wstring const& ModuleName, options& LocalOpt)
 {
-	const auto ModuleStr = far::format(L"{:0{}X}"sv, Module, ProcessBitness / std::numeric_limits<unsigned char>::digits * 2);
+	const auto ModuleStr = far::format(L"{:0{}X}"sv, Module, (ProcessBitness == -1? 64 : ProcessBitness) / std::numeric_limits<unsigned char>::digits * 2);
 	print_module_impl(InfoFile, ModuleStr, SizeOfImage, ModuleName, LocalOpt);
 }
 
