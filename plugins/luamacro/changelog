@@ -1,3 +1,29 @@
+MZK 2025-09-11 21:46:54-04:00 - build 891
+
+1. gh-948: Macro API to retrieve menu item extended data: Menu.GetItemExtendedData.
+
+shmuel 2025-09-06 09:05:47+03:00 - build 890
+
+1. LuaFAR: minor reformat in 3 files.
+
+2. LuaFAR: fix crash during Polygon test on Far 3.0.6543.
+
+shmuel 2025-08-22 18:26:47+03:00 - build 889
+
+1. LuaFAR: correct build 888.
+
+shmuel 2025-08-22 17:21:33+03:00 - build 888
+
+1. LuaFAR: support returning Lua tables from Macro API.
+
+shmuel 2025-08-19 17:35:24+03:00 - build 887
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-08-18 21:31:53+03:00 - build 886
+
+1. LuaFAR: refactoring.
+
 shmuel 2025-07-26 20:39:15+03:00 - build 885
 
 1. LuaFAR: minor refactoring.

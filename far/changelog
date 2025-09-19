@@ -1,4 +1,229 @@
 --------------------------------------------------------------------------------
+zg 2025-09-17 17:13:29+03:00 - build 6557
+
+1. correction 6548.1.
+
+--------------------------------------------------------------------------------
+zg 2025-09-17 13:42:01+03:00 - build 6556
+
+1. looping when searching forward with regular expressions and whole words.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-16 22:50:24+01:00 - build 6555
+
+1. Refactoring & minor fixes.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-15 17:23:53+01:00 - build 6554
+
+1. gh-1002: No Error Message.
+
+--------------------------------------------------------------------------------
+MZK 2025-09-14 19:42:09-04:00 - build 6553
+
+1. More robust overflow fix for `VMenu` fullwidth-aware rendering.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-14 23:59:55+01:00 - build 6552
+
+1. Continue fullwidth-aware rendering.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-14 21:24:45+01:00 - build 6551
+
+1. Continue fullwidth-aware rendering.
+
+2. Support negative values in far:error.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+shmuel 2025-09-13 00:33:32+03:00 - build 6550
+
+1. A small correction to 6548.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-12 22:23:09+01:00 - build 6549
+
+1. 0004083: BSOD on NFS.
+
+   Apparently these days you can cast a BSOD on a Microsoft driver from unprivileged user code as simply as:
+
+     overlapped.hEvent = CreateEvent({}, true, false, {});
+     HANDLE handle = CreateFile(L"\\\\nfs_server\\share", FILE_LIST_DIRECTORY, 0, {}, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, {});
+     ReadDirectoryChangesW(handle, &buffer, sizeof(buffer), false, FILE_NOTIFY_CHANGE_FILE_NAME, {}, &overlapped, {});
+     CancelIoEx(handle, &overlapped);
+     CloseHandle(handle);
+
+   Do what you want with this knowledge.
+
+   Good job, Microsoft.
+
+--------------------------------------------------------------------------------
+MZK 2025-09-11 21:46:54-04:00 - build 6548
+
+1. gh-948: Macro API to retrieve menu item extended data.
+
+2. New macro Edit.SyncEditorAndFindAllMenu.lua demonstrating usage of this API.
+   Based on https://forum.farmanager.com/viewtopic.php?t=11977
+
+--------------------------------------------------------------------------------
+drkns 2025-09-09 17:17:39+01:00 - build 6547
+
+1. Continue 6546.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-08 17:27:14+01:00 - build 6546
+
+1. Improve codepage detection.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-07 21:46:00+01:00 - build 6545
+
+1. Continue fullwidth-aware rendering.
+
+--------------------------------------------------------------------------------
+drkns 2025-09-05 20:48:34+01:00 - build 6544
+
+1. gh-998: Fix a crash on plugin panels with funny names.
+
+--------------------------------------------------------------------------------
+mihnita 2025-08-31 19:43:00-07:00 - build 6543
+
+1. Optionally hide files and folders starting with dot.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-31 18:02:48+01:00 - build 6542
+
+1. Fix editor.sel(...) in edit controls.
+
+2. Fix plugin panels refresh after cd in command line.
+
+3. Refactoring.
+
+4. Clang warnings.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-31 13:14:02+01:00 - build 6541
+
+1. Fix editor.sel(1, ...) in edit controls.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-29 21:16:05+01:00 - build 6540
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-26 22:32:24+01:00 - build 6539
+
+1. gh-993: Use DECSET 2026 to reduce flickering.
+
+--------------------------------------------------------------------------------
+shmuel 2025-08-26 20:48:18+03:00 - build 6538
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+Yegor 2025-08-22 17:17:00-07:00 - build 6537
+
+1. Continue 6534: Add support for *. to match files without extensions.
+
+--------------------------------------------------------------------------------
+shmuel 2025-08-22 17:11:22+03:00 - build 6536
+
+1. Far API: extend struct FarMacroValue to return Lua tables.
+
+--------------------------------------------------------------------------------
+zg 2025-08-22 11:51:41+03:00 - build 6535
+
+1. pasting into the command line and edit controls with active persistent blocks
+   broke the selection.
+
+--------------------------------------------------------------------------------
+Yegor 2025-08-20 17:00:00-07:00 - build 6534
+
+1. Refactored wildcard processing to use backtracking instead of recursion.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-19 17:30:40+01:00 - build 6533
+
+1. Take CodePages.NoAutoDetectCP into account when using IsTextUnicode API.
+
+--------------------------------------------------------------------------------
+MZK 2025-08-17 17:56:03-04:00 - build 6532
+
+1. Refactored menu_item_ex to address clang warnings like
+   config.cpp:494:20: warning: suggest braces around initialization of subobject [-Wmissing-braces]
+
+--------------------------------------------------------------------------------
+drkns 2025-08-17 22:31:28+01:00 - build 6531
+
+1. Ensure editor keybar redraw on (Shift+)F8.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-14 23:52:44+01:00 - build 6530
+
+1. Attributes dialog fixes for plugin panels.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-14 20:25:53+01:00 - build 6529
+
+1. Fix editor whitespace generation.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-14 19:27:50+01:00 - build 6528
+
+1. Query AllocationSize only when needed (gh-988).
+
+2. Disable 567.4 in ScanTree (gh-988).
+
+--------------------------------------------------------------------------------
+shmuel 2025-08-10 21:39:18+03:00 - build 6527
+
+1. Plugins API: add FE_STARTSORT, FE_ENDSORT.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-10 18:34:47+01:00 - build 6526
+
+1. Set ENABLE_VIRTUAL_TERMINAL_PROCESSING unconditionally.
+   We use it not only for "[x] Use Virtual Terminal for rendering" anyway
+   and flipping it back and forth can impact the overall performance (see M#4080).
+
+--------------------------------------------------------------------------------
+drkns 2025-08-07 17:19:50+01:00 - build 6525
+
+1. gh-746: Specifying active or passive panel path makes that panel visible.
+
+2. gh-986: Find File dialog + External editor.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-06 21:21:29+01:00 - build 6524
+
+1. Improve 6523: make such GetMsg calls work.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-06 19:07:31+01:00 - build 6523
+
+1. Crash on calling GetMsg with IDs of OEM plugins.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-04 17:24:56+01:00 - build 6522
+
+1. Correction of 6521.1.
+
+--------------------------------------------------------------------------------
+drkns 2025-08-03 20:41:44+01:00 - build 6521
+
+1. Refactoring.
+
+2. Adjust CreateFile flags in a few places.
+
+--------------------------------------------------------------------------------
+yjh 2025-07-31 22:15:35+03:00 - build 6520
+
+1. SQLite: v3.50.4.
+
+--------------------------------------------------------------------------------
 drkns 2025-07-20 10:48:47+01:00 - build 6519
 
 1. Forum: Progress numbers are displayed wrong while copying files with filter.

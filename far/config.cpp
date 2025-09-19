@@ -489,10 +489,9 @@ static void FillMasksMenu(VMenu2& MasksMenu, int SelPos = 0)
 
 	for(const auto& [Name, Value]: ConfigProvider().GeneralCfg()->ValuesEnumerator<string>(L"Masks"sv))
 	{
-		MenuItemEx Item;
 		const int NameWidth = 10;
 		const auto DisplayName = pad_right(truncate_right(Name, NameWidth), NameWidth);
-		Item.Name = concat(DisplayName, L' ', BoxSymbols[BS_V1], L' ', Value);
+		menu_item_ex Item{ concat(DisplayName, L' ', BoxSymbols[BS_V1], L' ', Value) };
 		Item.ComplexUserData = Name;
 		MasksMenu.AddItem(Item);
 	}
@@ -912,8 +911,8 @@ void Options::EditorConfig(EditorOptions &EdOptRef, bool Local)
 		Builder.AddCheckbox(lng::MEditConfigSavePos, EdOptRef.SavePos);
 		Builder.AddCheckbox(lng::MEditConfigSaveShortPos, EdOptRef.SaveShortPos);
 		Builder.AddCheckbox(lng::MEditShareWrite, EdOpt.EditOpenedForWrite);
-		Builder.AddCheckbox(lng::MEditLockROFileModification, EdOpt.ReadOnlyLock, 1);
-		Builder.AddCheckbox(lng::MEditWarningBeforeOpenROFile, EdOpt.ReadOnlyLock, 2);
+		Builder.AddCheckbox(lng::MEditLockROFileModification, EdOpt.ReadOnlyLock, 0b01);
+		Builder.AddCheckbox(lng::MEditWarningBeforeOpenROFile, EdOpt.ReadOnlyLock, 0b10);
 		Builder.AddCheckbox(lng::MEditAutoDetectCodePage, EdOpt.AutoDetectCodePage);
 		Builder.AddText(lng::MEditConfigDefaultCodePage);
 		codepages::instance().FillCodePagesList(Items, false, false, false, false, false);
@@ -1813,6 +1812,19 @@ Options::Options():
 		std::ranges::sort(Exec.ExcludeCmds, string_sort::less_icase);
 	}));
 
+	strNoAutoDetectCP.SetCallback(option::notifier([&](string_view const Value)
+	{
+		NoAutoDetectCP.clear();
+
+		for (const auto& i: enum_tokens(Value, L",;"sv))
+		{
+			if (unsigned Codepage; from_string(i, Codepage, {}, 10))
+				NoAutoDetectCP.emplace(Codepage);
+			else
+				LOGWARNING(L"Unsupported value in CodePages.NoAutoDetectCP: [{}]"sv, i);
+		}
+	}));
+
 	// По умолчанию - брать плагины из основного каталога
 	LoadPlug.MainPluginDir = true;
 	LoadPlug.PluginsPersonal = true;
@@ -1971,6 +1983,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyPanel,                  L"ShellRightLeftArrowsRule"sv,      ShellRightLeftArrowsRule, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShowBytes"sv,                     ShowBytes, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShowHidden"sv,                    ShowHidden, true},
+		{FSSF_PANEL,             NKeyPanel,                  L"TreatDotFilesAsHidden"sv,         TreatDotFilesAsHidden, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShortcutAlwaysChdir"sv,           ShortcutAlwaysChdir, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"SortFolderExt"sv,                 SortFolderExt, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"RightClickSelect"sv,              RightClickSelect, false},
@@ -3093,7 +3106,7 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 	};
 	const auto OptionsMenuStrings = VMenu::AddHotkeys(OptionsMenu);
 
-	menu_item RightMenu[]=
+	menu_item RightMenu[]
 	{
 		{ msg(lng::MMenuBriefView), LIF_SELECTED, KEY_CTRL1 },
 		{ msg(lng::MMenuMediumView), 0, KEY_CTRL2 },

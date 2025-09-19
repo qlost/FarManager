@@ -61,6 +61,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lockscrn.hpp"
 #include "global.hpp"
 #include "keyboard.hpp"
+#include "strmix.hpp"
 
 // Platform:
 
@@ -537,13 +538,11 @@ void highlight::configuration::FillMenu(VMenu2 *HiMenu,int MenuPos) const
 			HiMenu->AddItem(MenuString(&Item, true));
 		}
 
-		HiMenu->AddItem(MenuItemEx());
+		HiMenu->AddItem(menu_item_ex{});
 
 		if (!i.next_title.empty())
 		{
-			MenuItemEx HiMenuItem(i.next_title);
-			HiMenuItem.Flags|=LIF_SEPARATOR;
-			HiMenu->AddItem(HiMenuItem);
+			HiMenu->AddItem(menu_item_ex{ string{ i.next_title }, LIF_SEPARATOR });
 		}
 	}
 
@@ -752,7 +751,7 @@ void highlight::configuration::HiEdit(int MenuPos)
 					if (Count && RealSelectPos < static_cast<int>(HiData.size()) && FileFilterConfig(HiData[RealSelectPos], true))
 					{
 						HiMenu->DeleteItem(SelectPos);
-						HiMenu->AddItem(MenuItemEx(MenuString(&HiData[RealSelectPos], true)), SelectPos);
+						HiMenu->AddItem(menu_item_ex{ MenuString(&HiData[RealSelectPos], true) }, SelectPos);
 						HiMenu->SetSelectPos(SelectPos, 1);
 						NeedUpdate = true;
 					}
@@ -778,7 +777,7 @@ void highlight::configuration::HiEdit(int MenuPos)
 						{
 							(*Count)++;
 							const auto Iterator = HiData.emplace(HiData.begin()+RealSelectPos, std::move(NewHData));
-							HiMenu->AddItem(MenuItemEx(MenuString(std::to_address(Iterator), true)), SelectPos);
+							HiMenu->AddItem(menu_item_ex{ MenuString(std::to_address(Iterator), true) }, SelectPos);
 							HiMenu->SetSelectPos(SelectPos, 1);
 							NeedUpdate = true;
 						}

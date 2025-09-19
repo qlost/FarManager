@@ -117,7 +117,7 @@ namespace
 	}
 
 	[[noreturn]]
-	void throw_exception(string_view const DatabaseName, int const ErrorCode, string_view const ErrorString = {}, int const SystemErrorCode = 0, string_view const Sql = {}, int const ErrorOffset = -1)
+	void throw_exception(string_view const DatabaseName, int const ErrorCode, string_view const ErrorString = {}, int const SystemErrorCode = 0, string_view const Sql = {}, int const ErrorOffset = -1, source_location const& Location = source_location::current())
 	{
 		throw far_sqlite_exception(ErrorCode, far::format(L"[{}] - SQLite error {}: {}{}{}{}"sv,
 			DatabaseName,
@@ -126,7 +126,7 @@ namespace
 			SystemErrorCode? far::format(L" ({})"sv, os::format_error(SystemErrorCode)) : L""sv,
 			Sql.empty()? L""sv : far::format(L" while executing \"{}\""sv, Sql),
 			ErrorOffset == -1? L""sv : far::format(L" at position {}"sv, ErrorOffset)
-		));
+		), Location);
 	}
 
 	[[noreturn]]
@@ -200,19 +200,14 @@ void SQLiteDb::SQLiteStmt::stmt_deleter::operator()(sqlite::sqlite3_stmt* Object
 
 	// All statement evaluations are checked so returning the error again makes no sense.
 	// This is called from a destructor so we can't throw here.
-	invoke(sqlite::sqlite3_db_handle(Object), [&]
-	{
-		if (const auto Result = sqlite::sqlite3_finalize(Object); Result != SQLITE_OK)
-		{
-			LOGDEBUG(L"sqlite3_finalize(): {}"sv, GetErrorString(Result));
-		}
-		return true;
-	});
+	if (const auto Result = sqlite::sqlite3_finalize(Object); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_finalize(): {}"sv, GetErrorString(Result));
 }
 
 SQLiteDb::SQLiteStmt const& SQLiteDb::SQLiteStmt::Reset() const
 {
-	invoke(db(), [&]{ return sqlite::sqlite3_clear_bindings(m_Stmt.get()) == SQLITE_OK; }, sql());
+	if (const auto Result = sqlite::sqlite3_clear_bindings(m_Stmt.get()); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_clear_bindings(): {}"sv, GetErrorString(Result));
 
 	// https://www.sqlite.org/c3ref/reset.html
 	// If the most recent call to sqlite3_step(S) for the prepared statement S returned SQLITE_ROW or SQLITE_DONE,
@@ -222,15 +217,8 @@ SQLiteDb::SQLiteStmt const& SQLiteDb::SQLiteStmt::Reset() const
 
 	// All sqlite3_step calls are checked so returning the error again makes no sense.
 	// This is called from a destructor so we can't throw here.
-	invoke(db(), [&]
-	{
-		if (const auto Result = sqlite::sqlite3_reset(m_Stmt.get()); Result != SQLITE_OK)
-		{
-			LOGDEBUG(L"sqlite3_reset(): {}"sv, GetErrorString(Result));
-		}
-		return true;
-	},
-	sql());
+	if (const auto Result = sqlite::sqlite3_reset(m_Stmt.get()); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_reset(): {}"sv, GetErrorString(Result));
 
 	m_Param = 0;
 	return *this;

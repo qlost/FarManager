@@ -193,6 +193,7 @@ struct UpdateProfiles: public std::vector<UpdateProfile> {
 struct Attr {
   std::wstring name;
   std::wstring value;
+  bool ignore_value_length{};
 };
 typedef std::list<Attr> AttrList;
 

@@ -105,11 +105,11 @@ enum class color_indices
 
 static_assert(std::tuple_size_v<vmenu_colors_t> == std::to_underlying(color_indices::COUNT));
 
-struct item_color_indicies
+struct item_color_indices
 {
 	color_indices Normal, Highlighted, HScroller;
 
-	explicit item_color_indicies(const MenuItemEx& CurItem)
+	explicit item_color_indices(const menu_item_ex& CurItem)
 	{
 		const auto Grayed{ !!(CurItem.Flags & LIF_GRAYED) };
 
@@ -443,11 +443,9 @@ namespace
 		return { .Text = NewStrItem };
 	}
 
-	MenuItemEx far_list_item_to_menu_item(const FarListItem& FItem)
+	menu_item_ex far_list_item_to_menu_item(const FarListItem& FItem)
 	{
-		MenuItemEx Result;
-		Result.Flags = FItem.Flags;
-		Result.Name = NullToEmpty(FItem.Text);
+		menu_item_ex Result{ NullToEmpty(FItem.Text), FItem.Flags };
 		Result.SimpleUserData = FItem.UserData;
 		return Result;
 	}
@@ -538,17 +536,17 @@ namespace
 		return !(Flags & (LIF_DISABLE | LIF_HIDDEN | LIF_FILTERED | LIF_SEPARATOR));
 	}
 
-	bool item_can_have_focus(MenuItemEx const& Item)
+	bool item_can_have_focus(menu_item_ex const& Item)
 	{
 		return item_flags_allow_focus(Item.Flags);
 	}
 
-	bool item_can_be_entered(MenuItemEx const& Item)
+	bool item_can_be_entered(menu_item_ex const& Item)
 	{
 		return item_can_have_focus(Item) && !(Item.Flags & LIF_GRAYED);
 	}
 
-	bool item_is_visible(MenuItemEx const& Item)
+	bool item_is_visible(menu_item_ex const& Item)
 	{
 		return !(Item.Flags & (LIF_HIDDEN | LIF_FILTERED));
 	}
@@ -642,7 +640,7 @@ namespace
 		SetColor(get_color(VMenuColors, ColorIndex));
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_check_mark(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
+	std::tuple<color_indices, wchar_t> get_item_check_mark(const menu_item_ex& CurItem, item_color_indices ColorIndices) noexcept
 	{
 		return
 		{
@@ -653,7 +651,7 @@ namespace
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_submenu(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
+	std::tuple<color_indices, wchar_t> get_item_submenu(const menu_item_ex& CurItem, item_color_indices ColorIndices) noexcept
 	{
 		return
 		{
@@ -662,7 +660,7 @@ namespace
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_left_hscroll(const bool NeedLeftHScroll, item_color_indicies ColorIndices) noexcept
+	std::tuple<color_indices, wchar_t> get_item_left_hscroll(const bool NeedLeftHScroll, item_color_indices ColorIndices) noexcept
 	{
 		return
 		{
@@ -671,7 +669,7 @@ namespace
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_right_hscroll(const bool NeedRightHScroll, item_color_indicies ColorIndices) noexcept
+	std::tuple<color_indices, wchar_t> get_item_right_hscroll(const bool NeedRightHScroll, item_color_indices ColorIndices) noexcept
 	{
 		return
 		{
@@ -706,11 +704,9 @@ void VMenu::init(std::span<menu_item const> const Data, DWORD Flags)
 	GetCursorType(PrevCursorVisible,PrevCursorSize);
 	bRightBtnPressed = false;
 
-	for (const auto& i: Data)
+	for (const auto& Item: Data)
 	{
-		MenuItemEx NewItem;
-		static_cast<menu_item&>(NewItem) = i;
-		AddItem(std::move(NewItem));
+		AddItem(menu_item_ex{ Item });
 	}
 
 	SetMaxHeight(MaxHeight);
@@ -808,15 +804,23 @@ int VMenu::SetSelectPos(int Pos, int Direct, bool stop_on_edge)
 
 	if (Pos != SelectPos && CheckFlags(VMENU_COMBOBOX | VMENU_LISTBOX))
 	{
+		const auto SavedSelectPos{ SelectPos };
+
+		for (auto& i : Items)
+			i.Flags &= ~LIF_SELECTED;
+
+		if (Pos >= 0)
+			UpdateItemFlags(Pos, Items[Pos].Flags | LIF_SELECTED); // Changes SelectPos
+
 		if (const auto Parent = GetDialog(); Parent && Parent->IsInited() && !Parent->SendMessage(DN_LISTCHANGE, DialogItemID, ToPtr(Pos)))
+		{
+			// Restore SelectPos
+			if (SavedSelectPos >= 0)
+				UpdateItemFlags(SavedSelectPos, Items[SavedSelectPos].Flags | LIF_SELECTED);
+
 			return -1;
+		}
 	}
-
-	for (auto& i: Items)
-		i.Flags &= ~LIF_SELECTED;
-
-	if (Pos >= 0)
-		UpdateItemFlags(Pos, Items[Pos].Flags | LIF_SELECTED);
 
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
 
@@ -899,12 +903,11 @@ void VMenu::UpdateSelectPos()
 
 int VMenu::GetItemPosition(int Position) const
 {
-	int DataPos = (Position==-1) ? SelectPos : Position;
+	const auto DataPos{ Position < 0 ? SelectPos : Position };
 
-	if (DataPos>=static_cast<int>(Items.size()))
-		DataPos = -1; //Items.size()-1;
-
-	return DataPos;
+	return in_closed_range(0, DataPos, static_cast<int>(Items.size()) - 1)
+		? DataPos
+		: -1; //Items.size()-1; ???
 }
 
 // получить позицию курсора и верхнюю позицию элемента
@@ -945,7 +948,7 @@ int VMenu::AddItem(const wchar_t *NewStrItem)
 	return AddItem(far_list_item_to_menu_item(string_to_far_list_item(NewStrItem)));
 }
 
-int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
+int VMenu::AddItem(menu_item_ex&& NewItem,int PosAdd)
 {
 	PosAdd = std::clamp(PosAdd, 0, static_cast<int>(Items.size()));
 
@@ -1362,7 +1365,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 						continue;
 
 					int Res = 0;
-					const auto strTemp = trim(HiText2Str(Item.Name));
+					const auto strTemp = trim(remove_highlight(Item.Name));
 
 					switch (iParam)
 					{
@@ -1511,7 +1514,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 
 				case 3:
 					// Don't use ItemHiddenCount here - it also includes invisible (LIF_HIDDEN), but non-filtered items
-					RetValue = std::ranges::count_if(Items, [](const MenuItemEx& Item) { return (Item.Flags & LIF_FILTERED) != 0; });
+					RetValue = std::ranges::count_if(Items, [](const menu_item_ex& Item) { return (Item.Flags & LIF_FILTERED) != 0; });
 					break;
 
 				case 4:
@@ -1579,6 +1582,18 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 				}
 			}
 			return 0;
+		}
+		case MCODE_F_MENU_GETEXTENDEDDATA:
+		{
+			if (m_ExtendedDataProvider)
+			{
+				const auto ItemPos{ GetItemPosition(iParam) };
+				if (ItemPos == -1) return -1;
+
+				*static_cast<extended_item_data*>(vParam) = m_ExtendedDataProvider(Items[ItemPos]);
+				return 1;
+			}
+			return -1;
 		}
 	}
 
@@ -2331,11 +2346,11 @@ int VMenu::VisualPosToReal(int VPos) const
 	if (VPos >= GetShowItemCount())
 		return static_cast<int>(Items.size());
 
-	const auto ItemIterator = std::ranges::find_if(Items, [&](MenuItemEx const& i){ return item_is_visible(i) && !VPos--; });
+	const auto ItemIterator = std::ranges::find_if(Items, [&](menu_item_ex const& i){ return item_is_visible(i) && !VPos--; });
 	return ItemIterator != Items.cend()? ItemIterator - Items.cbegin() : -1;
 }
 
-bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
+bool VMenu::SetItemHPos(menu_item_ex& Item, const auto& GetNewHPos)
 {
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
@@ -2444,7 +2459,7 @@ bool VMenu::AlignAnnotations()
 
 	const auto Guard{ m_HorizontalTracker->start_bulk_update_annotation(AlignPos) };
 	return SetAllItemsHPos(
-		[&](const MenuItemEx& Item) { return AlignPos - Item.SafeGetFirstAnnotation(); });
+		[&](const menu_item_ex& Item) { return AlignPos - Item.SafeGetFirstAnnotation(); });
 }
 
 bool VMenu::ToggleFixedColumns()
@@ -2705,7 +2720,7 @@ void VMenu::DrawTitles() const
 			append(strDisplayTitle, bFilterLocked? L'<' : L'[', strFilter, bFilterLocked? L'>' : L']');
 		}
 
-		auto WidthTitle = static_cast<int>(strDisplayTitle.size());
+		auto WidthTitle = static_cast<int>(visual_string_length(strDisplayTitle));
 
 		if (WidthTitle > MaxTitleLength)
 			WidthTitle = MaxTitleLength - 1;
@@ -2713,12 +2728,14 @@ void VMenu::DrawTitles() const
 		GotoXY(m_Where.left + (m_Where.width() - 2 - WidthTitle) / 2, m_Where.top);
 		set_color(Colors, color_indices::Title);
 
-		Text(concat(L' ', string_view(strDisplayTitle).substr(0, WidthTitle), L' '));
+		Text(L' ');
+		Text(strDisplayTitle, MaxTitleLength - 1);
+		Text(L' ');
 	}
 
 	if (!strBottomTitle.empty())
 	{
-		auto WidthTitle = static_cast<int>(strBottomTitle.size());
+		auto WidthTitle = static_cast<int>(visual_string_length(strBottomTitle));
 
 		if (WidthTitle > MaxTitleLength)
 			WidthTitle = MaxTitleLength - 1;
@@ -2726,7 +2743,9 @@ void VMenu::DrawTitles() const
 		GotoXY(m_Where.left + (m_Where.width() - 2 - WidthTitle) / 2, m_Where.bottom);
 		set_color(Colors, color_indices::Title);
 
-		Text(concat(L' ', string_view(strBottomTitle).substr(0, WidthTitle), L' '));
+		Text(L' ');
+		Text(strBottomTitle, MaxTitleLength - 1);
+		Text(L' ');
 	}
 
 	if constexpr ((false))
@@ -2734,11 +2753,11 @@ void VMenu::DrawTitles() const
 		set_color(Colors, color_indices::Title);
 
 		GotoXY(m_Where.left + 2, m_Where.bottom);
-		Text(m_HorizontalTracker->get_debug_string());
+		MenuText(m_HorizontalTracker->get_debug_string());
 
 		const auto TextAreaWidthLabel{ std::format(L" [{}] ", CalculateTextAreaWidth()) };
 		GotoXY(m_Where.right - 1 - static_cast<int>(TextAreaWidthLabel.size()), m_Where.bottom);
-		Text(TextAreaWidthLabel);
+		MenuText(TextAreaWidthLabel);
 	}
 }
 
@@ -2798,7 +2817,7 @@ void VMenu::DrawSeparator(const size_t ItemIndex, const int BoxType, const int Y
 	ApplySeparatorName(Items[ItemIndex], separator);
 	set_color(Colors, color_indices::Separator);
 	GotoXY(m_Where.left, Y);
-	Text(separator);
+	MenuText(separator);
 }
 
 void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const int BoxType) const
@@ -2837,7 +2856,7 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 	}
 }
 
-void VMenu::ApplySeparatorName(const MenuItemEx& Item, string& separator) const
+void VMenu::ApplySeparatorName(const menu_item_ex& Item, string& separator) const
 {
 	if (Item.Name.empty() || separator.size() <= 3)
 		return;
@@ -2850,9 +2869,9 @@ void VMenu::ApplySeparatorName(const MenuItemEx& Item, string& separator) const
 	separator[NamePos + NameWidth] = L' ';
 }
 
-void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, const int Y, std::vector<int>& HighlightMarkup, const string_view BlankLine) const
+void VMenu::DrawRegularItem(const menu_item_ex& Item, const menu_layout& Layout, const int Y, std::vector<int>& HighlightMarkup, const string_view BlankLine) const
 {
-	const item_color_indicies ColorIndices{ Item };
+	const item_color_indices ColorIndices{ Item };
 
 	if (Layout.FixedColumnsArea)
 		DrawFixedColumns(Item, *Layout.FixedColumnsArea, Y, ColorIndices, BlankLine);
@@ -2884,10 +2903,10 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 }
 
 void VMenu::DrawFixedColumns(
-	const MenuItemEx& Item,
+	const menu_item_ex& Item,
 	const small_segment FixedColumnsArea,
 	const int Y,
-	const item_color_indicies& ColorIndices,
+	const item_color_indices& ColorIndices,
 	const string_view BlankLine) const
 {
 	GotoXY(FixedColumnsArea.start(), Y);
@@ -2904,10 +2923,10 @@ void VMenu::DrawFixedColumns(
 			segment{ 0, segment::length_tag{ CellArea.length()}})};
 
 		if (!VisibleCellTextSegment.empty())
-			Text(CellText.substr(VisibleCellTextSegment.start(), VisibleCellTextSegment.length()));
+			MenuText(CellText.substr(VisibleCellTextSegment.start(), VisibleCellTextSegment.length()));
 
-		Text(BlankLine.substr(0, CellArea.end() - WhereX()));
-		Text(CurFixedColumn.Separator);
+		MenuText(BlankLine.substr(0, CellArea.end() - WhereX()));
+		MenuText(CurFixedColumn.Separator);
 
 		CurCellAreaStart = CellArea.end() + 1;
 	}
@@ -2916,10 +2935,10 @@ void VMenu::DrawFixedColumns(
 }
 
 bool VMenu::DrawItemText(
-	const MenuItemEx& Item,
+	const menu_item_ex& Item,
 	const small_segment TextArea,
 	const int Y,
-	const item_color_indicies& ColorIndices,
+	const item_color_indices& ColorIndices,
 	std::vector<int>& HighlightMarkup,
 	string_view BlankLine) const
 {
@@ -2943,7 +2962,7 @@ bool VMenu::DrawItemText(
 
 	const auto VisibleTextSegment{ intersect(
 		segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } },
-		segment{ -Item.HorizontalPosition, segment::length_tag{ TextArea.length() } }) };
+		segment::ray(-Item.HorizontalPosition))};
 
 	if (!VisibleTextSegment.empty())
 	{
@@ -2956,18 +2975,21 @@ bool VMenu::DrawItemText(
 		for (const auto SliceEnd : HighlightMarkup)
 		{
 			set_color(Colors, CurColorIndex);
-			Text(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos));
+			Text(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), TextArea.end() - WhereX());
 			std::ranges::swap(CurColorIndex, AltColorIndex);
 			CurTextPos = SliceEnd;
 		}
 	}
 
 	set_color(Colors, ColorIndices.Normal);
-	Text(BlankLine.substr(0, TextArea.end() - WhereX()));
 
-	assert(WhereX() == TextArea.end());
+	if (WhereX() < TextArea.end())
+	{
+		Text(BlankLine, TextArea.end() - WhereX());
+		assert(WhereX() == TextArea.end());
+	}
 
-	return Item.HorizontalPosition + static_cast<int>(ItemText.size()) > TextArea.length();
+	return Item.HorizontalPosition + static_cast<int>(visual_string_length(ItemText)) > TextArea.length();
 }
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
@@ -2994,7 +3016,7 @@ int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
 	return -1;
 }
 
-wchar_t VMenu::GetHighlights(const MenuItemEx* const Item) const
+wchar_t VMenu::GetHighlights(const menu_item_ex* const Item) const
 {
 	if (!Item)
 		return 0;
@@ -3079,7 +3101,7 @@ void VMenu::AssignHighlights(const menu_layout& Layout)
 		const auto ItemText = GetItemText(Item);
 		const auto VisibleTextSegment{ intersect(
 			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } },
-			segment{ -Item.HorizontalPosition, segment::length_tag{ TextArea.length() } }) };
+			segment::ray(-Item.HorizontalPosition)) };
 		if (VisibleTextSegment.empty()) continue;
 
 		if (const auto FoundHotKey{
@@ -3373,7 +3395,7 @@ bool VMenu::GetVMenuInfo(FarListInfo* Info) const
 }
 
 // Функция GetItemPtr - получить указатель на нужный Items.
-MenuItemEx& VMenu::at(size_t n)
+menu_item_ex& VMenu::at(size_t n)
 {
 	const auto ItemPos = GetItemPosition(static_cast<int>(n));
 
@@ -3412,7 +3434,12 @@ std::any* VMenu::GetComplexUserData(int Position)
 	return &Items[ItemPos].ComplexUserData;
 }
 
-FarListItem *VMenu::MenuItem2FarList(const MenuItemEx *MItem, FarListItem *FItem)
+void VMenu::RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider)
+{
+	m_ExtendedDataProvider = std::move(ExtendedDataProvider);
+}
+
+FarListItem *VMenu::MenuItem2FarList(const menu_item_ex *MItem, FarListItem *FItem)
 {
 	if (FItem && MItem)
 	{
@@ -3476,7 +3503,7 @@ int VMenu::FindItem(int StartIndex, string_view const Pattern, unsigned long lon
 // Offset - начало сравнения! по умолчанию =0
 void VMenu::SortItems(bool Reverse, int Offset)
 {
-	SortItems([](const MenuItemEx& a, const MenuItemEx& b, const SortItemParam& Param)
+	SortItems([](const menu_item_ex& a, const menu_item_ex& b, const SortItemParam& Param)
 	{
 		// Consider: Strictly speaking, we should remove highlight
 		// only within m_ItemTextSegment leaving everything else intact.
@@ -3552,7 +3579,7 @@ int VMenu::GetNaturalMenuWidth() const
 	const auto NeedBox = menu_layout::need_box(*this);
 	return std::max(
 		m_MaxItemLength + menu_layout::get_service_area_size(*this, NeedBox),
-		static_cast<int>(std::max(strTitle.size(), strBottomTitle.size()) + menu_layout::get_title_service_area_size(NeedBox))
+		static_cast<int>(std::max(visual_string_length(strTitle), visual_string_length(strBottomTitle)) + menu_layout::get_title_service_area_size(NeedBox))
 	);
 }
 
@@ -3572,25 +3599,25 @@ int VMenu::CalculateTextAreaWidth() const
 	return TextArea ? TextArea->length() : 0;
 }
 
-int VMenu::GetItemVisualLength(const MenuItemEx& Item) const
+int VMenu::GetItemVisualLength(const menu_item_ex& Item) const
 {
 	const auto ItemCellText{ get_item_cell_text(Item.Name, m_ItemTextSegment) };
 	return static_cast<int>(CheckFlags(VMENU_SHOWAMPERSAND) ? visual_string_length(ItemCellText) : HiStrlen(ItemCellText));
 }
 
-string_view VMenu::GetItemText(const MenuItemEx& Item) const
+string_view VMenu::GetItemText(const menu_item_ex& Item) const
 {
 	return get_item_cell_text(Item.Name, m_ItemTextSegment);
 }
 
-size_t VMenu::Text(string_view const Str) const
+size_t VMenu::MenuText(string_view const Str) const
 {
-	return ::Text(Str, m_Where.width() - (WhereX() - m_Where.left));
+	return Text(Str, m_Where.width() - (WhereX() - m_Where.left));
 }
 
-size_t VMenu::Text(wchar_t const Char) const
+size_t VMenu::MenuText(wchar_t const Char) const
 {
-	return ::Text(Char, m_Where.width() - (WhereX() - m_Where.left));
+	return MenuText({ &Char, 1 });
 }
 
 #ifdef ENABLE_TESTS
