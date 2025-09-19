@@ -190,7 +190,7 @@ static os::handle open(const string_view Directory)
 		os::fs::file_share_all,
 		{},
 		OPEN_EXISTING,
-		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED
+		FILE_FLAG_OVERLAPPED
 	);
 
 	if (!DirectoryHandle)
@@ -232,10 +232,8 @@ FileSystemWatcher::~FileSystemWatcher()
 
 		LOGDEBUG(L"Stop monitoring {}"sv, m_Directory);
 
-		if (const auto Handle = m_DirectoryHandle.native_handle(); imports.CancelIoEx)
-			imports.CancelIoEx(Handle, &m_Overlapped);
-		else
-			CancelIo(Handle);
+		if (const auto Handle = m_DirectoryHandle.native_handle(); imports.CancelIoEx? imports.CancelIoEx(Handle, &m_Overlapped) : CancelIo(Handle))
+			(void)get_result();
 
 		m_DirectoryHandle = {};
 

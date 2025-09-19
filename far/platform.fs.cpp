@@ -318,7 +318,7 @@ namespace os::fs
 		FindData.LastWriteTime = os::chrono::nt_clock::from_hectonanoseconds(DirectoryInfo.LastWriteTime.QuadPart);
 		FindData.ChangeTime = os::chrono::nt_clock::from_hectonanoseconds(DirectoryInfo.ChangeTime.QuadPart);
 		FindData.FileSize = DirectoryInfo.EndOfFile.QuadPart;
-		FindData.AllocationSize = DirectoryInfo.AllocationSize.QuadPart;
+		FindData.AllocationSizeRaw = DirectoryInfo.AllocationSize.QuadPart;
 		FindData.ReparseTag = FindData.Attributes&FILE_ATTRIBUTE_REPARSE_POINT? DirectoryInfo.EaSize : 0;
 
 		const auto CopyNames = [&FindData](const auto& DirInfo)
@@ -341,28 +341,39 @@ namespace os::fs
 
 	// gh-425 Incorrect file sizes shown/calculated for files compressed with LZX
 	// WOF-based compression doesn't set FILE_ATTRIBUTE_COMPRESSED and doesn't fill AllocationSize
-	static void fill_allocation_size_alternative(find_data& FindData, string_view Directory)
+	bool is_allocation_size_read(find_data const& FindData)
 	{
-		if (FindData.AllocationSize)
-			return;
+		// Is it already non-0?
+		if (FindData.AllocationSizeRaw)
+			return true;
 
+		// Do we even care?
 		if (!FindData.FileSize)
-			return;
+			return true;
 
+		// Can it be?
 		if (flags::check_any(FindData.Attributes, FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))
-			return;
+			return true;
 
+		// Is it supported?
 		static const auto IsWeirdCompressionAvailable = IsWindows10OrGreater();
-		if (!IsWeirdCompressionAvailable && !flags::check_any(FindData.Attributes, FILE_ATTRIBUTE_COMPRESSED | FILE_ATTRIBUTE_SPARSE_FILE))
-			return;
+		if (!IsWeirdCompressionAvailable)
+			return true;
 
-		// TODO: It's a separate call so we might need an elevation for it
+		// Might as well try at this point
+		return false;
+	}
+
+	bool get_allocation_size(string_view const FileName, unsigned long long& AllocationSize)
+	{
+		// TODO: elevation?
 		ULARGE_INTEGER Size;
-		Size.LowPart = GetCompressedFileSize(nt_path(path::join(Directory, FindData.FileName)).c_str(), &Size.HighPart);
+		Size.LowPart = GetCompressedFileSize(nt_path(FileName).c_str(), &Size.HighPart);
 		if (Size.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
-			return;
+			return false;
 
-		FindData.AllocationSize = Size.QuadPart;
+		AllocationSize = Size.QuadPart;
+		return true;
 	}
 
 	static find_file_handle FindFirstFileInternal(string_view const Name, find_data& FindData)
@@ -432,7 +443,6 @@ namespace os::fs
 
 		const auto& DirectoryInfo = view_as<FILE_ID_BOTH_DIR_INFORMATION>(Handle->BufferBase.data());
 		DirectoryInfoToFindData(DirectoryInfo, FindData, Handle->Extended);
-		fill_allocation_size_alternative(FindData, Directory);
 		Handle->NextOffset = DirectoryInfo.NextEntryOffset;
 		return find_file_handle(Handle.release());
 	}
@@ -471,7 +481,6 @@ namespace os::fs
 		if (Status)
 		{
 			DirectoryInfoToFindData(*DirectoryInfo, FindData, Handle.Extended);
-			fill_allocation_size_alternative(FindData, Handle.Object.GetName());
 			Handle.NextOffset = DirectoryInfo->NextEntryOffset? Handle.NextOffset + DirectoryInfo->NextEntryOffset : 0;
 			Result = true;
 		}
@@ -1426,10 +1435,13 @@ namespace os::fs
 		return seekoff(Pos, std::ios::beg, Which);
 	}
 
+WARNING_PUSH()
+WARNING_DISABLE_CLANG("-Wmissing-noreturn")
 	filebuf::int_type filebuf::pbackfail(int_type Ch)
 	{
 		throw far_fatal_exception(L"Not implemented"sv);
 	}
+WARNING_POP()
 
 	void filebuf::reset_get_area()
 	{
@@ -1997,16 +2009,20 @@ namespace os::fs
 		if (low::remove_directory(strNtName.c_str()))
 			return true;
 
-		const auto IsElevationRequired = ElevationRequired(ELEVATION_MODIFY_REQUEST);
-
-		if (!exists(strNtName))
 		{
-			// Someone deleted it already,
-			// but job is done, no need to report error.
-			return true;
+			last_error_guard const Guard;
+			const auto Error = Guard.get().Win32Error;
+
+			// exists can return false on access errors, so check the last error too
+			if ((Error == ERROR_FILE_NOT_FOUND || Error == ERROR_PATH_NOT_FOUND) && !exists(strNtName))
+			{
+				// Someone deleted it already,
+				// but the job is done, no need to report the error.
+				return true;
+			}
 		}
 
-		if (IsElevationRequired)
+		if (ElevationRequired(ELEVATION_MODIFY_REQUEST))
 			return elevation::instance().remove_directory(strNtName);
 
 		return false;
@@ -2060,16 +2076,20 @@ namespace os::fs
 		if (low::delete_file(strNtName.c_str()))
 			return true;
 
-		const auto IsElevationRequired = ElevationRequired(ELEVATION_MODIFY_REQUEST);
-
-		if (!exists(strNtName))
 		{
-			// Someone deleted it already,
-			// but job is done, no need to report error.
-			return true;
+			last_error_guard const Guard;
+			const auto Error = Guard.get().Win32Error;
+
+			// exists can return false on access errors, so check the last error too
+			if ((Error == ERROR_FILE_NOT_FOUND || Error == ERROR_PATH_NOT_FOUND) && !exists(strNtName))
+			{
+				// Someone deleted it already,
+				// but the job is done, no need to report the error.
+				return true;
+			}
 		}
 
-		if (IsElevationRequired)
+		if (ElevationRequired(ELEVATION_MODIFY_REQUEST))
 			return elevation::instance().delete_file(strNtName);
 
 		return false;
@@ -2200,6 +2220,11 @@ namespace os::fs
 
 		if (ElevationRequired(ELEVATION_READ_REQUEST))
 			return elevation::instance().get_file_attributes(NtName);
+
+		// NOT find_data, it goes back here on error
+		enum_files const Find(FileName);
+		if (auto ItemIterator = Find.begin(); ItemIterator != Find.end())
+			return ItemIterator->Attributes;
 
 		return INVALID_FILE_ATTRIBUTES;
 	}

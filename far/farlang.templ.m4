@@ -1,4 +1,4 @@
-#
+﻿#
 # Note: https://learn.microsoft.com/en-us/globalization/reference/microsoft-language-resources is a good source of system- and UI-specific translations.
 #
 
@@ -19834,7 +19834,7 @@ MSetColorClockNormalEditor
 "Texto normal (Editor)"
 
 MSetColorClockNormalViewer
-"Обычный текст (вьювер)"
+"Обычный текст (просмотрщик)"
 "Normal text (Viewer)"
 "Normální text (Prohlížeč)"
 "Normaler Text (Betrachter)"

@@ -9,6 +9,8 @@
 #include "lf_luafar.h"
 #include "lf_util.h"
 #include "lf_string.h"
+#include "lf_bit64.h"
+#include "lf_service.h"
 
 #ifndef LUADLL
 # if LUA_VERSION_NUM == 501
@@ -20,11 +22,6 @@
 
 typedef struct PluginStartupInfo PSInfo;
 
-extern int bit64_push(lua_State *L, INT64 v);
-extern int bit64_pushuserdata(lua_State *L, INT64 v);
-extern int bit64_getvalue(lua_State *L, int pos, INT64 *target);
-
-extern int luaopen_bit64(lua_State *L);
 extern int luaopen_far_host(lua_State *L);
 extern int luaopen_regex(lua_State*);
 extern int luaopen_usercontrol(lua_State*);
@@ -2415,11 +2412,14 @@ static int panel_SetPanelDirectory(lua_State *L)
 
 		if (id && len == sizeof(GUID)) fpd.PluginId = *id;
 
-		lua_getfield(L, 3, "Name");  if (lua_isstring(L, -1)) fpd.Name = check_utf8_string(L, -1, NULL);
+		lua_getfield(L, 3, "Name");
+		if (lua_isstring(L, -1)) fpd.Name = check_utf8_string(L, -1, NULL);
 
-		lua_getfield(L, 3, "Param"); if (lua_isstring(L, -1)) fpd.Param = check_utf8_string(L, -1, NULL);
+		lua_getfield(L, 3, "Param");
+		if (lua_isstring(L, -1)) fpd.Param = check_utf8_string(L, -1, NULL);
 
-		lua_getfield(L, 3, "File");  if (lua_isstring(L, -1)) fpd.File = check_utf8_string(L, -1, NULL);
+		lua_getfield(L, 3, "File");
+		if (lua_isstring(L, -1)) fpd.File = check_utf8_string(L, -1, NULL);
 	}
 	else if (lua_isstring(L, 3))
 		fpd.Name = check_utf8_string(L, 3, NULL);
@@ -5907,12 +5907,6 @@ static int timer_newindex(lua_State *L)
 	return 0;
 }
 
-BOOL dir_exist(const wchar_t* path)
-{
-	DWORD attr = GetFileAttributesW(path);
-	return (attr != 0xFFFFFFFF) && (attr & FILE_ATTRIBUTE_DIRECTORY);
-}
-
 typedef struct
 {
 	HANDLE Handle;
@@ -6793,7 +6787,7 @@ void LF_InitLuaState1(lua_State *L, lua_CFunction aOpenLibs)
 	lua_pushliteral(L, "");                     //+3
 	lua_getmetatable(L, -1);                    //+4
 	lua_pushvalue(L, -4);                       //+5
-	lua_setfield(L, -2, "__index");	            //+4
+	lua_setfield(L, -2, "__index");             //+4
 	lua_pop(L, 4);                              //+0
 	// add utf8.reformat
 	(void) luaL_dostring(L, utf8_reformat);
