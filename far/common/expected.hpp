@@ -41,10 +41,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //----------------------------------------------------------------------------
 
 template<typename E>
-struct unexpected
+struct unexpected1
 {
 	explicit(false)
-	unexpected(E Error):
+	unexpected1(E Error):
 		m_Error(std::move(Error))
 	{
 	}
@@ -122,13 +122,13 @@ public:
 	}
 
 	template<class E2>
-	friend bool operator==(expected const& lhs, unexpected<E2> const& Error)
+	friend bool operator==(expected const& lhs, unexpected1<E2> const& Error)
 	{
 		return !lhs && lhs.error() == Error.m_Error;
 	}
 
 private:
-	std::variant<T, unexpected<E>> m_Data;
+	std::variant<T, unexpected1<E>> m_Data;
 };
 
 #endif // EXPECTED_HPP_01A3444E_1CF2_446D_851F_F91C5A5A34AA

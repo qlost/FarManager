@@ -363,11 +363,26 @@ static string GenerateName(string_view const Name, string_view const Path)
 	const auto BaseSize = Result.size() - Name.size();
 	const auto& [NamePart, ExtPart] = name_ext(Name);
 
+	auto GenNameFormat = Global->Opt->CMOpt.GenNameFormat.toString();
+	if (!contains(GenNameFormat, L"{0}"s))
+		GenNameFormat = Global->GenNameFormat;
+	else
+	{
+		try
+		{
+			far::vformat(GenNameFormat, 1, NamePart, ExtPart);
+		}
+		catch (fmt::format_error const&)
+		{
+			GenNameFormat = Global->GenNameFormat;
+		}
+	}
+
 	// file (2).ext, file (3).ext and so on
 	for (size_t i = 2; os::fs::exists(Result); ++i)
 	{
 		Result.resize(BaseSize);
-		append(Result, NamePart, L" ("sv, str(i), L')', ExtPart);
+		append(Result, far::vformat(GenNameFormat, i, NamePart, ExtPart));
 	}
 
 	return Result;

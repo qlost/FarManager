@@ -95,6 +95,7 @@ public:
 	far_clock CurrentTime;
 
 	size_t LastShownTimeSize{};
+	string_view GenNameFormat{L"{1} ({0}){2}"sv};
 	bool OnlyEditorViewerUsed{}; // -e or -v
 #ifdef DIRECT_RT
 	bool DirectRT{};
