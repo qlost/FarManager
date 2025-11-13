@@ -2842,7 +2842,19 @@ void FileList::ProcessEnter(bool EnableExec,bool SeparateWindow,bool EnableAssoc
 				{
 					int PutCode = Global->CtrlObject->Plugins->PutFiles(GetPluginHandle(), { &PanelItem.Item, 1 }, false, OPM_EDIT);
 					if (PutCode == 1 || PutCode == 2)
+					{
 						SetPluginModified();
+
+						Update(UPDATE_KEEP_SELECTION);
+						Redraw();
+						const auto AnotherPanel = Parent()->GetAnotherPanel(this);
+
+						if (AnotherPanel->GetMode() == panel_mode::NORMAL_PANEL)
+						{
+							AnotherPanel->Update(UPDATE_KEEP_SELECTION);
+							AnotherPanel->Redraw();
+						}
+					}
 				}
 			}
 		}
@@ -8753,15 +8765,18 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 
 							if (Global->Opt->Highlight && m_ListData[ListPos].Colors && !m_ListData[ListPos].Colors->Mark.Mark.empty() && Width>1)
 							{
-								const auto MarkLength = visual_string_length(m_ListData[ListPos].Colors->Mark.Mark);
-								Width -= static_cast<int>(MarkLength);
+								const auto MarkLength = static_cast<int>(visual_string_length(m_ListData[ListPos].Colors->Mark.Mark));
+								if (Width >= MarkLength)
+								{
+									Width -= MarkLength;
 
-								const auto OldColor = GetColor();
-								if (!ShowStatus)
-									SetShowColor(ListPos, false);
+									const auto OldColor = GetColor();
+									if (!ShowStatus)
+										SetShowColor(ListPos, false);
 
-								Text(m_ListData[ListPos].Colors->Mark.Mark, MarkLength);
-								SetColor(OldColor);
+									Text(m_ListData[ListPos].Colors->Mark.Mark, MarkLength);
+									SetColor(OldColor);
+								}
 							}
 
 							string_view Name = m_ListData[ListPos].AlternateOrNormal(m_ShowShortNames);

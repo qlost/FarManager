@@ -1268,7 +1268,7 @@ FAR_INLINE_CONSTANT EDITOR_FLAGS
 #ifdef FAR_USE_INTERNALS
 	EF_SERVICEREGION         = 0x0000000000001000ULL,
 #endif // END FAR_USE_INTERNALS
-	EN_NONE                  = 0;
+	EF_NONE                  = 0;
 
 enum EDITOR_EXITCODE
 {
@@ -1484,6 +1484,12 @@ enum FARMACROVARTYPE
 	FMVT_NEWTABLE               = 12,
 	FMVT_SETTABLE               = 13,
 	FMVT_DIALOG                 = 14,
+	FMVT_TABLE                  = 15,
+	FMVT_GETTABLE               = 16,
+	FMVT_STACKPOP               = 17,
+	FMVT_STACKGETTOP            = 18,
+	FMVT_STACKSETTOP            = 19,
+	FMVT_STACKPUSHVALUE         = 20,
 };
 
 struct FarMacroValue
@@ -1513,19 +1519,31 @@ struct FarMacroValue
 #endif
 	;
 #ifdef __cplusplus
-	FarMacroValue()                   { Type=FMVT_NIL; }
-	FarMacroValue(int v)              { Type=FMVT_INTEGER; Integer=v; }
-	FarMacroValue(unsigned int v)     { Type=FMVT_INTEGER; Integer=v; }
+	FarMacroValue()                     { Type=FMVT_NIL; }
+	FarMacroValue(int v)                { Type=FMVT_INTEGER; Integer=v; }
+	FarMacroValue(unsigned int v)       { Type=FMVT_INTEGER; Integer=v; }
 	FarMacroValue(long long v)          { Type=FMVT_INTEGER; Integer=v; }
 	FarMacroValue(unsigned long long v) { Type=FMVT_INTEGER; Integer=v; }
-	FarMacroValue(bool v)             { Type=FMVT_BOOLEAN; Boolean=v; }
-	FarMacroValue(double v)           { Type=FMVT_DOUBLE; Double=v; }
-	FarMacroValue(const wchar_t* v)   { Type=FMVT_STRING; String=v; }
-	FarMacroValue(void* v)            { Type=FMVT_POINTER; Pointer=v; }
-	FarMacroValue(const char* v)      { Type=FMVT_MBSTRING; MBString=v; }
-	FarMacroValue(FARMACROVARTYPE tp) { Type=tp; Integer=0; }
-	FarMacroValue(const UUID& v)      { Type=FMVT_BINARY; Binary.Data=&const_cast<UUID&>(v); Binary.Size=sizeof(UUID); }
-	FarMacroValue(FarMacroValue* arr,size_t count) { Type=FMVT_ARRAY; Array.Values=arr; Array.Count=count; }
+	FarMacroValue(bool v)               { Type=FMVT_BOOLEAN; Boolean=v; }
+	FarMacroValue(double v)             { Type=FMVT_DOUBLE; Double=v; }
+	FarMacroValue(const wchar_t* v)     { Type=FMVT_STRING; String=v; }
+	FarMacroValue(void* v)              { Type=FMVT_POINTER; Pointer=v; }
+	FarMacroValue(const char* v)        { Type=FMVT_MBSTRING; MBString=v; }
+
+	FarMacroValue(FARMACROVARTYPE tp, long long param=0) {
+		Type = tp;
+		Integer = param;
+	}
+	FarMacroValue(const UUID& v) {
+		Type = FMVT_BINARY;
+		Binary.Data = &const_cast<UUID&>(v);
+		Binary.Size = sizeof(UUID);
+	}
+	FarMacroValue(FarMacroValue* arr, size_t count) {
+		Type = FMVT_ARRAY;
+		Array.Values = arr;
+		Array.Count = count;
+	}
 #ifdef FAR_USE_INTERNALS
 	explicit(false) FarMacroValue(const string& v)    { Type=FMVT_STRING; String=v.c_str(); }
 #endif // END FAR_USE_INTERNALS
@@ -2172,6 +2190,7 @@ enum FAR_REGEXP_CONTROL_COMMANDS
 	RECTL_BRACKETSCOUNT             = 6,
 	RECTL_NAMEDGROUPINDEX           = 7,
 	RECTL_GETNAMEDGROUPS            = 8,
+	RECTL_GETSTATUS                 = 9,
 };
 
 struct RegExpMatch
@@ -2193,6 +2212,14 @@ struct RegExpNamedGroup
 {
 	size_t Index;
 	const wchar_t* Name;
+};
+
+struct RegExpStatus
+{
+	size_t StructSize;
+	const wchar_t* Error; // Error description
+	intptr_t    Position; // position in regex pattern
+	int           Status; // 0 - ok
 };
 
 enum FAR_SETTINGS_CONTROL_COMMANDS
