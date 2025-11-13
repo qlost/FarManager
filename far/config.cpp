@@ -472,7 +472,7 @@ static void ApplyDefaultMaskGroups()
 {
 	static const std::pair<string_view, string_view> Sets[]
 	{
-		{ L"arc"sv,  L"*.zip,*.rar,*.[7bgxl]z,*.[bg]zip,*.tar,*.t[agbxl]z,*.z,*.ar[cj],*.r[0-9][0-9],*.a[0-9][0-9],*.bz2,*.cab,*.jar,*.lha,*.lzh,*.ha,*.ac[bei],*.pa[ck],*.rk,*.cpio,*.rpm,*.zoo,*.hqx,*.sit,*.ice,*.uc2,*.ain,*.imp,*.777,*.ufa,*.boa,*.bs[2a],*.sea,*.[ah]pk,*.ddi,*.x2,*.rkv,*.[lw]sz,*.h[ay]p,*.lim,*.sqz,*.chz,*.aa[br],*.msi"sv },
+		{ L"arc"sv,  L"*.zip,*.rar,*.[7bgxl]z,*.[bg]zip,*.tar,*.t[agbxl]z,*.z,*.ar[cj],*.r[0-9][0-9],*.a[0-9][0-9],*.bz2,*.cab,*.jar,*.lha,*.lzh,*.ha,*.ac[bei],*.pa[ck],*.rk,*.cpio,*.rpm,*.zoo,*.hqx,*.sit,*.ice,*.uc2,*.ain,*.imp,*.777,*.ufa,*.boa,*.bs[2a],*.sea,*.[ah]pk,*.ddi,*.x2,*.rkv,*.[lw]sz,*.h[ay]p,*.lim,*.sqz,*.chz,*.aa[br],*.msi,*.zst"sv },
 		{ L"temp"sv, L"*.bak,*.tmp"sv },
 		{ L"exec"sv, L"*.exe,*.cmd,*.bat,*.com,%PATHEXT%"sv },
 	};
@@ -489,10 +489,9 @@ static void FillMasksMenu(VMenu2& MasksMenu, int SelPos = 0)
 
 	for(const auto& [Name, Value]: ConfigProvider().GeneralCfg()->ValuesEnumerator<string>(L"Masks"sv))
 	{
-		MenuItemEx Item;
 		const int NameWidth = 10;
 		const auto DisplayName = pad_right(truncate_right(Name, NameWidth), NameWidth);
-		Item.Name = concat(DisplayName, L' ', BoxSymbols[BS_V1], L' ', Value);
+		menu_item_ex Item{ concat(DisplayName, L' ', BoxSymbols[BS_V1], L' ', Value) };
 		Item.ComplexUserData = Name;
 		MasksMenu.AddItem(Item);
 	}
@@ -912,8 +911,8 @@ void Options::EditorConfig(EditorOptions &EdOptRef, bool Local)
 		Builder.AddCheckbox(lng::MEditConfigSavePos, EdOptRef.SavePos);
 		Builder.AddCheckbox(lng::MEditConfigSaveShortPos, EdOptRef.SaveShortPos);
 		Builder.AddCheckbox(lng::MEditShareWrite, EdOpt.EditOpenedForWrite);
-		Builder.AddCheckbox(lng::MEditLockROFileModification, EdOpt.ReadOnlyLock, 1);
-		Builder.AddCheckbox(lng::MEditWarningBeforeOpenROFile, EdOpt.ReadOnlyLock, 2);
+		Builder.AddCheckbox(lng::MEditLockROFileModification, EdOpt.ReadOnlyLock, 0b01);
+		Builder.AddCheckbox(lng::MEditWarningBeforeOpenROFile, EdOpt.ReadOnlyLock, 0b10);
 		Builder.AddCheckbox(lng::MEditAutoDetectCodePage, EdOpt.AutoDetectCodePage);
 		Builder.AddText(lng::MEditConfigDefaultCodePage);
 		codepages::instance().FillCodePagesList(Items, false, false, false, false, false);
@@ -1813,6 +1812,19 @@ Options::Options():
 		std::ranges::sort(Exec.ExcludeCmds, string_sort::less_icase);
 	}));
 
+	strNoAutoDetectCP.SetCallback(option::notifier([&](string_view const Value)
+	{
+		NoAutoDetectCP.clear();
+
+		for (const auto& i: enum_tokens(Value, L",;"sv))
+		{
+			if (unsigned Codepage; from_string(i, Codepage, {}, 10))
+				NoAutoDetectCP.emplace(Codepage);
+			else
+				LOGWARNING(L"Unsupported value in CodePages.NoAutoDetectCP: [{}]"sv, i);
+		}
+	}));
+
 	// По умолчанию - брать плагины из основного каталога
 	LoadPlug.MainPluginDir = true;
 	LoadPlug.PluginsPersonal = true;
@@ -1894,6 +1906,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyEditor,                 L"ReadOnlyLock"sv,                  EdOpt.ReadOnlyLock, 0},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SaveEditorPos"sv,                 EdOpt.SavePos, true},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SaveEditorShortPos"sv,            EdOpt.SaveShortPos, true},
+		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchAllUseAltFileNameFormat"sv, EdOpt.SearchAllUseAltFileNameFormat, L"*.txt,*.log,*.md,*.csv,*.ini,*.cmd,*.map"sv},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchSelFound"sv,                EdOpt.SearchSelFound, false},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"SearchCursorAtEnd"sv,             EdOpt.SearchCursorAtEnd, false},
 		{FSSF_PRIVATE,           NKeyEditor,                 L"ShowKeyBar"sv,                    EdOpt.ShowKeyBar, true},
@@ -1970,6 +1983,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyPanel,                  L"ShellRightLeftArrowsRule"sv,      ShellRightLeftArrowsRule, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShowBytes"sv,                     ShowBytes, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShowHidden"sv,                    ShowHidden, true},
+		{FSSF_PANEL,             NKeyPanel,                  L"TreatDotFilesAsHidden"sv,         TreatDotFilesAsHidden, false},
 		{FSSF_PANEL,             NKeyPanel,                  L"ShortcutAlwaysChdir"sv,           ShortcutAlwaysChdir, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"SortFolderExt"sv,                 SortFolderExt, false},
 		{FSSF_PRIVATE,           NKeyPanel,                  L"RightClickSelect"sv,              RightClickSelect, false},
@@ -3091,7 +3105,7 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 	};
 	const auto OptionsMenuStrings = VMenu::AddHotkeys(OptionsMenu);
 
-	menu_item RightMenu[]=
+	menu_item RightMenu[]
 	{
 		{ msg(lng::MMenuBriefView), LIF_SELECTED, KEY_CTRL1 },
 		{ msg(lng::MMenuMediumView), 0, KEY_CTRL2 },
@@ -3362,8 +3376,14 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 				break;
 			case MENU_OPTIONS_LANGUAGES:   // Languages
 				{
-					auto InterfaceLanguage = strLanguage.Get();
-					if (SelectInterfaceLanguage(InterfaceLanguage))
+					const auto InterfaceLanguage = SelectInterfaceLanguage(strLanguage);
+
+					// User pressed Esc, quit
+					if (InterfaceLanguage.empty())
+						break;
+
+					// Try to load only if changed
+					if (InterfaceLanguage != strLanguage.Get())
 					{
 						try
 						{
@@ -3380,18 +3400,27 @@ void Options::ShellOptions(bool LastCommand, const MOUSE_EVENT_RECORD *MouseEven
 								{ lng::MOk });
 						}
 
-						auto HelpLanguage = strHelpLanguage.Get();
-						if (SelectHelpLanguage(HelpLanguage))
+						// Update only if loaded
+						if (strLanguage.Get() == InterfaceLanguage)
 						{
-							strHelpLanguage = HelpLanguage;
+							Global->CtrlObject->Plugins->ReloadLanguage();
+							os::env::set(L"FARLANG"sv, strLanguage);
+							PrepareUnitStr();
+							Global->WindowManager->InitKeyBar();
+							Global->CtrlObject->Cp()->RedrawKeyBar();
+							Global->CtrlObject->Cp()->SetScreenPosition();
 						}
-						Global->CtrlObject->Plugins->ReloadLanguage();
-						os::env::set(L"FARLANG"sv, strLanguage);
-						PrepareUnitStr();
-						Global->WindowManager->InitKeyBar();
-						Global->CtrlObject->Cp()->RedrawKeyBar();
-						Global->CtrlObject->Cp()->SetScreenPosition();
 					}
+
+					const auto HelpLanguage = SelectHelpLanguage(strHelpLanguage);
+
+					// User pressed Esc, quit
+					if (HelpLanguage.empty())
+						break;
+
+					// Try to load only if changed
+					if (HelpLanguage != strHelpLanguage.Get())
+						strHelpLanguage = HelpLanguage;
 
 					break;
 				}

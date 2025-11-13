@@ -569,6 +569,7 @@ public:
 		BoolOption ShowTitleBar;
 		BoolOption ShowScrollBar;
 		BoolOption EditOpenedForWrite;
+		StringOption SearchAllUseAltFileNameFormat;
 		BoolOption SearchSelFound;
 		BoolOption SearchCursorAtEnd;
 		Bool3Option ShowWhiteSpace;
@@ -814,6 +815,7 @@ public:
 	BoolOption ScreenSaver;
 	IntOption ScreenSaverTime;
 	BoolOption ShowHidden;
+	BoolOption TreatDotFilesAsHidden;
 	BoolOption ShortcutAlwaysChdir;
 	BoolOption Highlight;
 	BoolOption RightClickSelect;
@@ -1015,6 +1017,9 @@ public:
 	// Если строка пустая никакой фильтрации кодовых страниц в UCD детекте не будет.
 	// Если "-1", то в зависимости от CPMenuMode (Ctrl-H в меню кодовых страниц) фильтрация UCD либо будет
 	// отключена, либо будут разрешенны только избранные и системные (OEM ANSI) кодовые страницы.
+
+	// The parsed value of strNoAutoDetectCP
+	std::unordered_set<uintptr_t> NoAutoDetectCP;
 
 	StringOption strTitleAddons;
 	StringOption strEditorTitleFormat;

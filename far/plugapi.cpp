@@ -92,11 +92,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "color_picker.hpp"
 #include "log.hpp"
 #include "filestr.hpp"
+#include "colormix.hpp"
 
 // Platform:
 #include "platform.hpp"
 #include "platform.fs.hpp"
-#include "platform.process.hpp"
 
 // Common:
 #include "common/enum_tokens.hpp"
@@ -160,37 +160,6 @@ namespace cfunctions
 		qsort_param = user_param;
 		return std::qsort(base, nel, width, qsort_comparer_wrapper);
 	}
-}
-
-// BUGBUG duplicate
-template<typename callable_type>
-auto cpp_try(callable_type const& Callable, source_location const& Location = source_location::current())
-{
-	using return_type = typename function_traits<callable_type>::result_type;
-
-	const auto handle_exception = [&] /*[[noreturn]]*/ (const auto& Handler, auto&&... Args)
-	{
-		if (Handler(FWD(Args)..., nullptr, Location))
-			if (use_terminate_handler())
-				os::process::terminate_by_user(EXIT_FAILURE);
-
-		throw;
-	};
-
-	return cpp_try(
-		Callable,
-		[&](source_location const&) -> return_type
-		{
-			handle_exception(handle_unknown_exception);
-			std::unreachable();
-		},
-		[&](std::exception const& e, source_location const&) -> return_type
-		{
-			handle_exception(handle_std_exception, e);
-			std::unreachable();
-		},
-		Location
-	);
 }
 
 class pluginapi_sort_accessor
@@ -523,9 +492,9 @@ intptr_t WINAPI apiAdvControl(const UUID* PluginId, ADVANCED_CONTROL_COMMANDS Co
 			Return - TRUE если OK или FALSE если индекс неверен.
 		*/
 		case ACTL_GETCOLOR:
-			if (static_cast<size_t>(Param1) < Global->Opt->Palette.size())
+			if (static_cast<size_t>(Param1) < COL_LASTPALETTECOLOR)
 			{
-				*static_cast<FarColor*>(Param2) = Global->Opt->Palette[static_cast<size_t>(Param1)];
+				*static_cast<FarColor*>(Param2) = colors::PaletteColorToFarColor(static_cast<PaletteColors>(Param1));
 				return TRUE;
 			}
 			return FALSE;
@@ -838,9 +807,7 @@ intptr_t WINAPI apiMenuFn(
 
 			for (const auto& i: std::span(Item, ItemsNumber))
 			{
-				MenuItemEx CurItem;
-				CurItem.Flags = i.Flags;
-				CurItem.Name.clear();
+				menu_item_ex CurItem{ i.Flags };
 				// исключаем MultiSelected, т.к. у нас сейчас движок к этому не приспособлен, оставляем только первый
 				const auto SelCurItem = CurItem.Flags&LIF_SELECTED;
 				CurItem.Flags&=~LIF_SELECTED;
@@ -869,7 +836,7 @@ intptr_t WINAPI apiMenuFn(
 				FarMenu->SetSelectPos(0,1);
 
 			if (Flags & (FMENU_AUTOHIGHLIGHT | FMENU_REVERSEAUTOHIGHLIGHT))
-				FarMenu->AssignHighlights((Flags & FMENU_REVERSEAUTOHIGHLIGHT) != 0);
+				FarMenu->EnableAutoHighlight((Flags & FMENU_REVERSEAUTOHIGHLIGHT) != 0);
 
 			FarMenu->SetTitle(NullToEmpty(Title));
 
@@ -982,6 +949,39 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 		if (!checkCoord(X1, X2) || !checkCoord(Y1, Y2))
 			return hDlg;
 
+		if (Flags & FDLG_STAY_ON_TOP)
+		{
+			Flags &= ~FDLG_NONMODAL;
+			switch (Manager::GetCurrentWindowType())
+			{
+				case windowtype_panels:
+				case windowtype_viewer:
+				case windowtype_editor:
+					{
+						const std::span Items(Item, ItemsNumber);
+						const auto WrongItem = std::ranges::find_if(Items, [](const auto& item)
+						{
+							switch (item.Type)
+							{
+								case DI_TEXT       :
+								case DI_VTEXT      :
+								case DI_SINGLEBOX  :
+								case DI_DOUBLEBOX  :
+								case DI_USERCONTROL:
+									return false;
+								default:
+									return true;
+							}
+						});
+						if (WrongItem != Items.end())
+							return hDlg;
+					}
+					break;
+				default:
+					return hDlg;
+			}
+		}
+
 		if (const auto Plugin = Global->CtrlObject->Plugins->FindPlugin(*PluginId))
 		{
 			class plugin_dialog: public Dialog
@@ -989,9 +989,9 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 				struct private_tag { explicit private_tag() = default; };
 
 			public:
-				static dialog_ptr create(std::span<const FarDialogItem> const Src, FARWINDOWPROC const DlgProc, void* const InitParam)
+				static dialog_ptr create(std::span<const FarDialogItem> const Src, FARWINDOWPROC const DlgProc, void* const InitParam, window_ptr Owner = nullptr)
 				{
-					return std::make_shared<plugin_dialog>(private_tag(), Src, DlgProc, InitParam);
+					return std::make_shared<plugin_dialog>(private_tag(), Src, DlgProc, InitParam, Owner);
 				}
 
 				intptr_t Proc(Dialog* hDlg, intptr_t Msg, intptr_t Param1, void* Param2) const
@@ -999,8 +999,8 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 					return m_Proc(hDlg, Msg, Param1, Param2);
 				}
 
-				plugin_dialog(private_tag, std::span<const FarDialogItem> const Src, FARWINDOWPROC const DlgProc, void* const InitParam):
-					Dialog(Dialog::private_tag(), Src, DlgProc? [this](Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2) { return Proc(Dlg, Msg, Param1, Param2); } : dialog_handler(), InitParam),
+				plugin_dialog(private_tag, std::span<const FarDialogItem> const Src, FARWINDOWPROC const DlgProc, void* const InitParam, window_ptr Owner):
+					Dialog(Dialog::private_tag(), Src, DlgProc? [this](Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2) { return Proc(Dlg, Msg, Param1, Param2); } : dialog_handler(), InitParam, Owner),
 					m_Proc(DlgProc)
 				{}
 
@@ -1008,7 +1008,7 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 				FARWINDOWPROC m_Proc;
 			};
 
-			const auto FarDialog = plugin_dialog::create({ Item, ItemsNumber }, DlgProc, Param);
+			const auto FarDialog = plugin_dialog::create({ Item, ItemsNumber }, DlgProc, Param, Flags & FDLG_STAY_ON_TOP ? Global->WindowManager->GetCurrentWindow() : nullptr);
 
 			if (FarDialog->InitOK())
 			{
@@ -1043,6 +1043,11 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 				if (Flags & FDLG_KEEPCONSOLETITLE)
 					FarDialog->SetDialogMode(DMODE_KEEPCONSOLETITLE);
 
+				if (Flags & FDLG_STAY_ON_TOP)
+				{
+					FarDialog->SetFlags(WINDOW_BYPASS_INPUT);
+				}
+
 				FarDialog->SetHelp(NullToEmpty(HelpTopic));
 
 				FarDialog->SetId(*Id);
@@ -1051,8 +1056,25 @@ HANDLE WINAPI apiDialogInit(const UUID* PluginId, const UUID* Id, intptr_t X1, i
 				*/
 				FarDialog->SetPluginOwner(UuidToPlugin(PluginId));
 
+				if (FarDialog->IsBypassInput())
+				{
+					if(auto Owner=FarDialog->GetOwner())
+					{
+						Owner->AddChild(FarDialog);
+						FarDialog->ClearDone();
+						FarDialog->InitDialog();
+						if (FarDialog->GetExitCode() == -1)
+						{
+							FarDialog->SetDialogMode(DMODE_BEGINLOOP);
+							Global->WindowManager->RefreshWindow(Owner);
+							Global->WindowManager->PluginCommit();
+						}
+					}
+				}
+
 				if (FarDialog->GetCanLoseFocus())
 				{
+
 					FarDialog->Process();
 					Global->WindowManager->PluginCommit();
 				}
@@ -1080,6 +1102,9 @@ intptr_t WINAPI apiDialogRun(HANDLE hDlg) noexcept
 		const auto FarDialog = static_cast<Dialog*>(hDlg);
 
 		if (FarDialog->GetCanLoseFocus())
+			return -1;
+
+		if (FarDialog->IsBypassInput())
 			return -1;
 
 		FarDialog->Process();
@@ -1248,15 +1273,40 @@ intptr_t WINAPI apiPanelControl(HANDLE hPlugin,FILE_CONTROL_COMMANDS Command,int
 		if (!Global->CtrlObject || Global->WindowManager->ManagerIsDown())
 			return FALSE;
 
+		static size_t UserScreenInvocations{};
+
 		if (Command == FCTL_GETUSERSCREEN)
 		{
-			Global->WindowManager->Desktop()->ConsoleSession().EnterPluginContext(!Param1);
+			if (!UserScreenInvocations++)
+			{
+				Global->WindowManager->Desktop()->ConsoleSession().activate({}, !Param1);
+				console.start_prompt();
+				console.start_command();
+				console.start_output();
+			}
+			else
+				Global->WindowManager->Desktop()->ConsoleSession().snap(!Param1);
+
 			return TRUE;
 		}
 
 		if (Command == FCTL_SETUSERSCREEN)
 		{
-			Global->WindowManager->Desktop()->ConsoleSession().LeavePluginContext(!Param1);
+			// FCTL_SETUSERSCREEN without FCTL_GETUSERSCREEN, 1.x-like
+			if (!UserScreenInvocations)
+			{
+				Global->WindowManager->Desktop()->ConsoleSession().snap(!Param1);
+				return TRUE;
+			}
+
+			if (!--UserScreenInvocations)
+			{
+				Global->WindowManager->Desktop()->ConsoleSession().deactivate(!Param1);
+				console.command_finished();
+			}
+			else
+				Global->WindowManager->Desktop()->ConsoleSession().snap(!Param1);
+
 			return TRUE;
 		}
 
@@ -2273,7 +2323,7 @@ static uintptr_t WINAPI apiDetectCodePage(DetectCodePageInfo* Info) noexcept
 		assert(Info);
 		assert(Info->StructSize);
 
-		os::fs::file const File(Info->FileName, FILE_READ_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING);
+		os::fs::file const File(Info->FileName, FILE_READ_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
 		if (!File)
 			return uintptr_t{};
 
@@ -2531,7 +2581,24 @@ static intptr_t WINAPI apiRegExpControl(HANDLE hHandle, FAR_REGEXP_CONTROL_COMMA
 		struct regex_handle
 		{
 			RegExp Regex;
-			named_regex_match NamedMatch;
+			std::vector<RegExpNamedGroup> NamedGroupsFlat;
+			std::wstring LastError;
+			intptr_t     LastPos{};
+			int       LastStatus{};
+
+			void clear_status()
+			{
+				LastError.clear();
+				LastPos = 0;
+				LastStatus = 0;
+			}
+
+			void set_status(const regex_exception& e)
+			{
+				LastError = e.message();
+				LastPos = e.position();
+				LastStatus = static_cast<int>(e.code());
+			}
 		};
 
 		switch (Command)
@@ -2545,48 +2612,54 @@ static intptr_t WINAPI apiRegExpControl(HANDLE hHandle, FAR_REGEXP_CONTROL_COMMA
 			return true;
 
 		case RECTL_COMPILE:
+		{
+			auto& Handle = *static_cast<regex_handle*>(hHandle);
 			try
 			{
-				static_cast<regex_handle*>(hHandle)->Regex.Compile(static_cast<const wchar_t*>(Param2), OP_PERLSTYLE);
+				Handle.clear_status();
+				Handle.NamedGroupsFlat.clear();
+				Handle.Regex.Compile(static_cast<const wchar_t*>(Param2), OP_PERLSTYLE);
 				return true;
 			}
 			catch (regex_exception const& e)
 			{
 				LOGERROR(L"RECTL_COMPILE error: {}; position {}"sv, e.message(), e.position());
+				Handle.set_status(e);
 				return false;
 			}
+		}
 
 		case RECTL_OPTIMIZE:
 			return static_cast<regex_handle*>(hHandle)->Regex.Optimize();
 
 		case RECTL_MATCHEX:
-		{
-			auto& Handle = *static_cast<regex_handle*>(hHandle);
-			const auto data = static_cast<RegExpSearch*>(Param2);
-			regex_match Match;
-
-			if (!Handle.Regex.MatchEx({ data->Text, static_cast<size_t>(data->Length) }, data->Position, Match, &Handle.NamedMatch))
-				return false;
-
-			const auto MaxSize = std::min(static_cast<size_t>(data->Count), Match.Matches.size());
-			std::copy_n(Match.Matches.cbegin(), MaxSize, data->Match);
-			data->Count = MaxSize;
-			return true;
-		}
-
 		case RECTL_SEARCHEX:
 		{
 			auto& Handle = *static_cast<regex_handle*>(hHandle);
-			const auto data = static_cast<RegExpSearch*>(Param2);
-			regex_match Match;
+			try
+			{
+				Handle.clear_status();
+				const auto data = static_cast<RegExpSearch*>(Param2);
+				regex_match Match;
 
-			if (!Handle.Regex.SearchEx({ data->Text, static_cast<size_t>(data->Length) }, data->Position, Match, &Handle.NamedMatch))
+				const auto Handler = Command == RECTL_SEARCHEX?
+					&RegExp::SearchEx :
+					&RegExp::MatchEx;
+
+				if (!(Handle.Regex.*Handler)({ data->Text, static_cast<size_t>(data->Length) }, data->Position, Match))
+					return false;
+
+				const auto MaxSize = std::min(static_cast<size_t>(data->Count), Match.Matches.size());
+				std::copy_n(Match.Matches.cbegin(), MaxSize, data->Match);
+				data->Count = MaxSize;
+				return true;
+			}
+			catch (regex_exception const& e)
+			{
+				LOGERROR(L"RECTL_{}CHEX error: {}; position {}"sv, Command == RECTL_SEARCHEX ? L"SEAR"s : L"MAT"s, e.message(), e.position());
+				Handle.set_status(e);
 				return false;
-
-			const auto MaxSize = std::min(static_cast<size_t>(data->Count), Match.Matches.size());
-			std::copy_n(Match.Matches.cbegin(), MaxSize, data->Match);
-			data->Count = MaxSize;
-			return true;
+			}
 		}
 
 		case RECTL_BRACKETSCOUNT:
@@ -2596,8 +2669,39 @@ static intptr_t WINAPI apiRegExpControl(HANDLE hHandle, FAR_REGEXP_CONTROL_COMMA
 		{
 			const auto& Handle = *static_cast<regex_handle const*>(hHandle);
 			const auto Str = static_cast<wchar_t const*>(Param2);
-			const auto Iterator = Handle.NamedMatch.Matches.find(Str);
-			return Iterator == Handle.NamedMatch.Matches.cend()? 0 : Iterator->second;
+			const auto& NamedGroups = Handle.Regex.GetNamedGroups();
+			const auto Iterator = NamedGroups.find(Str);
+			return Iterator == NamedGroups.cend()? 0 : Iterator->second;
+		}
+
+		case RECTL_GETNAMEDGROUPS:
+		{
+			auto& Handle = *static_cast<regex_handle*>(hHandle);
+
+			if (Handle.NamedGroupsFlat.empty())
+			{
+				const auto& NamedGroups = Handle.Regex.GetNamedGroups();
+				Handle.NamedGroupsFlat.reserve(NamedGroups.size());
+				std::ranges::transform(NamedGroups, std::back_inserter(Handle.NamedGroupsFlat), [](const auto& i)
+				{
+					return RegExpNamedGroup{ i.second, i.first.c_str() };
+				});
+
+				std::ranges::sort(Handle.NamedGroupsFlat, {}, &RegExpNamedGroup::Index);
+			}
+
+			*static_cast<RegExpNamedGroup const**>(Param2) = Handle.NamedGroupsFlat.data();
+			return Handle.NamedGroupsFlat.size();
+		}
+
+		case RECTL_GETSTATUS:
+		{
+			auto& Handle    = *static_cast<regex_handle*>(hHandle);
+			auto& Status    = *static_cast<RegExpStatus*>(Param2);
+			Status.Error    = Handle.LastError.c_str();
+			Status.Position = Handle.LastPos;
+			Status.Status   = Handle.LastStatus;
+			return true;
 		}
 
 		default:

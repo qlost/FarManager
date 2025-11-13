@@ -456,7 +456,7 @@ window_ptr Manager::WindowMenu()
 			const auto Hotkey = static_cast<wchar_t>(i < 10? L'0' + i : i < 36? L'A' + i - 10 : L' ');
 			inplace::escape_ampersands(Name);
 			/*  добавляется "*" если файл изменен */
-			MenuItemEx ModalMenuItem(far::format(
+			menu_item_ex ModalMenuItem{ far::format(
 				L"{}{}  {:<{}} {} {}"sv,
 				Hotkey == L' '? L""sv : L"&"sv,
 				Hotkey,
@@ -464,7 +464,7 @@ window_ptr Manager::WindowMenu()
 				TypesWidth,
 				Window->IsFileModified()? L'*' : L' ',
 				Name
-			));
+			) };
 			ModalMenuItem.ComplexUserData = Window.get();
 			ModalMenuItem.SetSelect(Window == GetBottomWindow());
 			ModalMenu->AddItem(ModalMenuItem);
@@ -666,12 +666,13 @@ void Manager::ExitMainLoop(int Ask, int ExitCode)
 		*/
 		if (ExitAll() || Global->CloseFAR)
 		{
-			Global->FarExitCode = ExitCode;
-			Global->CtrlObject->Plugins->NotifyExitLuaMacro();
-
 			const auto cp = Global->CtrlObject->Cp();
-			if (!cp || (!cp->LeftPanel()->ProcessPluginEvent(FE_CLOSE, nullptr) && !cp->RightPanel()->ProcessPluginEvent(FE_CLOSE, nullptr)))
-				EndLoop=true;
+			if (!cp || (!cp->LeftPanel()->ProcessPluginEvent(FE_CLOSE, nullptr) && !cp->RightPanel()->ProcessPluginEvent(FE_CLOSE, nullptr)) || Global->CloseFAR)
+			{
+				Global->CtrlObject->Plugins->NotifyExitLuaMacro();
+				EndLoop = true;
+				Global->FarExitCode = ExitCode;
+			}
 		}
 	}
 }
@@ -797,7 +798,9 @@ bool Manager::ProcessKey(Key key)
 		}
 
 		GetCurrentWindow()->UpdateKeyBar();
-		GetCurrentWindow()->ProcessKey(key);
+		const auto Iter = std::ranges::find_if(GetCurrentWindow()->m_children | std::views::reverse, [key](const auto& item) { const auto real = item.lock(); return real && real->ProcessKey(key); });
+		if (Iter == GetCurrentWindow()->m_children.crend())
+			GetCurrentWindow()->ProcessKey(key);
 	}
 
 	return false;
@@ -817,7 +820,11 @@ bool Manager::ProcessMouse(const MOUSE_EVENT_RECORD* MouseEvent) const
 	}
 
 	if (GetCurrentWindow())
-		ret=GetCurrentWindow()->ProcessMouse(MouseEvent);
+	{
+		const auto Iter = std::ranges::find_if(GetCurrentWindow()->m_children | std::views::reverse, [MouseEvent,&ret](const auto& item) { const auto real = item.lock(); return (ret = real && real->ProcessMouse(MouseEvent)); });
+		if (Iter == GetCurrentWindow()->m_children.crend())
+			ret=GetCurrentWindow()->ProcessMouse(MouseEvent);
+	}
 
 	return ret;
 }

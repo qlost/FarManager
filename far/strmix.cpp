@@ -45,10 +45,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "preservestyle.hpp"
 #include "locale.hpp"
 #include "encoding.hpp"
-#include "regex_helpers.hpp"
 #include "string_utils.hpp"
 #include "global.hpp"
 #include "codepage.hpp"
+#include "interf.hpp"
 
 // Platform:
 
@@ -155,6 +155,99 @@ void inplace::QuoteOuterSpace(string& Str)
 		quote(Str);
 }
 
+void inplace::cut_left(std::wstring& Str, size_t const CellsAvailable)
+{
+	for (;;)
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+
+		if (CharsConsumed == Str.size())
+			break;
+
+		Str.erase(0, is_valid_surrogate_pair(Str)? 2 : 1);
+	}
+}
+
+void inplace::cut_left(std::wstring_view& Str, size_t const CellsAvailable)
+{
+	for (;;)
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+
+		if (CharsConsumed == Str.size())
+			break;
+
+		Str.remove_prefix(is_valid_surrogate_pair(Str)? 2 : 1);
+	}
+}
+
+void inplace::cut_right(std::wstring& Str, size_t const CellsAvailable)
+{
+	size_t CharsConsumed{}, CellsConsumed{};
+	chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+	Str.resize(CharsConsumed);
+}
+
+void inplace::cut_right(std::wstring_view& Str, size_t const CellsAvailable)
+{
+	size_t CharsConsumed{}, CellsConsumed{};
+	chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+	Str.remove_suffix(Str.size() - CharsConsumed);
+}
+
+void inplace::pad_left(std::wstring& Str, size_t const CellsAvailable, wchar_t const Padding)
+{
+	for (;;)
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+
+		if (CellsConsumed == CellsAvailable)
+			break;
+
+		Str.insert(0, 1, Padding);
+	}
+
+}
+
+void inplace::pad_right(std::wstring& Str, size_t const CellsAvailable, wchar_t const Padding)
+{
+	size_t CharsConsumed{}, CellsConsumed{};
+	chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+	Str.append(CellsAvailable - CellsConsumed, Padding);
+}
+
+void inplace::fit_to_left(std::wstring& Str, size_t const CellsAvailable)
+{
+	cut_right(Str, CellsAvailable);
+	pad_right(Str, CellsAvailable);
+}
+
+void inplace::fit_to_center(std::wstring& Str, size_t const CellsAvailable)
+{
+	size_t CharsConsumed{}, CellsConsumed{};
+	chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+	if (CellsConsumed < CellsAvailable)
+	{
+		const auto LeftPadding = (CellsAvailable - CellsConsumed) / 2;
+		const auto RightPadding = CellsAvailable - CellsConsumed - LeftPadding;
+		Str.insert(0, LeftPadding, L' ');
+		Str.append(RightPadding, L' ');
+	}
+	else
+	{
+		cut_right(Str, CellsAvailable);
+	}
+}
+
+void inplace::fit_to_right(std::wstring& Str, size_t const CellsAvailable)
+{
+	cut_right(Str, CellsAvailable);
+	pad_left(Str, CellsAvailable);
+}
+
 // TODO: "…" is displayed as "." in raster fonts. Make it lng-customisable?
 static const auto Dots = L"…"sv;
 
@@ -175,24 +268,53 @@ static auto legacy_operation(wchar_t* Str, int MaxLength, function_ref<void(std:
 	return Str;
 }
 
-void inplace::truncate_right(string& Str, size_t const MaxLength)
+void inplace::truncate_right(string& Str, size_t CellsAvailable)
 {
-	if (Str.size() <= MaxLength)
+	if (Str.empty())
 		return;
 
-	const auto CurrentDots = Dots.substr(0, MaxLength);
-	Str.replace(MaxLength - CurrentDots.size(), Str.size() - MaxLength + CurrentDots.size(), CurrentDots);
+	if (!CellsAvailable)
+	{
+		Str.clear();
+		return;
+	}
+
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+		if (CharsConsumed == Str.size())
+			return;
+	}
+
+	string_view Prefix, CurrentDots;
+
+	{
+		size_t DotsCharsConsumed{}, CellsConsumedByDots{};
+		chars_to_cells(Dots, DotsCharsConsumed, CellsAvailable, CellsConsumedByDots);
+		CurrentDots = Dots.substr(0, DotsCharsConsumed);
+		CellsAvailable -= CellsConsumedByDots;
+	}
+
+	if (CellsAvailable)
+	{
+		Prefix = string_view(Str);
+		size_t PrefixCharsConsumed{}, CellsConsumedByPrefix{};
+		chars_to_cells(Prefix, PrefixCharsConsumed, CellsAvailable, CellsConsumedByPrefix);
+		Prefix = Prefix.substr(0, PrefixCharsConsumed);
+	}
+
+	Str.replace(Prefix.size(), Str.size() - Prefix.size(), CurrentDots);
 }
 
-string truncate_right(string Str, size_t const MaxLength)
+string truncate_right(string Str, size_t const CellsAvailable)
 {
-	inplace::truncate_right(Str, MaxLength);
+	inplace::truncate_right(Str, CellsAvailable);
 	return Str;
 }
 
-string truncate_right(string_view const Str, size_t const MaxLength)
+string truncate_right(string_view const Str, size_t const CellsAvailable)
 {
-	return truncate_right(string(Str), MaxLength);
+	return truncate_right(string(Str), CellsAvailable);
 }
 
 wchar_t* legacy::truncate_left(wchar_t *Str, int MaxLength)
@@ -208,44 +330,123 @@ wchar_t* legacy::truncate_left(wchar_t *Str, int MaxLength)
 	});
 }
 
-void inplace::truncate_left(string& Str, size_t const MaxLength)
+void inplace::truncate_left(string& Str, size_t CellsAvailable)
 {
-	if (Str.size() <= MaxLength)
+	if (Str.empty())
 		return;
 
-	const auto CurrentDots = Dots.substr(0, MaxLength);
-	Str.replace(0, Str.size() - MaxLength + CurrentDots.size(), CurrentDots);
+	if (!CellsAvailable)
+	{
+		Str.clear();
+		return;
+	}
+
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+		if (CharsConsumed == Str.size())
+			return;
+	}
+
+	string_view CurrentDots, Suffix;
+
+	{
+		size_t DotsCharsConsumed{}, CellsConsumedByDots{};
+		chars_to_cells(Dots, DotsCharsConsumed, CellsAvailable, CellsConsumedByDots);
+		CurrentDots = Dots.substr(0, DotsCharsConsumed);
+		CellsAvailable -= CellsConsumedByDots;
+	}
+
+	if (CellsAvailable)
+	{
+		Suffix = string_view(Str);
+		for (;;)
+		{
+			size_t SuffixCharsConsumed{}, CellsConsumedBySuffix{};
+			chars_to_cells(Suffix, SuffixCharsConsumed, CellsAvailable, CellsConsumedBySuffix);
+			if (SuffixCharsConsumed == Suffix.size())
+				break;
+
+			Suffix.remove_prefix(is_valid_surrogate_pair(Suffix)? 2 : 1);
+		}
+	}
+
+	Str.replace(0, Str.size() - Suffix.size(), CurrentDots);
 }
 
-string truncate_left(string Str, size_t const MaxLength)
+string truncate_left(string Str, size_t const CellsAvailable)
 {
-	inplace::truncate_left(Str, MaxLength);
+	inplace::truncate_left(Str, CellsAvailable);
 	return Str;
 }
 
-string truncate_left(string_view const Str, size_t const MaxLength)
+string truncate_left(string_view const Str, size_t const CellsAvailable)
 {
-	return truncate_left(string(Str), MaxLength);
+	return truncate_left(string(Str), CellsAvailable);
 }
 
-void inplace::truncate_center(string& Str, size_t const MaxLength)
+void inplace::truncate_center(string& Str, size_t CellsAvailable)
 {
-	if (Str.size() <= MaxLength)
+	if (Str.empty())
 		return;
 
-	const auto CurrentDots = Dots.substr(0, MaxLength);
-	Str.replace((MaxLength - CurrentDots.size()) / 2, Str.size() - MaxLength + CurrentDots.size(), CurrentDots);
+	if (!CellsAvailable)
+	{
+		Str.clear();
+		return;
+	}
+
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+		if (CharsConsumed == Str.size())
+			return;
+	}
+
+	string_view Prefix, CurrentDots, Suffix;
+
+	{
+		size_t DotsCharsConsumed{}, CellsConsumedByDots{};
+		chars_to_cells(Dots, DotsCharsConsumed, CellsAvailable, CellsConsumedByDots);
+		CurrentDots = Dots.substr(0, DotsCharsConsumed);
+		CellsAvailable -= CellsConsumedByDots;
+	}
+
+	if (CellsAvailable)
+	{
+		Prefix = string_view(Str);
+		size_t PrefixCharsConsumed{}, CellsConsumedByPrefix{};
+		chars_to_cells(Prefix, PrefixCharsConsumed, CellsAvailable / 2, CellsConsumedByPrefix);
+		CellsAvailable -= CellsConsumedByPrefix;
+		Prefix = Prefix.substr(0, PrefixCharsConsumed);
+
+		if (CellsAvailable)
+		{
+			Suffix = string_view(Str).substr(PrefixCharsConsumed);
+			for (;;)
+			{
+				size_t SuffixCharsConsumed{}, CellsConsumedBySuffix{};
+				chars_to_cells(Suffix, SuffixCharsConsumed, CellsAvailable, CellsConsumedBySuffix);
+				if (SuffixCharsConsumed == Suffix.size())
+					break;
+
+				Suffix.remove_prefix(is_valid_surrogate_pair(Suffix)? 2 : 1);
+			}
+		}
+	}
+
+	Str.replace(Prefix.size(), Str.size() - Prefix.size() - Suffix.size(), CurrentDots);
 }
 
-string truncate_center(string Str, size_t const MaxLength)
+string truncate_center(string Str, size_t const CellsAvailable)
 {
-	inplace::truncate_center(Str, MaxLength);
+	inplace::truncate_center(Str, CellsAvailable);
 	return Str;
 }
 
-string truncate_center(string_view const Str, size_t const MaxLength)
+string truncate_center(string_view const Str, size_t const CellsAvailable)
 {
-	return truncate_center(string(Str), MaxLength);
+	return truncate_center(string(Str), CellsAvailable);
 }
 
 static auto StartOffset(string_view const Str)
@@ -270,25 +471,68 @@ wchar_t* legacy::truncate_path(wchar_t*Str, int MaxLength)
 	});
 }
 
-void inplace::truncate_path(string& Str, size_t const MaxLength)
+void inplace::truncate_path(string& Str, size_t CellsAvailable)
 {
-	if (Str.size() <= MaxLength)
+	if (Str.empty())
 		return;
 
-	const auto CurrentDots = Dots.substr(0, MaxLength);
-	const auto Offset = std::min(StartOffset(Str), MaxLength - CurrentDots.size());
-	Str.replace(Offset, Str.size() - MaxLength + CurrentDots.size(), CurrentDots);
+	if (!CellsAvailable)
+	{
+		Str.clear();
+		return;
+	}
+
+	{
+		size_t CharsConsumed{}, CellsConsumed{};
+		chars_to_cells(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+		if (CharsConsumed == Str.size())
+			return;
+	}
+
+	string_view Prefix, CurrentDots, Suffix;
+
+	{
+		size_t DotsCharsConsumed{}, CellsConsumedByDots{};
+		chars_to_cells(Dots, DotsCharsConsumed, CellsAvailable, CellsConsumedByDots);
+		CurrentDots = Dots.substr(0, DotsCharsConsumed);
+		CellsAvailable -= CellsConsumedByDots;
+	}
+
+	if (CellsAvailable)
+	{
+		Prefix = string_view(Str).substr(0, StartOffset(Str));
+		size_t PrefixCharsConsumed{}, CellsConsumedByPrefix{};
+		chars_to_cells(Prefix, PrefixCharsConsumed, CellsAvailable, CellsConsumedByPrefix);
+		CellsAvailable -= CellsConsumedByPrefix;
+		Prefix = Prefix.substr(0, PrefixCharsConsumed);
+
+		if (CellsAvailable)
+		{
+			Suffix = string_view(Str).substr(PrefixCharsConsumed);
+			for (;;)
+			{
+				size_t SuffixCharsConsumed{}, CellsConsumedBySuffix{};
+				chars_to_cells(Suffix, SuffixCharsConsumed, CellsAvailable, CellsConsumedBySuffix);
+				if (SuffixCharsConsumed == Suffix.size())
+					break;
+
+				Suffix.remove_prefix(is_valid_surrogate_pair(Suffix)? 2 : 1);
+			}
+		}
+	}
+
+	Str.replace(Prefix.size(), Str.size() - Prefix.size() - Suffix.size(), CurrentDots);
 }
 
-string truncate_path(string Str, size_t const MaxLength)
+string truncate_path(string Str, size_t const CellsAvailable)
 {
-	inplace::truncate_path(Str, MaxLength);
+	inplace::truncate_path(Str, CellsAvailable);
 	return Str;
 }
 
-string truncate_path(string_view const Str, size_t const MaxLength)
+string truncate_path(string_view const Str, size_t const CellsAvailable)
 {
-	return truncate_path(string(Str), MaxLength);
+	return truncate_path(string(Str), CellsAvailable);
 }
 
 bool IsCaseMixed(const string_view Str)
@@ -453,25 +697,52 @@ static string FileSizeToStrImpl(unsigned long long const FileSize, int const Wid
 			const auto RawIntegral = FileSize / Denominator;
 			const auto RawFractional = static_cast<double>(FileSize % Denominator) / static_cast<double>(Denominator);
 
-			const auto FixedPrecision = 0; // 0 for floating, else fixed. TODO: option?
+			size_t NumDigits = RawIntegral < 10? 2 : RawIntegral < 100? 1 : 0;
 
-			if (const auto NumDigits = FixedPrecision? std::min(FixedPrecision, static_cast<int>(std::size(PrecisionMultiplier) - 1)) : RawIntegral < 10? 2 : RawIntegral < 100? 1 : 0)
+			int IntegralPart, FractionalPart;
+
+			for (;;)
 			{
-				const auto [IntegralPart, FractionalPart] = [&]
+				const auto Multiplier = PrecisionMultiplier[NumDigits];
+				const auto FractionalDigits = RawFractional * static_cast<double>(Multiplier);
+				const auto RoundedFractionalDigits = static_cast<unsigned>(std::round(FractionalDigits));
+
+				if (RoundedFractionalDigits == Multiplier)
 				{
-					const auto Multiplier = PrecisionMultiplier[NumDigits];
-					const auto FractionalDigits = RawFractional * static_cast<double>(Multiplier);
-					const auto UseRound = true;
-					const auto RoundedFractionalDigits = static_cast<unsigned>(UseRound? std::round(FractionalDigits) : FractionalDigits);
-					return RoundedFractionalDigits == Multiplier? std::pair(RawIntegral + 1, 0u) : std::pair(RawIntegral, RoundedFractionalDigits);
-				}();
+					IntegralPart = RawIntegral + 1;
+					FractionalPart = 0;
+				}
+				else
+				{
+					IntegralPart = RawIntegral;
+					FractionalPart = RoundedFractionalDigits;
+				}
 
-				Str = concat(str(IntegralPart), Locale.decimal_separator(), pad_left(str(FractionalPart), NumDigits, L'0'));
+				const auto IntegralPartLength = IntegralPart < 10? 1uz : IntegralPart < 100? 2 : 3;
+
+				NumDigits = std::min(NumDigits, 3 - IntegralPartLength);
+
+				const auto SpaceRequired = IntegralPartLength + (NumDigits != 0) + NumDigits + !UseCompact + 1;
+
+				if (Width && Width < SpaceRequired && NumDigits)
+				{
+					auto NumDigitsWithSeparator = NumDigits + 1;
+					if (const auto Overflow = SpaceRequired - Width; Overflow <= NumDigitsWithSeparator)
+					{
+						NumDigitsWithSeparator -= Overflow;
+						NumDigits = NumDigitsWithSeparator? NumDigitsWithSeparator - 1 : 0;
+
+						if (NumDigits)
+							continue;
+					}
+				}
+
+				break;
 			}
-			else
-			{
-				Str = str(static_cast<unsigned long long>(std::round(static_cast<double>(RawIntegral) + RawFractional)));
-			}
+
+			Str = NumDigits?
+				concat(str(IntegralPart), Locale.decimal_separator(), pad_left(str(FractionalPart), NumDigits, L'0')) :
+				str(static_cast<unsigned long long>(std::round(static_cast<double>(RawIntegral) + RawFractional)));
 		}
 
 		return FormatSize(std::move(Str), UnitIndex);
@@ -489,7 +760,7 @@ static string FileSizeToStrImpl(unsigned long long const FileSize, int const Wid
 
 	const auto MaxNumberWidth = Width > SuffixSize? Width - SuffixSize : 0;
 
-	while ((UseUnit && UnitIndex < MinUnit) || (Width && Str.size() > MaxNumberWidth))
+	while (UnitIndex != std::size(BytesInUnit) - 1 && ((UseUnit && UnitIndex < MinUnit) || (Width && Str.size() > MaxNumberWidth)))
 	{
 		const auto Denominator = BytesInUnit[UnitIndex + 1][BaseIndex].Value;
 		const auto IntegralPart = FileSize / Denominator;
@@ -723,67 +994,85 @@ unsigned long long ConvertFileSizeString(string_view const FileSizeStr)
 }
 
 string ReplaceBrackets(
-		const string_view SearchStr,
-		const string_view ReplaceStr,
-		std::span<RegExpMatch const> Match,
-		const named_regex_match* NamedMatch
+	string_view const Str,
+	string_view const MatchData,
+	std::span<RegExpMatch const> Match,
+	unordered_string_map<size_t> const& NamedGroups
 )
 {
 	string result;
 
-	for (size_t i = 0, length = ReplaceStr.size(); i < length; ++i)
+	for (size_t i = 0, length = Str.size(); i < length; ++i)
 	{
-		const auto CurrentChar = ReplaceStr[i];
+		const auto CurrentChar = Str[i];
 
-		if (CurrentChar != L'$' || i + 1 == length)
+		if (CurrentChar != L'$' || i + 1 >= length)
 		{
 			result.push_back(CurrentChar);
 			continue;
 		}
 
-		const auto TokenStart = i + 1;
-		auto TokenEnd = TokenStart;
-		size_t TokenSize = 0;
-
-		size_t GroupNumber = 0;
+		auto NextPos = i;
 		string_view Replacement;
 
-		while (TokenEnd != length && std::iswdigit(ReplaceStr[TokenEnd]))
+		if (const auto NextChar = Str[i+1], NextNextChar = i+2 >= length ? L'\0' : Str[i+2]; std::iswdigit(NextChar)) // $<digit>
 		{
-			const auto NewGroupNumber = GroupNumber * 10 + ReplaceStr[TokenEnd] - L'0';
-			if (NewGroupNumber >= Match.size())
-				break;
+			// 0, 1, 2, ...
+			size_t NumberEnd;
+			const auto GroupNumber = from_string<size_t>(Str.substr(i + 1), &NumberEnd);
+			if (GroupNumber >= Match.size())
+				throw far_known_exception(far::format(L"Invalid group number: {}"sv, GroupNumber));
 
-			GroupNumber = NewGroupNumber;
-			++TokenEnd;
+			Replacement = get_match(MatchData, Match[GroupNumber]);
+			NextPos += NumberEnd;
 		}
-
-		if (TokenEnd != TokenStart)
-		{
-			Replacement = get_match(SearchStr, Match[GroupNumber]);
-			TokenSize = TokenEnd - TokenStart;
-		}
-		else if (NamedMatch)
+		else if (NextChar == L'{' || (NextChar == L'+' && NextNextChar == L'{')) // ${... or $+{...
 		{
 			// {some text}
-			const auto Part = ReplaceStr.substr(TokenStart);
-
-			if (const auto MatchFirst = Part.find(L'{'); MatchFirst != Part.npos)
+			const auto off = i + (NextChar == L'+' ? 3 : 2);
+			if (const auto NameEnd = Str.find(L'}', off); NameEnd != Str.npos)
 			{
-				if (const auto MatchLast = Part.find(L'}', MatchFirst + 1); MatchLast != Part.npos)
+				const auto Name = Str.substr(off, NameEnd - off);
+
+				auto GroupNumber = MAXSIZE_T;
+				const auto GroupIterator = NamedGroups.find(Name);
+				if (GroupIterator != NamedGroups.cend())
 				{
-					TokenSize = MatchLast - MatchFirst + 1;
-					const auto Iterator = NamedMatch->Matches.find(Part.substr(MatchFirst + 1, TokenSize - 2));
-					Replacement = Iterator == NamedMatch->Matches.cend()?
-						ReplaceStr.substr(i, TokenSize + 1) :
-						get_match(SearchStr, Match[Iterator->second]);
+					if (GroupIterator->second < Match.size())
+					{
+						GroupNumber = GroupIterator->second; // group name found
+					}
 				}
+				else if (iswdigit(Str[i+2])) // ${<digit>...
+				{
+					size_t NumberEnd;
+					const auto group_number = from_string<size_t>(Str.substr(i + 2), &NumberEnd);
+					if (i + 2 + NumberEnd == NameEnd)
+					{
+						if (group_number >= Match.size())
+							throw far_known_exception(far::format(L"Invalid group number: {}"sv, group_number));
+						else
+							GroupNumber = group_number;
+					}
+				}
+
+				if (GroupNumber == MAXSIZE_T)
+				{
+					throw far_known_exception(far::format(L"Invalid group name: {}"sv, Name));
+				}
+
+				Replacement = get_match(MatchData, Match[GroupNumber]);
+				NextPos = NameEnd;
 			}
 		}
-
-		if (TokenSize)
+		else if (NextChar == L'$') // $$
 		{
-			i += TokenSize;
+			NextPos = ++i;
+		}
+
+		if (NextPos != i)
+		{
+			i = NextPos;
 			result += Replacement;
 		}
 		else
@@ -822,7 +1111,6 @@ namespace
 		string_view const Source,
 		const RegExp& re,
 		regex_match& Match,
-		named_regex_match* const NamedMatch,
 		intptr_t Position,
 		search_replace_string_options const options,
 		string& ReplaceStr,
@@ -836,7 +1124,7 @@ namespace
 
 			do
 			{
-				if (!re.SearchEx(Source, CurrentPosition, Match, NamedMatch))
+				if (!re.SearchEx(Source, CurrentPosition, Match))
 					return false;
 
 				if (options.WholeWords && !CanContainWholeWord(Source, Match.Matches[0].start, Match.Matches[0].end - Match.Matches[0].start, WordDiv))
@@ -845,21 +1133,21 @@ namespace
 					continue;
 				}
 
-				ReplaceStr = ReplaceBrackets(Source, ReplaceStr, Match.Matches, NamedMatch);
+				ReplaceStr = ReplaceBrackets(ReplaceStr, Source, Match.Matches, re.GetNamedGroups());
 				CurPos = Match.Matches[0].start;
 				SearchLength = Match.Matches[0].end - Match.Matches[0].start;
 				return true;
 			}
 			while (static_cast<size_t>(CurrentPosition) != Source.size());
+			return false;
 		}
 
 		bool found = false;
 		intptr_t pos = 0;
 
 		regex_match FoundMatch;
-		named_regex_match FoundNamedMatch;
 
-		while (re.SearchEx(Source, pos, Match, NamedMatch))
+		while (re.SearchEx(Source, pos, Match))
 		{
 			pos = Match.Matches[0].start;
 			if (pos > Position)
@@ -873,14 +1161,12 @@ namespace
 
 			found = true;
 			FoundMatch.Matches = std::move(Match.Matches);
-			if (NamedMatch)
-				FoundNamedMatch.Matches = std::move(NamedMatch->Matches);
 			++pos;
 		}
 
 		if (found)
 		{
-			ReplaceStr = ReplaceBrackets(Source, ReplaceStr, FoundMatch.Matches, NamedMatch? &FoundNamedMatch : nullptr);
+			ReplaceStr = ReplaceBrackets(ReplaceStr, Source, FoundMatch.Matches, re.GetNamedGroups());
 			CurPos = FoundMatch.Matches[0].start;
 			SearchLength = FoundMatch.Matches[0].end - FoundMatch.Matches[0].start;
 
@@ -896,7 +1182,6 @@ bool SearchString(
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
 	regex_match& Match,
-	named_regex_match* const NamedMatch,
 	int& CurPos,
 	search_replace_string_options const options,
 	int& SearchLength,
@@ -909,7 +1194,6 @@ bool SearchString(
 		NeedleSearcher,
 		re,
 		Match,
-		NamedMatch,
 		Dummy,
 		CurPos,
 		options,
@@ -924,7 +1208,6 @@ bool SearchAndReplaceString(
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
 	regex_match& Match,
-	named_regex_match* const NamedMatch,
 	string& ReplaceStr,
 	int& CurPos,
 	search_replace_string_options const options,
@@ -960,7 +1243,7 @@ bool SearchAndReplaceString(
 		if ((Position || HaystackSize) && Position >= HaystackSize)
 			return false;
 
-		return SearchStringRegex(Haystack, re, Match, NamedMatch, Position, options, ReplaceStr, CurPos, SearchLength, WordDiv);
+		return SearchStringRegex(Haystack, re, Match, Position, options, ReplaceStr, CurPos, SearchLength, WordDiv);
 	}
 
 	if (Position >= HaystackSize)
@@ -1228,28 +1511,41 @@ TEST_CASE("ReplaceBrackets")
 	{
 		string_view Str, Replace, Result;
 		std::initializer_list<RegExpMatch> Match;
-		std::initializer_list<std::pair<string_view, size_t>> NamedMatch;
+		std::initializer_list<std::pair<string_view, size_t>> NamedGroups;
+		string_view Exception;
 	}
 	Tests[]
 	{
 		{},
 		{ L"dorime"sv },
-		{ L"meow"sv, L"${a }$cat$"sv, L"${a }$cat$"sv },
+		{ L"meow"sv, L"${a }$cat$"sv, {}, {}, {}, L"Invalid group name"sv },
 		{ L"Ni!"sv, L"$0$0$0"sv, L"Ni!Ni!Ni!"sv, { { 0, 3 } } },
-		{ L"Fus Ro Dah"sv, L"$321-${first}-$2-$123-${nope}${oops$"sv, L"Dah21-Fus-Ro-Fus23-${nope}${oops$"sv, { { 0, 10 }, { 0, 3 }, { 4, 6 }, { 7, 10 } }, { { L"first"sv, 1 } } },
+		{ L"Fus Ro Dah"sv, L"$3-${first}-$2-$1-${oops$"sv, L"Dah-Fus-Ro-Fus-${oops$"sv, { { 0, 10 }, { 0, 3 }, { 4, 6 }, { 7, 10 } }, { { L"first"sv, 1 } } },
+		{ L"foobar"sv, L"${name2}-${name1}"sv, L"-foo"sv, { { 0, 3 }, { 0, 3 }, { 3, 3 } }, { { L"name1"sv, 1 }, { L"name2"sv, 2 } } },
 	};
 
-	named_regex_match NamedRegexMatch;
+	const auto Matcher = [](string_view const Message)
+	{
+		return generic_exception_matcher([=](std::any const& e)
+		{
+			return std::any_cast<far_exception const&>(e).message().contains(Message);
+		});
+	};
+
+	unordered_string_map<size_t> NamedGroups;
 
 	for (const auto& i: Tests)
 	{
-		NamedRegexMatch.Matches.clear();
-		for (const auto& [k, v]: i.NamedMatch)
+		NamedGroups.clear();
+		for (const auto& [k, v]: i.NamedGroups)
 		{
-			NamedRegexMatch.Matches.emplace(k, v);
+			NamedGroups.emplace(k, v);
 		}
 
-		REQUIRE(i.Result == ReplaceBrackets(i.Str, i.Replace, i.Match, &NamedRegexMatch));
+		if (i.Exception.empty())
+			REQUIRE(i.Result == ReplaceBrackets(i.Replace, i.Str, i.Match, NamedGroups));
+		else
+			REQUIRE_THROWS_MATCHES(ReplaceBrackets(i.Replace, i.Str, i.Match, NamedGroups), far_exception, Matcher(i.Exception));
 	}
 }
 
@@ -1348,6 +1644,8 @@ TEST_CASE("FileSizeToStrInvariant")
 	Tests[]
 	{
 		{    0,       L"0"sv,        L"0"sv,          0, 0 },
+		{    0,       L"0 B"sv,      L"0 b"sv,        0, COLFLAGS_SHOW_MULTIPLIER },
+		{    0,       L"0 B"sv,      L"0 b"sv,        0, COLFLAGS_FLOATSIZE | COLFLAGS_SHOW_MULTIPLIER },
 		{    1,       L"1"sv,        L"1"sv,          0, 0 },
 		{ 1023,       L"1023"sv,     L"1023"sv,       0, 0 },
 		{ 1024,       L"1024"sv,     L"1024"sv,       0, 0 },
@@ -1400,6 +1698,77 @@ TEST_CASE("FileSizeToStrInvariant")
 		{ 1_E,        L"1.00 E"sv,   L"1.15 e"sv,     0, COLFLAGS_FLOATSIZE },
 		{ 1.0_E,      L"1.00 E"sv,   L"1.15 e"sv,     0, COLFLAGS_FLOATSIZE },
 		{ max,        L"16.0 E"sv,   L"18.4 e"sv,     0, COLFLAGS_FLOATSIZE },
+
+		{ max,        L"16.0 E"sv,   L"18.4 e"sv,     6, COLFLAGS_FLOATSIZE },
+		{ max,         L" 16 E"sv,    L" 18 e"sv,     5, COLFLAGS_FLOATSIZE },
+		{ max,          L"16 E"sv,     L"18 e"sv,     4, COLFLAGS_FLOATSIZE },
+		{ max,           L"… E"sv,      L"… e"sv,     3, COLFLAGS_FLOATSIZE },
+		{ max,            L"…E"sv,       L"…e"sv,     2, COLFLAGS_FLOATSIZE },
+		{ max,             L"…"sv,        L"…"sv,     1, COLFLAGS_FLOATSIZE },
+
+		{ 1000000,    L" 977 K"sv,   L"1.00 m"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 999999,     L" 977 K"sv,   L"1000 k"sv,     6, COLFLAGS_FLOATSIZE },
+
+		{ 99999,      L"97.7 K"sv,   L" 100 k"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 99999,       L" 98 K"sv,    L"100 k"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 99999,        L"98 K"sv,     L"…0 k"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 99999,         L"… K"sv,      L"… k"sv,     3, COLFLAGS_FLOATSIZE },
+
+		{ 99999,       L"97.7K"sv,    L" 100k"sv,     5, COLFLAGS_FLOATSIZE | COLFLAGS_ECONOMIC },
+		{ 99999,        L" 98K"sv,     L"100k"sv,     4, COLFLAGS_FLOATSIZE | COLFLAGS_ECONOMIC },
+		{ 99999,         L"98K"sv,      L"…0k"sv,     3, COLFLAGS_FLOATSIZE | COLFLAGS_ECONOMIC },
+		{ 99999,          L"…K"sv,       L"…k"sv,     2, COLFLAGS_FLOATSIZE | COLFLAGS_ECONOMIC },
+
+		{ 9999,       L"9.76 K"sv,   L"10.0 k"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 9999,        L"9.8 K"sv,    L" 10 k"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 9999,         L"10 K"sv,     L"10 k"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 9999,          L"… K"sv,      L"… k"sv,     3, COLFLAGS_FLOATSIZE },
+
+		{ 1024,       L"1.00 K"sv,   L"1.02 k"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 1024,        L"1.0 K"sv,    L"1.0 k"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 1024,         L" 1 K"sv,     L" 1 k"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 1024,          L"1 K"sv,      L"1 k"sv,     3, COLFLAGS_FLOATSIZE },
+		{ 1024,           L"…K"sv,       L"…k"sv,     2, COLFLAGS_FLOATSIZE },
+
+		{ 1023,       L"  1023"sv,   L"1.02 k"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 1023,        L" 1023"sv,    L"1.0 k"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 1023,         L"1023"sv,     L" 1 k"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 1023,          L"…23"sv,      L"1 k"sv,     3, COLFLAGS_FLOATSIZE },
+		{ 1023,           L"…3"sv,       L"…k"sv,     2, COLFLAGS_FLOATSIZE },
+
+		{ 1000,       L"  1000"sv,   L"1.00 k"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 1000,        L" 1000"sv,    L"1.0 k"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 1000,         L"1000"sv,     L" 1 k"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 1000,          L"…00"sv,      L"1 k"sv,     3, COLFLAGS_FLOATSIZE },
+		{ 1000,           L"…0"sv,       L"…k"sv,     2, COLFLAGS_FLOATSIZE },
+
+		{ 999,        L"   999"sv,   L"   999"sv,     6, COLFLAGS_FLOATSIZE },
+		{ 999,         L"  999"sv,    L"  999"sv,     5, COLFLAGS_FLOATSIZE },
+		{ 999,          L" 999"sv,     L" 999"sv,     4, COLFLAGS_FLOATSIZE },
+		{ 999,           L"999"sv,      L"999"sv,     3, COLFLAGS_FLOATSIZE },
+		{ 999,            L"…9"sv,       L"…9"sv,     2, COLFLAGS_FLOATSIZE },
+
+		{ max,  L"18446744073709551615"sv,  L"18446744073709551615"sv,     0, 0 },
+		{ max,  L"18446744073709551615"sv,  L"18446744073709551615"sv,    20, 0 },
+		{ max,   L"18014398509481984 K"sv,   L"18446744073709552 k"sv,    19, 0 },
+		{ max,    L"  17592186044416 M"sv,    L"  18446744073710 m"sv,    18, 0 },
+		{ max,     L" 17592186044416 M"sv,     L" 18446744073710 m"sv,    17, 0 },
+		{ max,      L"17592186044416 M"sv,      L"18446744073710 m"sv,    16, 0 },
+		{ max,       L"  17179869184 G"sv,       L"  18446744074 g"sv,    15, 0 },
+		{ max,        L" 17179869184 G"sv,        L" 18446744074 g"sv,    14, 0 },
+		{ max,         L"17179869184 G"sv,         L"18446744074 g"sv,    13, 0 },
+		{ max,          L"  16777216 T"sv,          L"  18446744 t"sv,    12, 0 },
+		{ max,           L" 16777216 T"sv,           L" 18446744 t"sv,    11, 0 },
+		{ max,            L"16777216 T"sv,            L"18446744 t"sv,    10, 0 },
+		{ max,             L"  16384 P"sv,             L"  18447 p"sv,     9, 0 },
+		{ max,              L" 16384 P"sv,              L" 18447 p"sv,     8, 0 },
+		{ max,               L"16384 P"sv,               L"18447 p"sv,     7, 0 },
+		{ max,                L"  16 E"sv,                L"  18 e"sv,     6, 0 },
+		{ max,                 L" 16 E"sv,                 L" 18 e"sv,     5, 0 },
+		{ max,                  L"16 E"sv,                  L"18 e"sv,     4, 0 },
+		{ max,                   L"… E"sv,                   L"… e"sv,     3, 0 },
+		{ max,                    L"…E"sv,                    L"…e"sv,     2, 0 },
+		{ max,                     L"…"sv,                     L"…"sv,     1, 0 },
 	};
 
 	for (const auto& i: Tests)
@@ -1590,6 +1959,101 @@ TEST_CASE("wrapped_text")
 	}
 }
 
+TEST_CASE("strmix.cut")
+{
+	static const struct
+	{
+		string_view Src;
+		size_t Size;
+		string_view ResultLeft, ResultRight;
+	}
+	Tests[]
+	{
+		{ {}, 0, {}, {}, },
+
+		{ {}, 1, {}, {}, },
+
+		{ L"1"sv, 0, {}, {}, },
+		{ L"1"sv, 1, L"1"sv, L"1"sv, },
+		{ L"1"sv, 2, L"1"sv, L"1"sv, },
+
+		{ L"12345"sv, 0, {}, {}, },
+		{ L"12345"sv, 1, L"5"sv, L"1"sv, },
+		{ L"12345"sv, 3, L"345"sv, L"123"sv, },
+		{ L"12345"sv, 6, L"12345"sv, L"12345"sv, },
+	};
+
+	for (const auto& i : Tests)
+	{
+		REQUIRE(cut_left(i.Src, i.Size) == i.ResultLeft);
+		REQUIRE(cut_right(i.Src, i.Size) == i.ResultRight);
+	}
+}
+
+TEST_CASE("strmix.pad")
+{
+	static const struct
+	{
+		string_view Src;
+		size_t Size;
+		string_view ResultLeft, ResultRight;
+	}
+	Tests[]
+	{
+		{ {},         0, {},         {},         },
+
+		{ {},         1, {},         {},         },
+
+		{ L"1"sv,     0, {},         {},         },
+		{ L"1"sv,     1, L"1"sv,     L"1"sv,     },
+		{ L"1"sv,     2, L"1"sv,     L"1"sv,     },
+
+		{ L"12345"sv, 0, {},         {},         },
+		{ L"12345"sv, 1, L"5"sv,     L"1"sv,     },
+		{ L"12345"sv, 3, L"345"sv,   L"123"sv,   },
+		{ L"12345"sv, 6, L"12345"sv, L"12345"sv, },
+	};
+
+	for (const auto& i: Tests)
+	{
+		REQUIRE(cut_left(i.Src, i.Size) == i.ResultLeft);
+		REQUIRE(cut_right(i.Src, i.Size) == i.ResultRight);
+	}
+}
+
+TEST_CASE("strmix.fit")
+{
+	static const struct
+	{
+		string_view Src;
+		size_t Size;
+		string_view ResultLeft, ResultCenter, ResultRight;
+	}
+	Tests[]
+	{
+		{ {},          0,   {},             {},             {},           },
+		{ {},          1,   L" "sv,         L" "sv,         L" "sv,       },
+		{ {},          2,   L"  "sv,        L"  "sv,        L"  "sv,      },
+
+		{ L"1"sv,      0,   {},             {},             {},           },
+		{ L"1"sv,      1,   L"1"sv,         L"1"sv,         L"1"sv,       },
+		{ L"1"sv,      2,   L"1 "sv,        L"1 "sv,        L" 1"sv,      },
+
+		{ L"12345"sv,  0,   {},             {},             {},           },
+		{ L"12345"sv,  1,   L"1"sv,         L"1"sv,         L"1"sv,       },
+		{ L"12345"sv,  3,   L"123"sv,       L"123"sv,       L"123"sv,     },
+		{ L"12345"sv,  5,   L"12345"sv,     L"12345"sv,     L"12345"sv,   },
+		{ L"12345"sv,  7,   L"12345  "sv,   L" 12345 "sv,   L"  12345"sv, },
+	};
+
+	for (const auto& i: Tests)
+	{
+		REQUIRE(fit_to_left(string(i.Src), i.Size) == i.ResultLeft);
+		REQUIRE(fit_to_center(string(i.Src), i.Size) == i.ResultCenter);
+		REQUIRE(fit_to_right(string(i.Src), i.Size) == i.ResultRight);
+	}
+}
+
 TEST_CASE("truncate")
 {
 	static const struct tests
@@ -1679,7 +2143,7 @@ TEST_CASE("truncate")
 	{
 		{ truncate_left,   legacy::truncate_left,   &tests::size::ResultLeft   },
 		{ truncate_center, {},                      &tests::size::ResultCenter },
-		{ truncate_right,  {},                      &tests::size::ResultRight },
+		{ truncate_right,  {},                      &tests::size::ResultRight  },
 		{ truncate_path,   legacy::truncate_path,   &tests::size::ResultPath   },
 	};
 

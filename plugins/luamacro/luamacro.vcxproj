@@ -6,7 +6,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Label="UserMacros">
-    <VersionLuaSDK>20241113</VersionLuaSDK>
+    <VersionLuaSDK>20250712</VersionLuaSDK>
     <DirBit Condition="'$(Platform)'=='Win32'">32</DirBit>
     <DirBit Condition="'$(Platform)'=='x64'">64</DirBit>
     <DirBit Condition="'$(Platform)'=='ARM64'">ARM64</DirBit>
@@ -19,7 +19,7 @@
   </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>EXPORT_OPEN;EXPORT_PROCESSEDITOREVENT;EXPORT_PROCESSEDITORINPUT;EXPORT_PROCESSCONSOLEINPUT;EXPORT_PROCESSVIEWEREVENT;EXPORT_PROCESSDIALOGEVENT;EXPORT_CONFIGURE;EXPORT_ANALYSE;EXPORT_CLOSEPANEL;EXPORT_COMPARE;EXPORT_DELETEFILES;EXPORT_GETFILES;EXPORT_GETFINDDATA;EXPORT_GETOPENPANELINFO;EXPORT_MAKEDIRECTORY;EXPORT_PROCESSHOSTFILE;EXPORT_PROCESSPANELEVENT;EXPORT_PROCESSPANELINPUT;EXPORT_PUTFILES;EXPORT_SETDIRECTORY;EXPORT_SETFINDLIST;EXPORT_GETCONTENTDATA;RUN_LUAFAR_INIT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>EXPORT_OPEN;EXPORT_PROCESSEDITOREVENT;EXPORT_PROCESSEDITORINPUT;EXPORT_PROCESSCONSOLEINPUT;EXPORT_PROCESSVIEWEREVENT;EXPORT_PROCESSDIALOGEVENT;EXPORT_CONFIGURE;EXPORT_ANALYSE;EXPORT_CLOSEPANEL;EXPORT_COMPARE;EXPORT_DELETEFILES;EXPORT_GETFILES;EXPORT_GETFINDDATA;EXPORT_GETOPENPANELINFO;EXPORT_MAKEDIRECTORY;EXPORT_PROCESSHOSTFILE;EXPORT_PROCESSPANELEVENT;EXPORT_PROCESSPANELINPUT;EXPORT_PUTFILES;EXPORT_SETDIRECTORY;EXPORT_SETFINDLIST;EXPORT_GETCONTENTDATA;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>luasdk/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -31,8 +31,8 @@
     <ClCompile Include="luafar\luaplug.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="luafar\luafar.h" />
-    <ClInclude Include="luafar\version.h" />
+    <ClInclude Include="luafar\lf_luafar.h" />
+    <ClInclude Include="luafar\lf_version.h" />
     <ClInclude Include="luasdk\include\lauxlib.h" />
     <ClInclude Include="luasdk\include\lua.h" />
     <ClInclude Include="luasdk\include\lualib.h" />

@@ -1,16 +1,13 @@
 ﻿// Based on Zoltan Csizmadia's TaskManagerEx source, zoltan_csizmadia@yahoo.com
 
-#include <algorithm>
-#include <mutex>
 
 #include "Proclist.hpp"
 #include "perfthread.hpp" // fot GetProcessData
 #include "Proclng.hpp"
 
-#include <lmcons.h>
-#include <sddl.h>
-
+#include <algorithm.hpp>
 #include <smart_ptr.hpp>
+#include <string_utils.hpp>
 
 void __cdecl std::_Xout_of_range(char const*) {}
 
@@ -45,7 +42,8 @@ struct THREAD_BASIC_INFORMATION
 };
 
 #ifdef _MSC_VER
-inline constexpr auto ObjectNameInformation = static_cast<OBJECT_INFORMATION_CLASS>(1);
+// NOT constexpr: such casts are technically UB and not available in constexpr context
+inline const auto ObjectNameInformation = static_cast<OBJECT_INFORMATION_CLASS>(1);
 #endif
 
 static bool GetProcessId(HANDLE Handle, DWORD& Pid)
@@ -94,35 +92,40 @@ static std::unique_ptr<char[]> query_object(HANDLE Handle, OBJECT_INFORMATION_CL
 
 static std::wstring GetFileName(HANDLE Handle)
 {
-	if (const auto FileType = GetFileType(Handle); FileType != FILE_TYPE_DISK)
+	using pair = std::pair<HANDLE, DWORD>;
+	pair HandleAndFileType{ Handle, FILE_TYPE_UNKNOWN };
+
+	// Check if it's possible to get the file name info
+	struct test
 	{
-		// Check if it's possible to get the file name info
-		struct test
+		static DWORD WINAPI GetFileNameThread(PVOID Param)
 		{
-			static DWORD WINAPI GetFileNameThread(PVOID Param)
+			auto& [Handle, FileType] = *static_cast<pair*>(Param);
+			FileType = GetFileType(Handle);
+			if (FileType != FILE_TYPE_DISK)
 			{
 				IO_STATUS_BLOCK iob;
 				FILE_BASIC_INFO info;
 				const auto FileBasicInformation = 4;
-				pNtQueryInformationFile(Param, &iob, &info, sizeof(info), FileBasicInformation);
-				return 0;
+				pNtQueryInformationFile(Handle, &iob, &info, sizeof(info), FileBasicInformation);
 			}
-		};
+			return 0;
+		}
+	};
 
-		const handle Thread(CreateThread({}, 0, test::GetFileNameThread, Handle, 0, {}));
+	const handle Thread(CreateThread({}, 0, test::GetFileNameThread, &HandleAndFileType, 0, {}));
 
-		// Wait for finishing the thread
-		if (WaitForSingleObject(Thread.get(), 100) == WAIT_TIMEOUT)
+	// Wait for finishing the thread
+	if (WaitForSingleObject(Thread.get(), 100) == WAIT_TIMEOUT)
+	{
+		TerminateThread(Thread.get(), 0);
+		switch (HandleAndFileType.second)
 		{
-			TerminateThread(Thread.get(), 0);
-			switch (FileType)
-			{
-			case FILE_TYPE_PIPE:     return L"<pipe>"s;
-			case FILE_TYPE_CHAR:     return L"<char>"s;
-			case FILE_TYPE_REMOTE:   return L"<remote>"s;
-			case FILE_TYPE_UNKNOWN:  return L"<unknown>"s;
-			default:                 return far::format(L"<unknown> ({})"sv, FileType);
-			}
+		case FILE_TYPE_PIPE:     return L"<pipe>"s;
+		case FILE_TYPE_CHAR:     return L"<char>"s;
+		case FILE_TYPE_REMOTE:   return L"<remote>"s;
+		case FILE_TYPE_UNKNOWN:  return L"<unknown>"s;
+		default:                 return far::format(L"<unknown> ({})"sv, HandleAndFileType.second);
 		}
 	}
 
@@ -267,16 +270,27 @@ static std::wstring GetNameByType(HANDLE handle, WORD type, PerfThread* pThread)
 		if (DWORD dwId = 0; GetProcessId(handle, dwId))
 		{
 			const std::scoped_lock l(*pThread);
-			const auto pd = pThread->GetProcessData(dwId, 0);
+			const auto pd = pThread->GetProcessData(dwId);
 			const auto pName = pd? pd->ProcessName : L"<unknown>"sv;
 			return far::format(L"{} ({})"sv, pName, dwId);
 		}
 		return {};
 
 	case OB_TYPE_THREAD:
-		if (DWORD dwId = 0; GetThreadId(handle, dwId))
-			return far::format(L"TID: {}"sv, dwId);
-		return {};
+		{
+			std::wstring ThreadName;
+
+			if (DWORD dwId = 0; GetThreadId(handle, dwId))
+				ThreadName = far::format(L"TID: {}"sv, dwId);
+
+			if (local_ptr<wchar_t> Buffer; SUCCEEDED(pGetThreadDescription(handle, &ptr_setter(Buffer))))
+			{
+				if (*Buffer)
+					append(ThreadName, L", "sv, Buffer.get());
+			}
+
+			return ThreadName;
+		}
 
 	case OB_TYPE_FILE:
 		return GetFileName(handle);
@@ -359,44 +373,26 @@ static handle duplicate_handle(HANDLE h, DWORD dwPID)
 	return DuplicatedHandle;
 }
 
-struct virtual_deleter
-{
-	void operator()(void* const Ptr) const
-	{
-		VirtualFree(Ptr, 0, MEM_RELEASE);
-	}
-};
-
-template<typename T>
-using virtual_ptr = std::unique_ptr<T, virtual_deleter>;
-
-template<typename T>
-auto make_virtual(size_t const Size)
-{
-	return virtual_ptr<T>(static_cast<T*>(VirtualAlloc({}, Size, MEM_COMMIT, PAGE_READWRITE)));
-}
-
 bool PrintHandleInfo(DWORD dwPID, HANDLE file, bool bIncludeUnnamed, PerfThread* pThread)
 {
-	DWORD size = 0x2000;
-	auto pSysHandleInformation = make_virtual<PROCLIST_SYSTEM_HANDLE_INFORMATION>(size);
-	if (!pSysHandleInformation)
-		return false;
+	block_ptr<PROCLIST_SYSTEM_HANDLE_INFORMATION> Info(sizeof(*Info));
 
 	for (;;)
 	{
-		DWORD needed;
-		if (NT_SUCCESS(pNtQuerySystemInformation(16, pSysHandleInformation.get(), size, &needed)))
+		const auto SystemHandleInformation = 16;
+
+		ULONG ReturnSize{};
+		const auto Result = pNtQuerySystemInformation(SystemHandleInformation, Info.data(), static_cast<ULONG>(Info.size()), &ReturnSize);
+		if (NT_SUCCESS(Result))
 			break;
 
-		if (needed == 0)
-			return false;
+		if (any_of(Result, STATUS_INFO_LENGTH_MISMATCH, STATUS_BUFFER_OVERFLOW, STATUS_BUFFER_TOO_SMALL))
+		{
+			Info.reset(ReturnSize? ReturnSize : grow_exp(Info.size(), {}));
+			continue;
+		}
 
-		// The size was not enough
-		size = needed + 256;
-		pSysHandleInformation = make_virtual<PROCLIST_SYSTEM_HANDLE_INFORMATION>(size);
-		if (!pSysHandleInformation)
-			return false;
+		return false;
 	}
 
 	WriteToFile(file, far::format(L"\n{}:\n{:6} {:8} {:15} {}\n"sv,
@@ -408,13 +404,13 @@ bool PrintHandleInfo(DWORD dwPID, HANDLE file, bool bIncludeUnnamed, PerfThread*
 	);
 
 	// Iterating through the objects
-	for (DWORD i = 0; i < pSysHandleInformation->NumberOfHandles; i++)
+	for (DWORD i = 0; i < Info->NumberOfHandles; i++)
 	{
 		// ProcessId filtering check
-		if (pSysHandleInformation->Handles[i].UniqueProcessId != dwPID && dwPID != static_cast<DWORD>(-1))
+		if (Info->Handles[i].UniqueProcessId != dwPID && dwPID != static_cast<DWORD>(-1))
 			continue;
 
-		auto Handle = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(pSysHandleInformation->Handles[i].HandleValue));
+		auto Handle = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(Info->Handles[i].HandleValue));
 		handle DuplicatedHandle;
 		if (dwPID != GetCurrentProcessId())
 		{
@@ -430,8 +426,8 @@ bool PrintHandleInfo(DWORD dwPID, HANDLE file, bool bIncludeUnnamed, PerfThread*
 			continue;
 
 		WriteToFile(file, far::format(L"{:6X} {:08X} {:15} {}\n"sv,
-			pSysHandleInformation->Handles[i].HandleValue,
-			pSysHandleInformation->Handles[i].GrantedAccess,
+			Info->Handles[i].HandleValue,
+			Info->Handles[i].GrantedAccess,
 			TypeToken,
 			Name));
 	}

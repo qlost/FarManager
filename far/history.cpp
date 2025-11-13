@@ -84,8 +84,10 @@ namespace
 
 	using known_records = std::unordered_set<os::chrono::time_point, time_point_hash>;
 
-	class [[nodiscard]] history_white_list_t
+	class [[nodiscard]] history_white_list: public singleton<history_white_list>
 	{
+		IMPLEMENTS_SINGLETON;
+
 	public:
 		bool empty() const
 		{
@@ -116,12 +118,6 @@ namespace
 		known_records m_KnownRecords;
 		os::chrono::time_point m_StartTime{ os::chrono::nt_clock::now() };
 	};
-
-	auto& history_white_list()
-	{
-		static history_white_list_t Instance;
-		return Instance;
-	}
 }
 
 History::History(history_type TypeHistory, string_view const HistoryName, const Bool3Option& State, bool const KeepSelectedPos):
@@ -131,7 +127,7 @@ History::History(history_type TypeHistory, string_view const HistoryName, const 
 	m_KeepSelectedPos(KeepSelectedPos)
 {
 	// Initialise with the current time
-	history_white_list();
+	(void)history_white_list::instance();
 }
 
 void History::CompactHistory()
@@ -296,15 +292,12 @@ history_return_type History::ProcessMenu(string& strStr, UUID* const Uuid, strin
 					}
 				}
 
-				os::chrono::local_time SavedTime;
-				utc_to_local(i.Time, SavedTime);
-				if(LastDay != SavedTime.Day || LastMonth != SavedTime.Month || LastYear != SavedTime.Year)
+				if (os::chrono::local_time SavedTime; utc_to_local(i.Time, SavedTime) && (LastDay != SavedTime.Day || LastMonth != SavedTime.Month || LastYear != SavedTime.Year))
 				{
 					LastDay = SavedTime.Day;
 					LastMonth = SavedTime.Month;
 					LastYear = SavedTime.Year;
-					MenuItemEx Separator;
-					Separator.Flags = LIF_SEPARATOR;
+					menu_item_ex Separator{ LIF_SEPARATOR };
 					string Time;
 					std::tie(Separator.Name, Time) = time_point_to_string(i.Time, 8, 1);
 					HistoryMenu.AddItem(Separator);
@@ -314,7 +307,7 @@ history_return_type History::ProcessMenu(string& strStr, UUID* const Uuid, strin
 				if (m_TypeHistory != HISTORYTYPE_DIALOG)
 					inplace::escape_ampersands(strRecord);
 
-				MenuItemEx MenuItem(strRecord);
+				menu_item_ex MenuItem{ std::move(strRecord) };
 				i.Lock? MenuItem.SetCheck() : MenuItem.ClearCheck();
 				MenuItem.ComplexUserData = i.Id;
 
@@ -791,18 +784,18 @@ const std::unique_ptr<HistoryConfig>& History::HistoryCfgRef() const
 void History::introduce_record(os::chrono::time_point Time) const
 {
 	if (m_State == BSTATE_3STATE)
-		history_white_list().add(Time);
+		history_white_list::instance().add(Time);
 }
 
 void History::forget_record(os::chrono::time_point Time) const
 {
 	if (m_State == BSTATE_3STATE)
-		history_white_list().remove(Time);
+		history_white_list::instance().remove(Time);
 }
 
 bool History::is_known_record(os::chrono::time_point const Time) const
 {
-	return m_State != BSTATE_3STATE || history_white_list().check(Time);
+	return m_State != BSTATE_3STATE || history_white_list::instance().check(Time);
 }
 
 void History::refresh_known_records() const
@@ -810,7 +803,7 @@ void History::refresh_known_records() const
 	if (m_State != BSTATE_3STATE)
 		return;
 
-	if (history_white_list().empty())
+	if (history_white_list::instance().empty())
 		return;
 
 	known_records NewKnownRecords;
@@ -822,7 +815,7 @@ void History::refresh_known_records() const
 		}
 	}
 
-	history_white_list().assign(std::move(NewKnownRecords));
+	history_white_list::instance().assign(std::move(NewKnownRecords));
 }
 
 void History::suppress_add()

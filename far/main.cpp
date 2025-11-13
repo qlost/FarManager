@@ -72,6 +72,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "exception.hpp"
 #include "log.hpp"
 #include "strmix.hpp"
+#include "message.hpp"
 
 // Platform:
 #include "platform.debug.hpp"
@@ -227,8 +228,7 @@ static int MainProcess(
 				}
 
 				auto& CurrentPanelOptions = (Global->Opt->LeftFocus == active)? Global->Opt->LeftPanel : Global->Opt->RightPanel;
-				CurrentPanelOptions.m_Type = static_cast<int>(panel_type::FILE_PANEL);  // сменим моду панели
-				CurrentPanelOptions.Visible = true;     // и включим ее
+				CurrentPanelOptions.m_Type = static_cast<int>(panel_type::FILE_PANEL);
 				CurrentPanelOptions.Folder = strPath;
 			};
 
@@ -239,6 +239,17 @@ static int MainProcess(
 				if (!ppanel.empty())
 				{
 					SetupPanel(false);
+				}
+
+				if (Global->Opt->LeftFocus)
+				{
+					if (!Global->Opt->LeftPanel.Visible && Global->Opt->RightPanel.Visible)
+						Global->Opt->LeftFocus = false;
+				}
+				else
+				{
+					if (!Global->Opt->RightPanel.Visible && Global->Opt->LeftPanel.Visible)
+						Global->Opt->LeftFocus = true;
 				}
 			}
 
@@ -410,6 +421,8 @@ static void InitProfile(string &strProfilePath, string &strLocalProfilePath)
 			Global->Opt->ReadOnlyConfig = true;
 		}
 	}
+
+	set_report_location(Global->Opt->LocalProfilePath);
 }
 
 static bool is_arg(string_view const Str)
@@ -484,15 +497,6 @@ static std::optional<int> ProcessServiceModes(std::span<const wchar_t* const> co
 	return {};
 }
 
-[[noreturn]]
-static void handle_exception(function_ref<bool()> const Handler)
-{
-	if (Handler())
-		os::process::terminate_by_user();
-
-	throw;
-}
-
 #ifdef _M_IX86
 std::pair<string_view, DWORD> get_hook_wow64_error();
 
@@ -542,9 +546,9 @@ struct args_context
 };
 
 [[noreturn]]
-static void invalid_argument(string_view const Argument, string_view const Str)
+static void invalid_argument(string_view const Argument, string_view const Str, source_location const& Location = source_location::current())
 {
-	throw far_known_exception(far::format(L"Error processing \"{}\": {}"sv, Argument, Str));
+	throw far_known_exception(far::format(L"Error processing \"{}\": {}"sv, Argument, Str), Location);
 }
 
 namespace args
@@ -812,8 +816,6 @@ static int mainImpl(std::span<const wchar_t* const> const Args)
 	if (FarColor InitAttributes; console.GetTextAttributes(InitAttributes))
 		colors::store_default_color(InitAttributes);
 
-	SCOPE_EXIT{ console.SetTextAttributes(colors::default_color()); };
-
 	SCOPED_ACTION(global);
 
 	std::optional<elevation::suppress> NoElevationDuringBoot(std::in_place);
@@ -942,15 +944,23 @@ static int mainImpl(std::span<const wchar_t* const> const Args)
 	return cpp_try(
 	[&]
 	{
-		return MainProcess(strEditName, strViewName, DestNames[0], DestNames[1], StartLine, StartChar);
+		try
+		{
+			return MainProcess(strEditName, strViewName, DestNames[0], DestNames[1], StartLine, StartChar);
+		}
+		catch (far_known_exception const& e)
+		{
+			Message(FMSG_WARNING, e, msg(lng::MError), {}, { lng::MQuit });
+			return EXIT_FAILURE;
+		}
 	},
-	[&](source_location const& Location) -> int
+	[](source_location const& Location) -> int
 	{
-		handle_exception([&]{ return handle_unknown_exception({}, Location); });
+		handle_unknown_exception(Location);
 	},
-	[&](std::exception const& e, source_location const& Location) -> int
+	[](std::exception const& e, source_location const& Location) -> int
 	{
-		handle_exception([&]{ return handle_std_exception(e, {}, Location); });
+		handle_std_exception(e, Location);
 	});
 }
 
@@ -972,19 +982,11 @@ static void configure_exception_handling(std::span<wchar_t const* const> const A
 		if (equal_icase(i + 1, L"service"sv))
 		{
 			os::debug::crt_report_to_stderr();
+			report_to_stderr();
+			suppress_console_confirmations();
 			continue;
 		}
 	}
-}
-
-[[noreturn]]
-static void handle_exception_final(function_ref<bool()> const Handler)
-{
-	if (Handler())
-		os::process::terminate_by_user();
-
-	restore_system_exception_handler();
-	throw;
 }
 
 #ifdef _DEBUG
@@ -1037,13 +1039,15 @@ static int wmain_seh()
 			return EXIT_FAILURE;
 		}
 	},
-	[&](source_location const& Location) -> int
+	[](source_location const& Location) -> int
 	{
-		handle_exception_final([&]{ return handle_unknown_exception({}, Location); });
+		SCOPE_FAIL{ restore_system_exception_handler(); };
+		handle_unknown_exception(Location);
 	},
-	[&](std::exception const& e, source_location const& Location) -> int
+	[](std::exception const& e, source_location const& Location) -> int
 	{
-		handle_exception_final([&]{ return handle_std_exception(e, {}, Location); });
+		SCOPE_FAIL{ restore_system_exception_handler(); };
+		handle_std_exception(e, Location);
 	});
 }
 
@@ -1055,9 +1059,9 @@ int main()
 		os::debug::set_thread_name(L"Main Thread");
 		return wmain_seh();
 	},
-	[](DWORD const ExceptionCode) -> int
+	[](DWORD const) -> int
 	{
-		os::process::terminate_by_user(ExceptionCode);
+		std::unreachable();
 	});
 }
 

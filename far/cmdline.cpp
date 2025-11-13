@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cmdline.hpp"
 
 // Internal:
+#include "exception.hpp"
 #include "execute.hpp"
 #include "macroopcode.hpp"
 #include "keys.hpp"
@@ -87,6 +88,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/from_string.hpp"
 #include "common/function_traits.hpp"
 #include "common/scope_exit.hpp"
+#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -147,12 +149,13 @@ size_t CommandLine::DrawPrompt()
 	size_t CollapsibleCount = 0;
 	for (const auto& i: PromptList)
 	{
-		Sizes.emplace_back(i.Text.size());
-		PromptLength += i.Text.size();
+		const auto VisualLength = visual_string_length(i.Text);
+		Sizes.emplace_back(VisualLength);
+		PromptLength += VisualLength;
 		if (i.Collapsible)
 			++CollapsibleCount;
 		else
-			FixedLength += i.Text.size();
+			FixedLength += VisualLength;
 	}
 
 	size_t CollapsibleItemLength = 0;
@@ -170,20 +173,26 @@ size_t CommandLine::DrawPrompt()
 	size_t CurLength = 0;
 	GotoXY(m_Where.left, m_Where.top);
 
-	for (const auto& i: PromptList)
+	for (const auto& [i, l]: zip(PromptList, Sizes))
 	{
 		auto str = i.Text;
+		auto VisualLength = l;
 
 		if (TryCollapse && i.Collapsible)
 		{
 			inplace::truncate_path(str, CollapsibleItemLength);
+			VisualLength = visual_string_length(str);
 		}
 
-		if (CurLength + str.size() > MaxLength)
+		if (CurLength + VisualLength > MaxLength)
+		{
 			inplace::truncate_path(str, std::max(0uz, MaxLength - CurLength));
+			VisualLength = visual_string_length(str);
+		}
+
 		SetColor(i.Colour);
-		Text(str);
-		CurLength += str.size();
+		Text(str, MaxLength - CurLength);
+		CurLength += VisualLength;
 
 		if (CurLength >= MaxLength)
 			break;
@@ -215,6 +224,12 @@ void CommandLine::DrawFakeCommand(string_view const FakeCommand)
 	SetColor(COL_COMMANDLINE);
 	// TODO: wrap & scroll if too long
 	Text(FakeCommand);
+	Global->ScrBuf->Flush();
+
+	std::wcout << std::endl;
+
+	Global->ScrBuf->FillBuf();
+	Global->WindowManager->Desktop()->TakeSnapshot();
 }
 
 void CommandLine::SetCurPos(int Pos, int LeftPos, bool Redraw)
@@ -475,7 +490,7 @@ bool CommandLine::ProcessKey(const Manager::Key& Key)
 			const auto ActivePanel = Global->CtrlObject->Cp()->ActivePanel();
 			CmdStr.RemoveSelection();
 			Refresh();
-			const auto& strStr = CmdStr.GetString();
+			const auto& strStr = trim_right(CmdStr.GetString());
 
 			bool TryExecute = true;
 
@@ -857,15 +872,16 @@ void CommandLine::ShowViewEditHistory()
 	case HRT_ENTER:
 	case HRT_SHIFTENTER:
 		{
+			const auto DisableHistory = SelectType == HRT_SHIFTENTER;
 			auto Suppressor = Global->CtrlObject->ViewHistory->suppressor();
-			if (SelectType != HRT_SHIFTENTER)
+			if (DisableHistory)
 				Suppressor.reset();
 
 			switch (Type)
 			{
 				case HR_VIEWER:
 				{
-					FileViewer::create(strStr, true);
+					FileViewer::create(strStr, true, DisableHistory);
 					break;
 				}
 
@@ -876,7 +892,7 @@ void CommandLine::ShowViewEditHistory()
 					const auto FEdit = FileEditor::create(
 						strStr,
 						CP_DEFAULT,
-						FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | (Type == HR_EDITOR_RO? FFILEEDIT_LOCKED : 0)
+						FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | (Type == HR_EDITOR_RO? FFILEEDIT_LOCKED : 0) | (DisableHistory? FFILEEDIT_DISABLEHISTORY : 0)
 					);
 
 					break;
@@ -911,8 +927,13 @@ void CommandLine::SetPromptSize(int NewSize)
 	PromptSize = NewSize? std::clamp(NewSize, 5, 95) : DEFAULT_CMDLINE_WIDTH;
 }
 
-static bool ProcessFarCommands(string_view Command, function_ref<void()> const ConsoleActivatior)
+static bool ProcessFarCommands(string_view Command, function_ref<void(bool NoWait)> const Activator)
 {
+	const auto ConsoleActivator = [&Activator](bool const NoWait = false)
+	{
+		Activator(NoWait);
+	};
+
 	inplace::trim(Command);
 
 	if (constexpr auto Prefix = L"far:"sv; Command.starts_with(Prefix))
@@ -922,14 +943,14 @@ static bool ProcessFarCommands(string_view Command, function_ref<void()> const C
 
 	if (equal_icase(Command, L"config"sv))
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 		Global->Opt->AdvancedConfig();
 		return true;
 	}
 
 	if (equal_icase(Command, L"about"sv))
 	{
-		ConsoleActivatior();
+		ConsoleActivator();
 
 		std::wcout << L'\n' << build::version_string() << L'\n' << build::copyright() << L'\n';
 
@@ -985,7 +1006,7 @@ static bool ProcessFarCommands(string_view Command, function_ref<void()> const C
 	{
 		if (const auto LogParameters = Command.substr(LogCommand.size()); LogParameters.starts_with(L' ') || LogParameters.empty())
 		{
-			ConsoleActivatior();
+			ConsoleActivator(true);
 			logging::configure(trim(LogParameters));
 			return true;
 		}
@@ -993,8 +1014,30 @@ static bool ProcessFarCommands(string_view Command, function_ref<void()> const C
 
 	if (equal_icase(Command, L"regex"sv))
 	{
+		ConsoleActivator(true);
 		regex_playground();
 		return true;
+	}
+
+	if (const auto ErrorCommand = L"error"sv; starts_with_icase(Command, ErrorCommand))
+	{
+		if (const auto ErrorParameter = trim(Command.substr(ErrorCommand.size())); !ErrorParameter.empty())
+		{
+
+			std::optional<unsigned> ErrorCode;
+			if (const auto UnsignedValue = try_from_string<unsigned>(ErrorParameter, {}, 0))
+				ErrorCode = *UnsignedValue;
+			else if (const auto SignedValue = try_from_string<signed>(ErrorParameter, {}, 0))
+				ErrorCode = static_cast<unsigned>(*SignedValue);
+
+			if (ErrorCode)
+			{
+				ConsoleActivator(true);
+				const auto Value = *ErrorCode;
+				error_lookup({ { Value, static_cast<NTSTATUS>(Value) }, {}, static_cast<int>(Value) });
+				return true;
+			}
+		}
 	}
 
 	return false;
@@ -1014,13 +1057,11 @@ static void ProcessEcho(execute_info& Info)
 void CommandLine::ExecString(execute_info& Info)
 {
 	bool IsUpdateNeeded = false;
-
-	std::shared_ptr<i_context> ExecutionContext;
+	bool AddNewLine = true;
 
 	SCOPE_EXIT
 	{
-		if (ExecutionContext)
-			ExecutionContext->DoEpilogue(Info.Echo && !Info.Command.empty(), true);
+		Global->WindowManager->Desktop()->ConsoleSession().deactivate(AddNewLine);
 
 		if (!IsUpdateNeeded)
 			return;
@@ -1040,28 +1081,26 @@ void CommandLine::ExecString(execute_info& Info)
 		}
 	};
 
-	const auto Activator = [&]
+	const auto Activator = [&](bool const NoWait = false)
 	{
-		if (!ExecutionContext)
-			ExecutionContext = Global->WindowManager->Desktop()->ConsoleSession().GetContext();
+		if (NoWait && !Info.Echo)
+			return;
 
-		ExecutionContext->Activate();
+		Global->WindowManager->Desktop()->ConsoleSession().activate(
+			Info.Echo? std::optional<string_view>{ Info.DisplayCommand.empty()? Info.Command : Info.DisplayCommand } : std::nullopt,
+			AddNewLine);
 
-		if (Info.Echo)
-			ExecutionContext->DrawCommand(Info.DisplayCommand.empty()? Info.Command : Info.DisplayCommand);
+		console.start_output();
 
-		ExecutionContext->DoPrologue();
-		ExecutionContext->Consolise();
-
-		if (Info.Echo)
-			std::wcout << std::endl;
+		if (NoWait)
+			Global->WindowManager->Desktop()->ConsoleSession().deactivate(AddNewLine);
 	};
 
 	if (Info.Command.empty())
 	{
 		// Just scroll the screen
+		AddNewLine = false;
 		Activator();
-		console.start_output();
 		console.command_finished();
 		return;
 	}
@@ -1099,9 +1138,12 @@ void CommandLine::ExecString(execute_info& Info)
 		if (Info.WaitMode != execute_info::wait_mode::no_wait && !Info.RunAs)
 		{
 			if (ProcessFarCommands(Info.Command, Activator))
+			{
+				console.command_finished(EXIT_SUCCESS);
 				return;
+			}
 
-			if (Global->CtrlObject->Plugins->ProcessCommandLine(Info.Command))
+			if (Global->CtrlObject->Plugins->ProcessCommandLine(Info.Command, Activator))
 				return;
 
 			if (ProcessOSCommands(Info.Command, Activator))
@@ -1118,8 +1160,13 @@ void CommandLine::ExecString(execute_info& Info)
 	IsUpdateNeeded = true;
 }
 
-bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void()> const ConsoleActivatior)
+bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void(bool NoWait)> const Activator)
 {
+	const auto ConsoleActivator = [&Activator](bool const NoWait = false)
+	{
+		Activator(NoWait);
+	};
+
 	auto SetPanel = Global->CtrlObject->Cp()->ActivePanel();
 
 	if (SetPanel->GetType() != panel_type::FILE_PANEL && Global->CtrlObject->Cp()->PassivePanel()->GetType() == panel_type::FILE_PANEL)
@@ -1143,7 +1190,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 
 	if (Command.size() == 2 && Command[1] == L':' && Arguments.empty())
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		const auto DriveLetter = upper(CmdLine[0]);
 		if (!FarChDir(os::fs::drive::get_device_path(DriveLetter)))
@@ -1163,8 +1210,20 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 		if (FindKey(Arguments, L'A') || FindKey(Arguments, L'P'))
 			return false; //todo: /p - dialog, /a - calculation; then set variable ...
 
+		// cmd unquoting logic is rather weird, but when in Rome, do as the Romans do.
+		const auto set_unquote = [](string_view Str)
+		{
+			if (!Str.starts_with(L'"'))
+				return Str;
+
+			Str.remove_prefix(1);
+			inplace::trim_left(Str);
+
+			return Str.substr(0, Str.rfind(L'"'));
+		};
+
 		size_t pos;
-		const auto SetParams = unquote(trim_right(Arguments));
+		const auto SetParams = set_unquote(trim_right(Arguments));
 
 		// "set" (display all) or "set var" (display all that begin with "var")
 		if (SetParams.empty() || ((pos = SetParams.find(L'=')) == string::npos) || !pos)
@@ -1173,7 +1232,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 			if (SetParams.find_first_of(L"|>"sv) != SetParams.npos)
 				return false;
 
-			ConsoleActivatior();
+			ConsoleActivator();
 
 			const os::env::provider::strings EnvStrings;
 			for (const auto& i: enum_substrings(EnvStrings.data()))
@@ -1188,7 +1247,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 			return true;
 		}
 
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		const auto VariableValue = SetParams.substr(pos + 1);
 		const auto VariableName = SetParams.substr(0, pos);
@@ -1216,7 +1275,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 			return false;
 		}
 
-		ConsoleActivatior();
+		ConsoleActivator();
 		console.Clear(colors::PaletteColorToFarColor(COL_COMMANDLINEUSERSCREEN));
 		return true;
 	}
@@ -1224,7 +1283,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 	// PUSHD путь | ..
 	if (equal_icase(Command, L"PUSHD"sv))
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		const auto PushDir = m_CurDir;
 
@@ -1241,7 +1300,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 	// TODO: добавить необязательный параметр - число, сколько уровней пропустить, после чего прыгнуть.
 	if (equal_icase(Command, L"POPD"sv))
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		if (!ppstack.empty())
 		{
@@ -1264,7 +1323,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 	// CLRD
 	if (equal_icase(Command, L"CLRD"sv))
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		clear_and_shrink(ppstack);
 		os::env::del(L"FARDIRSTACK"sv);
@@ -1294,9 +1353,9 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 			char_width::invalidate();
 		}
 
-		ConsoleActivatior();
+		ConsoleActivator();
 
-		Text(ChcpParams);
+		std::wcout << ChcpParams << std::endl;
 
 		return true;
 	}
@@ -1317,7 +1376,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 		if (CdParams.empty())
 			return false;
 
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		IntChDir(CdParams, !IsCommandCd);
 		return true;
@@ -1325,7 +1384,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 
 	if (equal_icase(Command, L"TITLE"))
 	{
-		ConsoleActivatior();
+		ConsoleActivator(true);
 
 		ConsoleTitle::SetUserTitle(Arguments);
 
@@ -1342,7 +1401,7 @@ bool CommandLine::ProcessOSCommands(string_view const CmdLine, function_ref<void
 		if (!from_string(Arguments, ExitCode))
 			LOGWARNING(L"Error parsing exit arguments: {}"sv, Arguments);
 
-		ConsoleActivatior();
+		ConsoleActivator(true);
 		Global->WindowManager->ExitMainLoop(FALSE, ExitCode);
 		return true;
 	}

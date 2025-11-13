@@ -799,6 +799,7 @@ void Viewer::ShowPage(int nMode)
 
 	DrawScrollbar();
 	ShowStatus();
+	GetOwner()->ShowChildren();
 }
 
 void Viewer::DisplayObject()
@@ -965,7 +966,7 @@ void Viewer::ShowDump()
 			const int bsel = SelectPos > bpos? static_cast<int>(SelectPos - bpos) / CharSize : 0;
 			const int esel = SelectPos + SelectSize < bpos + mb? (static_cast<int>(SelectPos + SelectSize - bpos) + CharSize - 1) / CharSize : ScrollbarAdjustedWidth;
 			SetColor(COL_VIEWERSELECTEDTEXT);
-			GotoXY(bsel, Y);
+			GotoXY(m_Where.left + bsel, Y);
 			Text(cut_right(OutStr.substr(bsel), esel - bsel));
 		}
 	}
@@ -2436,7 +2437,7 @@ void Viewer::Up(int nlines, bool adjust)
 					if (process_back<char>(buff_size, j, fpos, BufferReader, eol))
 						break;
 				}
-				catch (far_exception const&)
+				catch (std::exception const&)
 				{
 					return; //??? error handling
 				}
@@ -2452,7 +2453,7 @@ void Viewer::Up(int nlines, bool adjust)
 					if (process_back<wchar_t>(buff_size, j, fpos, BufferReader, eol))
 						break;
 				}
-				catch (far_exception const&)
+				catch (std::exception const&)
 				{
 					return; //??? error handling
 				}
@@ -2749,7 +2750,6 @@ SEARCHER_RESULT Viewer::search_text_forward(search_data* sd)
 		*sd->searcher,
 		sd->Rex,
 		sd->RexMatch,
-		{},
 		CurPos,
 		{
 			.CaseSensitive = m_SearchDlgParams.CaseSensitive.value(),
@@ -2844,7 +2844,6 @@ SEARCHER_RESULT Viewer::search_text_backward(search_data* sd)
 		*sd->searcher,
 		sd->Rex,
 		sd->RexMatch,
-		{},
 		CurPos,
 		{
 			.CaseSensitive = m_SearchDlgParams.CaseSensitive.value(),
@@ -3916,6 +3915,15 @@ int Viewer::ViewerControl(int Command, intptr_t Param1, void *Param2)
 
 				Info->TabSize=ViOpt.TabSize;
 				Info->LeftPos=LeftPos;
+
+				if (HostFileViewer)
+				{
+					if (HostFileViewer->IsTitleBarVisible())
+						Info->Options |= VOPT_SHOWTITLEBAR;
+					if (HostFileViewer->IsKeyBarVisible())
+						Info->Options |= VOPT_SHOWKEYBAR;
+				}
+
 				return TRUE;
 			}
 

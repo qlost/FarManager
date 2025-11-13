@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "keyboard.hpp"
 #include "ctrlobj.hpp"
 #include "cmdline.hpp"
+#include "elevation.hpp"
 #include "encoding.hpp"
 #include "interf.hpp"
 #include "message.hpp"
@@ -83,6 +84,8 @@ static bool FindObject(string_view const Command, string& strDest)
 
 	if (Module.empty())
 		return false;
+
+	SCOPED_ACTION(elevation::suppress);
 
 	const auto ModuleExt = name_ext(Module).second;
 	const auto PathExtList = enum_tokens(lower(os::env::get_pathext()), L";"sv);
@@ -360,7 +363,7 @@ void OpenFolderInShell(string_view const Folder)
 	// To avoid collisions with bat/cmd/etc.
 	AddEndSlash(Info.Command);
 	Info.WaitMode = execute_info::wait_mode::no_wait;
-	Info.SourceMode = execute_info::source_mode::known_external;
+	Info.SourceMode = execute_info::source_mode::known_external_folder;
 
 	Execute(Info);
 }
@@ -518,13 +521,13 @@ static void after_process_creation(
 	os::handle Thread,
 	point const& ConsoleSize,
 	rectangle const& ConsoleWindowRect,
-	function_ref<void()> const ConsoleActivator,
+	function_ref<void(bool NoWait)> const ConsoleActivator,
 	bool const UsingComspec
 )
 {
-	const auto resume_process = [&]
+	const auto resume_process = [&](bool const NoWait)
 	{
-		ConsoleActivator();
+		ConsoleActivator(NoWait);
 
 		if (Thread)
 		{
@@ -536,7 +539,7 @@ static void after_process_creation(
 	switch (WaitMode)
 	{
 	case execute_info::wait_mode::no_wait:
-		resume_process();
+		resume_process(true);
 		console.command_finished();
 		return;
 
@@ -544,7 +547,7 @@ static void after_process_creation(
 		{
 			const auto NeedWaiting = os::process::get_process_subsystem(Process.get()) != os::process::image_type::graphical;
 
-			resume_process();
+			resume_process(!NeedWaiting);
 
 			if (!NeedWaiting)
 			{
@@ -561,7 +564,7 @@ static void after_process_creation(
 		return;
 
 	case execute_info::wait_mode::wait_finish:
-		resume_process();
+		resume_process(false);
 		Process.wait();
 		log_process_exit_code(Info, Process, UsingComspec);
 		return;
@@ -730,7 +733,7 @@ private:
 
 static bool execute_impl(
 	const execute_info& Info,
-	function_ref<void()> const ConsoleActivator,
+	function_ref<void(bool NoWait)> const ConsoleActivator,
 	string& FullCommand,
 	string& Command,
 	string& Parameters,
@@ -743,14 +746,14 @@ static bool execute_impl(
 	std::optional<external_execution_context> Context;
 	auto ConsoleActivatorInvoked = false;
 
-	const auto ExtendedActivator = [&]
+	const auto ExtendedActivator = [&](bool NoWait)
 	{
 		if (Context)
 			return;
 
 		if (!ConsoleActivatorInvoked)
 		{
-			ConsoleActivator();
+			ConsoleActivator(NoWait);
 			ConsoleActivatorInvoked = true;
 		}
 
@@ -818,12 +821,13 @@ static bool execute_impl(
 		if (os::last_error().Win32Error == ERROR_EXE_MACHINE_TYPE_MISMATCH)
 		{
 			SCOPED_ACTION(os::last_error_guard);
-			ExtendedActivator();
+			ExtendedActivator(true);
 			return false;
 		}
 	}
 
-	ExtendedActivator();
+	if (Info.SourceMode != execute_info::source_mode::known_external_folder)
+		ExtendedActivator(Info.WaitMode == execute_info::wait_mode::no_wait);
 
 	const auto execute_shell = [&]
 	{
@@ -838,7 +842,7 @@ static bool execute_impl(
 			return false;
 
 		if (Process)
-			after_process_creation(Info, os::handle(Process), Info.WaitMode, {}, ConsoleSize, ConsoleWindowRect, []{}, UsingComspec);
+			after_process_creation(Info, os::handle(Process), Info.WaitMode, {}, ConsoleSize, ConsoleWindowRect, [](bool){}, UsingComspec);
 
 		return true;
 	};
@@ -853,7 +857,7 @@ static bool execute_impl(
 	return execute_process() || execute_shell();
 }
 
-void Execute(execute_info& Info, function_ref<void()> const ConsoleActivator)
+void Execute(execute_info& Info, function_ref<void(bool NoWait)> const ConsoleActivator)
 {
 	auto CurrentDirectory = Info.Directory.empty()? os::fs::get_current_directory() : Info.Directory;
 	// For funny names that end with spaces

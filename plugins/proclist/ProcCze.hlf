@@ -1,4 +1,4 @@
-﻿.Language=Czech,Czech (Čeština)
+﻿.Language=Czech,Čeština
 .PluginContents=Process list
 
 
@@ -274,15 +274,15 @@ tyto #speciální# typy sloupců:
    #XT# - Počet vláken
    #XG# - GDI objekty (jen lokální)
    #XU# - USER objekty (jen lokální)
-   #XB# - Bitness (32/64)
-   #X0...X21[S][T]# - výkonová počítadla (viz níže).
+   #XB# - Bitness (32/64, jen lokální)
+   #X0...X22[S][T]# - výkonová počítadla (viz níže).
 
    #Popisové sloupce:#
 
    #ZP# - Celá cesta
-   #ZW# - Nadpis okna
-   #ZD# - Popis souboru
-   #ZC# - Příkazový řádek (jen lokální)
+   #ZW# - Nadpis okna (jen lokální)
+   #ZD# - Popis souboru (jen lokální)
+   #ZC# - Příkazový řádek
 
    #VAROVÁNÍ:# V každém módu panelu může být jen jeden popisový sloupec ('Zx').
 Pro zobrazení rozdílných druhů popisů musíte přepínat mezi módy.
@@ -319,6 +319,7 @@ sloupce můžete přidat #T# pro pužití 1000 místo 1024 jako dělitele.
    #X19# IO čtené operace
    #X20# IO zapsané operace
    #X21# IO ostatní operace
+   #X22# Working set - Private
 
 
 @Config

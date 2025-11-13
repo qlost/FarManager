@@ -83,7 +83,6 @@ mf.iif = function(Expr, res1, res2)
 end
 
 mf.usermenu = function(mode, filename)
-  if not panel.CheckPanelsExist() then return end -- mantis #2986 (crash)
   if mode and type(mode)~="number" then return end
   mode = mode or 0
   local sync_call = band(mode,0x100) ~= 0
@@ -288,17 +287,19 @@ SetProperties(Editor, {
 --------------------------------------------------------------------------------
 
 Menu = {
-  Filter     = function(...) return MacroCallFar(0x80C55, ...) end,
-  FilterStr  = function(...) return MacroCallFar(0x80C56, ...) end,
-  GetValue   = function(...) return MacroCallFar(0x80C46, ...) end,
-  ItemStatus = function(...) return MacroCallFar(0x80C47, ...) end,
-  Select     = function(...) return MacroCallFar(0x80C1B, ...) end,
-  Show       = function(...) return MacroCallFar(0x80C1C, ...) end,
+  Filter              = function(...) return MacroCallFar(0x80C55, ...) end,
+  FilterStr           = function(...) return MacroCallFar(0x80C56, ...) end,
+  GetValue            = function(...) return MacroCallFar(0x80C46, ...) end,
+  ItemStatus          = function(...) return MacroCallFar(0x80C47, ...) end,
+  Select              = function(...) return MacroCallFar(0x80C1B, ...) end,
+  Show                = function(...) return MacroCallFar(0x80C1C, ...) end,
+  GetItemExtendedData = function(...) return MacroCallFar(0x80C6B, ...) end,
 }
 
 SetProperties(Menu, {
-  Id         = function() return MacroCallFar(0x80844) end,
-  Value      = function() return MacroCallFar(0x80843) end,
+  HorizontalAlignment = function() return MacroCallFar(0x80845) end,
+  Id                  = function() return MacroCallFar(0x80844) end,
+  Value               = function() return MacroCallFar(0x80843) end,
 })
 --------------------------------------------------------------------------------
 
@@ -624,7 +625,11 @@ function mf.printconsole(...)
   local narg = select("#", ...)
   panel.GetUserScreen()
   for i=1,narg do
-    win.WriteConsole(select(i, ...), i<narg and "\t" or "")
+    local success, err = win.WriteConsole(select(i, ...), i<narg and "\t" or "")
+    if not success then
+      Shared.ErrMsg(err or "error in win.WriteConsole")
+      break
+    end
   end
   panel.SetUserScreen()
 end

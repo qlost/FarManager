@@ -52,7 +52,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class RegExp;
 struct RegExpMatch;
 class regex_match;
-class named_regex_match;
 
 namespace legacy
 {
@@ -144,7 +143,7 @@ bool CheckFileSizeStringFormat(string_view FileSizeStr);
 unsigned long long ConvertFileSizeString(string_view FileSizeStr);
 
 [[nodiscard]]
-string ReplaceBrackets(string_view SearchStr, string_view ReplaceStr, std::span<RegExpMatch const> Match, const named_regex_match* NamedMatch);
+string ReplaceBrackets(string_view Str, string_view MatchData, std::span<RegExpMatch const> Match, unordered_string_map<size_t> const& NamedGroups);
 
 [[nodiscard]]
 string GroupDigits(unsigned long long Value);
@@ -168,35 +167,107 @@ namespace legacy
 
 namespace inplace
 {
-	void truncate_left(string& Str, size_t MaxLength);
-	void truncate_right(string& Str, size_t MaxLength);
-	void truncate_center(string& Str, size_t MaxLength);
-	void truncate_path(string& Str, size_t MaxLength);
+	void cut_left(string& Str, size_t CellsAvailable);
+	void cut_left(string_view& Str, size_t CellsAvailable);
+	void cut_right(string& Str, size_t CellsAvailable);
+	void cut_right(string_view& Str, size_t CellsAvailable);
+	void pad_left(string& Str, size_t CellsAvailable, wchar_t Padding = L' ');
+	void pad_right(string& Str, size_t CellsAvailable, wchar_t Padding = L' ');
+	void fit_to_left(string& Str, size_t CellsAvailable);
+	void fit_to_center(string& Str, size_t CellsAvailable);
+	void fit_to_right(string& Str, size_t CellsAvailable);
+	void truncate_left(string& Str, size_t CellsAvailable);
+	void truncate_right(string& Str, size_t CellsAvailable);
+	void truncate_center(string& Str, size_t CellsAvailable);
+	void truncate_path(string& Str, size_t CellsAvailable);
 }
 
 [[nodiscard]]
-string truncate_left(string Str, size_t MaxLength);
+inline auto cut_left(string Str, size_t const CellsAvailable)
+{
+	inplace::cut_left(Str, CellsAvailable);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_left(string_view Str, size_t MaxLength);
+inline auto cut_right(string Str, size_t const CellsAvailable)
+{
+	inplace::cut_right(Str, CellsAvailable);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_right(string Str, size_t MaxLength);
+inline auto cut_left(string_view Str, size_t const CellsAvailable)
+{
+	inplace::cut_left(Str, CellsAvailable);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_right(string_view Str, size_t MaxLength);
+inline auto cut_right(string_view Str, size_t const CellsAvailable)
+{
+	inplace::cut_right(Str, CellsAvailable);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_center(string Str, size_t MaxLength);
+inline auto pad_left(string Str, size_t const CellsAvailable, wchar_t Padding = L' ')
+{
+	inplace::pad_left(Str, CellsAvailable, Padding);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_center(string_view Str, size_t MaxLength);
+inline auto pad_right(string Str, size_t const CellsAvailable, wchar_t Padding = L' ')
+{
+	inplace::pad_right(Str, CellsAvailable, Padding);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_path(string Str, size_t MaxLength);
+inline auto fit_to_left(string Str, const size_t CellsAvailable)
+{
+	inplace::fit_to_left(Str, CellsAvailable);
+	return Str;
+}
 
 [[nodiscard]]
-string truncate_path(string_view Str, size_t MaxLength);
+inline auto fit_to_center(string Str, const size_t CellsAvailable)
+{
+	inplace::fit_to_center(Str, CellsAvailable);
+	return Str;
+}
+
+[[nodiscard]]
+inline auto fit_to_right(string Str, const size_t CellsAvailable)
+{
+	inplace::fit_to_right(Str, CellsAvailable);
+	return Str;
+}
+
+[[nodiscard]]
+string truncate_left(string Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_left(string_view Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_right(string Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_right(string_view Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_center(string Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_center(string_view Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_path(string Str, size_t CellsAvailable);
+
+[[nodiscard]]
+string truncate_path(string_view Str, size_t CellsAvailable);
 
 [[nodiscard]]
 bool IsCaseMixed(string_view Str);
@@ -208,7 +279,6 @@ bool SearchString(
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
 	regex_match& Match,
-	named_regex_match* NamedMatch,
 	int& CurPos,
 	search_replace_string_options options,
 	int& SearchLength,
@@ -222,7 +292,6 @@ bool SearchAndReplaceString(
 	i_searcher const& NeedleSearcher,
 	const RegExp& re,
 	regex_match& Match,
-	named_regex_match* NamedMatch,
 	string& ReplaceStr,
 	int& CurPos,
 	search_replace_string_options options,

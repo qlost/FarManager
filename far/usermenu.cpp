@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "filepanels.hpp"
 #include "panel.hpp"
 #include "cmdline.hpp"
+#include "desktop.hpp"
 #include "vmenu.hpp"
 #include "vmenu2.hpp"
 #include "dialog.hpp"
@@ -65,6 +66,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "keyboard.hpp"
 #include "log.hpp"
 #include "codepage.hpp"
+#include "strmix.hpp"
 
 // Platform:
 #include "platform.hpp"
@@ -115,9 +117,10 @@ private:
 
 	enum class menu_mode
 	{
-		local,
-		user,
-		global,
+		local,       // .\FarMenu.ini
+		user,        // %FARPROFILE%\FarMenu.ini
+		global,      // %FARHOME%\FarMenu.ini
+		custom,      // arbitrary file
 	};
 
 	menu_mode m_MenuMode{ menu_mode::local };
@@ -331,7 +334,7 @@ void UserMenu::SaveMenu(string_view const MenuFileName) const
 			Stream << StrStream.rdbuf();
 		});
 	}
-	catch (far_exception const& e)
+	catch (std::exception const& e)
 	{
 		Message(MSG_WARNING, e,
 			msg(lng::MError),
@@ -384,6 +387,8 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 		}
 		else
 		{
+			m_MenuMode = menu_mode::custom;
+
 			auto ParentDir = MenuFileName;
 			CutToParent(ParentDir);
 			strMenuFilePath = ParentDir;
@@ -407,7 +412,7 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 		{
 			try
 			{
-				if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING))
+				if (const auto MenuFile = os::fs::file(strMenuFileFullPath, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
 					DeserializeMenu(m_Menu, MenuFile, m_MenuCP);
 			}
 			catch (std::exception const& e)
@@ -416,7 +421,7 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 				LOGERROR(L"{}"sv, e);
 			}
 		}
-		else if (m_MenuMode != menu_mode::user)
+		else if (m_MenuMode != menu_mode::user && m_MenuMode != menu_mode::custom)
 		{
 			// Файл не открылся. Смотрим дальше.
 			if (m_MenuMode == menu_mode::global) // был в %FARHOME%?
@@ -455,6 +460,10 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 		case menu_mode::user:
 			MenuTitle = concat(msg(lng::MMainMenuTitle), L" ("sv, msg(m_MenuMode == menu_mode::global? lng::MMainMenuGlobal : lng::MMainMenuUser), L')');
 			break;
+
+		case menu_mode::custom:
+			MenuTitle = PointToName(MenuFileName);
+			break;
 		}
 
 		// вызываем меню
@@ -469,11 +478,14 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 				// Показать меню родительского каталога
 			case EC_PARENT_MENU:
 			{
-				if (m_MenuMode == menu_mode::local)
+				if (m_MenuMode == menu_mode::local || m_MenuMode == menu_mode::custom)
 				{
-					// Menu can be invoked from any file with any name
-					// Going up switches to standard names & logic
-					MenuFileName = {};
+					if (m_MenuMode == menu_mode::custom)
+					{
+						// Menu can be invoked from any file with any name
+						// Going up switches to standard names & logic
+						MenuFileName = {};
+					}
 
 					if (CutToParent(strMenuFilePath))
 					{
@@ -497,11 +509,12 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 				// $ 14.07.2000 VVM: Shift+F2 переключает Главное меню/локальное в цикле
 				switch (m_MenuMode)
 				{
-					case menu_mode::local:
+					case menu_mode::custom:
 						// Menu can be invoked from any file with any name
 						// Switching to global switches to standard names & logic
 						MenuFileName = {};
-
+						[[fallthrough]];
+					case menu_mode::local:
 						m_MenuMode = menu_mode::global;
 						strMenuFilePath = Global->Opt->GlobalUserMenuDir;
 						break;
@@ -514,6 +527,7 @@ void UserMenu::ProcessUserMenu(bool ChooseMenuType, string_view MenuFileName)
 					case menu_mode::user:
 						strMenuFilePath = Global->CtrlObject->CmdLine()->GetCurDir();
 						m_MenuMode = menu_mode::local;
+						break;
 				}
 
 				break;
@@ -537,7 +551,7 @@ static void FillUserMenu(VMenu2& FarUserMenu, UserMenu::menu_container& Menu, in
 	FOR_RANGE(Menu, MenuItem)
 	{
 		++NumLines;
-		MenuItemEx FarUserMenuItem;
+		menu_item_ex FarUserMenuItem;
 		int FuncNum=0;
 
 		// сепаратором является случай, когда хоткей == "--"
@@ -560,7 +574,8 @@ static void FillUserMenu(VMenu2& FarUserMenu, UserMenu::menu_container& Menu, in
 			FuncNum = PrepareHotKey(strHotKey);
 			const auto have_hotkey = !strHotKey.empty();
 			const auto Offset = have_hotkey && strHotKey.front() == L'&'? 5 : 4;
-			strHotKey.resize(Offset, L' ');
+			const auto VisualSize = visual_string_length(strHotKey);
+			strHotKey.append(Offset - VisualSize, L' ');
 			FarUserMenuItem.Name = concat(have_hotkey && !FuncNum? L"&"sv : L""sv, strHotKey, strLabel);
 
 			if (MenuItem->Submenu)
@@ -720,7 +735,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 						if (!ShellEditor->WasFileSaved())
 							break;
 					}
-					if (const auto MenuFile = os::fs::file(MenuFileName, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING))
+					if (const auto MenuFile = os::fs::file(MenuFileName, GENERIC_READ, os::fs::file_share_read, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
 					{
 						MenuRoot.clear();
 						try
@@ -755,7 +770,7 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 					return 1;
 
 				case KEY_BS: // Показать меню из родительского каталога только в MM_LOCAL режиме
-					if (m_MenuMode == menu_mode::local)
+					if (m_MenuMode == menu_mode::local || m_MenuMode == menu_mode::custom)
 					{
 						ReturnCode=EC_PARENT_MENU;
 						UserMenu->Close(-1);
@@ -798,6 +813,9 @@ int UserMenu::ProcessSingleMenu(std::list<UserMenuItem>& Menu, int MenuPos, std:
 		/* $ 01.05.2001 IS Отключим до лучших времен */
 		//int LeftVisible,RightVisible,PanelsHidden=0;
 		Global->CtrlObject->CmdLine()->LockUpdatePanel(true);
+
+		Global->WindowManager->Desktop()->ConsoleSession().pin();
+		SCOPE_EXIT{ Global->WindowManager->Desktop()->ConsoleSession().unpin(); };
 
 		// Цикл исполнения команд меню (CommandX)
 		for (const auto& str: (*CurrentMenuItem)->Commands)

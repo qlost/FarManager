@@ -121,7 +121,7 @@ public:
 
 		if (*m_UpdatePeriod != 0s)
 		{
-			m_ReloadTimer = os::concurrency::timer(*m_UpdatePeriod, *m_UpdatePeriod, [this]
+			m_ReloadTimer = std::make_unique<os::concurrency::timer>(*m_UpdatePeriod, *m_UpdatePeriod, [this]
 			{
 				message_manager::instance().notify(m_Listener.GetEventName());
 			});
@@ -140,7 +140,7 @@ private:
 	listener m_Listener{ listener::scope{L"FileView"sv}, [] {}};
 
 	std::optional<std::chrono::milliseconds> m_UpdatePeriod;
-	os::concurrency::timer m_ReloadTimer;
+	std::unique_ptr<os::concurrency::timer> m_ReloadTimer;
 };
 
 FileViewer::FileViewer(private_tag, bool const DisableEdit, string_view const Title):
@@ -335,7 +335,7 @@ void FileViewer::Show()
 		m_windowKeyBar->Redraw();
 	}
 	m_View->SetPosition({ m_Where.left, m_Where.top + (IsTitleBarVisible()? 1 : 0), m_Where.right, m_Where.bottom - (IsKeyBarVisible()? 1 : 0) });
-	ScreenObjectWithShadow::Show();
+	window::Show();
 	ShowStatus();
 }
 
@@ -466,7 +466,7 @@ bool FileViewer::ProcessKey(const Manager::Key& Key)
 			{
 				const auto cp = m_View->m_Codepage;
 				const auto strViewFileName = m_View->GetFileName();
-				while (!os::fs::file(strViewFileName, FILE_READ_DATA, os::fs::file_share_read | (Global->Opt->EdOpt.EditOpenedForWrite? FILE_SHARE_WRITE : 0), nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN))
+				while (!os::fs::file(strViewFileName, FILE_READ_DATA, os::fs::file_share_read | (Global->Opt->EdOpt.EditOpenedForWrite? FILE_SHARE_WRITE : 0), nullptr, OPEN_EXISTING))
 				{
 					if (OperationFailed(os::last_error(), strViewFileName, lng::MEditTitle, msg(lng::MEditCannotOpen), false) != operation::retry)
 						return true;
@@ -584,21 +584,7 @@ bool FileViewer::CanFastHide() const
 	return (Global->Opt->AllCtrlAltShiftRule & CASR_VIEWER) != 0;
 }
 
-int FileViewer::ViewerControl(int Command, intptr_t Param1, void *Param2) const
-{
-	const auto result = m_View->ViewerControl(Command, Param1, Param2);
-	if (result&&VCTL_GETINFO==Command)
-	{
-		const auto Info=static_cast<ViewerInfo*>(Param2);
-		if (IsTitleBarVisible())
-			Info->Options |= VOPT_SHOWTITLEBAR;
-		if (IsKeyBarVisible())
-			Info->Options |= VOPT_SHOWKEYBAR;
-	}
-	return result;
-}
-
- string FileViewer::GetTitle() const
+string FileViewer::GetTitle() const
 {
 	return m_View->GetTitle();
 }

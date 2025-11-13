@@ -104,11 +104,11 @@ namespace
 	string GetDatabaseName(sqlite::sqlite3* Db, string_view const DbName = {})
 	{
 		if (!DbName.empty())
-			return string(PointToName(DbName));
+			return string(DbName);
 
 		const auto NamePtr = sqlite::sqlite3_db_filename(Db, "main");
 		const string Name(NamePtr? *NamePtr? encoding::utf8::get_chars(NamePtr) : SQLiteDb::memory_db_name : L"unknown"sv);
-		return string(PointToName(Name));
+		return Name;
 	}
 
 	string GetLastErrorString(sqlite::sqlite3* Db)
@@ -116,17 +116,46 @@ namespace
 		return encoding::utf8::get_chars(sqlite::sqlite3_errmsg(Db));
 	}
 
-	[[noreturn]]
-	void throw_exception(string_view const DatabaseName, int const ErrorCode, string_view const ErrorString = {}, int const SystemErrorCode = 0, string_view const Sql = {}, int const ErrorOffset = -1)
+	bool is_user_problem(int const ErrorCode)
 	{
-		throw far_sqlite_exception(ErrorCode, far::format(L"[{}] - SQLite error {}: {}{}{}{}"sv,
-			DatabaseName,
+		// These are errors that typically only the user can fix.
+		// No point in recording dumps, creating bug_report etc., just show them the message.
+		switch (ErrorCode)
+		{
+		case SQLITE_PERM:        // Access permission denied
+		case SQLITE_NOMEM:       // A malloc() failed
+		case SQLITE_READONLY:    // Attempt to write a readonly database
+		case SQLITE_IOERR:       // Some kind of disk I/O error occurred
+		case SQLITE_CORRUPT:     // The database disk image is malformed
+		case SQLITE_FULL:        // Insertion failed because database is full
+		case SQLITE_CANTOPEN:    // Unable to open the database file
+		case SQLITE_AUTH:        // Authorization denied
+		case SQLITE_NOTADB:      // File opened that is not a database file
+			return true;
+
+		default:
+			return false;
+		}
+	}
+
+	[[noreturn]]
+	void throw_exception(string_view const DatabaseName, int const ErrorCode, string_view const ErrorString = {}, int const SystemErrorCode = 0, string_view const Sql = {}, int const ErrorOffset = -1, source_location const& Location = source_location::current())
+	{
+		const auto IsUserProblem = is_user_problem(ErrorCode);
+
+		const auto Message = far::format(L"SQLite error {}: {}\n{}{}{}{}"sv,
 			ErrorCode,
 			ErrorString.empty()? GetErrorString(ErrorCode) : ErrorString,
-			SystemErrorCode? far::format(L" ({})"sv, os::format_error(SystemErrorCode)) : L""sv,
-			Sql.empty()? L""sv : far::format(L" while executing \"{}\""sv, Sql),
-			ErrorOffset == -1? L""sv : far::format(L" at position {}"sv, ErrorOffset)
-		));
+			DatabaseName,
+			IsUserProblem || !SystemErrorCode? L""sv : far::format(L"\n({})"sv, os::format_error(SystemErrorCode)),
+			IsUserProblem || Sql.empty()? L""sv : far::format(L"\nwhile executing\n\"{}\""sv, Sql),
+			IsUserProblem || ErrorOffset == -1? L""sv : far::format(L" at position {}"sv, ErrorOffset)
+		);
+
+		if (IsUserProblem)
+			throw far_known_sqlite_exception(ErrorCode, Message, Location);
+		else
+			throw far_sqlite_exception(ErrorCode, Message, Location);
 	}
 
 	[[noreturn]]
@@ -200,19 +229,14 @@ void SQLiteDb::SQLiteStmt::stmt_deleter::operator()(sqlite::sqlite3_stmt* Object
 
 	// All statement evaluations are checked so returning the error again makes no sense.
 	// This is called from a destructor so we can't throw here.
-	invoke(sqlite::sqlite3_db_handle(Object), [&]
-	{
-		if (const auto Result = sqlite::sqlite3_finalize(Object); Result != SQLITE_OK)
-		{
-			LOGDEBUG(L"sqlite3_finalize(): {}"sv, GetErrorString(Result));
-		}
-		return true;
-	});
+	if (const auto Result = sqlite::sqlite3_finalize(Object); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_finalize(): {}"sv, GetErrorString(Result));
 }
 
-SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::Reset()
+SQLiteDb::SQLiteStmt const& SQLiteDb::SQLiteStmt::Reset() const
 {
-	invoke(db(), [&]{ return sqlite::sqlite3_clear_bindings(m_Stmt.get()) == SQLITE_OK; }, sql());
+	if (const auto Result = sqlite::sqlite3_clear_bindings(m_Stmt.get()); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_clear_bindings(): {}"sv, GetErrorString(Result));
 
 	// https://www.sqlite.org/c3ref/reset.html
 	// If the most recent call to sqlite3_step(S) for the prepared statement S returned SQLITE_ROW or SQLITE_DONE,
@@ -222,15 +246,8 @@ SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::Reset()
 
 	// All sqlite3_step calls are checked so returning the error again makes no sense.
 	// This is called from a destructor so we can't throw here.
-	invoke(db(), [&]
-	{
-		if (const auto Result = sqlite::sqlite3_reset(m_Stmt.get()); Result != SQLITE_OK)
-		{
-			LOGDEBUG(L"sqlite3_reset(): {}"sv, GetErrorString(Result));
-		}
-		return true;
-	},
-	sql());
+	if (const auto Result = sqlite::sqlite3_reset(m_Stmt.get()); Result != SQLITE_OK)
+		LOGERROR(L"sqlite3_reset(): {}"sv, GetErrorString(Result));
 
 	m_Param = 0;
 	return *this;
@@ -259,29 +276,25 @@ void SQLiteDb::SQLiteStmt::Execute() const
 	sql());
 }
 
-SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::BindImpl(int Value)
+void SQLiteDb::SQLiteStmt::BindImpl(int const Value) const
 {
 	invoke(db(), [&]
 	{
 		return sqlite::sqlite3_bind_int(m_Stmt.get(), ++m_Param, Value) == SQLITE_OK;
 	},
 	sql());
-
-	return *this;
 }
 
-SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::BindImpl(long long Value)
+void SQLiteDb::SQLiteStmt::BindImpl(long long const Value) const
 {
 	invoke(db(), [&]
 	{
 		return sqlite::sqlite3_bind_int64(m_Stmt.get(), ++m_Param, Value) == SQLITE_OK;
 	},
 	sql());
-
-	return *this;
 }
 
-SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::BindImpl(const string_view Value)
+void SQLiteDb::SQLiteStmt::BindImpl(string_view const Value) const
 {
 	// https://www.sqlite.org/c3ref/bind_blob.html
 	// If the third parameter to sqlite3_bind_text() or sqlite3_bind_text16() or sqlite3_bind_blob() is a NULL pointer
@@ -295,19 +308,15 @@ SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::BindImpl(const string_view Value)
 		return sqlite::sqlite3_bind_text(m_Stmt.get(), ++m_Param, NullToEmpty(ValueUtf8.data()), static_cast<int>(ValueUtf8.size()), sqlite::transient_destructor) == SQLITE_OK;
 	},
 	sql());
-
-	return *this;
 }
 
-SQLiteDb::SQLiteStmt& SQLiteDb::SQLiteStmt::BindImpl(bytes_view const Value)
+void SQLiteDb::SQLiteStmt::BindImpl(bytes_view const Value) const
 {
 	invoke(db(), [&]
 	{
 		return sqlite::sqlite3_bind_blob(m_Stmt.get(), ++m_Param, Value.data(), static_cast<int>(Value.size()), sqlite::transient_destructor) == SQLITE_OK;
 	},
 	sql());
-
-	return *this;
 }
 
 sqlite::sqlite3* SQLiteDb::SQLiteStmt::db() const
@@ -595,7 +604,11 @@ void SQLiteDb::SetWALJournalingMode() const
 
 void SQLiteDb::EnableForeignKeysConstraints() const
 {
-	Exec("PRAGMA foreign_keys = ON;"sv);
+	invoke(m_Db.get(), [&]
+	{
+		int NewValue;
+		return sqlite::sqlite3_db_config(m_Db.get(), SQLITE_DBCONFIG_ENABLE_FKEY, 1, &NewValue) == SQLITE_OK && NewValue;
+	});
 }
 
 template<typename char_type>

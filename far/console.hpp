@@ -229,23 +229,26 @@ namespace console_detail
 			std::vector<INPUT_RECORD> m_Buffer{ 256 };
 		};
 
+		[[nodiscard]]
+		std::wostream& OriginalOutputStream();
+
 	private:
 		class implementation;
 		friend class implementation;
 
 		[[nodiscard]]
-		bool IsVtEnabled() const;
 		bool ScrollScreenBuffer(rectangle const& ScrollRectangle, point DestinationOrigin, const FAR_CHAR_INFO& Fill) const;
 		bool GetCursorRealPosition(point& Position) const;
 		bool SetCursorRealPosition(point Position) const;
-
-		bool send_vt_command(string_view Command) const;
 
 		std::optional<KEY_EVENT_RECORD> queued() const;
 
 		HANDLE m_OriginalInputHandle;
 		HANDLE m_ActiveConsoleScreenBuffer{};
 		mutable string m_Title;
+
+		std::unique_ptr<std::wstreambuf> m_StreamBuf;
+		std::wostream m_OutputStream{ m_StreamBuf.get() };
 
 		class stream_buffers_overrider;
 		std::unique_ptr<stream_buffers_overrider> m_StreamBuffersOverrider;

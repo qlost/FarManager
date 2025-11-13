@@ -48,12 +48,14 @@ struct error_state_ex: public os::error_state
 {
 	error_state_ex() = default;
 
-	explicit(false) error_state_ex(const error_state& State, string_view const Message = {}, int Errno = 0):
+	explicit(false) error_state_ex(const error_state& State, string_view const Message = {}, int const Errno = 0):
 		error_state(State),
 		What(Message),
 		Errno(Errno)
 	{
 	}
+
+	explicit(false) error_state_ex(std::exception const& e);
 
 	[[nodiscard]]
 	bool any() const
@@ -78,27 +80,17 @@ namespace detail
 	{
 	public:
 		[[nodiscard]] const auto& message() const noexcept { return What; }
-		[[nodiscard]] const auto& full_message() const noexcept { return m_FullMessage; }
-		[[nodiscard]] const auto& location() const noexcept { return m_Location; }
+		[[nodiscard]] const auto& location() const noexcept { return Location; }
 		[[nodiscard]] string to_string() const;
 
 	protected:
-		explicit far_base_exception(error_state_ex ErrorState, source_location const& Location);
-
-	private:
-		source_location m_Location;
-		string m_FullMessage;
+		explicit far_base_exception(error_state_ex ErrorState);
 	};
 
 	class far_std_exception : public far_base_exception, public std::runtime_error
 	{
 	public:
-		explicit far_std_exception(error_state_ex ErrorState, source_location const& Location = source_location::current()):
-			far_base_exception(std::move(ErrorState), Location),
-			std::runtime_error(convert_message(full_message()))
-		{
-		}
-
+		explicit far_std_exception(error_state_ex ErrorState);
 		explicit far_std_exception(string_view Message, bool CaptureErrors = true, source_location const& Location = source_location::current());
 
 	private:
@@ -137,7 +129,7 @@ class far_exception: public detail::far_std_exception
 /*
   For the cases where it is pretty clear what is wrong, no need to show the stack etc.
  */
-class far_known_exception final: public far_exception
+class far_known_exception: public virtual far_exception
 {
 public:
 	explicit far_known_exception(string_view const Message, source_location const& Location = source_location::current()):
@@ -160,5 +152,9 @@ constexpr inline struct unknown_exception_t
 	static string to_string();
 }
 unknown_exception;
+
+// For common
+[[noreturn]]
+void throw_far_exception(std::string_view Message, source_location const& Location);
 
 #endif // EXCEPTION_HPP_2CD5B7D1_D39C_4CAF_858A_62496C9221DF

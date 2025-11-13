@@ -38,7 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "filestr.hpp"
 
 // Internal:
-#include "nsUniversalDetectorEx.hpp"
+#include "uchardet.hpp"
 #include "config.hpp"
 #include "codepage.hpp"
 #include "codepage_selection.hpp"
@@ -54,6 +54,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/bytes_view.hpp"
 #include "common/enum_tokens.hpp"
 #include "common/io.hpp"
+#include "common/lazy.hpp"
 
 // External:
 #include "format.hpp"
@@ -119,7 +120,7 @@ bool enum_lines::fill() const
 			const auto MissingBytes = CharSize - ExtraBytes;
 			std::fill_n(m_Buffer.begin() + Read, MissingBytes, '\0');
 			m_BufferView = { m_Buffer.data(), Read + MissingBytes };
-			m_Diagnostics.ErrorPosition = 0;
+			m_Diagnostics.ErrorPosition = {};
 		}
 
 		if (m_CodePage == CP_UTF16BE)
@@ -132,8 +133,8 @@ bool enum_lines::fill() const
 	return true;
 }
 
-template<typename T>
-bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol) const
+template<typename T, typename Traits>
+bool enum_lines::GetTString(std::basic_string<T, Traits>& To, eol& Eol) const
 {
 	To.clear();
 
@@ -144,14 +145,14 @@ bool enum_lines::GetTString(std::basic_string<T>& To, eol& Eol) const
 		return true;
 	}
 
-	const T
-		EolCr = m_Eol.cr(),
-		EolLf = m_Eol.lf();
+	const auto
+		EolCr = T{ m_Eol.cr() },
+		EolLf = T{ m_Eol.lf() };
 
 	for (;;)
 	{
 		const auto Char = !m_BufferView.empty() || fill()?
-			std::optional<T>{ std::basic_string_view<T>{ std::bit_cast<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
+			std::optional<T>{ std::basic_string_view<T, Traits>{ std::bit_cast<T const*>(m_BufferView.data()), m_BufferView.size() / sizeof(T) }.front() } :
 			std::optional<T>{};
 
 		if (Char == EolLf)
@@ -261,10 +262,16 @@ bool enum_lines::GetString(string_view& Str, eol& Eol) const
 				if (m_IsUtf8 == encoding::is_utf8::yes_ascii)
 					m_IsUtf8 = m_Diagnostics.get_is_utf8();
 
-				if (TryUtf8 && m_Diagnostics.ErrorPosition && m_IsUtf8 != encoding::is_utf8::yes)
+				if (TryUtf8 && m_IsUtf8 == encoding::is_utf8::no)
 				{
 					*m_TryUtf8 = false;
 					continue;
+				}
+
+				if (m_Diagnostics.ErrorPosition)
+				{
+					if (m_FirstErrorBytes.empty())
+						m_FirstErrorBytes = m_Diagnostics.error_data(Data.m_Bytes);
 				}
 
 				if (Size <= Data.m_wBuffer.size())
@@ -305,29 +312,94 @@ static bool GetUnicodeCpUsingBOM(const os::fs::file& File, uintptr_t& Codepage)
 	return false;
 }
 
-static bool GetUnicodeCpUsingWindows(const void* Data, size_t Size, uintptr_t& Codepage)
+static bool GetUnicodeCpUsingWindows(const void* Data, size_t Size, uintptr_t& Codepage, bool& NotUTF16, function_ref<bool(uintptr_t)> const IsCodepageAcceptable)
 {
-	// MSDN documents IS_TEXT_UNICODE_BUFFER_TOO_SMALL but there is no such thing
-	if (Size < 2)
+	if (NotUTF16)
 		return false;
 
-	int Test = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK | IS_TEXT_UNICODE_NOT_UNICODE_MASK | IS_TEXT_UNICODE_NOT_ASCII_MASK;
+	// MSDN documents IS_TEXT_UNICODE_BUFFER_TOO_SMALL but there is no such thing
+	// We can also check the size ourselves (IS_TEXT_UNICODE_ODD_LENGTH) to avoid pointless calls
+	if (Size < 2 || Size & 1)
+	{
+		NotUTF16 = true;
+		return false;
+	}
+
+	int Test = IS_TEXT_UNICODE_NOT_UNICODE_MASK | IS_TEXT_UNICODE_NOT_ASCII_MASK | IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
 
 	// return value is ignored - only some tests might pass
 	IsTextUnicode(Data, static_cast<int>(Size), &Test);
 
-	if ((Test & IS_TEXT_UNICODE_NOT_UNICODE_MASK) || !(Test & IS_TEXT_UNICODE_NOT_ASCII_MASK))
+	if (Test & IS_TEXT_UNICODE_NOT_UNICODE_MASK)
+	{
+		NotUTF16 = true;
+		return false;
+	}
+
+	// As of 2025 it's the same as IS_TEXT_UNICODE_NULL_BYTES.
+	// In other words, we proceed only if there are some.
+	// This restriction is somewhat artificial: technically, you can have a valid UTF-16 piece with no null bytes at all,
+	// but in practice it's extremely rare, since the U+0000 - U+00FF range is Basic Latin and Latin-1 Supplement,
+	// and Basic Latin includes such fundamental characters as space, new line, digits, and common punctuation.
+	// You have to try really hard to avoid them.
+	// Not to mention that UTF-16 without BOM is rare per se these days.
+	if (!(Test & IS_TEXT_UNICODE_NOT_ASCII_MASK))
 		return false;
 
-	if (Test & IS_TEXT_UNICODE_UNICODE_MASK)
+	lazy<bool>
+		IsUTF16LEAcceptable([&]{ return IsCodepageAcceptable(CP_UTF16LE); }),
+		IsUTF16BEAcceptable([&]{ return IsCodepageAcceptable(CP_UTF16BE); });
+
+	// High confidence, non-ambiguous
+	if (Test & IS_TEXT_UNICODE_ASCII16 && *IsUTF16LEAcceptable)
 	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 LE (ASCII 16)"sv);
 		Codepage = CP_UTF16LE;
 		return true;
 	}
 
-	if (Test & IS_TEXT_UNICODE_REVERSE_MASK)
+	// High confidence, non-ambiguous
+	if (Test & IS_TEXT_UNICODE_REVERSE_ASCII16 && *IsUTF16BEAcceptable)
 	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 BE (ASCII 16)"sv);
 		Codepage = CP_UTF16BE;
+		return true;
+	}
+
+	// IS_TEXT_UNICODE_CONTROLS can be a big false positive due to CJK_SPACE being checked:
+	// U+3000 '　' in LE is the same as U+0030 ('0') in BE.
+	// In other words, any BE text with '0' in it will trigger IS_TEXT_UNICODE_CONTROLS.
+	// Looks like IS_TEXT_UNICODE_REVERSE_CONTROLS doesn't check it at all, so it's better to try it first:
+
+	// High confidence, non-ambiguous
+	if (Test & IS_TEXT_UNICODE_REVERSE_CONTROLS && *IsUTF16BEAcceptable)
+	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 BE (controls)"sv);
+		Codepage = CP_UTF16BE;
+		return true;
+	}
+
+	// Medium confidence, statistical analysis
+	if (Test & IS_TEXT_UNICODE_STATISTICS && *IsUTF16LEAcceptable)
+	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 LE (statistics)"sv);
+		Codepage = CP_UTF16LE;
+		return true;
+	}
+
+	// Medium confidence, statistical analysis
+	if (Test & IS_TEXT_UNICODE_REVERSE_STATISTICS && *IsUTF16BEAcceptable)
+	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 BE (statistics)"sv);
+		Codepage = CP_UTF16BE;
+		return true;
+	}
+
+	// Low confidence, false positives (see above)
+	if (Test & IS_TEXT_UNICODE_CONTROLS && *IsUTF16LEAcceptable)
+	{
+		LOGDEBUG(L"IsTextUnicode: UTF-16 LE (controls)"sv);
+		Codepage = CP_UTF16LE;
 		return true;
 	}
 
@@ -350,8 +422,8 @@ static bool GetCpUsingML(std::string_view Str, uintptr_t& Codepage, function_ref
 	// It the string size is 32768 (which we use by default), it can sometimes add up to 65536, which does not fit in unsigned short and becomes 0.
 	// That 0 later goes to a denominator somewhere with rather predictable results.
 	// MS didn't SEH-guard the function, so the exception leaks back into the process and crashes it.
-	// All the factors of 65536 are powers of two, so by reducing such sizes we ensure that even if it overflows, it won't add up to 65536, won't become 0 and won't crash.
-	if (std::has_single_bit(Str.size()))
+	// By reducing such a size we ensure that even if it overflows, it won't add up to 65536, won't become 0 and won't crash.
+	if (Str.size() == 32768)
 		Str.remove_suffix(1);
 
 	int Size = static_cast<int>(Str.size());
@@ -369,22 +441,36 @@ static bool GetCpUsingML(std::string_view Str, uintptr_t& Codepage, function_ref
 		return false;
 
 	Codepage = It->nCodePage;
+	LOGDEBUG(L"ML: codepage {}"sv, Codepage);
 	return true;
 }
 
-static bool GetCpUsingHeuristicsWithExceptions(std::string_view const Str, uintptr_t& Codepage)
+static bool GetCpUsingHeuristicsWithExceptions(std::string_view const Str, uintptr_t& Codepage, bool const IgnoreUTF8, bool& NotUTF16)
 {
-	const auto IsCodepageNotBlacklisted = [](uintptr_t const Cp)
+	const auto IsNotCodepage = [&](uintptr_t const Cp)
 	{
-		return !contains(enum_tokens(Global->Opt->strNoAutoDetectCP.Get(), L",;"sv), str(Cp));
+		return
+			(IgnoreUTF8 && Cp == CP_UTF8) ||
+			(NotUTF16 && IsUtf16CodePage(Cp));
 	};
 
-	const auto IsCodepageWhitelisted = [](uintptr_t const Cp)
+	const auto IsCodepageNotBlacklisted = [&](uintptr_t const Cp)
 	{
+		if (IsNotCodepage(Cp))
+			return false;
+
+		return !Global->Opt->NoAutoDetectCP.contains(Cp);
+	};
+
+	const auto IsCodepageWhitelisted = [&](uintptr_t const Cp)
+	{
+		if (IsNotCodepage(Cp))
+			return false;
+
 		if (!Global->Opt->CPMenuMode)
 			return true;
 
-		if (any_of(Cp, encoding::codepage::ansi(), encoding::codepage::oem()))
+		if (IsStandardCodePage(Cp))
 			return true;
 
 		const auto CodepageType = codepages::GetFavorite(Cp);
@@ -396,14 +482,17 @@ static bool GetCpUsingHeuristicsWithExceptions(std::string_view const Str, uintp
 			function_ref(IsCodepageWhitelisted) :
 			function_ref(IsCodepageNotBlacklisted);
 
-	if (GetCpUsingUniversalDetector(Str, Codepage) && IsCodepageAcceptable(Codepage))
+	if (GetUnicodeCpUsingWindows(Str.data(), Str.size(), Codepage, NotUTF16, IsCodepageAcceptable))
+		return true;
+
+	if (GetCpUsingUniversalDetector(Str, Codepage, IsCodepageAcceptable))
 		return true;
 
 	return GetCpUsingML(Str, Codepage, IsCodepageAcceptable);
 }
 
 // If the file contains a BOM this function will advance the file pointer by the BOM size (either 2 or 3)
-static bool GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage, uintptr_t& Codepage, bool& SignatureFound, bool& NotUTF8, bool& NotUTF16, bool UseHeuristics)
+static bool GetFileCodepage(const os::fs::file& File, uintptr_t& Codepage, bool& SignatureFound, bool& NotUTF8, bool& NotUTF16, bool UseHeuristics)
 {
 	if (GetUnicodeCpUsingBOM(File, Codepage))
 	{
@@ -425,31 +514,26 @@ static bool GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage,
 	if (!ReadResult || !ReadSize)
 		return false;
 
-	if (GetUnicodeCpUsingWindows(Buffer.data(), ReadSize, Codepage))
-	{
-		return true;
-	}
-
-	NotUTF16 = true;
-
 	unsigned long long FileSize = 0;
 	const auto WholeFileRead = File.GetSize(FileSize) && ReadSize == FileSize;
 
-	if (const auto IsUtf8 = encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead); IsUtf8 != encoding::is_utf8::no)
+	switch (encoding::is_valid_utf8({ Buffer.data(), ReadSize }, !WholeFileRead))
 	{
-		if (IsUtf8 == encoding::is_utf8::yes)
-			Codepage = CP_UTF8;
-		else if (DefaultCodepage == CP_UTF8 || DefaultCodepage == encoding::codepage::ansi() || DefaultCodepage == encoding::codepage::oem())
-			Codepage = DefaultCodepage;
-		else
-			Codepage = encoding::codepage::ansi();
-
+	case encoding::is_utf8::yes:
+		Codepage = CP_UTF8;
 		return true;
+
+	case encoding::is_utf8::no:
+		NotUTF8 = true;
+		break;
+
+	case encoding::is_utf8::yes_ascii:
+		// Even though UTF-8 is a superset of ASCII, we can't take a shortcut yet and detect pure ASCII as UTF-8:
+		// there are multibyte 7-bit encodings, e.g. ISO-2022-JP, so it must go to the detector.
+		break;
 	}
 
-	NotUTF8 = true;
-
-	return GetCpUsingHeuristicsWithExceptions({ Buffer.data(), ReadSize }, Codepage);
+	return GetCpUsingHeuristicsWithExceptions({ Buffer.data(), ReadSize }, Codepage, NotUTF8, NotUTF16);
 }
 
 uintptr_t GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage, bool* SignatureFound, bool UseHeuristics)
@@ -459,8 +543,12 @@ uintptr_t GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage, b
 	bool NotUTF8 = false;
 	bool NotUTF16 = false;
 
-	if (!GetFileCodepage(File, DefaultCodepage, Codepage, SignatureFoundValue, NotUTF8, NotUTF16, UseHeuristics))
+	if (!GetFileCodepage(File, Codepage, SignatureFoundValue, NotUTF8, NotUTF16, UseHeuristics) || Codepage == 20127)
 	{
+		// Even though there's a dedicated code page for ASCII - 20127, detecting it as such is not particularly useful.
+		// E.g. if it's an editor and the user adds some localized text and saves the file, there will be useless warnings about unsupported characters.
+		// Better fall back to ANSI or the default.
+
 		Codepage =
 			(NotUTF8 && DefaultCodepage == CP_UTF8) || (NotUTF16 && IsUtf16CodePage(DefaultCodepage))?
 				encoding::codepage::ansi() :
@@ -478,7 +566,7 @@ uintptr_t GetFileCodepage(const os::fs::file& File, uintptr_t DefaultCodepage, b
 #include "testing.hpp"
 #include "mix.hpp"
 
-TEST_CASE("enum_lines")
+TEST_CASE("enum_lines.eol")
 {
 	static const struct
 	{
@@ -569,13 +657,13 @@ TEST_CASE("enum_lines")
 
 	for (const auto& i: Tests)
 	{
-		for (const auto Codepage: { CP_UTF16LE, CP_UTF16BE, static_cast<uintptr_t>(CP_UTF8) })
+		for (const auto Codepage: { CP_UTF16LE, CP_UTF16BE, encoding::codepage::utf8() })
 		{
 			auto Str = encoding::get_bytes(Codepage, i.Str);
 			std::istringstream Stream(Str);
 			Stream.exceptions(Stream.badbit | Stream.failbit);
 
-			const auto Enumerator = enum_lines(Stream, Codepage);
+			enum_lines const Enumerator(Stream, Codepage);
 
 			// Twice to make sure that reset works as expected
 			repeat(2, [&]
@@ -597,19 +685,100 @@ TEST_CASE("enum_lines")
 	}
 }
 
+TEST_CASE("enum_lines.try_utf8")
+{
+	static const struct
+	{
+		string_view Str;
+		uintptr_t SourceCodepage;
+		bool IsASCII;
+		std::initializer_list<const std::pair<string_view, eol>> Result;
+	}
+	Tests[]
+	{
+		{ L"farcical\naquatic\nceremony"sv, 1252, true, {
+			{ L"farcical"sv, eol::unix },
+			{ L"aquatic"sv, eol::unix },
+			{ L"ceremony"sv, eol::none },
+		}},
+
+		{ L"Grzegorz\nBrzęczyszczykiewicz"sv, 1250, false, {
+			{ L"Grzegorz"sv, eol::unix },
+			{ L"Brzęczyszczykiewicz"sv, eol::none },
+		}},
+
+		{ L"残酷な天使のように\n少年よ　神話になれ"sv, 932, false, {
+			{ L"残酷な天使のように"sv, eol::unix },
+			{ L"少年よ　神話になれ"sv, eol::none },
+		}},
+	};
+
+	const auto
+		Utf8 = encoding::codepage::utf8(),
+		BrokenUtf8 = decltype(Utf8){};
+
+	for (const auto& i: Tests)
+	{
+		for (const auto Codepage: { i.SourceCodepage, Utf8, BrokenUtf8 })
+		{
+			const auto IsBrokenUtf8 = Codepage == BrokenUtf8;
+
+			auto Str = encoding::get_bytes(IsBrokenUtf8? Utf8 : Codepage, i.Str);
+
+			if (IsBrokenUtf8)
+				Str += '\xFF';
+
+			std::istringstream Stream(Str);
+			Stream.exceptions(Stream.badbit | Stream.failbit);
+
+			bool TryUtf8 = true;
+			enum_lines const Enumerator(Stream, i.SourceCodepage, &TryUtf8);
+
+			auto Iterator = i.Result.begin();
+			size_t LineIndex = 0;
+
+			for (const auto& Line: Enumerator)
+			{
+				REQUIRE(Iterator != i.Result.end());
+
+				if (IsBrokenUtf8 && LineIndex == i.Result.size() - 1)
+				{
+					REQUIRE(Iterator->first == Line.Str.substr(0, Line.Str.size() - 1));
+					REQUIRE(Line.Str.back() == (TryUtf8? L'\xDCFF' : encoding::get_chars(i.SourceCodepage, "\xFF"sv).front()));
+				}
+				else
+					REQUIRE(Iterator->first == Line.Str);
+
+				REQUIRE(Iterator->second == Line.Eol);
+
+				++Iterator;
+				++LineIndex;
+			}
+
+			REQUIRE(Stream.eof());
+			REQUIRE(Iterator == i.Result.end());
+			REQUIRE(TryUtf8 == ((Codepage == Utf8) || (IsBrokenUtf8 != i.IsASCII)));
+		}
+	}
+}
+
 TEST_CASE("GetCpUsingML_M4000")
 {
 	// https://bugs.farmanager.com/view.php?id=4000
 
-	char c[32768];
-	for (size_t i = 0; i != std::size(c); i += 2)
+	for (size_t i = 2; i != 65536; i *= 2)
 	{
-		c[i + 0] = 0x00;
-		c[i + 1] = 0xE0;
-	}
+		char_ptr c(i);
 
-	uintptr_t Cp;
-	GetCpUsingML({ c, std::size(c) }, Cp, [](uintptr_t){ return true; });
+		for (size_t j = 0; j != c.size(); j += 2)
+		{
+			c[j + 0] = 0x00;
+			c[j + 1] = 0xE0;
+		}
+
+		uintptr_t Cp;
+		GetCpUsingML({ c.data(), c.size() }, Cp, [](uintptr_t) { return true; });
+	}
 
 	SUCCEED();
 }

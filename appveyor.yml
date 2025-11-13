@@ -25,30 +25,6 @@ install:
 
 environment:
   matrix:
-  - id: Release.x64
-    configuration: Release
-    arch: amd64
-    platform_name: x64
-    ADD_MAKE:
-    ADD_MAKE_MSI: RELEASE=1
-    NAME_ADD:
-
-  - id: Release.x86
-    configuration: Release
-    arch: amd64_x86
-    platform_name: x86
-    ADD_MAKE:
-    ADD_MAKE_MSI: RELEASE=1
-    NAME_ADD:
-
-  - id: Release.ARM64
-    configuration: Release
-    arch: amd64_arm64
-    platform_name: ARM64
-    ADD_MAKE:
-    ADD_MAKE_MSI: RELEASE=1
-    NAME_ADD:
-
   - id: Debug.x64
     configuration: Debug
     arch: amd64
@@ -64,6 +40,33 @@ environment:
     ADD_MAKE: DEBUG=1
     ADD_MAKE_MSI:
     NAME_ADD: .Debug
+
+  - id: Release.x64
+    configuration: Release
+    arch: amd64
+    platform_name: x64
+    ADD_MAKE: ENABLE_TESTS=0
+    ADD_MAKE_MSI: RELEASE=1
+    NAME_ADD:
+
+  - id: Release.x86
+    configuration: Release
+    arch: amd64_x86
+    platform_name: x86
+    ADD_MAKE: ENABLE_TESTS=0
+    ADD_MAKE_MSI: RELEASE=1
+    NAME_ADD:
+
+  - id: Release.ARM64
+    configuration: Release
+    arch: amd64_arm64
+    platform_name: ARM64
+    ADD_MAKE: ENABLE_TESTS=0
+    ADD_MAKE_MSI: RELEASE=1
+    NAME_ADD:
+
+matrix:
+  fast_finish: true
 
 build_script:
   #build Plugin SDK Encyclopedia
@@ -105,7 +108,7 @@ build_script:
   #build FarColorer
   - for /F "delims=" %%a in ('curl -fsLJ "https://raw.githubusercontent.com/colorer/FarColorer/master/version4far.txt"') do set COLORER_VERSION=%%a
   - echo "Download FarColorer %COLORER_VERSION%"
-  - set COLORER_BASE_NAME=FarColorer.%platform_name%.v%COLORER_VERSION%
+  - set COLORER_BASE_NAME=FarColorer.%platform_name%.icu.v%COLORER_VERSION%
   - set COLORER_FILE_NAME=%COLORER_BASE_NAME%.wobase.7z
   - set COLORER_PDB_NAME=%COLORER_BASE_NAME%.pdb.7z
   - set COLORER_BASE_URL=https://github.com/colorer/FarColorer/releases/download/v%COLORER_VERSION%/
@@ -138,8 +141,13 @@ after_build:
   - copy /Y enc\build\lua\macroapi_manual.pl\macroapi_manual.pl.chm ci\%configuration%.%platform_name%\Encyclopedia
   #copy misc docs and addons
   - xcopy /e /q /y /k extra\* ci\%configuration%.%platform_name%\
+  #compact maps
+  - far\tools\stacktrace.py ci\%configuration%.%platform_name%
   #test & archive 
   - cd ci\%configuration%.%platform_name%
+  - set far.log.level=all
+  - set far.log.sink=stdout
+  - set far.log.sink.stdout.mode=sync
   #Run macrotest.lua, on failure %ERRORLEVEL% is non zero
   - if not "%platform_name%" == "ARM64" Far.exe -service "macro:test"
   #set NAME_PREFIX variable as otherwise it is not available when artifacts are collected

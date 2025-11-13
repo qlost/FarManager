@@ -47,6 +47,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 
 // Common:
+#include "common/segment.hpp"
 
 // External:
 
@@ -71,7 +72,7 @@ enum VMENU_FLAGS
 	VMENU_WRAPMODE               = 15_bit, // зацикленный список (при перемещении)
 	VMENU_SHOWAMPERSAND          = 16_bit, // символ '&' показывать AS IS
 	VMENU_WARNDIALOG             = 17_bit, //
-	VMENU_ENABLEALIGNANNOTATIONS = 18_bit, // Enable vertical alignment of item annotations and HscrollEnBlocMode
+	VMENU_ENABLEALIGNANNOTATIONS = 18_bit, // Enable vertical alignment of item annotations and item_hscroll_policy::unbound
 	VMENU_LISTHASFOCUS           = 21_bit, // меню является списком в диалоге и имеет фокус
 	VMENU_COMBOBOX               = 22_bit, // меню является комбобоксом и обрабатывается менеджером по-особому.
 	VMENU_MOUSEDOWN              = 23_bit, //
@@ -90,20 +91,6 @@ struct menu_item
 	string Name;
 	LISTITEMFLAGS Flags{};
 	DWORD AccelKey{};
-
-	menu_item() = default;
-
-	explicit menu_item(string_view const Text):
-		Name(Text)
-	{
-	}
-
-	menu_item(string_view const Text, LISTITEMFLAGS const Flags, DWORD const AccelKey = 0):
-		Name(Text),
-		Flags(Flags),
-		AccelKey(AccelKey)
-	{
-	}
 
 	unsigned long long SetCheck()
 	{
@@ -129,27 +116,48 @@ struct menu_item
 	LISTITEMFLAGS SetSelect(bool Value) { if (Value) Flags|=LIF_SELECTED; else Flags&=~LIF_SELECTED; return Flags;}
 	LISTITEMFLAGS SetDisable(bool Value) { if (Value) Flags|=LIF_DISABLE; else Flags&=~LIF_DISABLE; return Flags;}
 	LISTITEMFLAGS SetGrayed(bool Value) { if (Value) Flags|=LIF_GRAYED; else Flags&=~LIF_GRAYED; return Flags;}
-
 };
 
-struct MenuItemEx: menu_item
+struct menu_item_ex: menu_item
 {
-	NONCOPYABLE(MenuItemEx);
-	MOVABLE(MenuItemEx);
+	menu_item_ex() = default;
+	NONCOPYABLE(menu_item_ex);
+	MOVABLE(menu_item_ex);
 
-	MenuItemEx() = default;
-	using menu_item::menu_item;
+	explicit menu_item_ex(const menu_item& Item)
+		: menu_item{ Item }
+	{}
 
+	explicit menu_item_ex(LISTITEMFLAGS Flags)
+		: menu_item{ string{}, Flags }
+	{}
+
+	template<typename T> requires (std::is_constructible_v<menu_item, T, LISTITEMFLAGS>)
+	explicit menu_item_ex(T&& Name, LISTITEMFLAGS Flags = 0)
+		: menu_item{ std::forward<T>(Name), Flags }
+	{}
+
+	std::list<segment> Annotations;
 	std::any ComplexUserData;
 	intptr_t SimpleUserData{};
 
-	int HorizontalPosition{}; // Positive: Indent; Negative: Hanging
+	int HorizontalPosition{}; // Relative to m_LeftColumnWidth. Positive: Indent; Negative: Hanging
 	wchar_t AutoHotkey{};
 	size_t AutoHotkeyPos{};
-	std::list<std::pair<int, int>> Annotations;
+
+	int SafeGetFirstAnnotation() const noexcept { return Annotations.empty() ? 0 : Annotations.front().start(); }
 };
 
+struct item_color_indices;
 struct menu_layout;
+class vmenu_horizontal_tracker;
+
+struct vmenu_fixed_column_t
+{
+	segment TextSegment;
+	int CurrentWidth;
+	wchar_t Separator;
+};
 
 struct SortItemParam
 {
@@ -188,18 +196,18 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
+	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, segment ItemTextSegment);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
 	DWORD ChangeFlags(DWORD Flags, bool Status) { return VMFlags.Change(Flags, Status); }
-	void AssignHighlights(bool Reverse = false);
 	void SetColors(const FarDialogItemColors *ColorsIn = nullptr);
-	void GetColors(FarDialogItemColors *ColorsOut);
+	void GetColors(const FarDialogItemColors *ColorsOut);
 	void SetOneColor(int Index, PaletteColors Color);
 	bool ProcessFilterKey(int Key);
 	void clear();
 	int DeleteItem(int ID, int Count = 1);
-	int AddItem(MenuItemEx&& NewItem, int PosAdd = std::numeric_limits<int>::max());
+	int AddItem(menu_item_ex&& NewItem, int PosAdd = std::numeric_limits<int>::max());
 	int AddItem(const FarList *List);
 	int AddItem(const wchar_t *NewStrItem);
 	int InsertItem(const FarListInsert *NewItem);
@@ -215,32 +223,46 @@ public:
 	// SelectPos == -1 & non-empty Items - everything is filtered
 	bool HasVisible() const { return SelectPos > -1 && !Items.empty(); }
 	int GetShowItemCount() const { return static_cast<int>(Items.size() - ItemHiddenCount); }
+	std::span<menu_item_ex const> GetItems() const noexcept { return Items; }
 	int GetVisualPos(int Pos) const;
 	int VisualPosToReal(int VPos) const;
 
 	intptr_t GetSimpleUserData(int Position = -1) const;
 
 	std::any* GetComplexUserData(int Position = -1);
+	const std::any* GetComplexUserData(int Position = -1) const
+	{
+		return const_cast<VMenu*>(this)->GetComplexUserData();
+	}
 	template<class T>
 	T* GetComplexUserDataPtr(int Position = -1)
 	{
 		return std::any_cast<T>(GetComplexUserData(Position));
 	}
+	template<class T>
+	const T* GetComplexUserDataPtr(int Position = -1) const
+	{
+		return std::any_cast<T>(GetComplexUserData(Position));
+	}
 	void SetComplexUserData(const std::any& Data, int Position = -1);
+
+	using extended_item_data = std::vector<std::pair<FarMacroValue, FarMacroValue>>;
+	using extended_item_data_provider = std::function<extended_item_data(const menu_item_ex&)>;
+	void RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider);
 
 	int GetSelectPos() const { return SelectPos; }
 	int GetLastSelectPosResult() const { return SelectPosResult; }
 	int GetSelectPos(FarListPos *ListPos) const;
 	int SetSelectPos(const FarListPos *ListPos, int Direct = 0);
 	int SetSelectPos(int Pos, int Direct, bool stop_on_edge = false);
-	int GetCheck(int Position = -1);
+	int GetCheck(int Position = -1) const;
 	void SetCheck(int Position = -1);
 	void SetCustomCheck(wchar_t Char, int Position = -1);
 	void ClearCheck(int Position = -1);
 	bool UpdateRequired() const;
 	void UpdateItemFlags(int Pos, unsigned long long NewFlags);
-	MenuItemEx& at(size_t n);
-	MenuItemEx& current() { return at(-1); }
+	menu_item_ex& at(size_t n);
+	menu_item_ex& current() { return at(-1); }
 	bool Pack();
 	bool GetVMenuInfo(FarListInfo* Info) const;
 	void SetMaxHeight(int NewMaxHeight);
@@ -264,11 +286,11 @@ public:
 		SetMenuFlags(VMENU_UPDATEREQUIRED);
 	}
 
-	static FarListItem *MenuItem2FarList(const MenuItemEx *MItem, FarListItem *FItem);
+	static FarListItem *MenuItem2FarList(const menu_item_ex *MItem, FarListItem *FItem);
 	static std::vector<string> AddHotkeys(std::span<menu_item> MenuItems);
 	static bool ClickHandler(window* Menu, int MenuClick);
 
-	[[nodiscard]] size_t GetNaturalMenuWidth() const;
+	[[nodiscard]] int GetNaturalMenuWidth() const;
 
 private:
 	friend struct menu_layout;
@@ -282,35 +304,52 @@ private:
 	[[nodiscard]] int AdjustTopPos(int BoxType); // Sets TopPos
 	void DrawSeparator(size_t ItemIndex, int BoxType, int Y) const;
 	void ConnectSeparator(size_t ItemIndex, string& separator, int BoxType) const;
-	void ApplySeparatorName(const MenuItemEx& Item, string& separator) const;
-	void DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, int Y, std::vector<int>& HighlightMarkup, string_view BlankLine) const;
+	void ApplySeparatorName(const menu_item_ex& Item, string& separator) const;
+	void DrawRegularItem(const menu_item_ex& Item, const menu_layout& Layout, int Y, std::vector<int>& HighlightMarkup, string_view BlankLine) const;
+	void DrawFixedColumns(
+		const menu_item_ex& Item,
+		small_segment FixedColumnsArea,
+		int Y,
+		const item_color_indices& ColorIndices,
+		string_view BlankLine) const;
+	[[nodiscard]]
+	bool DrawItemText(
+		const menu_item_ex& Item,
+		small_segment TextArea,
+		int Y,
+		const item_color_indices& ColorIndices,
+		std::vector<int>& HighlightMarkup,
+		string_view BlankLine) const;
 
 	[[nodiscard]] int CalculateTextAreaWidth() const;
+	[[nodiscard]] int GetItemVisualLength(const menu_item_ex& Item) const; // Intersected with m_ItemTextSegment
+	[[nodiscard]] string_view GetItemText(const menu_item_ex& Item) const; // Intersected with m_ItemTextSegment
 
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
 	int CheckHighlights(wchar_t CheckSymbol,int StartPos=0) const;
-	wchar_t GetHighlights(const MenuItemEx *Item) const;
+	void AssignHighlights(const menu_layout& Layout);
+	wchar_t GetHighlights(const menu_item_ex *Item) const;
 
-	[[nodiscard]] bool SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos);
+	[[nodiscard]] bool SetItemHPos(menu_item_ex& Item, const auto& GetNewHPos);
 	[[nodiscard]] bool SetCurItemSmartHPos(int NewHPos);
 	[[nodiscard]] bool ShiftCurItemHPos(int Shift);
 	[[nodiscard]] bool SetAllItemsHPos(const auto& GetNewHPos);
 	[[nodiscard]] bool SetAllItemsSmartHPos(int NewHPos);
 	[[nodiscard]] bool ShiftAllItemsHPos(int Shift);
 	[[nodiscard]] bool AlignAnnotations();
+	[[nodiscard]] bool ToggleFixedColumns();
 
-	void UpdateMaxLengthFromTitles();
 	void UpdateMaxLength(int ItemLength);
-	void ResetAllItemsBoundaries();
-	void UpdateAllItemsBoundaries(int ItemHPos, int ItemLength);
 	bool ShouldSendKeyToFilter(unsigned Key) const;
 	//корректировка текущей позиции и флагов SELECTED
 	void UpdateSelectPos();
 	void EnableFilter(bool Enable);
 
-	size_t Text(string_view Str) const;
-	size_t Text(wchar_t Char) const;
+	int sizeAsInt() const { return static_cast<int>(size()); }
+
+	size_t MenuText(string_view Str) const;
+	size_t MenuText(wchar_t Char) const;
 
 	string strTitle;
 	string strBottomTitle;
@@ -319,8 +358,11 @@ private:
 	int TopPos{};
 	int MaxHeight;
 	bool WasAutoHeight{};
-	int m_MaxItemLength{};
-	std::pair<int, int> m_AllItemsBoundaries{};
+	int m_MaxItemLength{}; // Each Item.Name is intersected with m_ItemTextSegment
+	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
+	std::vector<vmenu_fixed_column_t> m_FixedColumns;
+	segment m_ItemTextSegment{ segment::ray() };
+	extended_item_data_provider m_ExtendedDataProvider;
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};
@@ -332,7 +374,7 @@ private:
 	bool bFilterEnabled{};
 	bool bFilterLocked{};
 	string strFilter;
-	std::vector<MenuItemEx> Items;
+	std::vector<menu_item_ex> Items;
 	intptr_t ItemHiddenCount{};
 	intptr_t ItemSubMenusCount{};
 	vmenu_colors_t Colors{};

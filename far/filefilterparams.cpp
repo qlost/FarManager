@@ -479,8 +479,8 @@ WARNING_POP()
 		const auto MaxMarkSize = 4;
 
 		const auto
-			MarkAmpFix = Mark.size() - HiStrlen(Mark),
-			NameAmpFix = Name.size() - HiStrlen(Name);
+			MarkAmpFix = visual_string_length(Mark) - HiStrlen(Mark),
+			NameAmpFix = visual_string_length(Name) - HiStrlen(Name);
 
 		return far::format(L"{1:{2}.{2}} {0} {3:{4}.{4}} {0} {5} {6} {0} {7}"sv,
 			BoxSymbols[BS_V1],
@@ -495,7 +495,7 @@ WARNING_POP()
 	}
 
 	const auto HotkeyStr = Hotkey? far::format(L"&{}. "sv, Hotkey) : bPanelType? L"   "s : L""s;
-	const auto AmpFix = Hotkey? 1 : Name.size() - HiStrlen(Name);
+	const auto AmpFix = Hotkey? 1 : visual_string_length(Name) - HiStrlen(Name);
 
 	return far::format(L"{1}{2:{3}.{3}} {0} {4} {5} {0} {6}"sv,
 			BoxSymbols[BS_V1],
@@ -756,11 +756,14 @@ static intptr_t FileFilterConfigDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1
 					Param1 = ID_HER_NORMALMARKING + static_cast<const INPUT_RECORD*>(Param2)->Event.MouseEvent.dwMousePosition.Y*2;
 			}
 
-			//Color[0=file, 1=mark][0=normal,1=selected,2=undercursor,3=selectedundercursor]
-			static const PaletteColors BaseIndices[]{ COL_PANELTEXT, COL_PANELSELECTEDTEXT, COL_PANELCURSOR, COL_PANELSELECTEDCURSOR };
-			const auto& BaseColor = colors::PaletteColorToFarColor(BaseIndices[(Param1 - ID_HER_NORMALFILE) / 2]);
+			const auto IsMarkColor = ((Param1 - ID_HER_NORMALFILE) & 1) != 0;
+			const auto ColorIndex = static_cast<highlight::color::index>((Param1 - ID_HER_NORMALFILE) / 2);
 
-			if (GetColorDialog(((Param1-ID_HER_NORMALFILE)&1)? Context.Colors->Color[(Param1-ID_HER_NORMALFILE)/2].MarkColor : Context.Colors->Color[(Param1-ID_HER_NORMALFILE)/2].FileColor, true, &BaseColor))
+			auto& Colors = Context.Colors->Color;
+			auto BaseColors = Colors;
+			highlight::configuration::ApplyFinalColor(BaseColors, ColorIndex);
+
+			if (GetColorDialog(IsMarkColor? Colors[ColorIndex].MarkColor : Colors[ColorIndex].FileColor, true, IsMarkColor? &BaseColors[ColorIndex].MarkColor : &BaseColors[ColorIndex].MarkColor))
 				Dlg->SendMessage(DM_REFRESHCOLORS, 0, nullptr);
 		}
 

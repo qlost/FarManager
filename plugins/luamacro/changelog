@@ -1,3 +1,201 @@
+shmuel 2025-11-09 08:37:33+02:00 - build 903
+
+1. Fix incorrect error message (since build 881).
+
+shmuel 2025-11-07 08:50:00+02:00 - build 902
+
+1. Enable mf.usermenu for Far started with -e or -v.
+   - It was disabled due to crashes (see Mantis 0002986)
+     but that seems to have changed since Far 3.0.5190.
+   - See also: build 508 in this changelog.
+
+shmuel 2025-11-06 23:58:14+02:00 - build 901
+
+1. LuaFAR: make far.MkLink match docs.
+
+shmuel 2025-11-02 12:35:31+02:00 - build 900
+
+1. Make possible invoking macro browser via Plugin.Call(guid,"browser").
+
+shmuel 2025-10-26 16:31:48+02:00 - build 899
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-10-25 17:10:58+03:00 - build 898
+
+1. LuaFAR: Add more stack operations to Macro-API engine.
+
+shmuel 2025-10-24 20:23:49+03:00 - build 897
+
+1. LuaFAR: add a few stack operations to Macro-API engine.
+
+zg 2025-09-28 23:12:02+03:00 - build 896
+
+1. Menu.GetItemExtendedData now has 1st optional parameter: dialog handle.
+
+shmuel 2025-09-28 15:08:34+03:00 - build 895
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-09-28 10:56:35+03:00 - build 894
+
+1. LuaFAR: refactoring.
+
+rohitab 2025-09-27 13:33:20+10:00 - build 893
+
+1. gh-611: Enable win.GetFileTimes/win.SetFileTimes to get/set change time.
+
+shmuel 2025-09-26 10:38:38+03:00 - build 892
+
+1. LuaFAR: rename actl.Waitkey to actl.WaitKey
+
+MZK 2025-09-11 21:46:54-04:00 - build 891
+
+1. gh-948: Macro API to retrieve menu item extended data: Menu.GetItemExtendedData.
+
+shmuel 2025-09-06 09:05:47+03:00 - build 890
+
+1. LuaFAR: minor reformat in 3 files.
+
+2. LuaFAR: fix crash during Polygon test on Far 3.0.6543.
+
+shmuel 2025-08-22 18:26:47+03:00 - build 889
+
+1. LuaFAR: correct build 888.
+
+shmuel 2025-08-22 17:21:33+03:00 - build 888
+
+1. LuaFAR: support returning Lua tables from Macro API.
+
+shmuel 2025-08-19 17:35:24+03:00 - build 887
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-08-18 21:31:53+03:00 - build 886
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-07-26 20:39:15+03:00 - build 885
+
+1. LuaFAR: minor refactoring.
+
+shmuel 2025-06-22 12:51:43+03:00 - build 884
+
+1. Changes to 883:
+   - fix stack balance in win_WriteConsole
+   - don't throw error in mf.printconsole
+   - minor refactoring
+
+johnd0e 2025-06-21 15:58:44+02:00 - build 883
+
+1. LuaFAR: implement luaL_tolstring (from Lua 5.2..5.3) and make consistent use of it.
+
+2. Improve non-string errors handling; apply __tostring to error object in a safe way.
+
+3. Better errors reporting in win.WriteConsole / mf.printconsole.
+
+shmuel 2025-06-18 13:19:43+03:00 - build 882
+
+1. LuaFAR: add function far.GetPluginId().
+
+johnd0e 2025-06-08 21:28:12+02:00 - build 881
+
+1. Enhance message on moonscript macrofile loading to include error source filename.
+
+2. Enhance detecting macro loading error source.
+
+3. Fix edit position on moonscript parsing error.
+
+shmuel 2025-05-27 23:16:21+03:00 - build 880
+
+1. LuaFAR (far.Menu): refactoring.
+
+shmuel 2025-05-27 13:23:29+03:00 - build 879
+
+1. LuaFAR (far.Menu): allow each menu item to be specified
+   as either a string or a table (was: table only).
+
+shmuel 2025-05-16 21:19:24+03:00 - build 878
+
+1. Revert the last commit.
+
+shmuel 2025-05-15 17:09:35+03:00 - build 877
+
+1. LuaFAR: refactoring.
+
+shmuel 2025-05-10 21:28:45+03:00 - build 876
+
+1. LuaFAR: add FMENU_WRAPMODE to far.Show.
+
+shmuel 2025-05-07 21:44:43+03:00 - build 875
+
+1. LuaFAR: make utf8.format() handle integers beyond 32 bit size.
+
+johnd0e 2025-04-30 23:54:19+02:00 - build 874
+
+1. LuaFAR: fix FarColor / UnderlineColor handling.
+
+shmuel 2025-04-17 10:44:36+03:00 - build 873
+
+1. LuaFAR: support named groups in regex functions.
+
+shmuel 2025-04-11 14:09:36+03:00 - build 872
+
+1. LuaFAR: add functions and methods regex.tfind, regex.tfindW.
+
+shmuel 2025-04-11 12:17:20+03:00 - build 871
+
+1. LuaFAR: eliminate some compiler warnings.
+
+shmuel 2025-03-21 12:38:18+02:00 - build 870
+
+1. Add lf_ prefix to LuaFAR source files' names.
+
+shmuel 2025-03-18 23:57:24+02:00 - build 869
+
+1. LuaFAR: fix crash in recursively called GetOpenPanelInfoW due to hPanel==nullptr.
+
+shmuel 2025-02-28 16:21:34+02:00 - build 868
+
+1. Revert build 846.
+
+shmuel 2025-01-31 19:49:10+02:00 - build 867
+
+1. Revert builds 861-864 since the current far.Timer behavior is questionable.
+
+shmuel 2025-01-29 20:14:04+02:00 - build 866
+
+1. LuaFAR (generic plugin): "%FARPROFILE%\luafar_init.lua" is run by default.
+   That can be prevented by defining a compilation flag -DNO_RUN_LUAFAR_INIT.
+
+2. Plugin LuaMacro is built with this flag not defined.
+
+
+MZK 2025-01-25 20:59:20-05:00 - build 865
+
+1. gh-802: Macro API to report VMenu alignment state: Menu.HorizontalAlignment.
+
+shmuel 2025-01-23 00:39:05+02:00 - build 864
+
+1. LuaFAR: a temporary workaround in processing timer events.
+
+shmuel 2025-01-22 20:36:47+02:00 - build 863
+
+1. LuaFAR plugins: the timer queue is closed in DllMain/DLL_PROCESS_DETACH.
+   Was: in ExitFARW.
+
+shmuel 2025-01-21 21:18:49+02:00 - build 862
+
+1. Force garbage collection on reloading macrofiles
+   (required after build 861).
+
+shmuel 2025-01-19 20:14:03+02:00 - build 861
+
+1. LuaFAR: Timer objects are garbage-collected as any other full userdata.
+     Was: "a timer object is garbage-collected only when its lua_State closes".
+     Reason: reloading macros didn't release timers and their associated code.
+     In some cases with frequent macros reloading it could lead to slowing down Far.
+
 shmuel 2024-11-16 12:39:17+02:00 - build 860
 
 1. Fix winapi.lua for arm64

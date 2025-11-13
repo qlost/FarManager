@@ -328,10 +328,10 @@ namespace console_detail
 		BufferSize = 8192
 	};
 
-	static bool is_redirected(int const HandleType)
+	static bool is_redirected(HANDLE const Handle)
 	{
 		DWORD Mode;
-		return !GetConsoleMode(GetStdHandle(HandleType), &Mode);
+		return !GetConsoleMode(Handle, &Mode);
 	}
 
 	class consolebuf final: public std::wstreambuf
@@ -339,9 +339,9 @@ namespace console_detail
 	public:
 		NONCOPYABLE(consolebuf);
 
-		explicit(false) consolebuf(int const Type):
-			m_Type(Type),
-			m_Redirected(is_redirected(Type)),
+		explicit(false) consolebuf(HANDLE const Handle):
+			m_Handle(Handle),
+			m_Redirected(is_redirected(m_Handle)),
 			m_InBuffer(BufferSize, {}),
 			m_OutBuffer(BufferSize, {})
 		{
@@ -395,7 +395,7 @@ protected:
 			if (m_Redirected)
 			{
 				DWORD BytesRead;
-				if (!ReadFile(GetStdHandle(m_Type), Str.data(), static_cast<DWORD>(Str.size() * sizeof(wchar_t)), &BytesRead, {}))
+				if (!ReadFile(m_Handle, Str.data(), static_cast<DWORD>(Str.size() * sizeof(wchar_t)), &BytesRead, {}))
 					throw far_fatal_exception(L"File read error"sv);
 
 				return BytesRead / sizeof(wchar_t);
@@ -418,7 +418,7 @@ protected:
 				const auto write = [&](void const* Data, size_t const Size)
 				{
 					DWORD BytesWritten;
-					if (!WriteFile(GetStdHandle(m_Type), Data, static_cast<DWORD>(Size), &BytesWritten, {}))
+					if (!WriteFile(m_Handle, Data, static_cast<DWORD>(Size), &BytesWritten, {}))
 						throw far_fatal_exception(L"File write error"sv);
 				};
 
@@ -454,14 +454,14 @@ protected:
 		{
 			if (m_Redirected)
 			{
-				FlushFileBuffers(GetStdHandle(m_Type));
+				FlushFileBuffers(m_Handle);
 				return;
 			}
 
 			::console.Commit();
 		}
 
-		int m_Type;
+		HANDLE m_Handle;
 		bool m_Redirected;
 		string m_InBuffer, m_OutBuffer;
 		std::optional<FarColor> m_Colour;
@@ -473,7 +473,7 @@ protected:
 		NONCOPYABLE(stream_buffer_overrider);
 
 		stream_buffer_overrider(std::wios& Stream, int const HandleType, std::optional<FarColor> const Color = {}):
-			m_Buf(HandleType),
+			m_Buf(GetStdHandle(HandleType)),
 			m_Override(Stream, m_Buf)
 		{
 			if (Color)
@@ -559,30 +559,28 @@ protected:
 		std::optional<DWORD> m_ConsoleMode;
 	};
 
-	class scoped_vt_input
+	static bool IsVtEnabled()
 	{
-	public:
-		NONCOPYABLE(scoped_vt_input);
+		DWORD Mode;
+		return ::console.GetMode(::console.GetOutputHandle(), Mode) && Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	}
 
-		scoped_vt_input():
-			m_ConsoleMode(::console.UpdateMode(::console.GetInputHandle(), ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_LINE_INPUT))
-		{
-		}
+	static bool send_vt_command(string_view const Command)
+	{
+		// Happy path
+		if (IsVtEnabled())
+			return ::console.Write(Command);
 
-		~scoped_vt_input()
-		{
-			if (m_ConsoleMode)
-				::console.SetMode(::console.GetInputHandle(), *m_ConsoleMode);
-		}
+		// Legacy console
+		if (!::console.IsVtSupported())
+			return false;
 
-		explicit operator bool() const
-		{
-			return m_ConsoleMode.has_value();
-		}
+		// If VT is not enabled, we enable it temporarily
+		if ([[maybe_unused]] scoped_vt_output const VtOutput{})
+			return ::console.Write(Command);
 
-	private:
-		std::optional<DWORD> m_ConsoleMode;
-	};
+		return false;
+	}
 
 	static string query_vt(string_view const Command)
 	{
@@ -615,17 +613,17 @@ protected:
 		// Fortunately, it seems that user input is queued before and/or after the responses,
 		// but does not interlace with them.
 
-		// We also need to enable VT input, otherwise it will only work in a real console.
+		// We also need to disable line input, otherwise we will hang.
+		// It's usually disabled anyway, but just in case if we get here too early or too late.
 		// Are you not entertained?
 
-		scoped_vt_input const VtInput;
-		if (!VtInput)
-			throw far_exception(L"scoped_vt_input"sv);
+		const auto CurrentConsoleMode = ::console.UpdateMode(::console.GetInputHandle(), 0, ENABLE_LINE_INPUT);
+		SCOPE_EXIT{ if (CurrentConsoleMode) ::console.SetMode(::console.GetInputHandle(), *CurrentConsoleMode);};
 
 		const auto Dummy = CSI L"0c"sv;
 
-		if (!::console.Write(concat(Dummy, Command, Dummy)))
-			throw far_exception(L"WriteConsole"sv);
+		if (!send_vt_command(concat(Dummy, Command, Dummy)))
+			throw far_exception(L"send_vt_command"sv);
 
 		string Response;
 
@@ -662,16 +660,68 @@ protected:
 
 			if (DA_ResponseSize && Response.size() >= DA_ResponseSize * 2)
 			{
-				if (const auto DA_Response = string_view(Response).substr(*FirstTokenPrefixPos, DA_ResponseSize); Response.ends_with(DA_Response))
-					break;
+				const auto FirstTokenEnd = *FirstTokenPrefixPos + DA_ResponseSize;
+				const auto DA_Response = string_view(Response).substr(*FirstTokenPrefixPos, FirstTokenEnd);
+				const auto SecondTokenPos = Response.find(DA_Response, FirstTokenEnd);
+
+				if (SecondTokenPos != Response.npos)
+					return Response.substr(FirstTokenEnd, SecondTokenPos - FirstTokenEnd);
 			}
 		}
+	}
 
-		return Response.substr(DA_ResponseSize, Response.size() - DA_ResponseSize * 2);
+	static std::optional<wchar_t> decrqm(string_view const Query)
+	{
+		// No need to make noise on legacy systems
+		if (!::console.IsVtSupported())
+			return {};
+
+		try
+		{
+			const auto ResponseData = query_vt(concat(CSI, L'?', Query, L"$p"sv));
+			if (ResponseData.empty())
+			{
+				LOGWARNING(L"DECRQM {} query is not supported"sv, Query);
+				return {};
+			}
+
+			const auto Prefix = concat(CSI, L'?', Query, L';');
+			const auto Suffix = L"$y"sv;
+
+			const auto make_exception = [&](source_location const& Location = source_location::current())
+			{
+				return far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false, Location);
+			};
+
+			if (ResponseData.size() != Prefix.size() + 1 + Suffix.size() || !ResponseData.starts_with(Prefix) || !ResponseData.ends_with(Suffix))
+				throw make_exception();
+
+			switch (const auto Char = ResponseData[Prefix.size()])
+			{
+			case L'0':
+				LOGWARNING(L"DECRQM {} query is not supported"sv, Query);
+				return {};
+
+			case L'1':
+			case L'2':
+			case L'3':
+			case L'4':
+				return Char;
+
+			default:
+				throw make_exception();
+			}
+		}
+		catch (std::exception const& e)
+		{
+			LOGERROR(L"{}"sv, e);
+			return {};
+		}
 	}
 
 	console::console():
 		m_OriginalInputHandle(GetStdHandle(STD_INPUT_HANDLE)),
+		m_StreamBuf(std::make_unique<consolebuf>(GetStdHandle(STD_OUTPUT_HANDLE))),
 		m_StreamBuffersOverrider(std::make_unique<stream_buffers_overrider>())
 	{
 		placement::construct(ExternalConsole);
@@ -949,7 +999,12 @@ protected:
 		wchar_t Buffer[KL_NAMELENGTH];
 		if (!imports.GetConsoleKeyboardLayoutNameW(Buffer))
 		{
-			LOGWARNING(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
+			// This API is unsupported and looks like they broke it in Windows 10 entirely.
+			// Moreover, the error code is also broken (see microsoft/terminal#14479),
+			// FormatMessage does not recognize it and produces another error.
+			// All this just spams the log endlessly, so no point in even trying for now.
+
+			// LOGWARNING(L"GetConsoleKeyboardLayoutNameW(): {}"sv, os::last_error());
 			return {};
 		}
 
@@ -1455,7 +1510,7 @@ protected:
 		{ FCF_FG_STRIKEOUT,    L"9"sv,     L"29"sv },
 		{ FCF_FG_FAINT,        L"2"sv,     L"22"sv },
 		{ FCF_FG_BLINK,        L"5"sv,     L"25"sv },
-		{ FCF_FG_INVERSE,      L"7"sv,     L"27"sv },
+		{ FCF_INVERSE,         L"7"sv,     L"27"sv },
 		{ FCF_FG_INVISIBLE,    L"8"sv,     L"28"sv },
 	};
 
@@ -1510,7 +1565,7 @@ protected:
 	static void make_vt_attributes(const FarColor& Color, string& Str, FarColor const& LastColor)
 	{
 		using colors::single_color;
-		const auto StyleMaskWithoutUnderline = FCF_STYLEMASK & ~FCF_FG_UNDERLINE_MASK;
+		const auto StyleMaskWithoutUnderline = FCF_STYLE_MASK & ~FCF_FG_UNDERLINE_MASK;
 
 		struct expanded_state
 		{
@@ -1532,7 +1587,7 @@ protected:
 					Style |= FCF_FG_OVERLINE;
 
 				if (Color.Flags & COMMON_LVB_REVERSE_VIDEO)
-					Style |= FCF_FG_INVERSE;
+					Style |= FCF_INVERSE;
 
 				if (Color.Flags & COMMON_LVB_UNDERSCORE && UnderlineStyle == UNDERLINE_STYLE::UNDERLINE_NONE)
 					UnderlineStyle = UNDERLINE_STYLE::UNDERLINE_SINGLE;
@@ -2094,14 +2149,14 @@ protected:
 					return false;
 				}
 
-				const auto give_up = [&]
+				const auto make_exception = [&](source_location const& Location = source_location::current())
 				{
-					throw far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false);
+					return far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false, Location);
 				};
 
 				string_view Response = ResponseData;
 				if (!Response.ends_with(L'\\'))
-					give_up();
+					throw make_exception();
 
 				Response.remove_suffix(1);
 
@@ -2115,7 +2170,7 @@ protected:
 				for (auto PaletteToken: enum_tokens(Response, L"\\"sv))
 				{
 					if (!PaletteToken.starts_with(Prefix) || !PaletteToken.ends_with(Suffix))
-						give_up();
+						throw make_exception();
 
 					PaletteToken.remove_prefix(Prefix.size());
 					PaletteToken.remove_suffix(Suffix.size());
@@ -2124,31 +2179,31 @@ protected:
 
 					auto SubIterator = Subtokens.cbegin();
 					if (SubIterator == Subtokens.cend())
-						give_up();
+						throw make_exception();
 
 					if (*SubIterator++ != L"4"sv)
-						give_up();
+						throw make_exception();
 
 					const auto VtIndex = from_string<unsigned>(*SubIterator++);
 					if (VtIndex >= Palette.size())
-						give_up();
+						throw make_exception();
 
 					auto& PaletteColor = Palette[vt_color_index(VtIndex)];
 
 					auto ColorStr = *SubIterator;
 					if (!ColorStr.starts_with(RGBPrefix))
-						give_up();
+						throw make_exception();
 
 					ColorStr.remove_prefix(RGBPrefix.size());
 
 					if (ColorStr.size() != L"0000"sv.size() * 3 + 2)
-						give_up();
+						throw make_exception();
 
 					const auto color = [&](size_t const Offset)
 					{
 						const auto Value = from_string<unsigned>(ColorStr.substr(Offset * L"0000/"sv.size(), 4), {}, 16);
 						if (Value > 0xffff)
-							give_up();
+							throw make_exception();
 
 						return Value / 0x0101;
 					};
@@ -2158,12 +2213,12 @@ protected:
 				}
 
 				if (ColorsSet != Palette.size())
-					give_up();
+					throw make_exception();
 
 				LOGDEBUG(L"VT palette read successfuly"sv);
 				return true;
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				LOGERROR(L"{}"sv, e);
 				return false;
@@ -2264,8 +2319,49 @@ protected:
 		return implementation::WriteOutputNT(Buffer, BufferCoord, WriteRegion);
 	}
 
+	static bool is_synchronized_output_supported()
+	{
+		static const auto Result = []
+		{
+			const auto Response = decrqm(L"2026"sv);
+			if (!Response)
+				return false;
+
+			switch (*Response)
+			{
+			case L'1':
+			case L'2':
+				return true;
+
+			case L'3':
+			case L'4':
+				return false;
+
+			default:
+				std::unreachable();
+			}
+		}();
+
+		return Result;
+	}
+
+	static void begin_synchronized_update()
+	{
+		if (is_synchronized_output_supported())
+			send_vt_command(CSI L"?2026h"sv);
+	}
+
+	static void end_synchronized_update()
+	{
+		if (is_synchronized_output_supported())
+			send_vt_command(CSI L"?2026l"sv);
+	}
+
 	bool console::WriteOutputGather(matrix<FAR_CHAR_INFO>& Buffer, std::span<rectangle const> WriteRegions) const
 	{
+		begin_synchronized_update();
+		SCOPE_EXIT{ end_synchronized_update(); };
+
 		// TODO: VT can handle this in one go
 		for (const auto& i: WriteRegions)
 		{
@@ -2760,12 +2856,6 @@ protected:
 		return true;
 	}
 
-	bool console::IsVtEnabled() const
-	{
-		DWORD Mode;
-		return GetMode(GetOutputHandle(), Mode) && Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-	}
-
 	short console::GetDelta() const
 	{
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -2800,6 +2890,11 @@ protected:
 		}
 
 		return std::ranges::any_of(m_Buffer | std::views::take(EventsRead), Predicate);
+	}
+
+	std::wostream& console::OriginalOutputStream()
+	{
+		return m_OutputStream;
 	}
 
 	bool console::ScrollScreenBuffer(rectangle const& ScrollRectangle, point DestinationOrigin, const FAR_CHAR_INFO& Fill) const
@@ -3100,44 +3195,22 @@ protected:
 
 	std::optional<bool> console::is_grapheme_clusters_on() const
 	{
-		try
-		{
-#define DECRQM_REQUEST "?2027"
-
-			const auto ResponseData = query_vt(CSI DECRQM_REQUEST "$p"sv);
-			if (ResponseData.empty())
-			{
-				LOGWARNING(L"DECRQM 2027 query is not supported"sv);
-				return {};
-			}
-
-			const auto
-				Prefix = CSI DECRQM_REQUEST ";"sv,
-				Suffix = L"$y"sv;
-
-#undef DECRQM_REQUEST
-
-			const auto give_up = [&]
-			{
-				throw far_exception(far::format(L"Incorrect response: {}"sv, ResponseData), false);
-			};
-
-			if (ResponseData.size() != Prefix.size() + 1 + Suffix.size() || !ResponseData.starts_with(Prefix) || !ResponseData.ends_with(Suffix))
-				give_up();
-
-			switch (ResponseData[Prefix.size()])
-			{
-			case L'3': return true;
-			case L'4': return false;
-			default:
-				give_up();
-				std::unreachable();
-			}
-		}
-		catch (far_exception const& e)
-		{
-			LOGERROR(L"{}"sv, e);
+		const auto Response = decrqm(L"2027"sv);
+		if (!Response)
 			return {};
+
+		switch (*Response)
+		{
+		case L'1':
+		case L'3':
+			return true;
+
+		case L'2':
+		case L'4':
+			return false;
+
+		default:
+			std::unreachable();
 		}
 	}
 
@@ -3160,23 +3233,6 @@ protected:
 		}
 
 		return true;
-	}
-
-	bool console::send_vt_command(string_view Command) const
-	{
-		// Happy path
-		if (::console.IsVtEnabled())
-			return Write(Command);
-
-		// Legacy console
-		if (!IsVtSupported())
-			return false;
-
-		// If VT is not enabled, we enable it temporarily
-		if ([[maybe_unused]] scoped_vt_output const VtOutput{})
-			return Write(Command);
-
-		return false;
 	}
 }
 

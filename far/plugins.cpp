@@ -677,7 +677,7 @@ std::unique_ptr<plugin_panel> PluginManager::OpenFilePlugin(const string* Name, 
 
 		if (Global->Opt->PluginConfirm.StandardAssociation && Type == OFP_NORMAL)
 		{
-			menu->AddItem(MenuItemEx{ {}, MIF_SEPARATOR });
+			menu->AddItem(menu_item_ex{ MIF_SEPARATOR });
 			menu->AddItem(msg(lng::MMenuPluginStdAssociation));
 		}
 
@@ -1168,7 +1168,11 @@ void PluginManager::GetOpenPanelInfo(const plugin_panel* hPlugin, OpenPanelInfo 
 
 	Info->StructSize = sizeof(*Info);
 	Info->hPanel = hPlugin->panel();
-	hPlugin->plugin()->GetOpenPanelInfo(Info);
+
+	// See m_CachedOpenPanelInfo
+	auto InfoCopy = *Info;
+	hPlugin->plugin()->GetOpenPanelInfo(&InfoCopy);
+	*Info = InfoCopy;
 
 	if (Info->CurDir && *Info->CurDir && (Info->Flags & OPIF_REALNAMES) && (Global->CtrlObject->Cp()->ActivePanel()->GetPluginHandle() == hPlugin) && ParsePath(Info->CurDir)!=root_type::unknown)
 		os::fs::set_current_directory(Info->CurDir, false);
@@ -1306,7 +1310,7 @@ void PluginManager::Configure(int StartPos) const
 					}
 
 					const auto Hotkey = GetPluginHotKey(i, Uuid, hotkey_type::config_menu);
-					MenuItemEx ListItem;
+					menu_item_ex ListItem;
 #ifndef NO_WRAPPER
 					if (i->IsOemPlugin())
 						ListItem.Flags=LIF_CHECKED|L'A';
@@ -1324,7 +1328,7 @@ void PluginManager::Configure(int StartPos) const
 				}
 			}
 
-			PluginList->AssignHighlights();
+			PluginList->EnableAutoHighlight();
 			PluginList->SetBottomTitle(KeysToLocalizedText(KEY_SHIFTF1, KEY_F4, KEY_F3));
 			PluginList->SortItems(false, HotKeysPresent? 3 : 0);
 			PluginList->SetSelectPos(StartPos,1);
@@ -1472,7 +1476,7 @@ bool PluginManager::CommandsMenu(int ModalType,int StartPos,const wchar_t *Histo
 						}
 
 						const auto Hotkey = GetPluginHotKey(i, Uuid, hotkey_type::plugins_menu);
-						MenuItemEx ListItem;
+						menu_item_ex ListItem;
 #ifndef NO_WRAPPER
 						if (i->IsOemPlugin())
 							ListItem.Flags=LIF_CHECKED|L'A';
@@ -1492,7 +1496,7 @@ bool PluginManager::CommandsMenu(int ModalType,int StartPos,const wchar_t *Histo
 					}
 				}
 
-				PluginList->AssignHighlights();
+				PluginList->EnableAutoHighlight();
 				PluginList->SetBottomTitle(KeysToLocalizedText(KEY_SHIFTF1, KEY_F4, KEY_F3));
 				PluginList->SortItems(false, HotKeysPresent? 3 : 0);
 				PluginList->SetSelectPos(StartPos,1);
@@ -2010,7 +2014,7 @@ struct PluginData
 	unsigned long long PluginFlags;
 };
 
-bool PluginManager::ProcessCommandLine(const string_view Command)
+bool PluginManager::ProcessCommandLine(const string_view Command, function_ref<void(bool NoWait)> const ConsoleActivator)
 {
 	const auto Prefix = GetPluginPrefixPath(Command);
 	if (!Prefix)
@@ -2059,6 +2063,9 @@ bool PluginManager::ProcessCommandLine(const string_view Command)
 	if (items.empty())
 		return false;
 
+	ConsoleActivator(true);
+	console.command_finished();
+
 	auto PluginIterator = items.cbegin();
 
 	if (items.size() > 1)
@@ -2093,11 +2100,52 @@ bool PluginManager::ProcessCommandLine(const string_view Command)
 }
 
 
+void* PluginManager::CallPluginFromMacro(const UUID& SysID, OpenMacroInfo *Info) const
+{
+	if (const auto Dlg = std::dynamic_pointer_cast<Dialog>(Global->WindowManager->GetCurrentWindow()))
+	{
+		if (Dlg->CheckDialogMode(DMODE_NOPLUGINS))
+		{
+			return nullptr;
+		}
+	}
+
+	const auto pPlugin = FindPlugin(SysID);
+
+	if (exception_handling_in_progress() || !pPlugin || !pPlugin->has(iOpen) || (!pPlugin->m_Instance && pPlugin->WorkFlags.Check(PIWF_LOADED)))
+		return nullptr;
+
+	auto PluginPanel = Open(pPlugin, OPEN_FROMMACRO, FarUuid, std::bit_cast<intptr_t>(Info));
+
+	if (PluginPanel)
+	{
+		if (os::memory::is_pointer(PluginPanel->panel()) && PluginPanel->panel() != INVALID_HANDLE_VALUE)
+		{
+			const auto fmc = static_cast<FarMacroCall*>(PluginPanel->panel());
+			if (fmc->Count > 0 && fmc->Values[0].Type == FMVT_PANEL)
+			{
+				PluginPanel->set_panel(fmc->Values[0].Pointer);
+				if (fmc->Callback)
+					fmc->Callback(fmc->CallbackData, fmc->Values, fmc->Count);
+
+				const auto NewPanel = Global->CtrlObject->Cp()->ChangePanel(Global->CtrlObject->Cp()->ActivePanel(), panel_type::FILE_PANEL, TRUE, TRUE);
+				NewPanel->SetPluginMode(std::move(PluginPanel), {}, true);
+				NewPanel->Update(0);
+				NewPanel->Show();
+				return ToPtr(1);
+			}
+		}
+		return PluginPanel->panel();
+	}
+
+	return nullptr;
+}
+
 /* $ 27.09.2000 SVS
   Функция CallPlugin - найти плагин по ID и запустить
   в зачаточном состоянии!
 */
-bool PluginManager::CallPlugin(const UUID& SysID,int OpenFrom, void *Data,void **Ret) const
+bool PluginManager::CallPlugin(const UUID& SysID, int OpenFrom, void *Data) const
 {
 	if (const auto Dlg = std::dynamic_pointer_cast<Dialog>(Global->WindowManager->GetCurrentWindow()))
 	{
@@ -2109,64 +2157,24 @@ bool PluginManager::CallPlugin(const UUID& SysID,int OpenFrom, void *Data,void *
 
 	const auto pPlugin = FindPlugin(SysID);
 
-	if (exception_handling_in_progress() || !pPlugin || !pPlugin->has(iOpen))
+	if (exception_handling_in_progress() || !pPlugin || !pPlugin->has(iOpen) || (!pPlugin->m_Instance && pPlugin->WorkFlags.Check(PIWF_LOADED)))
 		return false;
 
 	auto PluginPanel = Open(pPlugin, OpenFrom, FarUuid, std::bit_cast<intptr_t>(Data));
-	bool process=false;
 
-	if (OpenFrom == OPEN_FROMMACRO)
-	{
-		if (PluginPanel)
-		{
-			if (os::memory::is_pointer(PluginPanel->panel()) && PluginPanel->panel() != INVALID_HANDLE_VALUE)
-			{
-				const auto fmc = static_cast<FarMacroCall*>(PluginPanel->panel());
-				if (fmc->Count > 0 && fmc->Values[0].Type == FMVT_PANEL)
-				{
-					process = true;
-					PluginPanel->set_panel(fmc->Values[0].Pointer);
-					if (fmc->Callback)
-						fmc->Callback(fmc->CallbackData, fmc->Values, fmc->Count);
-				}
-			}
-		}
-	}
-	else
-	{
-		process=OpenFrom == OPEN_PLUGINSMENU || OpenFrom == OPEN_FILEPANEL;
-	}
+	if (OpenFrom == OPEN_LUAMACRO)
+		return PluginPanel != nullptr;
 
-	if (PluginPanel && process)
+	if (PluginPanel && (OpenFrom == OPEN_PLUGINSMENU || OpenFrom == OPEN_FILEPANEL))
 	{
 		const auto PluginPanelCopy = PluginPanel.get();
 		const auto NewPanel = Global->CtrlObject->Cp()->ChangePanel(Global->CtrlObject->Cp()->ActivePanel(), panel_type::FILE_PANEL, TRUE, TRUE);
 
 		NewPanel->SetPluginMode(std::move(PluginPanel), {}, true);
-		if (OpenFrom != OPEN_FROMMACRO)
+		if (Data && *static_cast<const wchar_t *>(Data))
 		{
-			if (Data && *static_cast<const wchar_t *>(Data))
-			{
-				const UserDataItem UserData{};  // !!! NEED CHECK !!!
-				SetDirectory(PluginPanelCopy, static_cast<const wchar_t *>(Data), 0, &UserData);
-			}
-		}
-		else
-		{
-			NewPanel->Update(0);
-			NewPanel->Show();
-		}
-	}
-
-	if (Ret)
-	{
-		if (OpenFrom == OPEN_FROMMACRO && process)
-		{
-			*Ret = ToPtr(1);
-		}
-		else
-		{
-			*Ret = PluginPanel? PluginPanel->panel(): nullptr;
+			const UserDataItem UserData{};  // !!! NEED CHECK !!!
+			SetDirectory(PluginPanelCopy, static_cast<const wchar_t *>(Data), 0, &UserData);
 		}
 	}
 

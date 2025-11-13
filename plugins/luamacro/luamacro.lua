@@ -204,6 +204,35 @@ local function postmacro (f, ...)
   return false
 end
 
+local function safe_tostring (obj)
+  local success, str = pcall(tostring, obj)
+  if not success then
+    if type(str)~="string" then
+      str = string.format("(error object is a %s value)", type(str))
+    end
+    return nil, str
+  elseif type(str)~="string" then
+    return nil, "'__tostring' must return a string"
+  else
+    return str
+  end
+end
+
+local function formatErr (obj)
+  local tname = type(obj)
+  if tname=="number" then
+    obj = tostring(obj)
+  elseif tname~="string" then
+    local mt = debug.getmetatable(obj)
+    if mt and mt.__tostring~=nil then
+      obj = safe_tostring(obj) or "error in error handling"
+    else
+      obj = string.format("(error object is a %s value)", tname)
+    end
+  end
+  return obj
+end
+
 local function FixReturn (handle, ok, ...)
   local ret1, ret_type = ...
   if ok then
@@ -215,8 +244,7 @@ local function FixReturn (handle, ok, ...)
       return F.MPRT_NORMALFINISH, pack(true, ...)
     end
   else
-    local msg = type(ret1)=="string" and ret1 or "(error object is not a string)"
-    msg = string.gsub(debug.traceback(handle.coro, msg), "\n\t", "\n   ")
+    local msg = string.gsub(debug.traceback(handle.coro, formatErr(ret1)), "\n\t", "\n   ")
     ErrMsg(msg)
     return F.MPRT_ERRORFINISH
   end
@@ -355,6 +383,7 @@ local function Open_CommandLine (strCmdLine)
       About()
     elseif cmd == "test" then
       far.MacroPost( [[
+        local function errorhandler(err) win.OutputDebugString(debug.traceback(err)) end
         local function Quit(n) actl.Quit(n) Keys("Esc") end
         local OK, R
         R = win.JoinPath(far.PluginStartupInfo().ModuleDir, "macrotest.lua")
@@ -362,7 +391,7 @@ local function Open_CommandLine (strCmdLine)
         OK, R = pcall(R)
         OK = OK or Quit(2)
         R.test_all = R.test_all or Quit(3)
-        OK = pcall(R.test_all)
+        OK = xpcall(R.test_all, errorhandler)
         Quit(OK and 0 or 4)
       ]], 0, "CtrlShiftF12")
     elseif cmd == "browser" then
@@ -494,6 +523,8 @@ function export.Open (OpenFrom, guid, ...)
       return unpack(argtable, 2, argtable.n)
     elseif argtable[1]=="macropost" then -- test Mantis # 2222
       return far.MacroPost([[far.Message"macropost"]])
+    elseif argtable[1]=="browser" then
+      macrobrowser()
     end
 
   else -- OPEN_DIALOG, OPEN_EDITOR, OPEN_FILEPANEL, OPEN_LEFTDISKMENU,
@@ -514,7 +545,7 @@ end
 -- TODO: when called from a module's panel, call that module's Configure()
 function export.Configure (guid)
   local items = utils.GetMenuItems()
-  if items[guid] then items[guid].action(guid) end
+  if items[guid] then items[guid].action() end
 end
 
 local function Init()

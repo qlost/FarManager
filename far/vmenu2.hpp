@@ -41,13 +41,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Common:
 #include "common/function_ref.hpp"
+#include "common/segment.hpp"
 
 // External:
 
 //----------------------------------------------------------------------------
 
 struct menu_item;
-struct MenuItemEx;
+struct menu_item_ex;
+struct vmenu_fixed_column_t;
 struct SortItemParam;
 
 class VMenu2 final: public Dialog
@@ -70,10 +72,11 @@ public:
 	void SetBottomTitle(const string& Title);
 	void SetBoxType(int BoxType);
 	void SetMenuFlags(DWORD Flags);
-	void AssignHighlights(bool Reverse = false);
+	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, segment ItemTextSegment);
+	void EnableAutoHighlight(bool Reverse = false);
 	void clear();
 	int DeleteItem(int ID,int Count=1);
-	int AddItem(const MenuItemEx& NewItem,int PosAdd = std::numeric_limits<int>::max());
+	int AddItem(const menu_item_ex& NewItem,int PosAdd = std::numeric_limits<int>::max());
 	int AddItem(const FarList *NewItem);
 	int AddItem(const string& NewStrItem);
 	int FindItem(int StartIndex, const string& Pattern, unsigned long long Flags = 0);
@@ -119,19 +122,19 @@ public:
 	int SetSelectPos(const FarListPos* ListPos, int Direct = 0);
 
 	void SortItems(bool Reverse, int Offset);
-	void SortItems(function_ref<bool(const MenuItemEx&, const MenuItemEx&, SortItemParam&)> Pred, bool Reverse = false, int Offset = 0);
+	void SortItems(function_ref<bool(const menu_item_ex&, const menu_item_ex&, SortItemParam&)> Pred, bool Reverse = false, int Offset = 0);
 
 	void Pack();
-	MenuItemEx& at(size_t n);
-	MenuItemEx& current();
+	menu_item_ex& at(size_t n);
+	menu_item_ex& current();
 	int GetShowItemCount() const;
+	VMenu& ListBox() const { return *GetAllItem()[0].ListPtr; }
 
 private:
 	intptr_t VMenu2DlgProc(Dialog* Dlg, intptr_t Msg, intptr_t Param1, void* Param2);
 	int Call(int Msg, void *param);
 	LISTITEMFLAGS GetItemFlags(int Position = -1);
 	string GetMenuTitle(bool bottom = false);
-	VMenu& ListBox() const { return *GetAllItem()[0].ListPtr; }
 
 	enum class box_type
 	{

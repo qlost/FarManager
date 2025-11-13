@@ -83,7 +83,7 @@ static void AddToPrintersMenu(VMenu2 *PrinterList, std::span<PRINTER_INFO_4W con
 
 	for (const auto& printer: Printers)
 	{
-		MenuItemEx Item(printer.pPrinterName);
+		menu_item_ex Item{ printer.pPrinterName };
 
 		if (!bDefaultPrinterFound && printer.pPrinterName == strDefaultPrinter)
 		{
@@ -248,7 +248,7 @@ void PrintFiles(FileList* SrcPanel)
 
 			try
 			{
-				const os::fs::file SrcFile(FileName, FILE_READ_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING);
+				const os::fs::file SrcFile(FileName, FILE_READ_DATA, os::fs::file_share_all, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
 				if (!SrcFile)
 					throw far_exception(L"Cannot open the file"sv);
 
@@ -277,7 +277,7 @@ void PrintFiles(FileList* SrcPanel)
 
 				SrcPanel->ClearLastGetSelection();
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				if (Message(MSG_WARNING, e,
 					msg(lng::MPrintTitle),
@@ -290,7 +290,7 @@ void PrintFiles(FileList* SrcPanel)
 			}
 		}
 	}
-	catch (far_exception const& e)
+	catch (std::exception const& e)
 	{
 		Message(MSG_WARNING, e,
 			msg(lng::MPrintTitle),

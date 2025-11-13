@@ -32,11 +32,15 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "exception.hpp"
 #include "preprocessor.hpp"
+#include "segment.hpp"
 #include "type_traits.hpp"
 
+#include <algorithm>
 #include <ranges>
 #include <stdexcept>
+#include <type_traits>
 
 //----------------------------------------------------------------------------
 
@@ -63,12 +67,14 @@ void apply_permutation(std::ranges::random_access_range auto& Range, std::random
 			if (next < 0 || next >= length)
 			{
 				indices[i] = next;
-				throw std::range_error("Invalid index in permutation");
+				using namespace std::string_view_literals;
+				throw_exception("Invalid index in permutation"sv);
 			}
 			if (next == current)
 			{
 				indices[i] = next;
-				throw std::range_error("Not a permutation");
+				using namespace std::string_view_literals;
+				throw_exception("Not a permutation"sv);
 			}
 
 			std::ranges::swap(first[current], first[next]);
@@ -119,6 +125,21 @@ constexpr bool any_of(auto const& Arg, auto const&... Args)
 constexpr bool none_of(auto const&... Args)
 {
 	return !any_of(Args...);
+}
+
+template<typename TA, typename TB, typename TC = std::common_type_t<TA, TB>>
+segment_t<TC> intersect(segment_t<TA> const A, segment_t<TB> const B)
+{
+	if (A.empty() || B.empty())
+		return {};
+
+	if (B.start() < A.start())
+		return intersect(B, A);
+
+	if (A.end() <= B.start())
+		return {};
+
+	return { static_cast<TC>(B.start()), typename segment_t<TC>::sentinel_tag{ std::min(static_cast<TC>(A.end()), static_cast<TC>(B.end())) } };
 }
 
 #endif // ALGORITHM_HPP_BBD588C0_4752_46B2_AAB9_65450622FFF0

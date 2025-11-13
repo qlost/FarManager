@@ -13,9 +13,7 @@ EXEFULLNAME = $(EXEDIR)$(EXENAME)
 DEPFILE = $(BOOTSTRAPDIR)far.dep
 
 ifndef ENABLE_TESTS
-ifdef DEBUG
 ENABLE_TESTS = 1
-endif
 endif
 
 ifeq ($(ENABLE_TESTS),1)
@@ -122,7 +120,6 @@ SRCS = \
 	network.cpp \
 	new_handler.cpp \
 	notification.cpp \
-	nsUniversalDetectorEx.cpp \
 	palette.cpp \
 	panel.cpp \
 	panelmix.cpp \
@@ -174,6 +171,7 @@ SRCS = \
 	tracer.cpp \
 	treelist.cpp \
 	tvar.cpp \
+	uchardet.cpp \
 	usermenu.cpp \
 	viewer.cpp \
 	vmenu.cpp \
@@ -200,7 +198,7 @@ TESTOBJS = $(OBJDIR)api_test_c.testobj $(OBJDIR)api_test_c++.testobj
 ADDINCLUDE=-I$(BOOTSTRAPDIR)..
 FORCEINCLUDE=$(patsubst %, -include %, headers.hpp $(FORCEINCLUDELIST_NO_PCH))
 
-CPPFLAGS += $(ADDINCLUDE)
+CPPFLAGS += $(ADDINCLUDE) -D FAR_USE_INTERNALS
 
 CPPFLAGS += \
 	-fvisibility=hidden \

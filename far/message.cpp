@@ -50,6 +50,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FarDlgBuilder.hpp"
 #include "clipboard.hpp"
 #include "lang.hpp"
+#include "stddlg.hpp"
 #include "strmix.hpp"
 #include "global.hpp"
 #include "eol.hpp"
@@ -116,28 +117,7 @@ intptr_t message_context::DlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void*
 				{
 				case KEY_F3:
 					if(ErrorState)
-					{
-						const string Errors[]
-						{
-							ErrorState->ErrnoStr(),
-							ErrorState->Win32ErrorStr(),
-							ErrorState->NtErrorStr(),
-						};
-
-						const auto MaxStr = std::max(Errors[0].size(), Errors[1].size());
-						const auto SysArea = 5 * 2;
-						const auto FieldsWidth = std::max(80 - SysArea, std::min(static_cast<int>(MaxStr), ScrX - SysArea));
-
-						DialogBuilder Builder(lng::MError);
-						Builder.AddText(L"errno:");
-						Builder.AddConstEditField(Errors[0], FieldsWidth);
-						Builder.AddText(L"LastError:");
-						Builder.AddConstEditField(Errors[1], FieldsWidth);
-						Builder.AddText(L"NTSTATUS:");
-						Builder.AddConstEditField(Errors[2], FieldsWidth);
-						Builder.AddOK();
-						Builder.ShowDialog();
-					}
+						error_lookup(*ErrorState);
 					break;
 
 				case KEY_TAB:
@@ -204,7 +184,7 @@ static message_result MessageImpl(
 		Context.ErrorState = *ErrorState;
 		ErrorMessage = Context.ErrorState->What;
 
-		if (Context.ErrorState->any())
+		if (Context.ErrorState->Win32Error)
 			SystemErrorMessage = Context.ErrorState->system_error();
 
 		if (!SystemErrorMessage.empty())
@@ -255,7 +235,9 @@ static message_result MessageImpl(
 			append(strClipText, ErrorMessage, Eol);
 
 		if (!SystemErrorMessage.empty())
-			append(strClipText, SystemErrorMessage, Eol, Eol);
+			append(strClipText, SystemErrorMessage, Eol);
+
+		append(strClipText, Eol);
 
 		if (!Strings.empty())
 			Strings.emplace_back(L"\x1"sv);

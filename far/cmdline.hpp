@@ -51,7 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 struct execute_info
 {
 	enum class wait_mode { no_wait, if_needed, wait_finish };
-	enum class source_mode { unknown, known, known_executable, known_external };
+	enum class source_mode { unknown, known, known_executable, known_external, known_external_folder };
 	enum class echo { disabled, enabled, ignored };
 
 	string Command;
@@ -99,7 +99,7 @@ public:
 private:
 	void DisplayObject() override;
 	size_t DrawPrompt();
-	bool ProcessOSCommands(string_view CmdLine, function_ref<void()> ConsoleActivatior);
+	bool ProcessOSCommands(string_view CmdLine, function_ref<void(bool NoWait)> Activator);
 	struct segment
 	{
 		string Text;

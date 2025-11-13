@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/function_ref.hpp"
 #include "common/smart_ptr.hpp"
+#include "common/source_location.hpp"
 #include "common/span.hpp"
 #include "common/utility.hpp"
 
@@ -54,11 +55,6 @@ namespace os
 	enum
 	{
 		default_buffer_size = MAX_PATH
-	};
-
-	enum
-	{
-		NT_MAX_PATH = 32768
 	};
 
 	template<typename buffer_type>
@@ -216,6 +212,11 @@ namespace os
 			void operator()(HANDLE Handle) const noexcept;
 		};
 
+		struct nt_handle_closer
+		{
+			void operator()(HANDLE Handle) const noexcept;
+		};
+
 		struct printer_handle_closer
 		{
 			void operator()(HANDLE Handle) const noexcept;
@@ -223,6 +224,7 @@ namespace os
 	}
 
 	using handle = detail::handle_t<detail::handle_closer>;
+	using nt_handle = detail::handle_t<detail::nt_handle_closer>;
 	using printer_handle = detail::handle_t<detail::printer_handle_closer>;
 
 	void set_error_mode(unsigned Mask);
@@ -253,6 +255,7 @@ namespace os
 	{
 		DWORD Win32Error = ERROR_SUCCESS;
 		NTSTATUS NtError = STATUS_SUCCESS;
+		source_location Location;
 
 		[[nodiscard]]
 		bool any() const
@@ -266,7 +269,7 @@ namespace os
 		[[nodiscard]] string to_string() const;
 	};
 
-	error_state last_error();
+	error_state last_error(source_location const& Location = source_location::current());
 
 	class last_error_guard
 	{
@@ -276,10 +279,12 @@ namespace os
 		last_error_guard();
 		~last_error_guard();
 
+		error_state const& get() const;
 		void dismiss();
 
 	private:
-		std::optional<error_state> m_Error;
+		error_state m_Error;
+		bool m_Restore{ true };
 	};
 
 	bool WNetGetConnection(string_view LocalName, string &RemoteName);

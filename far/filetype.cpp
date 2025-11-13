@@ -58,13 +58,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "global.hpp"
 #include "keyboard.hpp"
 #include "RegExp.hpp"
+#include "strmix.hpp"
 
 // Platform:
 #include "platform.fs.hpp"
 
 // Common:
 #include "common.hpp"
-#include "common/string_utils.hpp"
 
 // External:
 #include "format.hpp"
@@ -98,7 +98,7 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 	{
 		string Command;
 		std::vector<RegExpMatch> Matches;
-		unordered_string_map<size_t> NamedMatches;
+		unordered_string_map<size_t> NamedGroups;
 	};
 
 	const auto AddMatches = [&](menu_data const& Data)
@@ -111,8 +111,11 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 			);
 		}
 
-		for (const auto& [GroupName, GroupNumber]: Data.NamedMatches)
+		for (const auto& [GroupName, GroupNumber]: Data.NamedGroups)
 		{
+			if (GroupNumber >= Data.Matches.size())
+				continue;
+
 			const auto& Match = Data.Matches[GroupNumber];
 			Context.Variables.try_emplace(
 				far::format(L"RegexGroup{{{}}}"sv, GroupName),
@@ -128,7 +131,7 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 
 		int CommandCount=0;
 
-		std::vector<MenuItemEx> MenuItems;
+		std::vector<menu_item_ex> MenuItems;
 
 		string strDescription;
 
@@ -138,7 +141,7 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 			Context.Variables.clear();
 
 			menu_data NewMenuData;
-			filemasks::regex_matches const RegexMatches{ NewMenuData.Matches, NewMenuData.NamedMatches };
+			filemasks::regex_matches const RegexMatches{ NewMenuData.Matches, NewMenuData.NamedGroups };
 
 			if (FMask.assign(Mask, FMF_SILENT))
 			{
@@ -175,7 +178,7 @@ bool ProcessLocalFileTypes(string_view const Name, string_view const ShortName, 
 				strDescription = std::move(strCommandText);
 
 			MenuData.emplace_back(std::move(NewMenuData));
-			MenuItems.emplace_back(strDescription);
+			MenuItems.emplace_back(std::move(strDescription));
 		}
 
 		if (!CommandCount)
@@ -361,8 +364,8 @@ static auto FillFileTypesMenu(VMenu2* TypesMenu, int MenuPos)
 
 	for (const auto& i: Data)
 	{
-		const auto AddLen = i.Description.size() - HiStrlen(i.Description);
-		MenuItemEx TypesMenuItem(concat(fit_to_left(i.Description, MaxElementSize + AddLen), L' ', BoxSymbols[BS_V1], L' ', i.Mask));
+		const auto AddLen = visual_string_length(i.Description) - HiStrlen(i.Description);
+		menu_item_ex TypesMenuItem{ concat(fit_to_left(i.Description, MaxElementSize + AddLen), L' ', BoxSymbols[BS_V1], L' ', i.Mask) };
 		TypesMenuItem.ComplexUserData = i.Id;
 		TypesMenu->AddItem(TypesMenuItem);
 	}

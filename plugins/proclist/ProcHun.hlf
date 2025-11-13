@@ -1,4 +1,4 @@
-﻿.Language=Hungarian,Hungarian (Magyar)
+﻿.Language=Hungarian,Magyar
 .PluginContents=Futó programok
 
 
@@ -275,15 +275,15 @@ types can be used in this plugin:
    #XT# - Number of threads
    #XG# - GDI Objects (local only)
    #XU# - USER Objects (local only)
-   #XB# - Bitness (32/64)
-   #X0...X21[S][T]# - performance counters (see below).
+   #XB# - Bitness (32/64, local only)
+   #X0...X22[S][T]# - performance counters (see below).
 
    #Description columns:#
 
    #ZP# - Full pathname
-   #ZW# - Window title
-   #ZD# - File Description
-   #ZC# - Command line (local only)
+   #ZW# - Window title (local only)
+   #ZD# - File Description (local only)
+   #ZC# - Command line
 
    #WARNING:# In each panel mode there may be only one description
             column ('Zx'). To view different kinds of descriptions,
@@ -322,6 +322,7 @@ You can append #T# to the column type to use 1000 instead of 1024 as a divider.
    #X19# IO Read Operations
    #X20# IO Write Operations
    #X21# IO Other Operations
+   #X22# Working set - Private
 
 
 @Config

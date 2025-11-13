@@ -1,5 +1,5 @@
 ﻿m4_include(`farversion.m4')m4_dnl
-.Language=Hungarian,Hungarian (Magyar)
+.Language=Hungarian,Magyar
 .Options CtrlColorChar=\
 .Options CtrlStartPosChar=^<wrap>
 
@@ -348,6 +348,10 @@ $ #Menu control commands#
 
  #Alt+Shift+End#
  Align the selected item to the right.
+
+ #Shift+F5#
+ Some menus, e.g., ~all matching entries~@FindAllMenu@ in ~internal editor~@Editor@, have one or more
+fixed columns at the left. The #Shift+F5# key combination toggles visibility of these columns.
 
  See also the list of ~macro keys~@KeyMacroMenuList@, available in the menus.
 
@@ -3513,6 +3517,12 @@ string is changed to that of the found string. For example:
 $ #Editor: All matching entries menu#
  The following key combinations are available in this menu:
 
+ #F4#
+ Copy all found lines into a new editor and close this menu.
+
+ #Alt+F4#
+ Copy all lines matching the current filter into a new editor and close this menu.
+
  #F5#
  Toggle menu size.
 
@@ -4477,12 +4487,15 @@ említett betűméret beállítás csak a megjelenítésre hat, mivel a Far ered
 
 @ColorGroups
 $ #Color groups#
- Ez a menü kiválasztható minden egyes képernyőelem színe vagy visszaállítható az eredeti színkombináció.
+ Ez a menü kiválasztható minden egyes képernyőelem színe vagy to choose one of ~predefined themes~@ColorThemes@.
 
- #Set default colors#
+
+@ColorThemes
+$ #Color themes#
+ #Alapértelmezett#
  Set the colors to default values, expressed as indices in the console palette.
 
- #Set default colors (RGB)#
+ #Alapértelmezett (RGB)#
  Set the colors to default values, expressed as colors in RGB space, normally used for the corresponding console palette indices.
  Unlike the indices in the console palette, the RGB values are device-independent and will look the same in any terminal.
  For example, the default #index# value of panels background is #1#, which is usually, but not necessarily, mapped to some unspecified shade of blue.
@@ -4500,6 +4513,9 @@ If it is not enabled or if your terminal does not support RGB colors, they will 
 
  \(T0:T000000)  \(T0:T000080)  \(T0:T008000)  \(T0:T008080)  \(T0:T800000)  \(T0:T800080)  \(T0:T808000)  \(T0:TC0C0C0)  \-
  \(T0:T808080)  \(T0:T0000FF)  \(T0:T00FF00)  \(T0:T00FFFF)  \(T0:TFF0000)  \(T0:TFF00FF)  \(T0:TFFFF00)  \(T0:TFFFFFF)  \-
+
+ #Custom themes#
+ You can also choose one of custom color themes from %FARHOME%\\Addons\\Colors\\Interface, provided by community contributors.
 
 
 @ColorPicker
@@ -6684,6 +6700,25 @@ by the Editor.
  This parameter can be changed via ~far:config~@FarConfig@ only.
 
 
+@Editor.SearchAllUseAltFileNameFormat
+$ #far:config Editor.SearchAllUseAltFileNameFormat#
+ This string parameter controls composing of the file name used by the
+new Editor containing ~all matching entries~@FindAllMenu@. The value
+is one or more ~file masks~@FileMasks@.
+
+ The new filename is created from the stem filename and the extension
+of the file currently opened in the Editor. Depending on the original
+file name, the new file name is formatted using one of the two
+alternative UI format strings defined in ~.lng files~@CustomizingUI@.
+The string with the ID #MEditSearchAllFileNameFormatAlt# is used if the
+original file name matches one of the file masks; otherwise,
+#MEditSearchAllFileNameFormat# is used.
+
+ Default value: #*.txt,*.log,*.md,*.csv,*.ini,*.cmd,*.map#
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
 @Panel.ShortcutAlwaysChdir
 $ #far:config Panel.ShortcutAlwaysChdir#
  This Boolean parameter controls the behavior of
@@ -6946,6 +6981,21 @@ even if already exist, are not updated when folders are created,
 deleted, or renamed.
 
  Default value: True (all folder tree operations are disabled).
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
+@Panel.TreatDotFilesAsHidden
+$ #far:config Panel.TreatDotFilesAsHidden#
+ This Boolean parameter controls the filtering of files or folders
+starting with a dot (“dotfiles”). It works in combination with the
+#Show hidden and system files# option in the
+~panel settings~@PanelSettings@ dialog.
+
+ False - ^<wrap>Dotfiles will always be shown.
+ True  - Dotfiles will be hidden/shown together with the Hidden and System files.
+
+ Default value: False (Dotfiles will always be shown.)
 
  This parameter can be changed via ~far:config~@FarConfig@ only.
 

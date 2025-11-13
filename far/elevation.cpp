@@ -229,7 +229,7 @@ elevation::~elevation()
 		{
 			Write(C_SERVICE_EXIT);
 		}
-		catch (far_exception const& e)
+		catch (std::exception const& e)
 		{
 			LOGERROR(L"{}"sv, e);
 		}
@@ -303,7 +303,7 @@ auto elevation::execute(lng Why, string_view const Object, auto Fallback, const 
 	{
 		return ElevatedHandler();
 	}
-	catch (far_exception const& e)
+	catch (std::exception const& e)
 	{
 		// Something went really bad, it's better to stop any further attempts
 		TerminateChildProcess();
@@ -860,17 +860,17 @@ bool elevation::fMoveToRecycleBin(string_view const Object)
 		});
 }
 
-bool elevation::fSetOwner(const string& Object, const string& Owner)
+bool elevation::fSetOwner(const string& Computer, const string& Object, const string& Owner)
 {
 	return execute(lng::MElevationRequiredSetOwner, Object,
 		false,
 		[&]
 		{
-			return SetOwnerInternal(Object, Owner);
+			return SetOwnerInternal(Computer, Object, Owner);
 		},
 		[&]
 		{
-			Write(C_FUNCTION_SETOWNER, Object, Owner);
+			Write(C_FUNCTION_SETOWNER, Computer, Object, Owner);
 			return RetrieveLastErrorAndResult<bool>();
 		});
 }
@@ -1245,10 +1245,11 @@ private:
 
 	void SetOwnerHandler() const
 	{
+		const auto Computer = Read<string>();
 		const auto Object = Read<string>();
 		const auto Owner = Read<string>();
 
-		const auto Result = SetOwnerInternal(Object, Owner);
+		const auto Result = SetOwnerInternal(Computer, Object, Owner);
 
 		Write(os::last_error(), Result);
 	}

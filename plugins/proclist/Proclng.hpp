@@ -1,6 +1,5 @@
 ﻿#ifndef PROCLNG_HPP_65EE0261_7B48_4884_9EAF_6DC567E13F68
 #define PROCLNG_HPP_65EE0261_7B48_4884_9EAF_6DC567E13F68
-
 #pragma once
 
 enum
@@ -125,6 +124,7 @@ enum
 	MIOWriteOperations,
 	MVirtualBytes,
 	MVirtualBytesPeak,
+	MWorkingSetPrivate,
 
 	MColProcessorTime,
 	MColProcessorTimeS,
@@ -160,6 +160,7 @@ enum
 	MColIOWriteOperationsS,
 	MColVirtualBytes,
 	MColVirtualBytesPeak,
+	MColWorkingSetPrivate,
 
 	MPerSec,
 
@@ -176,10 +177,6 @@ enum
 
 	MTitleUsername,
 	MTitleSessionId,
-
-	MTAccessDenied,
-	MTInsufficientPrivilege,
-	MTUnknownFailure,
 
 	MViewDDD,
 	MViewWithOptions,

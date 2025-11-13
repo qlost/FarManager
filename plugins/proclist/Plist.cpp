@@ -1,6 +1,4 @@
-﻿#include <mutex>
-
-#include "Proclist.hpp"
+﻿#include "Proclist.hpp"
 #include "Proclng.hpp"
 #include "perfthread.hpp"
 #include "ipc.hpp"
@@ -10,18 +8,6 @@
 void __cdecl std::_Xbad_function_call(void) {}
 
 using namespace std::literals;
-
-#ifndef _WIN64
-static bool is_wow64_itself()
-{
-#ifdef _WIN64
-	return false;
-#else
-	static const auto IsWow64 = is_wow64_process(GetCurrentProcess());
-	return IsWow64;
-#endif
-}
-#endif
 
 HANDLE OpenProcessForced(DebugToken* const token, DWORD const Flags, DWORD const ProcessId, BOOL const Inh)
 {
@@ -41,8 +27,9 @@ bool GetPData(ProcessData& Data, const ProcessPerfData& pd)
 	Data.dwPrBase = pd.dwProcessPriority;
 	Data.dwParentPID = pd.dwCreatingPID;
 	Data.dwElapsedTime = pd.dwElapsedTime;
-	Data.FullPath.assign(pd.FullPath, !std::wmemcmp(pd.FullPath.data(), L"\\??\\", 4)? 4 : 0);
-	Data.CommandLine = pd.CommandLine;
+	Data.FullPath = pd.FullPath.value_or(L""s);
+	Data.Sid = pd.Sid.value_or(L""s);
+	Data.CommandLine = pd.CommandLine.value_or(L""s);
 	Data.Bitness = pd.Bitness;
 	return true;
 }
@@ -55,9 +42,6 @@ static void WINAPI FreeUserData(void* const UserData, const FarPanelItemFreeInfo
 bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thread)
 {
 	//    Lock l(&Thread); // it's already locked in Plist::GetFindData
-	FILETIME ftSystemTime;
-	//Prepare system time to subtract dwElapsedTime
-	GetSystemTimeAsFileTime(&ftSystemTime);
 	auto pData = Thread.ProcessData();
 
 	if (pData.empty() || !Thread.IsOK())
@@ -73,31 +57,35 @@ bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thre
 		++PanelItemIterator;
 
 		auto& pd = i.second;
-		//delete CurItem.FileName;  // ???
-		CurItem.FileName = new wchar_t[pd.ProcessName.size() + 1];
-		*std::copy(pd.ProcessName.cbegin(), pd.ProcessName.cend(), const_cast<wchar_t*>(CurItem.FileName)) = L'\0';
 
-		if (!pd.Owner.empty())
+		CurItem.FileName = new wchar_t[pd.ProcessName.size() + 1];
+		*std::ranges::copy(pd.ProcessName, const_cast<wchar_t*>(CurItem.FileName)).out = L'\0';
+
+		if (pd.Owner)
 		{
-			CurItem.Owner = new wchar_t[pd.Owner.size() + 1];
-			*std::copy(pd.Owner.cbegin(), pd.Owner.cend(), const_cast<wchar_t*>(CurItem.Owner)) = L'\0';
+			const auto FullOwner = far::format(L"{}{}{}{}{}"sv,
+				pd.Domain? *pd.Domain : L""sv,
+				pd.Domain? L"\\" : L""sv,
+				*pd.Owner,
+				pd.SessionId? L":"sv : L""sv,
+				pd.SessionId? str(*pd.SessionId) : L""sv
+			);
+
+			CurItem.Owner = new wchar_t[FullOwner.size() + 1];
+			*std::ranges::copy(FullOwner, const_cast<wchar_t*>(CurItem.Owner)).out = L'\0';
 		}
 
 		CurItem.UserData.Data = new ProcessData();
 		CurItem.UserData.FreeData = FreeUserData;
 
-		if (!pd.ftCreation.dwHighDateTime && pd.dwElapsedTime)
+		ULARGE_INTEGER const CreationTime{ .QuadPart = pd.CreationTime };
+		FILETIME const CreationFileTime
 		{
-			ULARGE_INTEGER St;
-			St.LowPart = ftSystemTime.dwLowDateTime;
-			St.HighPart = ftSystemTime.dwHighDateTime;
-			ULARGE_INTEGER Cr;
-			Cr.QuadPart = St.QuadPart - pd.dwElapsedTime * 10000000;
-			pd.ftCreation.dwLowDateTime = Cr.LowPart;
-			pd.ftCreation.dwHighDateTime = Cr.HighPart;
-		}
+			.dwLowDateTime = CreationTime.LowPart,
+			.dwHighDateTime = CreationTime.HighPart,
+		};
 
-		CurItem.CreationTime = CurItem.LastWriteTime = CurItem.LastAccessTime = CurItem.ChangeTime = pd.ftCreation;
+		CurItem.CreationTime = CurItem.LastWriteTime = CurItem.LastAccessTime = CurItem.ChangeTime = CreationFileTime;
 		const auto ullSize = pd.qwCounters[IDX_WORKINGSET] + pd.qwCounters[IDX_PAGEFILE];
 		CurItem.FileSize = ullSize;
 		CurItem.AllocationSize = pd.qwResults[IDX_PAGEFILE];
@@ -109,41 +97,13 @@ bool GetList(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, PerfThread& Thre
 		CurItem.NumberOfLinks = pd.dwThreads;
 		GetPData(*static_cast<ProcessData*>(CurItem.UserData.Data), pd);
 
-		if (pd.dwProcessId == 0 && pd.ProcessName == L"_Total")
+		if (Plist::is_total(pd.dwProcessId))
 			CurItem.FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
-
-		if (pd.Bitness != Thread.GetDefaultBitness())
-			CurItem.FileAttributes |= FILE_ATTRIBUTE_READONLY;
-
+		else if (pd.Bitness != Thread.GetDefaultBitness())
+			CurItem.FileAttributes |= FILE_ATTRIBUTE_VIRTUAL;
 	}
 
 	return true;
-}
-
-void GetOpenProcessData(
-	HANDLE hProcess,
-	std::wstring* ProcessName,
-	std::wstring* FullPath,
-	std::wstring* CommandLine,
-	std::wstring* CurDir,
-	std::wstring* EnvStrings
-)
-{
-	return (
-#ifndef _WIN64
-		is_wow64_itself() && !is_wow64_process(hProcess)?
-		ipc_functions<x64>::GetOpenProcessData :
-#endif
-		ipc_functions<same>::GetOpenProcessData
-	)
-	(
-		hProcess,
-		ProcessName,
-		FullPath,
-		CommandLine,
-		CurDir,
-		EnvStrings
-	);
 }
 
 // Debug thread token
@@ -254,7 +214,7 @@ bool KillProcess(DWORD pid, HWND hwnd)
 void PrintNTCurDirAndEnv(HANDLE InfoFile, HANDLE hProcess, BOOL bExportEnvironment)
 {
 	std::wstring CurDir, EnvStrings;
-	GetOpenProcessData(hProcess, {}, {}, {}, &CurDir, bExportEnvironment? &EnvStrings : nullptr);
+	get_open_process_data(hProcess, {}, {}, {}, &CurDir, bExportEnvironment? &EnvStrings : nullptr);
 	WriteToFile(InfoFile, L'\n');
 
 	if (!CurDir.empty())
@@ -293,20 +253,18 @@ static void PrintModuleVersion(HANDLE InfoFile, const wchar_t* pVersion, const w
 	}
 }
 
-static void print_module_impl(HANDLE const InfoFile, const std::wstring& Module, DWORD const SizeOfImage, const options& LocalOpt, const std::function<bool(wchar_t*, size_t)>& GetName)
+static void print_module_impl(HANDLE const InfoFile, const std::wstring& Module, DWORD const SizeOfImage, std::wstring const& ModuleName, const options& LocalOpt)
 {
 	auto len = WriteToFile(InfoFile, far::format(L"{} {:8X}"sv, Module, SizeOfImage));
 
-	WCHAR wszModuleName[MAX_PATH];
-
-	if (GetName(wszModuleName, std::size(wszModuleName)))
+	if (!ModuleName.empty())
 	{
-		len += WriteToFile(InfoFile, far::format(L" {}"sv, wszModuleName));
+		len += WriteToFile(InfoFile, far::format(L" {}"sv, ModuleName));
 
 		const wchar_t* pVersion, * pDesc;
 		std::unique_ptr<char[]> Buffer;
 
-		if (LocalOpt.ExportModuleVersion && Plist::GetVersionInfo(static_cast<wchar_t*>(wszModuleName), Buffer, pVersion, pDesc))
+		if (LocalOpt.ExportModuleVersion && Plist::GetVersionInfo(ModuleName.c_str(), Buffer, pVersion, pDesc))
 		{
 			PrintModuleVersion(InfoFile, pVersion, pDesc, len);
 		}
@@ -315,20 +273,26 @@ static void print_module_impl(HANDLE const InfoFile, const std::wstring& Module,
 	WriteToFile(InfoFile, L'\n');
 }
 
-template<typename module_type>
-static void print_module(HANDLE const InfoFile, module_type Module, DWORD const SizeOfImage, options& LocalOpt, const std::function<bool(wchar_t*, size_t)>& GetName)
+static void print_module(HANDLE const InfoFile, ULONG64 const Module, DWORD const SizeOfImage, int const ProcessBitness, std::wstring const& ModuleName, options& LocalOpt)
 {
-	std::wstring ModuleStr;
-
-	if constexpr (sizeof(module_type) > sizeof(void*))
-		ModuleStr = far::format(L"{:016X}"sv, Module);
-	else
-		ModuleStr = far::format(L"{:0{}X}"sv, reinterpret_cast<uintptr_t>(Module), sizeof(void*) * 2);
-
-	print_module_impl(InfoFile, ModuleStr, SizeOfImage, LocalOpt, GetName);
+	const auto ModuleStr = far::format(L"{:0{}X}"sv, Module, (ProcessBitness == -1? 64 : ProcessBitness) / std::numeric_limits<unsigned char>::digits * 2);
+	print_module_impl(InfoFile, ModuleStr, SizeOfImage, ModuleName, LocalOpt);
 }
 
-void PrintModules(HANDLE InfoFile, DWORD dwPID, options& LocalOpt)
+static std::wstring get_module_file_name(HANDLE const Process, HMODULE const Module)
+{
+	if (wchar_t ModuleName[MAX_PATH]; GetModuleFileNameExW(Process, Module, ModuleName, static_cast<DWORD>(std::size(ModuleName))))
+		return ModuleName;
+
+	// TODO: this seems to be broken on Windows 10 for WOW64 processes
+	// see https://stackoverflow.com/questions/46403532
+	// GetMappedFileName returns a correct path, but converting it from NT to Win32 is a huge PITA
+	// Maybe one day
+
+	return {};
+}
+
+void PrintModules(HANDLE InfoFile, DWORD dwPID, int const ProcessBitness, options& LocalOpt)
 {
 	DebugToken token;
 	const handle Process(OpenProcessForced(&token, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | READ_CONTROL, dwPID));
@@ -353,28 +317,12 @@ void PrintModules(HANDLE InfoFile, DWORD dwPID, options& LocalOpt)
 		{
 			MODULEINFO Info{};
 			GetModuleInformation(Process.get(), Module, &Info, sizeof(Info));
-
-			print_module(InfoFile, Info.lpBaseOfDll, Info.SizeOfImage, LocalOpt, [&](wchar_t* const Buffer, size_t const BufferSize)
-			{
-				return GetModuleFileNameExW(Process.get(), Module, Buffer, static_cast<DWORD>(BufferSize)) != 0;
-			});
+			const auto ModuleName = get_module_file_name(Process.get(), Module);
+			print_module(InfoFile, reinterpret_cast<uintptr_t>(Info.lpBaseOfDll), Info.SizeOfImage, ProcessBitness, ModuleName, LocalOpt);
 		}
 	}
 	else
 	{
-		return (
-#ifndef _WIN64
-			is_wow64_itself() && !is_wow64_process(Process.get())?
-			ipc_functions<x64>::PrintModules :
-#endif
-			ipc_functions<same>::PrintModules
-		)
-		(
-			Process.get(),
-			InfoFile,
-			LocalOpt
-		);
+		print_modules(Process.get(), InfoFile, LocalOpt, ProcessBitness, print_module);
 	}
-
-	WriteToFile(InfoFile, L'\n');
 }

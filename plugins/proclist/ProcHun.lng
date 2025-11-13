@@ -1,4 +1,4 @@
-﻿.Language=Hungarian,Hungarian (Magyar)
+﻿.Language=Hungarian,Magyar
 
 "Ok"
 "Mégsem"
@@ -120,6 +120,7 @@
 "IO Write Operations"
 "Virtual Bytes"
 "Virtual Bytes Peak"
+"Working Set - Private"
 
 "CPU idő"
 "%CPU"
@@ -155,8 +156,9 @@
 "Wr/s"
 "VM Size"
 "VM Peak"
+"Priv Mem Usage"
 
-"/sec"
+"/s"
 
 "Sort by"
 "&Name                 Ctrl+F3"
@@ -171,10 +173,6 @@
 
 "Owner"
 "Session"
-
-"Access denied"
-"Insufficient privilege"
-"WMI Unknown failure"
 
 "View..."
 "View with Options..."

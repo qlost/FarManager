@@ -41,6 +41,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "config.hpp"
 #include "global.hpp"
 #include "locale.hpp"
+#include "strmix.hpp"
 
 // Platform:
 
@@ -784,7 +785,7 @@ std::pair<string, string> format_datetime(os::chrono::time const Time)
 			Time.Hours,
 			Time.Minutes,
 			Time.Seconds,
-			Time.Hectonanoseconds / (1ms / 1_hns)
+			Time.milliseconds()
 		)
 	};
 }
@@ -810,6 +811,28 @@ std::chrono::milliseconds till_next_minute()
 #ifdef ENABLE_TESTS
 
 #include "testing.hpp"
+
+TEST_CASE("datetime.time_none")
+{
+	constexpr os::chrono::time Time
+	{
+		.Year = time_none,
+		.Month = time_none,
+		.Day = time_none,
+		.Hours = time_none,
+		.Minutes = time_none,
+		.Seconds = time_none,
+		.Hectonanoseconds = time_none,
+	};
+
+	STATIC_REQUIRE(Time.Year == time_none);
+	STATIC_REQUIRE(Time.Month == time_none);
+	STATIC_REQUIRE(Time.Day == time_none);
+	STATIC_REQUIRE(Time.Hours == time_none);
+	STATIC_REQUIRE(Time.Minutes == time_none);
+	STATIC_REQUIRE(Time.Seconds == time_none);
+	STATIC_REQUIRE(Time.Hectonanoseconds == time_none);
+}
 
 TEST_CASE("datetime.parse.duration")
 {

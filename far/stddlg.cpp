@@ -86,21 +86,21 @@ namespace
 
 	void SaveToShared(SearchReplaceDlgParams& SharedParams, const SearchReplaceDlgParams& ClientParams)
 	{
-		const auto SaveParam{ [](auto& SharedParam, const auto& ClientParam)
+		const auto SaveParam{ [&](auto const Param)
 		{
-			if (ClientParam.has_value())
-				SharedParam = ClientParam.value();
+			if ((ClientParams.*Param).has_value())
+				SharedParams.*Param = *(ClientParams.*Param);
 		} };
 
 		SharedParams.SearchStr = ClientParams.SearchStr;
-		SaveParam(SharedParams.SearchBytes, ClientParams.SearchBytes);
-		SaveParam(SharedParams.ReplaceStr, ClientParams.ReplaceStr);
-		SaveParam(SharedParams.Hex, ClientParams.Hex);
-		SaveParam(SharedParams.CaseSensitive, ClientParams.CaseSensitive);
-		SaveParam(SharedParams.WholeWords, ClientParams.WholeWords);
-		SaveParam(SharedParams.Regex, ClientParams.Regex);
-		SaveParam(SharedParams.Fuzzy, ClientParams.Fuzzy);
-		SaveParam(SharedParams.PreserveStyle, ClientParams.PreserveStyle);
+		SaveParam(&SearchReplaceDlgParams::SearchBytes);
+		SaveParam(&SearchReplaceDlgParams::ReplaceStr);
+		SaveParam(&SearchReplaceDlgParams::Hex);
+		SaveParam(&SearchReplaceDlgParams::CaseSensitive);
+		SaveParam(&SearchReplaceDlgParams::WholeWords);
+		SaveParam(&SearchReplaceDlgParams::Regex);
+		SaveParam(&SearchReplaceDlgParams::Fuzzy);
+		SaveParam(&SearchReplaceDlgParams::PreserveStyle);
 	}
 }
 
@@ -1058,7 +1058,7 @@ static void GetRowCol(const string_view Str, bool Hex, goto_coord& Row, goto_coo
 			return;
 
 		if (!Radix)
-			Radix = Hex? 16 : 10;
+			Radix = Hex && !Dest.percent? 16 : 10;
 
 		Dest.value = from_string<unsigned long long>(Part, nullptr, Radix);
 		Dest.exist = true;
@@ -1186,7 +1186,7 @@ void regex_playground()
 		{ DI_EDIT,      {{5,  8}, {45, 8}}, DIF_HISTORY, },
 		{ DI_TEXT,      {{5,  9}, {0,  9}}, DIF_NONE, L"Result:" },
 		{ DI_EDIT,      {{5, 10}, {45,10}}, DIF_READONLY, },
-		{ DI_LISTBOX,   {{47, 2}, {70,11}}, DIF_NONE, L"Matches" },
+		{ DI_LISTBOX,   {{47, 2}, {70,11}}, DIF_LISTNOCLOSE, L"Matches" },
 		{ DI_TEXT,      {{5, 11}, {0, 11}}, DIF_NONE, L"Status:" },
 		{ DI_EDIT,      {{5, 12}, {70,12}}, DIF_READONLY, },
 		{ DI_TEXT,      {{-1,13}, {0, 13}}, DIF_SEPARATOR, },
@@ -1199,7 +1199,6 @@ void regex_playground()
 
 	RegExp Regex;
 	regex_match Match;
-	named_regex_match NamedMatch;
 
 	std::vector<string> ListStrings;
 	std::vector<FarListItem> ListItems;
@@ -1226,14 +1225,36 @@ void regex_playground()
 
 	const auto RegexDlg = Dialog::create(RegexDlgItems, [&](Dialog* const Dlg, intptr_t const Msg, intptr_t const Param1, void* const Param2)
 	{
+		const auto update_status = [&](status const NewStatus, string const& Message)
+		{
+			Status = NewStatus;
+			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_status, UNSAFE_CSTR(Message));
+		};
+
 		const auto update_substitution = [&]
 		{
-			const auto TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
-			const auto ReplaceStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {}));
+			if (Match.Matches.empty())
+				return;
 
-			const auto Str = ReplaceBrackets(TestStr, ReplaceStr, Match.Matches, &NamedMatch);
-			Status = status::normal;
-			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_result, UNSAFE_CSTR(Str));
+			string Result;
+
+			if (const auto ReplaceStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_substitution, {})); *ReplaceStr)
+			{
+				try
+				{
+					Result = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
+					const auto BakedReplaceStr = ReplaceBrackets(ReplaceStr, Result, Match.Matches, Regex.GetNamedGroups());
+					Result.replace(Result.begin() + Match.Matches[0].start, Result.begin() + Match.Matches[0].end, BakedReplaceStr);
+					update_status(status::normal, L"Replaced"s);
+				}
+				catch (far_exception const& e)
+				{
+					update_status(status::error, e.message());
+					return;
+				}
+			}
+
+			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_result, UNSAFE_CSTR(Result));
 		};
 
 		const auto update_matches = [&]
@@ -1245,7 +1266,6 @@ void regex_playground()
 		const auto clear_matches = [&]
 		{
 			Match.Matches.clear();
-			NamedMatch.Matches.clear();
 			ListItems.clear();
 
 			update_matches();
@@ -1256,12 +1276,6 @@ void regex_playground()
 			Dlg->SendMessage(DM_SETTEXTPTR, rp_text_cursor, Position? UNSAFE_CSTR(string(*Position, L' ') + L'↑') : nullptr);
 		};
 
-		const auto update_status = [&](status const NewStatus, string const& Message)
-		{
-			Status = NewStatus;
-			Dlg->SendMessage(DM_SETTEXTPTR, rp_edit_status, UNSAFE_CSTR(Message));
-		};
-
 		const auto update_test = [&]
 		{
 			string_view const TestStr = std::bit_cast<const wchar_t*>(Dlg->SendMessage(DM_GETCONSTTEXTPTR, rp_edit_test, {}));
@@ -1270,7 +1284,7 @@ void regex_playground()
 
 			try
 			{
-				IsMatch = Regex.Search(TestStr, Match, &NamedMatch);
+				IsMatch = Regex.Search(TestStr, Match);
 			}
 			catch (regex_exception const& e)
 			{
@@ -1306,10 +1320,12 @@ void regex_playground()
 				ListItems.emplace_back(i.start < 0? LIF_GRAYED : LIF_NONE, ListStrings.back().c_str(), 0, 0);
 			}
 
-			for (const auto& [k, v] : NamedMatch.Matches)
+			for (const auto& [k, v] : Regex.GetNamedGroups())
 			{
-				const auto& m = Match.Matches[v];
-				ListStrings[v] = far::format(L"${{{}}}: {}"sv, k, match_str(m));
+				if (v >= ListItems.size())
+					continue;
+
+				ListStrings[v].insert(ListStrings[v].find(L':'), far::format(L"/${{{}}}"sv, k));
 				ListItems[v].Text = ListStrings[v].c_str();
 			}
 
@@ -1336,6 +1352,26 @@ void regex_playground()
 			update_cursor();
 			update_status(status::normal, msg(lng::MOk));
 			return update_test();
+		};
+
+		const auto update_selection = [&](size_t const Index)
+		{
+			if (Dlg->SendMessage(DM_GETFOCUS, 0, {}) != rp_list_matches)
+				return;
+
+			const auto& m = Match.Matches[Index];
+
+			EditorSelect Select
+			{
+				sizeof(Select),
+				BTYPE_STREAM,
+				0,
+				m.start,
+				m.end - m.start,
+				1
+			};
+
+			Dlg->SendMessage(DM_SETSELECTION, rp_edit_test, &Select);
 		};
 
 		switch (Msg)
@@ -1367,6 +1403,12 @@ void regex_playground()
 					break;
 				}
 			}
+			break;
+
+		case DN_LISTCHANGE:
+			if (Param1 == rp_list_matches)
+				update_selection(std::bit_cast<size_t>(Param2));
+
 			break;
 		}
 
@@ -1520,4 +1562,30 @@ void dirinfo_progress::set_size(unsigned long long const Size) const
 {
 	const auto Str = copy_progress::FormatCounter(lng::MCopyBytesTotalInfo, lng::MCopyFilesTotalInfo, Size, 0, false, copy_progress::CanvasWidth() - 5);
 	m_Dialog->SendMessage(DM_SETTEXTPTR, dirinfo_progress_detail::items::pr_bytes, UNSAFE_CSTR(Str));
+}
+
+void error_lookup(error_state_ex const& ErrorState)
+{
+	const std::pair<wchar_t const*, string> Strings[]
+	{
+		{ L"errno:", ErrorState.ErrnoStr() },
+		{ L"LastError:", ErrorState.Win32ErrorStr() },
+		{ L"NTSTATUS:", ErrorState.NtErrorStr() },
+		{ L"Location:", ErrorState.Location.function_name()? source_location_to_string(ErrorState.Location) : L""s },
+	};
+
+	const auto MaxStr = std::ranges::fold_left(Strings, 0uz, [](size_t const Value, auto const& i) { return std::max(Value, i.second.size()); });
+	const auto SysArea = 5 * 2;
+	const auto FieldsWidth = std::max(80 - SysArea, std::min(static_cast<int>(MaxStr), ScrX - SysArea));
+
+	DialogBuilder Builder(lng::MError);
+
+	for (const auto& [k, v]: Strings | std::views::take(std::size(Strings) - (ErrorState.Location.function_name()? 0 : 1)))
+	{
+		Builder.AddText(k);
+		Builder.AddConstEditField(v, FieldsWidth);
+	}
+
+	Builder.AddOK();
+	Builder.ShowDialog();
 }

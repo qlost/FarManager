@@ -538,6 +538,9 @@ void TreeList::DisplayTree(bool Fast)
 
 	UpdateViewPanel();
 	RefreshTitle(); // не забудем прорисовать заголовок
+
+	if (const auto ParentWindow = Parent())
+		ParentWindow->ShowChildren();
 }
 
 void TreeList::DisplayTreeName(const string_view Name, const size_t Pos) const
@@ -659,7 +662,7 @@ public:
 
 static auto OpenTreeFile(string_view const Name, bool const Writable)
 {
-	return os::fs::file(Name, Writable? FILE_WRITE_DATA : FILE_READ_DATA, os::fs::file_share_read, nullptr, Writable? OPEN_ALWAYS : OPEN_EXISTING);
+	return os::fs::file(Name, Writable? FILE_WRITE_DATA : FILE_READ_DATA, os::fs::file_share_read, nullptr, Writable? OPEN_ALWAYS : OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
 }
 
 static bool MustBeCached(string_view const Root)
@@ -747,7 +750,11 @@ static void WriteTree(auto& Name, std::ranges::range auto const& Container, cons
 		}
 		catch (far_exception const& e)
 		{
-			ErrorState = e;
+			ErrorState = static_cast<error_state_ex const&>(e);
+		}
+		catch (std::exception const& e)
+		{
+			ErrorState.emplace(os::last_error(), encoding::utf8::get_chars(e.what()));
 		}
 
 		TreeFile.SetEnd();

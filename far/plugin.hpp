@@ -131,13 +131,13 @@ FAR_INLINE_CONSTANT FARCOLORFLAGS
 	FCF_FG_STRIKEOUT       = 0x0200000000000000ULL,
 	FCF_FG_FAINT           = 0x0400000000000000ULL,
 	FCF_FG_BLINK           = 0x0800000000000000ULL,
-	FCF_FG_INVERSE         = 0x0010000000000000ULL,
+	FCF_INVERSE            = 0x0010000000000000ULL,
 	FCF_FG_INVISIBLE       = 0x0020000000000000ULL,
 	FCF_FG_U_DATA2         = 0x0040000000000000ULL, // This is not a style flag, but a storage for one of 5 underline styles
 
-	FCF_FG_UNDERLINE_MASK  = 0xC040000000000000ULL,  // FCF_FG_U_DATA0 | FCF_FG_U_DATA1 | FCF_FG_U_DATA2,
+	FCF_FG_UNDERLINE_MASK  = 0xC040000000000000ULL, // FCF_FG_U_DATA0 | FCF_FG_U_DATA1 | FCF_FG_U_DATA2,
 
-	FCF_STYLEMASK          = 0xFFF0000000000000ULL,
+	FCF_STYLE_MASK         = 0xFFF0000000000000ULL,
 
 	FCF_NONE               = 0;
 
@@ -868,6 +868,7 @@ FAR_INLINE_CONSTANT FARDIALOGFLAGS
 	FDLG_NODRAWPANEL         = 0x0000000000000008ULL,
 	FDLG_KEEPCONSOLETITLE    = 0x0000000000000010ULL,
 	FDLG_NONMODAL            = 0x0000000000000020ULL,
+	FDLG_STAY_ON_TOP         = 0x0000000000000040ULL,
 	FDLG_NONE                = 0;
 
 typedef intptr_t(WINAPI *FARWINDOWPROC)(
@@ -1267,7 +1268,7 @@ FAR_INLINE_CONSTANT EDITOR_FLAGS
 #ifdef FAR_USE_INTERNALS
 	EF_SERVICEREGION         = 0x0000000000001000ULL,
 #endif // END FAR_USE_INTERNALS
-	EN_NONE                  = 0;
+	EF_NONE                  = 0;
 
 enum EDITOR_EXITCODE
 {
@@ -1479,6 +1480,16 @@ enum FARMACROVARTYPE
 	FMVT_ARRAY                  = 8,
 	FMVT_PANEL                  = 9,
 	FMVT_ERROR                  = 10,
+	FMVT_MBSTRING               = 11,
+	FMVT_NEWTABLE               = 12,
+	FMVT_SETTABLE               = 13,
+	FMVT_DIALOG                 = 14,
+	FMVT_TABLE                  = 15,
+	FMVT_GETTABLE               = 16,
+	FMVT_STACKPOP               = 17,
+	FMVT_STACKGETTOP            = 18,
+	FMVT_STACKSETTOP            = 19,
+	FMVT_STACKPUSHVALUE         = 20,
 };
 
 struct FarMacroValue
@@ -1490,6 +1501,7 @@ struct FarMacroValue
 		long long        Boolean;
 		double         Double;
 		const wchar_t *String;
+		const char    *MBString;
 		void          *Pointer;
 		struct
 		{
@@ -1507,17 +1519,31 @@ struct FarMacroValue
 #endif
 	;
 #ifdef __cplusplus
-	FarMacroValue()                   { Type=FMVT_NIL; }
-	FarMacroValue(int v)              { Type=FMVT_INTEGER; Integer=v; }
-	FarMacroValue(unsigned int v)     { Type=FMVT_INTEGER; Integer=v; }
+	FarMacroValue()                     { Type=FMVT_NIL; }
+	FarMacroValue(int v)                { Type=FMVT_INTEGER; Integer=v; }
+	FarMacroValue(unsigned int v)       { Type=FMVT_INTEGER; Integer=v; }
 	FarMacroValue(long long v)          { Type=FMVT_INTEGER; Integer=v; }
 	FarMacroValue(unsigned long long v) { Type=FMVT_INTEGER; Integer=v; }
-	FarMacroValue(bool v)             { Type=FMVT_BOOLEAN; Boolean=v; }
-	FarMacroValue(double v)           { Type=FMVT_DOUBLE; Double=v; }
-	FarMacroValue(const wchar_t* v)   { Type=FMVT_STRING; String=v; }
-	FarMacroValue(void* v)            { Type=FMVT_POINTER; Pointer=v; }
-	FarMacroValue(const UUID& v)      { Type=FMVT_BINARY; Binary.Data=&const_cast<UUID&>(v); Binary.Size=sizeof(UUID); }
-	FarMacroValue(FarMacroValue* arr,size_t count) { Type=FMVT_ARRAY; Array.Values=arr; Array.Count=count; }
+	FarMacroValue(bool v)               { Type=FMVT_BOOLEAN; Boolean=v; }
+	FarMacroValue(double v)             { Type=FMVT_DOUBLE; Double=v; }
+	FarMacroValue(const wchar_t* v)     { Type=FMVT_STRING; String=v; }
+	FarMacroValue(void* v)              { Type=FMVT_POINTER; Pointer=v; }
+	FarMacroValue(const char* v)        { Type=FMVT_MBSTRING; MBString=v; }
+
+	FarMacroValue(FARMACROVARTYPE tp, long long param=0) {
+		Type = tp;
+		Integer = param;
+	}
+	FarMacroValue(const UUID& v) {
+		Type = FMVT_BINARY;
+		Binary.Data = &const_cast<UUID&>(v);
+		Binary.Size = sizeof(UUID);
+	}
+	FarMacroValue(FarMacroValue* arr, size_t count) {
+		Type = FMVT_ARRAY;
+		Array.Values = arr;
+		Array.Count = count;
+	}
 #ifdef FAR_USE_INTERNALS
 	explicit(false) FarMacroValue(const string& v)    { Type=FMVT_STRING; String=v.c_str(); }
 #endif // END FAR_USE_INTERNALS
@@ -2163,6 +2189,8 @@ enum FAR_REGEXP_CONTROL_COMMANDS
 	RECTL_SEARCHEX                  = 5,
 	RECTL_BRACKETSCOUNT             = 6,
 	RECTL_NAMEDGROUPINDEX           = 7,
+	RECTL_GETNAMEDGROUPS            = 8,
+	RECTL_GETSTATUS                 = 9,
 };
 
 struct RegExpMatch
@@ -2178,6 +2206,20 @@ struct RegExpSearch
 	struct RegExpMatch* Match;
 	intptr_t Count;
 	void* Reserved;
+};
+
+struct RegExpNamedGroup
+{
+	size_t Index;
+	const wchar_t* Name;
+};
+
+struct RegExpStatus
+{
+	size_t StructSize;
+	const wchar_t* Error; // Error description
+	intptr_t    Position; // position in regex pattern
+	int           Status; // 0 - ok
 };
 
 enum FAR_SETTINGS_CONTROL_COMMANDS
@@ -2984,6 +3026,8 @@ enum FAR_EVENTS
 	FE_GOTFOCUS         =6,
 	FE_KILLFOCUS        =7,
 	FE_CHANGESORTPARAMS =8,
+	FE_STARTSORT        =9,
+	FE_ENDSORT          =10,
 };
 
 struct OpenInfo

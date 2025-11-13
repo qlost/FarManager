@@ -1,3 +1,87 @@
+drkns 2025-10-04 00:01:09+01:00 - build 224
+
+1. PCH.
+
+drkns 2025-06-26 22:56:48+01:00 - build 223
+
+1. Correction of 218.
+
+2. Use Far API to format sizes.
+
+3. Update a few default column widths.
+
+4. Refactoring.
+
+drkns 2025-06-25 21:16:55+01:00 - build 222
+
+1. More fixes.
+
+drkns 2025-06-24 23:38:56+01:00 - build 221
+
+1. Use only one WMI connection for background and interactive tasks.
+
+2. Imrpove WMI error handling.
+
+3. Show Domain in Owner column, same as in Far.
+
+4. Show thread names in reports.
+
+5. Show image names and command lines in remote columns.
+
+6. Refactoring and minor fixes.
+
+drkns 2025-06-24 00:17:52+01:00 - build 220
+
+1. More fixes.
+
+drkns 2025-06-22 14:12:54+01:00 - build 219
+
+1. Do not try to show bitness and other local data in remote sessions.
+
+2. Use FILE_ATTRIBUTE_VIRTUAL instead of FILE_ATTRIBUTE_READONLY for WoW64 processes.
+
+drkns 2025-06-21 22:21:00+01:00 - build 218
+
+1. Expose "Working Set - Private" performance counter.
+
+drkns 2025-06-20 22:06:53+01:00 - build 217
+
+1. Correction of 214.
+
+drkns 2025-06-20 20:03:46+01:00 - build 216
+
+1. Correction of 215.
+
+drkns 2025-06-19 21:34:03+01:00 - build 215
+
+1. Normalize CPU usage for multiprocessor systems.
+
+drkns 2025-06-14 01:25:36+01:00 - build 214
+
+1. Fix display of _Total.
+
+drkns 2025-06-13 21:26:49+01:00 - build 213
+
+1. Use more reliable data source for basic process information if possible.
+
+2. Minor fixes.
+
+3. Refactoring.
+
+drkns 2025-06-12 23:34:06+01:00 - build 212
+
+1. Fix spurious and unpredictable sorting.
+
+drkns 2025-05-17 01:50:55+01:00 - build 211
+
+1. Various WOW64-related fixes.
+
+2. Fix hanging on reading handle data.
+
+3. Restore "Include unnamed handles" option.
+
+4. Refactoring.
+
 drkns 2024-01-27 16:45:12+00:00 - build 210
 
 1. gh-782: Stack corruption in Process list plugin.

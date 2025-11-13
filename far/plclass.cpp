@@ -877,7 +877,7 @@ void Plugin::CloseLang()
 
 const wchar_t* Plugin::Msg(intptr_t Id) const
 {
-	return static_cast<const plugin_language&>(*PluginLang).Msg(Id);
+	return PluginLang->Msg(Id).c_str();
 }
 
 void* Plugin::OpenFilePlugin(const wchar_t *Name, const unsigned char *Data, size_t DataSize, int OpMode)
@@ -1227,9 +1227,6 @@ void Plugin::ExecuteFunctionImpl(export_index const ExportId, function_ref<void(
 {
 	const auto HandleFailure = [&](DWORD const ExceptionCode = EXIT_FAILURE)
 	{
-		if (use_terminate_handler())
-			os::process::terminate_by_user(ExceptionCode);
-
 		m_Factory->Owner()->UnloadPlugin(this, ExportId);
 	};
 
@@ -1245,11 +1242,6 @@ void Plugin::ExecuteFunctionImpl(export_index const ExportId, function_ref<void(
 			Epilogue();
 		};
 
-		const auto HandleException = [&](const auto& Handler, auto&&... ProcArgs)
-		{
-			Handler(FWD(ProcArgs)..., this, Location)? HandleFailure() : throw;
-		};
-
 		cpp_try(
 		[&]
 		{
@@ -1258,11 +1250,13 @@ void Plugin::ExecuteFunctionImpl(export_index const ExportId, function_ref<void(
 		},
 		[&](source_location const&)
 		{
-			HandleException(handle_unknown_exception);
+			handle_unknown_exception(this, Location);
+			HandleFailure();
 		},
 		[&](std::exception const& e, source_location const&)
 		{
-			HandleException(handle_std_exception, e);
+			handle_std_exception(e, this, Location);
+			HandleFailure();
 		},
 		Location);
 	},

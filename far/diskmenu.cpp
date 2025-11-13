@@ -217,15 +217,11 @@ static void AddPluginItems(VMenu2 &ChDisk, int Pos, int DiskCount, bool SetSelec
 		return a.Hotkey < b.Hotkey;
 	});
 
-	MenuItemEx ChDiskItem;
-	ChDiskItem.Flags |= LIF_SEPARATOR;
-	ChDisk.AddItem(ChDiskItem);
+	ChDisk.AddItem(menu_item_ex{ LIF_SEPARATOR });
 
 	for (const auto& [i, index]: enumerate(MenuInitItems))
 	{
-		MenuItemEx MenuItem;
-		MenuItem.Name = concat(i.Hotkey? concat(L'&', i.Hotkey, L"  "sv) : L"   "sv, i.Str);
-		MenuItem.Flags = i.Flags;
+		menu_item_ex MenuItem{ concat(i.Hotkey? concat(L'&', i.Hotkey, L"  "sv) : L"   "sv, i.Str), i.Flags };
 		MenuItem.ComplexUserData = disk_menu_item{ i.PluginData };
 		if (Pos > DiskCount && !SetSelected && DiskCount + static_cast<int>(index) + 1 == Pos)
 		{
@@ -579,7 +575,7 @@ static bool DisconnectDrive(panel_ptr Owner, const disk_item& item, VMenu2 &ChDi
 		EjectVolume(item.Path);
 		return true;
 	}
-	catch (far_exception const&)
+	catch (std::exception const&)
 	{
 		// запоминаем состояние панелей
 		const auto CMode = Owner->GetMode();
@@ -599,7 +595,7 @@ static bool DisconnectDrive(panel_ptr Owner, const disk_item& item, VMenu2 &ChDi
 				EjectVolume(item.Path);
 				return true;
 			}
-			catch (far_exception const& e)
+			catch (std::exception const& e)
 			{
 				// восстановим пути - это избавит нас от левых данных в панели.
 				if (AMode != panel_mode::PLUGIN_PANEL)
@@ -872,7 +868,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 
 		for (const auto& i: Items)
 		{
-			MenuItemEx ChDiskItem;
+			menu_item_ex ChDiskItem;
 
 			const auto IsDisk = is_disk(i.RootDirectory);
 
@@ -1020,7 +1016,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 							LoadVolume(item.Path);
 							break;
 						}
-						catch (far_exception const& e)
+						catch (std::exception const& e)
 						{
 							if (EjectFailed(e, item.Path) != operation::retry)
 								break;
@@ -1311,7 +1307,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 			{
 				LoadVolume(item.Path);
 			}
-			catch (far_exception const&)
+			catch (std::exception const&)
 			{
 				// TODO: Message & retry? It conflicts with the CD retry dialog.
 			}
@@ -1359,7 +1355,7 @@ static int ChangeDiskMenu(panel_ptr Owner, int Pos, bool FirstCall)
 			if (!ErrorState.What.empty())
 				Builder.AddTextWrap(ErrorState.What, true);
 
-			if (ErrorState.any())
+			if (ErrorState.Win32Error)
 				Builder.AddTextWrap(ErrorState.system_error(), true);
 
 			Builder.AddOKCancel(lng::MRetry, lng::MCancel);

@@ -162,38 +162,37 @@ size_t NumberOfEmptyLines(size_t Desired);
 
 struct position_parser_state
 {
-	size_t StringIndex{};
-	size_t VisualIndex{};
-
-	function_ref<void(size_t, size_t)> signal{nullptr};
+	unsigned StringIndex{};
+	unsigned VisualIndex{};
 };
 
 size_t string_pos_to_visual_pos(string_view Str, size_t StringPos, size_t TabSize, position_parser_state* SavedState = {});
 size_t visual_pos_to_string_pos(string_view Str, size_t VisualPos, size_t TabSize, position_parser_state* SavedState = {});
 
 size_t visual_string_length(string_view Str);
+void chars_to_cells(string_view Str, size_t& CharsConsumed, size_t CellsAvailable, size_t& CellsConsumed);
 
 bool is_valid_surrogate_pair(string_view Str);
 bool is_valid_surrogate_pair(wchar_t First, wchar_t Second);
 
 void Text(point Where, const FarColor& Color, string_view Str);
 
-size_t Text(string_view Str, size_t MaxWidth);
+size_t Text(string_view Str, size_t CellsAvailable);
 size_t Text(string_view Str);
 
-size_t Text(wchar_t Char, size_t MaxWidth);
+size_t Text(wchar_t Char, size_t CellsAvailable);
 size_t Text(wchar_t Char);
 
-size_t Text(lng MsgId, size_t MaxWidth);
+size_t Text(lng MsgId, size_t CellsAvailable);
 size_t Text(lng MsgId);
 
-size_t VText(string_view Str, size_t MaxWidth);
+size_t VText(string_view Str, size_t CellsAvailable);
 size_t VText(string_view Str);
 
-size_t HiText(string_view Str, const FarColor& Color, size_t MaxWidth);
+size_t HiText(string_view Str, const FarColor& Color, size_t CellsAvailable);
 size_t HiText(string_view Str, const FarColor& Color);
 
-size_t HiVText(string_view Str, const FarColor& Color, size_t MaxWidth);
+size_t HiVText(string_view Str, const FarColor& Color, size_t CellsAvailable);
 size_t HiVText(string_view Str, const FarColor& Color);
 
 void PutText(rectangle Where, const FAR_CHAR_INFO* Src);
@@ -245,6 +244,9 @@ string make_progressbar(size_t Size, size_t Percent, bool ShowPercent, bool Prop
 
 void fix_coordinates(rectangle& Where);
 
+// This function takes characters width into account.
+// It means that the result is not necessarily smaller than Str.size().
+// If you want to find the '&'-fixup size, compare it to visual_string_length(Str), not Str.size().
 size_t HiStrlen(string_view Str);
 size_t HiFindRealPos(string_view Str, size_t Pos);
 string HiText2Str(string_view Str, size_t* HotkeyVisualPos = {});
@@ -296,6 +298,7 @@ private:
 	icon m_Small{false};
 };
 
+void suppress_console_confirmations();
 size_t ConsoleChoice(string_view Message, string_view Choices, size_t Default, function_ref<void()> MessagePrinter);
 bool ConsoleYesNo(string_view Message, bool Default, function_ref<void()> MessagePrinter);
 

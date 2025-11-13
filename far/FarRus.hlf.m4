@@ -1,5 +1,5 @@
 ﻿m4_include(`farversion.m4')m4_dnl
-.Language=Russian,Russian (Русский)
+.Language=Russian,Русский
 .Options CtrlColorChar=\
 .Options CtrlStartPosChar=^<wrap>
 
@@ -354,6 +354,10 @@ $ #Команды управления меню#
 
  #Alt+Shift+End#
  Выравнять выбранный элемент направо.
+
+ #Shift+F5#
+ Некоторые меню, например ~результаты поиска всех вхождений образца~@FindAllMenu@ во ~встроенном редакторе~@Editor@,
+имеют одну или несколько фиксированных колонок слева. Комбинация #Shift+F5# управляет видимостью этих колонок.
 
  См. также список ~макроклавиш~@KeyMacroMenuList@, доступных в меню.
 
@@ -3481,6 +3485,12 @@ $ #Редактор: Режим замены - Сохранять стиль#
 $ #Редактор: Меню результатов поиска всех вхождений#
  В этом меню доступны следующие сочетания клавиш:
 
+ #F4#
+ Скопировать все найденные строки в новый редактор и закрыть меню.
+
+ #Alt+F4#
+ Скопировать все удовлетворяющие активному фильтру строки в новый редактор и закрыть меню.
+
  #F5#
  Переключить размер меню.
 
@@ -4435,12 +4445,15 @@ Far всегда использует настоящий регистр.
 
 @ColorGroups
 $ #Color groups#
- Это меню позволяет измененить цвета различных элементов интерфейса или всей палитры цветов на предлагаемую по умолчанию.
+ Это меню позволяет измененить цвета различных элементов интерфейса or to choose one of ~predefined themes~@ColorThemes@.
 
- #Set default colors#
+
+@ColorThemes
+$ #Color themes#
+ #По умолчанию#
  Set the colors to default values, expressed as indices in the console palette.
 
- #Set default colors (RGB)#
+ #По умолчанию (RGB)#
  Set the colors to default values, expressed as colors in RGB space, normally used for the corresponding console palette indices.
  Unlike the indices in the console palette, the RGB values are device-independent and will look the same in any terminal.
  For example, the default #index# value of panels background is #1#, which is usually, but not necessarily, mapped to some unspecified shade of blue.
@@ -4458,6 +4471,9 @@ If it is not enabled or if your terminal does not support RGB colors, they will 
 
  \(T0:T000000)  \(T0:T000080)  \(T0:T008000)  \(T0:T008080)  \(T0:T800000)  \(T0:T800080)  \(T0:T808000)  \(T0:TC0C0C0)  \-
  \(T0:T808080)  \(T0:T0000FF)  \(T0:T00FF00)  \(T0:T00FFFF)  \(T0:TFF0000)  \(T0:TFF00FF)  \(T0:TFFFF00)  \(T0:TFFFFFF)  \-
+
+ #Custom themes#
+ You can also choose one of custom color themes from %FARHOME%\\Addons\\Colors\\Interface, provided by community contributors.
 
 
 @ColorPicker
@@ -6681,6 +6697,25 @@ $ #far:config Editor.NewFileUnixEOL#
  Изменить этот параметр можно только через ~far:config~@FarConfig@.
 
 
+@Editor.SearchAllUseAltFileNameFormat
+$ #far:config Editor.SearchAllUseAltFileNameFormat#
+ Этот строковый параметр управляет формированием имени файла для нового
+редактора, содержащего ~результаты поиска всех вхождений~@FindAllMenu@.
+Значение этого параметра -- это одна или несколько ~масок файлов~@FileMasks@.
+
+ Новое имя файла создаётся из основной части имени и расширения файла,
+открытого в данный момент в редакторе. В зависимости от имени исходного
+файла, новое имя форматируется при помощи одной из двух альтернативных
+строк пользовательского интерфейса, определённых в ~.lng файлах~@CustomizingUI@.
+Строка с ID’ом #MEditSearchAllFileNameFormatAlt# используется, если имя
+исходного файла соответствует одной из масок. В противном случае
+используется #MEditSearchAllFileNameFormat#.
+
+ Значение по умолчанию: #*.txt,*.log,*.md,*.csv,*.ini,*.cmd,*.map#
+
+ Изменить этот параметр можно только через ~far:config~@FarConfig@.
+
+
 @Panel.ShortcutAlwaysChdir
 $ #far:config Panel.ShortcutAlwaysChdir#
  Этот логический (Boolean) параметр управляет поведением
@@ -6958,6 +6993,20 @@ $ #far:config Panel.Tree.TurnOffCompletely#
 создании, удалении или переименовании каталогов.
 
  Значение по умолчанию: True (все операции работы с деревом каталогов отключены).
+
+ Изменить этот параметр можно только через ~far:config~@FarConfig@.
+
+
+@Panel.TreatDotFilesAsHidden
+$ #far:config Panel.TreatDotFilesAsHidden#
+ Этот логический (Boolean) параметр управляет фильтрацией файлов и папок,
+имена которых начинаются с точки («точка-файлы»). Он работает совместно
+с ~настройкой панели~@PanelSettings@ #Показывать скрытые и системные файлы#.
+
+ False - ^<wrap>Точка-файлы отображаются всегда.
+ True  - Точка-файлы отображаются или нет вместе с файлами, имеющими атрибуты Скрытый или Системный.
+
+ Значение по умолчанию: False (точка-файлы отображаются всегда).
 
  Изменить этот параметр можно только через ~far:config~@FarConfig@.
 

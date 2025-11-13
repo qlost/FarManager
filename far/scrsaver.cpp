@@ -69,11 +69,11 @@ namespace
 
 		static const inline int Colours[]
 		{
-			C_BLUE,
-			C_CYAN,
-			C_RED,
-			C_MAGENTA,
-			C_BROWN
+			C_LIGHTBLUE,
+			C_LIGHTCYAN,
+			C_LIGHTRED,
+			C_LIGHTMAGENTA,
+			C_YELLOW
 		};
 
 		static const int DefaultColour = C_LIGHTGRAY;
@@ -287,19 +287,11 @@ namespace
 
 void ScreenSaver()
 {
-	static bool ScreenSaverActive = false;
-
-	if (ScreenSaverActive)
+	if (Global->ScreenSaverActive)
 		return;
 
-	ScreenSaverActive = true;
-	++Global->SuppressClock;
-
-	SCOPE_EXIT
-	{
-		--Global->SuppressClock;
-		ScreenSaverActive = false;
-	};
+	Global->ScreenSaverActive = true;
+	SCOPE_EXIT{ Global->ScreenSaverActive = false; };
 
 	// The whole point of a screen saver is to be visible
 	if (console.IsViewportShifted())

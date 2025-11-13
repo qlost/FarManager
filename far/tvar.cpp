@@ -281,6 +281,18 @@ TVar::TVar(const wchar_t* v):
 {
 }
 
+TVar::TVar(void* v):
+	ptr(v),
+	vType(Type::Pointer)
+{
+}
+
+TVar::TVar(Dialog* v):
+	ptr(v),
+	vType(Type::Dialog)
+{
+}
+
 const string& TVar::toString()
 {
 	// this already writes to str
@@ -321,6 +333,7 @@ long long TVar::asInteger() const
 	switch (vType)
 	{
 	case Type::Integer:
+	case Type::Table:
 	case Type::Unknown:
 		return inum;
 
@@ -343,6 +356,7 @@ double TVar::asDouble() const
 	switch (vType)
 	{
 	case Type::Integer:
+	case Type::Table:
 	case Type::Unknown:
 		return inum;
 
@@ -360,6 +374,30 @@ double TVar::asDouble() const
 	}
 }
 
+void* TVar::asPointer() const
+{
+	switch (vType)
+	{
+	case Type::Pointer:
+		return ptr;
+
+	default:
+		return nullptr;
+	}
+}
+
+Dialog* TVar::asDialog() const
+{
+	switch (vType)
+	{
+	case Type::Dialog:
+		return static_cast<Dialog*>(ptr);
+
+	default:
+		return nullptr;
+	}
+}
+
 bool TVar::isNumber() const
 {
 	switch (type())
@@ -367,6 +405,7 @@ bool TVar::isNumber() const
 		case Type::Unknown:
 		case Type::Integer:
 		case Type::Double:
+		case Type::Table:
 			return true;
 
 		case Type::String:
@@ -378,6 +417,9 @@ bool TVar::isNumber() const
 				default:
 					return false;
 			}
+		case Type::Pointer:
+		case Type::Dialog:
+			return false;
 	}
 
 	return false;
@@ -407,10 +449,12 @@ bool TVar::operator<(const TVar& rhs) const
 	{
 	case Type::Unknown:
 	case Type::Integer:
+	case Type::Table:
 		switch (rhs.type())
 		{
 		case Type::Unknown:
 		case Type::Integer:
+		case Type::Table:
 			return asInteger() < rhs.asInteger();
 
 		case Type::Double:
@@ -429,6 +473,9 @@ bool TVar::operator<(const TVar& rhs) const
 				return asDouble() < rhs.asDouble();
 			}
 			break;
+		case Type::Pointer:
+		case Type::Dialog:
+			break;
 		}
 		break;
 
@@ -437,6 +484,7 @@ bool TVar::operator<(const TVar& rhs) const
 		{
 		case Type::Unknown:
 		case Type::Integer:
+		case Type::Table:
 		case Type::Double:
 			return asDouble() < rhs.asDouble();
 
@@ -451,11 +499,18 @@ bool TVar::operator<(const TVar& rhs) const
 				return asDouble() < rhs.asDouble();
 			}
 			break;
+		case Type::Pointer:
+		case Type::Dialog:
+			break;
 		}
 		break;
 
 	case Type::String:
 		return string_sort::less(asString(), rhs.asString());
+
+	case Type::Pointer:
+	case Type::Dialog:
+		break;
 	}
 
 	return false;

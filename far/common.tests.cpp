@@ -38,6 +38,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.headers.hpp"
 
 // Internal:
+#include "exception.hpp"
 #include "testing.hpp"
 
 // Platform:
@@ -85,7 +86,7 @@ TEST_CASE("common.NullToEmpty")
 //----------------------------------------------------------------------------
 
 #if COMPILER(GCC)
-#include "common/cpp.hpp"
+#include "common/polyfills.hpp"
 
 TEST_CASE("cpp.const_return")
 {
@@ -114,7 +115,7 @@ namespace detail
 {
 	template<typename T>
 	constexpr bool is_const = std::is_const_v<std::remove_reference_t<T>>;
-};
+}
 
 TEST_CASE("2d.matrix")
 {
@@ -313,6 +314,46 @@ TEST_CASE("algorithm.any_none_of")
 	STATIC_REQUIRE(any_of(1, 1, 2, 3));
 	STATIC_REQUIRE(none_of(1, 0));
 	STATIC_REQUIRE(none_of(1, 2, 3));
+}
+
+TEST_CASE("algorithm.intersect.segments")
+{
+	struct test_data
+	{
+		struct test_segment: public segment
+		{
+			test_segment(int const Begin, int const End)
+				: segment{ Begin, segment::sentinel_tag{ End } }
+			{}
+		};
+		test_segment A, B, Intersection;
+	};
+
+	static const test_data TestDataPoints[] =
+	{
+		{ { 10, 20 }, { -1, 5 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 10 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { -1, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { -1, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { 10, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 15, 20 }, { 15, 20 } },
+		{ { 10, 20 }, { 15, 25 }, { 15, 20 } },
+		{ { 10, 20 }, { 20, 25 }, { 0, 0 } },
+		{ { 10, 20 }, { 25, 30 }, { 0, 0 } },
+		{ { 10, 20 }, { 0, 0 }, { 0, 0 } },
+		{ { 10, 20 }, { 15, 15 }, { 0, 0 } },
+		{ { 10, 20 }, { 20, 20 }, { 42, 42 } },
+		{ { 10, 20 }, { 30, 30 }, { 0, 0 } },
+	};
+
+	for (const auto& TestDataPoint : TestDataPoints)
+	{
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.A, TestDataPoint.B));
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.B, TestDataPoint.A));
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -618,7 +659,7 @@ TEST_CASE("expected")
 
 	REQUIRE(GoodValue.has_value());
 	REQUIRE(GoodValue.value() == L"42"sv);
-	REQUIRE_THROWS_AS(GoodValue.error(), std::logic_error);
+	REQUIRE_THROWS_AS(GoodValue.error(), far_exception);
 
 	REQUIRE(!BadValue.has_value());
 	REQUIRE(BadValue.error() == 42);
@@ -646,26 +687,41 @@ TEST_CASE("from_string")
 	REQUIRE(from_string<uint64_t>(L"18446744073709551615"sv) == std::numeric_limits<uint64_t>::max());
 	REQUIRE(from_string<double>(L"0.03125"sv) == 0.03125);
 
-	REQUIRE_THROWS_AS(from_string<uint64_t>(L"18446744073709551616"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int64_t>(L"-9223372036854775809"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int64_t>(L"9223372036854775808"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<uint32_t>(L"4294967296"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int32_t>(L"-2147483649"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int32_t>(L"2147483648"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<uint16_t>(L"65536"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int16_t>(L"-32769"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int16_t>(L"32768"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<unsigned int>(L"-42"sv), std::out_of_range);
-	REQUIRE_THROWS_AS(from_string<int>(L"fubar"sv), std::invalid_argument);
-	REQUIRE_THROWS_AS(from_string<int>({}), std::invalid_argument);
-	REQUIRE_THROWS_AS(from_string<int>(L" 42"sv), std::invalid_argument);
-	REQUIRE_THROWS_AS(from_string<int>(L" +42"sv), std::invalid_argument);
-	REQUIRE_THROWS_AS(from_string<double>(L"1"sv, {}, 3), std::invalid_argument);
+	const auto make_matcher = [](string_view const Message)
+	{
+		return generic_exception_matcher{[Message](std::any const& e)
+		{
+			return contains(std::any_cast<far_exception const&>(e).message(), Message);
+		}};
+	};
+
+	const auto
+		InvalidArgumentMatcher = make_matcher(L"invalid from_string argument"sv),
+		OutOfRangeMatcher = make_matcher(L"from_string argument is out of range"sv);
+
+	REQUIRE_THROWS_MATCHES(from_string<uint64_t>(L"18446744073709551616"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int64_t>(L"-9223372036854775809"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int64_t>(L"9223372036854775808"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<uint32_t>(L"4294967296"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int32_t>(L"-2147483649"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int32_t>(L"2147483648"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<uint16_t>(L"65536"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int16_t>(L"-32769"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int16_t>(L"32768"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<unsigned int>(L"-42"sv), far_exception, OutOfRangeMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int>(L"fubar"sv), far_exception, InvalidArgumentMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int>({}), far_exception, InvalidArgumentMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int>(L" 42"sv), far_exception, InvalidArgumentMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<int>(L" +42"sv), far_exception, InvalidArgumentMatcher);
+	REQUIRE_THROWS_MATCHES(from_string<double>(L"1"sv, {}, 3), far_exception, InvalidArgumentMatcher);
 
 	{
 		int Value;
 		REQUIRE(!from_string(L"qqq"sv, Value));
 	}
+
+	REQUIRE(try_from_string<int>(L"42"sv) == 42);
+	REQUIRE(try_from_string<int>(L"banana"sv) == unexpected{ std::errc::invalid_argument });
 }
 
 //----------------------------------------------------------------------------
@@ -1136,6 +1192,53 @@ TEST_CASE("preprocessor.literals")
 
 //----------------------------------------------------------------------------
 
+#include "common/segment.hpp"
+
+TEST_CASE("segment.constexpr")
+{
+	STATIC_REQUIRE(segment{}.empty());
+	STATIC_REQUIRE(segment{}.length() == 0);
+	STATIC_REQUIRE(segment{} == segment{ 5, segment::sentinel_tag{ 5 } });
+	STATIC_REQUIRE(segment{} == segment{ 5, segment::length_tag{ 0 } });
+	STATIC_REQUIRE(segment{ 5, segment::sentinel_tag{ 7 } }.start() == 5);
+	STATIC_REQUIRE(segment{ 5, segment::sentinel_tag{ 7 } }.length() == 2);
+	STATIC_REQUIRE(segment{ 5, segment::length_tag{ 2 } }.end() == 7);
+	STATIC_REQUIRE(segment{}.ray() == segment{ 0, segment::sentinel_tag{ std::numeric_limits<int>::max() } });
+	STATIC_REQUIRE(segment{}.ray(42) == segment{ 42, segment::sentinel_tag{ std::numeric_limits<int>::max() } });
+	STATIC_REQUIRE((segment{}.ray(42).iota() | std::views::drop(3) | std::views::take(3)).front() == 45);
+}
+
+TEST_CASE("segment.iota")
+{
+	struct test_data
+	{
+		segment Segment;
+		std::ptrdiff_t Take;
+		std::initializer_list<int> Expected;
+	};
+
+	static const test_data TestDataPoints[] =
+	{
+		{ {}, 100, {} },
+		{ { 0, segment::length_tag{ 0 } }, 100, {} },
+		{ { 42, segment::sentinel_tag{ 42 } }, 100, {} },
+		{ { 0, segment::length_tag{ 3 } }, 100, { 0, 1, 2 } },
+		{ { 42, segment::length_tag{ 3 } }, 100, { 42, 43, 44 } },
+		{ { -1, segment::length_tag{ 3 } }, 100, { -1, 0, 1 } },
+		{ segment::ray(), 3, { 0, 1, 2 } },
+		{ segment::ray(42), 3, { 42, 43, 44 }},
+	};
+
+	for (const auto& TestDataPoint : TestDataPoints)
+	{
+		REQUIRE(std::ranges::equal(
+			TestDataPoint.Segment.iota() | std::views::take(TestDataPoint.Take),
+			TestDataPoint.Expected));
+	}
+}
+
+//----------------------------------------------------------------------------
+
 #include "common/source_location.hpp"
 
 TEST_CASE("source_location")
@@ -1359,67 +1462,6 @@ TEST_CASE("smart_ptr.block_ptr")
 
 #include "common/string_utils.hpp"
 
-TEST_CASE("string_utils.cut")
-{
-	static const struct
-	{
-		string_view Src;
-		size_t Size;
-		string_view ResultLeft, ResultRight;
-	}
-	Tests[]
-	{
-		{ {},         0, {},         {},         },
-
-		{ {},         1, {},         {},         },
-
-		{ L"1"sv,     0, {},         {},         },
-		{ L"1"sv,     1, L"1"sv,     L"1"sv,     },
-		{ L"1"sv,     2, L"1"sv,     L"1"sv,     },
-
-		{ L"12345"sv, 0, {},         {},         },
-		{ L"12345"sv, 1, L"5"sv,     L"1"sv,     },
-		{ L"12345"sv, 3, L"345"sv,   L"123"sv,   },
-		{ L"12345"sv, 6, L"12345"sv, L"12345"sv, },
-	};
-
-	for (const auto& i: Tests)
-	{
-		REQUIRE(cut_left(i.Src, i.Size) == i.ResultLeft);
-		REQUIRE(cut_right(i.Src, i.Size) == i.ResultRight);
-	}
-}
-
-TEST_CASE("string_utils.pad")
-{
-	static const struct
-	{
-		string_view Src;
-		size_t Size;
-		string_view ResultLeft, ResultRight;
-	}
-	Tests[]
-	{
-		{ {},       0, {},         {},         },
-		{ {},       1, L" "sv,     L" "sv,     },
-		{ {},       2, L"  "sv,    L"  "sv,    },
-
-		{ L"1"sv,   0, L"1"sv,     L"1"sv,     },
-		{ L"1"sv,   1, L"1"sv,     L"1"sv,     },
-		{ L"1"sv,   3, L"  1"sv,   L"1  "sv,   },
-
-		{ L"123"sv, 0, L"123"sv,   L"123"sv,   },
-		{ L"123"sv, 2, L"123"sv,   L"123"sv,   },
-		{ L"123"sv, 5, L"  123"sv, L"123  "sv, },
-	};
-
-	for (const auto& i: Tests)
-	{
-		REQUIRE(pad_left(string(i.Src), i.Size) == i.ResultLeft);
-		REQUIRE(pad_right(string(i.Src), i.Size) == i.ResultRight);
-	}
-}
-
 TEST_CASE("string_utils.trim")
 {
 	static const struct
@@ -1442,39 +1484,6 @@ TEST_CASE("string_utils.trim")
 		REQUIRE(trim_left(string(i.Src)) == i.ResultLeft);
 		REQUIRE(trim_right(string(i.Src)) == i.ResultRight);
 		REQUIRE(trim(string(i.Src)) == i.Result);
-	}
-}
-
-TEST_CASE("string_utils.fit")
-{
-	static const struct
-	{
-		string_view Src;
-		size_t Size;
-		string_view ResultLeft, ResultCenter, ResultRight;
-	}
-	Tests[]
-	{
-		{ {},          0,   {},             {},             {},           },
-		{ {},          1,   L" "sv,         L" "sv,         L" "sv,       },
-		{ {},          2,   L"  "sv,        L"  "sv,        L"  "sv,      },
-
-		{ L"1"sv,      0,   {},             {},             {},           },
-		{ L"1"sv,      1,   L"1"sv,         L"1"sv,         L"1"sv,       },
-		{ L"1"sv,      2,   L"1 "sv,        L"1 "sv,        L" 1"sv,      },
-
-		{ L"12345"sv,  0,   {},             {},             {},           },
-		{ L"12345"sv,  1,   L"1"sv,         L"1"sv,         L"1"sv,       },
-		{ L"12345"sv,  3,   L"123"sv,       L"123"sv,       L"123"sv,     },
-		{ L"12345"sv,  5,   L"12345"sv,     L"12345"sv,     L"12345"sv,   },
-		{ L"12345"sv,  7,   L"12345  "sv,   L" 12345 "sv,   L"  12345"sv, },
-	};
-
-	for (const auto& i: Tests)
-	{
-		REQUIRE(fit_to_left(string(i.Src), i.Size) == i.ResultLeft);
-		REQUIRE(fit_to_center(string(i.Src), i.Size) == i.ResultCenter);
-		REQUIRE(fit_to_right(string(i.Src), i.Size) == i.ResultRight);
 	}
 }
 
