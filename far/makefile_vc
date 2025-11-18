@@ -365,9 +365,6 @@ $(PCH_FILE): $(PCH_NAME).cpp $(PCH_NAME).hpp
 $(INTDIR)\initguid.obj: $(@B).cpp
 	$(CPP) $(CPPFLAGS) $(@B).cpp
 
-#$(INTDIR)\testing.obj: $(@B).cpp
-#	$(CPP) $(CPPFLAGS) /Y- /Zc:hiddenFriend- $(@B).cpp
-
 $(INTDIR)\vc_crt_fix_impl.obj: $(@B).cpp
 	$(CPP) $(CPPFLAGS) /Zc:threadSafeInit- $(@B).cpp
 
