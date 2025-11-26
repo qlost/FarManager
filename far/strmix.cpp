@@ -1528,7 +1528,7 @@ TEST_CASE("ReplaceBrackets")
 	{
 		return generic_exception_matcher([=](std::any const& e)
 		{
-			return contains(std::any_cast<far_exception const&>(e).message(), Message);
+			return std::any_cast<far_exception const&>(e).message().contains(Message);
 		});
 	};
 
