@@ -4097,6 +4097,10 @@ De a korábbi tabulátorokat nem konvertálja.
  #Gördítősáv mutatva#
  Az oldalsó gördítősáv megjelenítése a belső szerkesztőben.
 
+ #Sorokszámok megjelenítése#
+ Megjeleníti a sorok számát a szerkesztő szövegétől balra. Ez az opció
+kapcsolható a #Ctrl+F3# megnyomásával szerkesztés közben.
+
 @=
  #Fájlpozíció mentése#
  Elmenti és visszatölti a legutóbb szerkesztett fájlok szöveghelyzetét és a kódlapot is, ha utóbbit kézzel
@@ -5280,13 +5284,13 @@ big amounts of data are processed.
         /.*?name\O=(['"])(.*?)\1\O.*?value\O=(['"])(.*?)\3/
         ^<wrap>Strings containing "name=", but not containing "value=", are processed (in fact, skipped) faster.
 
- #\NN#  - ^<wrap>reference to earlier matched parentheses. NN is a positive integer.
+ #\N#   - ^<wrap>reference to earlier matched parentheses. N is a number.
 Each parentheses except (?:pattern), (?=pattern), (?!pattern), (?<=pattern) and (?<!pattern)
 have a number (in the order of appearance).
         Example:
         "(['"])hello\1" matches to "hello" or 'hello'.
 
- #\p{name}# - ^<wrap>inner regexp reference to it's parsed bracket with specified #name#.
+ #\p{name}# - ^<wrap>reference to earlier matched parentheses with the specified #name#.
 
  #Examples:#
 
