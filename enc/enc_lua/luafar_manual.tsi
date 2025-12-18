@@ -2317,6 +2317,32 @@ mtime=3605129666
 </article>
 </node>
 <node>
+id=598
+lv=3
+dt=Text
+nm=Buffer:write
+ctime=3972662101
+mtime=3972662773
+<article>
+#_len = Buffer:write (Index, Text, Color)
+#_
+#_**Parameters:**
+#_  Buffer : user control (userdata)
+#_  Index  : integer
+#_  Text   : string
+#_  Color  : table `tFarColor` or integer
+#_
+#_**Returns:**
+#_  len    : number of user control cells used
+#_           (usually equals Text:len() but may be greater
+#_           if text contains some special chars, e.g. emoji)
+#_
+#_@@@
+#_[tFarColor]: 427.html
+#_
+</article>
+</node>
+<node>
 id=20
 lv=2
 dt=Text
@@ -6730,7 +6756,7 @@ lv=2
 dt=Text
 nm=far.FindPlugin
 ctime=3536863835
-mtime=3536864018
+mtime=3974736527
 <article>
 #_plugin_handle = far.FindPlugin (Param1, Param2)
 #_
@@ -6740,6 +6766,10 @@ mtime=3536864018
 #_
 #_**Returns:**
 #_  plugin_handle:  userdata, or nil
+#_
+#_  **plugin_handle:rawhandle()**
+#_    returns the original value of handle received from Far Manager
+#_    that is suitable for using with LuaJIT FFI and as a table key.
 #_
 #_**Far API used:**
 #_  PluginsControl
@@ -6755,7 +6785,7 @@ lv=2
 dt=Text
 nm=far.ForcedLoadPlugin
 ctime=3536781579
-mtime=3536863890
+mtime=3974736579
 <article>
 #_plugin_handle = far.ForcedLoadPlugin (Param1, Param2)
 #_
@@ -6765,6 +6795,10 @@ mtime=3536863890
 #_
 #_**Returns:**
 #_  plugin_handle:  userdata, or nil
+#_
+#_  **plugin_handle:rawhandle()**
+#_    returns the original value of handle received from Far Manager
+#_    that is suitable for using with LuaJIT FFI and as a table key.
 #_
 #_**Far API used:**
 #_  PluginsControl
@@ -6874,7 +6908,7 @@ lv=2
 dt=Text
 nm=far.LoadPlugin
 ctime=3536781563
-mtime=3536863897
+mtime=3974736628
 <article>
 #_plugin_handle = far.LoadPlugin (Param1, Param2)
 #_
@@ -6884,6 +6918,10 @@ mtime=3536863897
 #_
 #_**Returns:**
 #_  plugin_handle:  userdata, or nil
+#_
+#_  **plugin_handle:rawhandle()**
+#_    returns the original value of handle received from Far Manager
+#_    that is suitable for using with LuaJIT FFI and as a table key.
 #_
 #_**Far API used:**
 #_  PluginsControl
@@ -11406,14 +11444,12 @@ lv=1
 dt=Text
 nm=luautf8
 ctime=3776336119
-mtime=3887368054
+mtime=3973668632
 <article>
 #_<markdown>
 #_
 #_UTF-8 module for Lua 5.x
 #_========================
-#_[![Build Status](https://travis-ci.org/starwing/luautf8.svg?branch=master)](https://travis-ci.org/starwing/luautf8)
-#_[![Coverage Status](https://coveralls.io/repos/github/starwing/luautf8/badge.svg?branch=master)](https://coveralls.io/github/starwing/luautf8?branch=master)
 #_
 #_This module adds UTF-8 support to Lua.
 #_
