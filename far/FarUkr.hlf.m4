@@ -5213,7 +5213,7 @@ Z буде знайдено відразу, наступним кроком. Н�
 
  #Special characters#
 
- Non-letter and non-digit character can be prepended by ‘#\#’ in most cases,
+ Non-letter and non-digit characters can be prepended by ‘#\#’ in most cases,
 but in case of letters and digits this must be done with care because this is
 the way the special characters are written:
 
@@ -5816,12 +5816,6 @@ If current value of an option is other than the default, the option is marked wi
 
  #Enter# or #F4#
  Toggle or edit the value.
-
- #Shift+F4#
- Edit the integer value as a hexadecimal number. For other types works as #F4#.
-
- #Alt+F4#
- Edit the integer value as a binary number. For other types works as #F4#.
 
  #Del#
  Reset the option to its default value.
