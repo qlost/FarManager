@@ -1,4 +1,63 @@
 --------------------------------------------------------------------------------
+drkns 2026-01-09 20:52:21+00:00 - build 6627
+
+1. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+drkns 2026-01-08 23:31:21+00:00 - build 6626
+
+1. Experimental: support CD environment variable.
+
+2. Exception handling improvements.
+
+--------------------------------------------------------------------------------
+w17 2026-01-04 21:12:17+03:00 - build 6625
+
+1. Experimental -- far:config CodePages.NoAutoDetectCJK = true
+
+--------------------------------------------------------------------------------
+drkns 2026-01-04 16:30:34+00:00 - build 6624
+
+1. Set SHELLEXECUTEINFO.hwnd properly.
+   According to rumors, it should help in certain corner cases.
+
+--------------------------------------------------------------------------------
+drkns 2026-01-03 19:05:39+00:00 - build 6623
+
+1. Correction of 6619.2.
+
+--------------------------------------------------------------------------------
+drkns 2025-12-29 17:42:46+00:00 - build 6622
+
+1. Refactoring.
+
+2. Extend 6616 to GCC.
+
+3. Fix Backspace handling in read only edit controls.
+
+--------------------------------------------------------------------------------
+drkns 2025-12-28 12:31:40+00:00 - build 6621
+
+1. Grammar.
+
+2. Warnings.
+
+3. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2025-12-27 00:52:23+00:00 - build 6620
+
+1. Fix a corner case in regex search.
+
+--------------------------------------------------------------------------------
+drkns 2025-12-26 10:40:12+00:00 - build 6619
+
+1. Fix block undo in Editor.
+
+2. Fix empty string replace in Editor.
+   Experimental. Also M2467.
+
+--------------------------------------------------------------------------------
 shmuel 2025-12-21 21:59:27+02:00 - build 6618
 
 1. Remove some old and unused code.

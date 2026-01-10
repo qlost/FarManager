@@ -132,7 +132,7 @@ LINK_OBJS = \
 	"$(INTDIR)\fileview.obj" \
 	"$(INTDIR)\findfile.obj" \
 	"$(INTDIR)\flink.obj" \
-	"$(INTDIR)\fnparce.obj" \
+	"$(INTDIR)\fnparse.obj" \
 	"$(INTDIR)\format.obj" \
 	"$(INTDIR)\foldtree.obj" \
 	"$(INTDIR)\global.obj" \
@@ -243,7 +243,7 @@ TEST_OBJS = "$(INTDIR)\api_test_c.testobj" "$(INTDIR)\api_test_c++.testobj"
 
 ADDINCLUDE=/I $(BOOTSTRAPDIR)..
 
-CPPFLAGS = $(CPPFLAGS) $(ADDINCLUDE) /D "FAR_USE_INTERNALS"
+CPPFLAGS = $(CPPFLAGS) $(ADDINCLUDE) /D "FAR_USE_INTERNALS" /D "_wassert=far_assert"
 RFLAGS = $(RFLAGS) $(ADDINCLUDE)
 
 !if ("$(ENABLE_TESTS)" == "1")
