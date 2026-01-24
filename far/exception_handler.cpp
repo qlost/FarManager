@@ -2401,6 +2401,8 @@ extern "C" void _wassert(wchar_t const* Message, wchar_t const* File, unsigned L
 constexpr auto real_wassert = _wassert;
 #pragma pop_macro("_wassert")
 
+WARNING_PUSH()
+WARNING_DISABLE_MSC(4273) // 'function': inconsistent dll linkage
 void far_assert(wchar_t const* const Message, wchar_t const* const File, unsigned const Line)
 {
 	switch (assert_handler_impl(Message, { encoding::utf8::get_bytes(File).c_str(), "assert", Line }))
@@ -2416,6 +2418,7 @@ void far_assert(wchar_t const* const Message, wchar_t const* const File, unsigne
 		break;
 	}
 }
+WARNING_POP()
 
 static LONG NTAPI vectored_exception_handler_impl(EXCEPTION_POINTERS* const Pointers)
 {
