@@ -644,6 +644,16 @@ void PushPanelItem(lua_State *L, const struct PluginPanelItem *PanelItem, int No
 		}
 	}
 }
+
+static void PutRECTToTable(lua_State *L, const char* key, RECT rect)
+{
+	lua_createtable(L, 0, 4);
+	PutIntToTable(L, "left", rect.left);
+	PutIntToTable(L, "top", rect.top);
+	PutIntToTable(L, "right", rect.right);
+	PutIntToTable(L, "bottom", rect.bottom);
+	lua_setfield(L, -2, key);
+}
 //---------------------------------------------------------------------------
 
 void PushPanelItems(lua_State *L, const struct PluginPanelItem *PanelItems, size_t ItemsNumber, int NoUserData)
@@ -757,6 +767,8 @@ static int editor_GetInfo(lua_State *L)
 	PutNumToTable(L, "SessionBookmarkCount", (double) ei.SessionBookmarkCount);
 	PutNumToTable(L, "CurState", (double) ei.CurState);
 	PutNumToTable(L, "CodePage", (double) ei.CodePage);
+	PutRECTToTable(L, "WindowArea", ei.WindowArea);
+	PutRECTToTable(L, "ClientArea", ei.ClientArea);
 	return 1;
 }
 
@@ -1981,29 +1993,26 @@ static int far_Menu(lua_State *L)
 }
 
 // Return:   -1 if escape pressed, else - button number chosen (0 based).
-int LF_Message(lua_State *L,
-               const wchar_t* aMsg,      // if multiline, then lines must be separated by '\n'
-               const wchar_t* aTitle,
-               const wchar_t* aButtons,  // if multiple, then captions must be separated by ';'
-               const char*    aFlags,
-               const wchar_t* aHelpTopic,
-               const GUID*    aMessageGuid)
+int LF_Message(lua_State* L,
+	const wchar_t* aMsg,      // if multiline, then lines must be separated by '\n'
+	const wchar_t* aTitle,
+	const wchar_t* aButtons,  // if multiple, then captions must be separated by ';'
+	const char*    aFlags,
+	const wchar_t* aHelpTopic,
+	const GUID*    aMessageGuid)
 {
-	const wchar_t **items, **pItems;
-	wchar_t** allocLines;
-	int nAlloc;
-	wchar_t *lastDelim, *MsgCopy, *start, *pos;
 	TPluginData *pd = GetPluginData(L);
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	HANDLE hnd = GetStdHandle(STD_OUTPUT_HANDLE);
-	int ret = GetConsoleScreenBufferInfo(hnd, &csbi);
-	const int max_len   = ret ? csbi.srWindow.Right - csbi.srWindow.Left+1-14 : 66;
-	const int max_lines = ret ? csbi.srWindow.Bottom - csbi.srWindow.Top+1-5 : 20;
+	SMALL_RECT sr;
+	int ret = pd->Info->AdvControl(pd->PluginId, ACTL_GETFARRECT, 0, &sr);
+	const int max_len = ret ? sr.Right - sr.Left + 1 - 14 : 66;
+	const int max_lines = ret ? sr.Bottom - sr.Top + 1 - 5 : 20;
+
 	int num_lines = 0, num_buttons = 0;
-	UINT64 Flags = 0;
+
 	// Buttons
-	wchar_t *BtnCopy = NULL, *ptr = NULL;
+	wchar_t *BtnCopy = NULL;
 	int wrap = !(aFlags && strchr(aFlags, 'n'));
+	uint64_t Flags = 0;
 
 	if (*aButtons == L';')
 	{
@@ -2018,11 +2027,12 @@ int LF_Message(lua_State *L,
 		else
 			while(*aButtons == L';') aButtons++;
 	}
+
 	if (Flags == 0)
 	{
 		// Buttons: 1-st pass, determining number of buttons
 		BtnCopy = _wcsdup(aButtons);
-		ptr = BtnCopy;
+		wchar_t *ptr = BtnCopy;
 
 		while(*ptr && (num_buttons < 64))
 		{
@@ -2039,16 +2049,18 @@ int LF_Message(lua_State *L,
 		}
 	}
 
-	items = (const wchar_t**) malloc((1+max_lines+num_buttons) * sizeof(wchar_t*));
-	allocLines = (wchar_t**) malloc(max_lines * sizeof(wchar_t*)); // array of pointers to allocated lines
-	nAlloc = 0;                                                    // number of allocated lines
-	pItems = items;
+	const wchar_t **items = (const wchar_t**) malloc((1+max_lines+num_buttons) * sizeof(wchar_t*));
+	wchar_t **allocLines = (wchar_t**) malloc(max_lines * sizeof(wchar_t*)); // array of pointers to allocated lines
+	int nAlloc = 0; // number of allocated lines
+
 	// Title
+	const wchar_t **pItems = items;
 	*pItems++ = aTitle;
+
 	// Message lines
-	lastDelim = NULL;
-	MsgCopy = _wcsdup(aMsg);
-	start = pos = MsgCopy;
+	wchar_t *lastDelim = NULL;
+	wchar_t *MsgCopy = _wcsdup(aMsg);
+	wchar_t *start = MsgCopy, *pos = MsgCopy;
 
 	while(num_lines < max_lines)
 	{
@@ -2075,11 +2087,9 @@ int LF_Message(lua_State *L,
 		}
 		else if (wrap)                          // the 1-st character beyond the line
 		{
-			size_t len;
-			wchar_t **q;
 			pos = lastDelim ? lastDelim+1 : pos;
-			len = pos - start;
-			q = &allocLines[nAlloc++]; // line allocation is needed
+			size_t len = pos - start;
+			wchar_t **q = &allocLines[nAlloc++]; // line allocation is needed
 			*pItems++ = *q = (wchar_t*) malloc((len+1)*sizeof(wchar_t));
 			wcsncpy(*q, start, len);
 			(*q)[len] = L'\0';
@@ -2094,10 +2104,9 @@ int LF_Message(lua_State *L,
 	if (*aButtons != L';')
 	{
 		// Buttons: 2-nd pass.
-		int i;
-		ptr = BtnCopy;
+		wchar_t *ptr = BtnCopy;
 
-		for(i=0; i < num_buttons; i++)
+		for(int i=0; i < num_buttons; i++)
 		{
 			while(*ptr == L';')
 				++ptr;
@@ -2120,11 +2129,8 @@ int LF_Message(lua_State *L,
 	if (aFlags)
 	{
 		if (strchr(aFlags, 'w')) Flags |= FMSG_WARNING;
-
 		if (strchr(aFlags, 'e')) Flags |= FMSG_ERRORTYPE;
-
 		if (strchr(aFlags, 'k')) Flags |= FMSG_KEEPBACKGROUND;
-
 		if (strchr(aFlags, 'l')) Flags |= FMSG_LEFTALIGN;
 	}
 
@@ -2134,12 +2140,13 @@ int LF_Message(lua_State *L,
 	ret = (int)pd->Info->Message(pd->PluginId, aMessageGuid, Flags, aHelpTopic,
 	                             items, 1+num_lines+num_buttons, num_buttons);
 	free(BtnCopy);
-
-	while(nAlloc) free(allocLines[--nAlloc]);
-
+	while (nAlloc) {
+		free(allocLines[--nAlloc]);
+	}
 	free(allocLines);
 	free(MsgCopy);
-	free(CAST(void*, items));
+	free(items);
+
 	return ret;
 }
 
@@ -2170,25 +2177,30 @@ void LF_Error(lua_State *L, const wchar_t* aMsg)
 // Return: -1 if escape pressed, else - button number chosen (1 based).
 static int far_Message(lua_State *L)
 {
-	int ret;
-	const wchar_t *Msg, *Title, *Buttons, *HelpTopic;
-	const char *Flags;
-	const GUID *Id;
+	const wchar_t *Msg;
 	luaL_checkany(L,1);
 	lua_settop(L,6);
-	Msg = NULL;
 
-	global_tolstring(L, 1, NULL);
+	size_t MsgLen;
+	const char *str = global_tolstring(L, 1, &MsgLen);
+	char *copy = malloc(MsgLen);
+	for (size_t i=0; i < MsgLen; i++) {
+		copy[i] = str[i] ? str[i] : ' ';  // replace '\0' with a space
+	}
+	lua_pop(L, 1);
+	lua_pushlstring(L, copy, MsgLen);
+	free(copy);
+
 	Msg = check_utf8_string(L, -1, NULL);
 	lua_replace(L,1);
 
-	Title   = opt_utf8_string(L, 2, L"Message");
-	Buttons = opt_utf8_string(L, 3, L";OK");
-	Flags   = luaL_optstring(L, 4, "");
-	HelpTopic = opt_utf8_string(L, 5, NULL);
-	Id = (lua_type(L,6)==LUA_TSTRING && lua_objlen(L,6)==sizeof(GUID)) ?
+	const wchar_t *Title     = opt_utf8_string(L, 2, L"Message");
+	const wchar_t *Buttons   = opt_utf8_string(L, 3, L";OK");
+	const char *Flags        = luaL_optstring(L, 4, "");
+	const wchar_t *HelpTopic = opt_utf8_string(L, 5, NULL);
+	const GUID *Id = (lua_type(L,6)==LUA_TSTRING && lua_objlen(L,6)==sizeof(GUID)) ?
 	     (const GUID*)lua_tostring(L,6) : NULL;
-	ret = LF_Message(L, Msg, Title, Buttons, Flags, HelpTopic, Id);
+	int ret = LF_Message(L, Msg, Title, Buttons, Flags, HelpTopic, Id);
 	lua_pushinteger(L, ret<0 ? ret : ret+1);
 	return 1;
 }
@@ -2234,12 +2246,7 @@ static int panel_GetPanelInfo(lua_State *L)
 	//-------------------------------------------------------------------------
 	PutIntToTable(L, "PanelType", pi.PanelType);
 	//-------------------------------------------------------------------------
-	lua_createtable(L, 0, 4); // "PanelRect"
-	PutIntToTable(L, "left", pi.PanelRect.left);
-	PutIntToTable(L, "top", pi.PanelRect.top);
-	PutIntToTable(L, "right", pi.PanelRect.right);
-	PutIntToTable(L, "bottom", pi.PanelRect.bottom);
-	lua_setfield(L, -2, "PanelRect");
+	PutRECTToTable(L, "PanelRect", pi.PanelRect);
 	//-------------------------------------------------------------------------
 	PutIntToTable(L, "ItemsNumber", pi.ItemsNumber);
 	PutIntToTable(L, "SelectedItemsNumber", pi.SelectedItemsNumber);
@@ -3125,6 +3132,18 @@ int PushDMParams (lua_State *L, intptr_t Msg, intptr_t Param1)
 	return 1;
 }
 
+static intptr_t GetEnableFromLua (lua_State *L, int pos)
+{
+	intptr_t ret;
+	if (lua_isnoneornil(L,pos)) //get state
+		ret = -1;
+	else if (lua_isnumber(L,pos))
+		ret = lua_tointeger(L, pos);
+	else
+		ret = lua_toboolean(L, pos);
+	return ret;
+}
+
 static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 {
 	typedef struct { void *Id; int Ref; } listdata_t;
@@ -3151,11 +3170,14 @@ static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 			if (Param1>0) --Param1;
 			break;
 
+		case DM_ENABLEREDRAW:
+			Param1 = GetEnableFromLua(L,pos3);
+			break;
+
 		case DM_GETDLGDATA:
 		case DM_SETDLGDATA:
 			break;
 
-		case DM_ENABLEREDRAW:
 		case DM_GETDIALOGINFO:
 		case DM_GETDIALOGTITLE:
 		case DM_GETDLGRECT:
@@ -3193,6 +3215,7 @@ static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 			break;
 	}
 
+	// Param2 and the rest
 	switch(Msg)
 	{
 		default:
@@ -3201,8 +3224,6 @@ static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 
 		case DM_CLOSE:
 		case DM_EDITUNCHANGEDFLAG:
-		case DM_ENABLE:
-		case DM_ENABLEREDRAW:
 		case DM_GETCHECK:
 		case DM_GETCOMBOBOXEVENT:
 		case DM_GETCURSORSIZE:
@@ -3228,6 +3249,13 @@ static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 		case DN_DRAWDIALOGDONE:
 		case DN_DROPDOWNOPENED:
 			Param2 = (void*)(intptr_t)luaL_optint(L,pos4,0);
+			break;
+
+		case DM_ENABLEREDRAW:
+			break;
+
+		case DM_ENABLE:
+			Param2 = (void*)GetEnableFromLua(L, pos4);
 			break;
 
 		case DM_LISTGETDATASIZE:
@@ -5399,10 +5427,13 @@ static int far_MakeMenuItems(lua_State *L)
 static int far_Show(lua_State *L)
 {
 	const char* f =
-	    "local items,n=...\n"
-	    "local bottom=n==0 and 'No arguments' or n==1 and '1 argument' or n..' arguments'\n"
-	    "return far.Menu({Title='',Bottom=bottom,Flags='FMENU_SHOWAMPERSAND FMENU_WRAPMODE'},items,"
-	    "{{BreakKey='SPACE'}})";
+		"local items, n = ...\n"
+		"local bot = n==0 and 'No arguments' or n==1 and '1 argument' or n..' arguments'\n"
+		"local it, pos = far.Menu({Title=''; Bottom=bot; Flags='FMENU_SHOWAMPERSAND FMENU_WRAPMODE'},\n"
+		"  items, 'Space CtrlC CtrlIns')\n"
+		"if items[pos] and (it.BreakKey=='CtrlC' or it.BreakKey=='CtrlIns') then\n"
+		"  far.CopyToClipboard(tostring(items[pos].arg)) end\n"
+		"return it, pos";
 	int argn = lua_gettop(L);
 	far_MakeMenuItems(L);
 

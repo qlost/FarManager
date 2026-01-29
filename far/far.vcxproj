@@ -33,7 +33,7 @@ if not exist $(BootstrapDir) mkdir $(BootstrapDir)</Command>
       <PrecompiledHeaderFile>headers.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)headers.pch</PrecompiledHeaderOutputFile>
       <ForcedIncludeFiles>%(ForcedIncludeFiles);headers.hpp;memcheck.hpp</ForcedIncludeFiles>
-      <PreprocessorDefinitions>FAR_USE_INTERNALS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FAR_USE_INTERNALS;_wassert=far_assert;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
 
@@ -46,6 +46,12 @@ if not exist $(BootstrapDir) mkdir $(BootstrapDir)</Command>
       <Command>$(OutDir)$(TargetName)$(TargetExt) /service:test</Command>
       <Message>Running unit tests</Message>
     </PostBuildEvent>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='Debug_ASAN'">
+    <Link>
+      <AdditionalOptions>/ignore:4286</AdditionalOptions>
+    </Link>
   </ItemDefinitionGroup>
 
   <ItemGroup>
@@ -122,7 +128,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClCompile Include="fileview.cpp" />
     <ClCompile Include="findfile.cpp" />
     <ClCompile Include="flink.cpp" />
-    <ClCompile Include="fnparce.cpp" />
+    <ClCompile Include="fnparse.cpp" />
     <ClCompile Include="foldtree.cpp" />
     <ClCompile Include="format.cpp" />
     <ClCompile Include="global.cpp" />
@@ -348,7 +354,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="fileview.hpp" />
     <ClInclude Include="findfile.hpp" />
     <ClInclude Include="flink.hpp" />
-    <ClInclude Include="fnparce.hpp" />
+    <ClInclude Include="fnparse.hpp" />
     <ClInclude Include="foldtree.hpp" />
     <ClInclude Include="format.hpp" />
     <ClInclude Include="global.hpp" />

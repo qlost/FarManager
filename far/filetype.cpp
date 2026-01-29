@@ -51,7 +51,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interf.hpp"
 #include "config.hpp"
 #include "execute.hpp"
-#include "fnparce.hpp"
+#include "fnparse.hpp"
 #include "configdb.hpp"
 #include "lang.hpp"
 #include "uuids.far.dialogs.hpp"
@@ -342,6 +342,8 @@ bool ProcessExternal(string_view const Command, string_view const Name, string_v
 
 static auto FillFileTypesMenu(VMenu2* TypesMenu, int MenuPos)
 {
+	SCOPED_ACTION(Dialog::suppress_redraw)(TypesMenu);
+
 	struct data_item
 	{
 		unsigned long long Id;
@@ -637,6 +639,7 @@ void EditFileTypes()
 			if (Changed)
 			{
 				Changed = false;
+				// BUGBUG update dynamically instead of full refill
 				NumLine = FillFileTypesMenu(TypesMenu.get(), MenuPos);
 			}
 			return KeyProcessed;

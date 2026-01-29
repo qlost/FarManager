@@ -243,12 +243,9 @@ void Editor::ShowEditor()
 	Color = colors::PaletteColorToFarColor(COL_EDITORTEXT);
 	SelColor = colors::PaletteColorToFarColor(COL_EDITORSELECTEDTEXT);
 
-	// Calculate line number column width if needed
-	// Minimum width of 3 for "1", "10", "100", etc. plus 1 for spacing
-	const auto LineNumWidth = EdOpt.ShowLineNumbers ?
-		(std::max(3, static_cast<int>(std::log10(static_cast<double>(Lines.size()))) + 1) + 1) : 0;
+	const auto LineNumWidth = LineNumbersWidth();
 
-	XX2 = m_Where.right - (EdOpt.ShowScrollBar && ScrollBarRequired(ObjHeight(), Lines.size())? 1 : 0);
+	XX2 = m_Where.right - ScrollbalWidth();
 	/* 17.04.2002 skv
 	  Что б курсор не бегал при Alt-F9 в конце длинного файла.
 	  Если на экране есть свободное место, и есть текст сверху,
@@ -357,7 +354,7 @@ void Editor::ShowEditor()
 	{
 		// Empty space after the last line
 		SetScreen({ m_Where.left + LineNumWidth, Y, XX2, m_Where.bottom }, L' ', Color);
-		SetScreen({ m_Where.left, Y, LineNumWidth - 1, m_Where.bottom }, L' ', LineNumColor);
+		SetScreen({ m_Where.left, Y, m_Where.left + LineNumWidth - 1, m_Where.bottom }, L' ', LineNumColor);
 	}
 
 	if (IsVerticalSelection() && VBlockSizeX > 0 && VBlockSizeY > 0)
@@ -1437,8 +1434,8 @@ bool Editor::ProcessKeyInternal(unsigned const KeyCode, bool& Refresh, Manager::
 
 				Pasting++;
 
-				// TODO: using an internal clipboard to copy/move block is a not a best design choice.
-				// Currently we substitute a new local instance of internal_clipboard for this purpose.
+				// TODO: using an internal clipboard to copy/move block is not the best design choice.
+				// Currently, we substitute a new local instance of internal_clipboard for this purpose.
 				// Consider implementing it without using the clipboard.
 
 				const auto OverriddenClipboard = OverrideClipboard();
@@ -3402,7 +3399,7 @@ int Editor::CalculateSearchStartPosition(const bool Continue, const bool Backwar
 
 	assert(Regex ? m_FoundSize >= 0 : m_FoundSize > 0);
 
-	// Anchor is the begin or the end of the last found match (depending on cursor-at-the-end mode)
+	// Anchor is the beginning or the end of the last found match (depending on cursor-at-the-end mode)
 	// where we expect to find cursor if this is Search-Next.
 	const auto Anchor{ m_FoundPos + EdOpt.SearchCursorAtEnd * m_FoundSize };
 
@@ -3443,7 +3440,7 @@ namespace
 	class find_all_list
 	{
 	public:
-		find_all_list(const size_t MaxLinesCount)
+		explicit find_all_list(const size_t MaxLinesCount)
 			: m_LineNumColumnMaxWidth{ radix10_formatted_width(MaxLinesCount) }
 		{}
 
@@ -3679,7 +3676,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 						Pasting--;
 					}
 
-					bool Skip=false, ZeroLength=false;
+					bool Skip=false;
 
 					// Отступим на четверть и проверим на перекрытие диалогом замены
 					int FromTop=(ScrY-2)/4;
@@ -3703,6 +3700,8 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					if (TabCurPos + SearchLength + 8 > CurPtr->GetLeftPos() + ObjWidth())
 						CurPtr->SetLeftPos(TabCurPos + SearchLength + 8 - ObjWidth());
 
+					const auto CurLineCopy = m_it_CurLine;
+
 					if (!IsReplaceMode)
 					{
 						CurPtr->SetCurPos(m_FoundPos + (EdOpt.SearchCursorAtEnd? SearchLength : 0));
@@ -3710,9 +3709,6 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					}
 					else
 					{
-						if (!SearchLength && strReplaceStrCurrent.empty())
-							ZeroLength = true;
-
 						auto MsgCode = message_result::first_button;
 
 						if (!IsReplaceAll)
@@ -3755,19 +3751,20 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 							}
 						}
 
-						if (IsReplaceAll)
+						if (IsReplaceAll && !UndoBlock)
 							UndoBlock.emplace(this);
 
 						if (MsgCode == message_result::first_button || MsgCode == message_result::second_button)
 						{
 							Pasting++;
-							AddUndoData(undo_type::begin);
 
 							// If Replace string doesn't contain control symbols (tab and return),
 							// processed with fast method, otherwise use improved old one.
 							//
 							if (strReplaceStrCurrent.find_first_of(L"\t\r"sv) != string::npos)
 							{
+								SCOPED_ACTION(undo_block)(this);
+
 								int SaveOvertypeMode=m_Flags.Check(FEDITOR_OVERTYPE);
 								m_Flags.Set(FEDITOR_OVERTYPE);
 								m_it_CurLine->SetOvertypeMode(true);
@@ -3861,19 +3858,20 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 								TextChanged(true);
 							}
 
-							AddUndoData(undo_type::end);
 							Pasting--;
 						}
 					}
 
 					CurPos = m_it_CurLine->GetCurPos();
-					if ((Skip || ZeroLength) && !Backward)
+					if (!Backward)
 					{
-						CurPos++;
+						if ((Skip || !SearchLength) && m_it_CurLine == CurLineCopy)
+							CurPos++;
 					}
-					if (!(Skip || ZeroLength) && Backward)
+					else
 					{
-						(m_it_CurLine = CurPtr = m_FoundLine)->SetCurPos(CurPos = m_FoundPos);
+						if (!Skip || !SearchLength)
+							(m_it_CurLine = CurPtr = m_FoundLine)->SetCurPos(CurPos = m_FoundPos);
 					}
 				}
 			}
@@ -3926,7 +3924,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 				// TODO: Need to handle mouse events with ProcessMouse(). This implementation is acceptable,
 				// but a click on the border jumps to the currently selected item without changing the item.
 				// Normally, mouse click on the border frame does nothing. Mouse click on the border
-				// outside of the frame starts dragging the dialog.
+				// outside the frame starts dragging the dialog.
 				case KEY_CTRL|KEY_MSLCLICK:
 				case KEY_RCTRL|KEY_MSLCLICK:
 					{
@@ -4726,6 +4724,21 @@ void Editor::AddUndoData(undo_type Type, string_view const Str, eol Eol, int Str
 	}
 	UndoData.erase(Begin, UndoData.end());
 
+	switch (Type)
+	{
+	case undo_type::begin:
+		++m_WithinUndoBlock;
+		break;
+
+	case undo_type::end:
+		assert(m_WithinUndoBlock);
+		--m_WithinUndoBlock;
+		break;
+
+	default:
+		break;
+	}
+
 	auto PrevUndo=UndoData.end();
 	if(!UndoData.empty())
 	{
@@ -4759,7 +4772,7 @@ void Editor::AddUndoData(undo_type Type, string_view const Str, eol Eol, int Str
 		case undo_type::edit:
 			{
 				if (!m_Flags.Check(FEDITOR_NEWUNDO) && PrevUndo->m_Type == undo_type::edit && StrNum == PrevUndo->m_StrNum &&
-						(std::abs(StrPos-PrevUndo->m_StrPos)<=1 || abs(StrPos-LastChangeStrPos)<=1))
+					(m_WithinUndoBlock || std::abs(StrPos-PrevUndo->m_StrPos)<=1 || abs(StrPos-LastChangeStrPos)<=1))
 				{
 					LastChangeStrPos=StrPos;
 					return;
@@ -5578,7 +5591,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 		case ECTL_GETINFO:
 		{
 			const auto Info = static_cast<EditorInfo*>(Param2);
-			if (!CheckStructSize(Info))
+			if (!CheckStructSize(Info, &EditorInfo::CodePage))
 				return false;
 
 			Info->EditorID = EditorID;
@@ -5645,6 +5658,12 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 			Info->CurState |= m_Flags.Check(FEDITOR_MODIFIED)? 0 : ECSTATE_SAVED;
 			Info->CodePage = GetCodePage();
 
+			if (CheckStructSize(Info, &EditorInfo::ClientArea))
+			{
+				Info->ClientArea = GetPosition().as<RECT>();
+				Info->ClientArea.left += LineNumbersWidth();
+				Info->ClientArea.right -= ScrollbalWidth();
+			}
 			return true;
 		}
 
@@ -7141,6 +7160,18 @@ void Editor::AutoDeleteColors()
 	}
 
 	m_AutoDeletedColors.clear();
+}
+
+int Editor::LineNumbersWidth() const
+{
+	// Calculate line number column width if needed
+	// Minimum width of 3 for "1", "10", "100", etc. plus 1 for spacing
+	return EdOpt.ShowLineNumbers ? (std::max(3, static_cast<int>(std::log10(static_cast<double>(Lines.size()))) + 1) + 1) : 0;
+}
+
+int Editor::ScrollbalWidth() const
+{
+	return EdOpt.ShowScrollBar && ScrollBarRequired(ObjHeight(), Lines.size())? 1 : 0;
 }
 
 #ifdef ENABLE_TESTS

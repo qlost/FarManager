@@ -110,7 +110,7 @@ static bool FindObject(string_view const Command, string& strDest)
 		// Try "as is".
 		// Even though it could be the best possible match, picking a name without extension
 		// is rather unexpected on the current target platform, it's better to disable it for good.
-		// This comment is kept for historic purposes and to stop trying this again in future.
+		// This comment is kept for historic purposes and to stop trying this again in the future.
 		// If you really want to look for files w/o extension - add ";;" to the %PATHEXT%.
 		// return Predicate(Name);
 
@@ -274,7 +274,7 @@ static bool PartCmdLine(string_view const FullCommand, string& Command, string& 
 	// VC implementation has limited complexity and throws regex_error on long strings.
 	// gcc implementation is total rubbish - it just causes a stack overflow. Shame on them.
 
-	// If anything goes wrong, e. g. pattern is incorrect or search failed - default condition (checking for presence of <>|& characters outside the quotes) will be used.
+	// If anything goes wrong, e.g. pattern is incorrect or search failed - default condition (checking for presence of <>|& characters outside the quotes) will be used.
 	const auto Condition = os::env::expand(Global->Opt->Exec.ComspecCondition);
 	if (!Condition.empty())
 	{
@@ -643,13 +643,17 @@ static bool execute_createprocess(string const& Command, string const& Parameter
 
 static bool execute_shell(string const& Command, string const& Parameters, string const& Directory, execute_info::source_mode const SourceMode, bool const RunAs, bool const Wait, HANDLE& Process)
 {
-	SHELLEXECUTEINFO Info{ sizeof(Info) };
-	Info.lpFile = Command.c_str();
-	Info.lpParameters = EmptyToNull(Parameters);
-	Info.lpDirectory = Directory.c_str();
-	Info.nShow = SW_SHOWNORMAL;
-	Info.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS | (Wait? SEE_MASK_NO_CONSOLE : 0);
-	Info.lpVerb = RunAs? L"runas" : nullptr;
+	SHELLEXECUTEINFO Info
+	{
+		.cbSize = sizeof(Info),
+		.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS | (Wait? SEE_MASK_NO_CONSOLE : 0ul),
+		.hwnd = console.GetWindow(),
+		.lpVerb = RunAs? L"runas" : nullptr,
+		.lpFile = Command.c_str(),
+		.lpParameters = EmptyToNull(Parameters),
+		.lpDirectory = Directory.c_str(),
+		.nShow = SW_SHOWNORMAL,
+	};
 
 	if (any_of(SourceMode, execute_info::source_mode::known, execute_info::source_mode::known_executable))
 	{

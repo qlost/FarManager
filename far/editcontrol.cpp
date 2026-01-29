@@ -110,6 +110,8 @@ void EditControl::Show()
 
 void EditControl::Changed(bool DelBlock)
 {
+	Edit::Changed(DelBlock);
+
 	m_Flags.Clear(FEDITLINE_CLEARFLAG);
 
 	if(m_Callback.Active && !m_CallbackSuppressionsCount)
@@ -517,7 +519,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 				if (!equal_icase(FirstItem, m_Str + FirstItem.substr(SelStart)))
 				{
 					// New string contains opening quote, but not the original one
-					if (SelStart <= m_CurPos) // e. g. entering "\" in "C:\abc_" - where "_" is a cursor position
+					if (SelStart <= m_CurPos) // e.g. entering "\" in "C:\abc_" - where "_" is a cursor position
 						++SelStart;
 					else
 						--SelStart;

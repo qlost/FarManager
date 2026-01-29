@@ -57,6 +57,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // External:
 
+#include <crtdbg.h>
+
 //----------------------------------------------------------------------------
 
 namespace tests
@@ -184,13 +186,13 @@ namespace tests
 	[[noreturn]]
 	static void cpp_unknown_char()
 	{
-		throw "error";
+		throw "oops";
 	}
 
 	[[noreturn]]
 	static void cpp_unknown_wchar_t()
 	{
-		throw L"error";
+		throw L"oops";
 	}
 
 	[[noreturn]]
@@ -351,8 +353,8 @@ namespace tests
 
 	static void cpp_invalid_parameter()
 	{
-#if IS_MICROSOFT_SDK()
-		const auto Func = printf;
+#ifdef _UCRT
+		const auto Func = _atoi64;
 		Func({});
 #endif
 	}
@@ -361,6 +363,12 @@ namespace tests
 	{
 		if ([[maybe_unused]] volatile auto Value = true)
 			assert(!Value);
+	}
+
+	static void cpp_crt_assertion_failure()
+	{
+		if ([[maybe_unused]] volatile auto Value = true)
+			_ASSERTE(!Value);
 	}
 
 	static void seh_access_violation_read()
@@ -689,8 +697,6 @@ static bool ExceptionTestHook(Manager::Key const& key)
 		{ tests::cpp_std_lib,                  L"std::exception from stdlib"sv },
 		{ tests::cpp_std_nested,               L"nested std::exception"sv },
 		{ tests::cpp_std_nested_thread,        L"nested std::exception (thread)"sv },
-		{ tests::cpp_std_bad_alloc,            L"std::bad_alloc"sv },
-		{ tests::cpp_bad_malloc,               L"malloc failure"sv },
 		{ tests::cpp_unknown_int,              L"unknown exception (int)"sv },
 		{ tests::cpp_unknown_uint,             L"unknown exception (uint)"sv },
 		{ tests::cpp_unknown_long,             L"unknown exception (long)"sv },
@@ -699,6 +705,9 @@ static bool ExceptionTestHook(Manager::Key const& key)
 		{ tests::cpp_unknown_wchar_t,          L"unknown exception (wchar_t*)"sv },
 		{ tests::cpp_unknown_other,            L"unknown exception (other)"sv },
 		{ tests::cpp_unknown_int_nested,       L"unknown exception (int, nested)"sv },
+
+		{ tests::cpp_std_bad_alloc,            L"std::bad_alloc"sv },
+		{ tests::cpp_bad_malloc,               L"malloc failure"sv },
 		{ tests::cpp_abort,                    L"abort"sv },
 		{ tests::cpp_terminate,                L"terminate"sv },
 		{ tests::cpp_terminate_unwind,         L"terminate unwind"sv },
@@ -706,9 +715,10 @@ static bool ExceptionTestHook(Manager::Key const& key)
 		{ tests::cpp_dtor_throw,               L"dtor throw"sv },
 		{ tests::cpp_reach_unreachable,        L"reach unreachable"sv },
 		{ tests::cpp_pure_virtual_call,        L"pure virtual call"sv },
-		{ tests::cpp_memory_leak,              L"memory leak"sv },
 		{ tests::cpp_invalid_parameter,        L"invalid parameter"sv },
 		{ tests::cpp_assertion_failure,        L"assertion failure"sv },
+		{ tests::cpp_crt_assertion_failure,    L"CRT assertion failure"sv },
+		{ tests::cpp_memory_leak,              L"memory leak"sv },
 	};
 
 	static constexpr test_entry SehTests[]

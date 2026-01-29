@@ -223,6 +223,8 @@ static string MakeName(const Shortcuts::shortcut& Item)
 
 static void FillMenu(VMenu2& Menu, std::list<Shortcuts::shortcut>& List, bool const raw_mode)
 {
+	SCOPED_ACTION(Dialog::suppress_redraw)(&Menu);
+
 	// Don't listen to static analysers - List MUST NOT be const. We store non-const iterators in type-erased UserData for further usage.
 	static_assert(!std::is_const_v<std::remove_reference_t<decltype(List)>>);
 
@@ -425,7 +427,8 @@ std::variant<std::list<Shortcuts::shortcut>::const_iterator, size_t> Shortcuts::
 			if (Iterator && *Iterator != m_Items.begin())
 			{
 				m_Items.splice(std::prev(*Iterator), m_Items, *Iterator);
-				FillMenu(*FolderList, m_Items, Raw);
+				using std::ranges::swap;
+				swap(FolderList->at(ItemPos), FolderList->at(ItemPos - 1));
 				FolderList->SetSelectPos(ItemPos - 1);
 				m_Changed = true;
 			}
@@ -436,7 +439,8 @@ std::variant<std::list<Shortcuts::shortcut>::const_iterator, size_t> Shortcuts::
 			if (Iterator && std::next(*Iterator) != m_Items.end())
 			{
 				m_Items.splice(*Iterator, m_Items, std::next(*Iterator));
-				FillMenu(*FolderList, m_Items, Raw);
+				using std::ranges::swap;
+				swap(FolderList->at(ItemPos), FolderList->at(ItemPos + 1));
 				FolderList->SetSelectPos(ItemPos + 1);
 				m_Changed = true;
 			}
@@ -559,7 +563,7 @@ int Shortcuts::Configure()
 
 		const auto EditSubmenu = [&]
 		{
-			// We don't care about the result here, just letting the user to edit the submenu
+			// We don't care about the result here, just letting the user edit the submenu
 			AllShortcuts[Pos].Select(true, Pos);
 			UpdateItem();
 		};
@@ -570,7 +574,7 @@ int Shortcuts::Configure()
 		{
 		case KEY_NUMPAD0:
 		case KEY_INS:
-			// Direct insertion only allowed if the list is empty. Otherwise do it in a submenu.
+			// Direct insertion only allowed if the list is empty. Otherwise, do it in a submenu.
 			if (CurrentList.m_Items.empty())
 			{
 				if (Accept())
@@ -590,7 +594,7 @@ int Shortcuts::Configure()
 		case KEY_DEL:
 			if (!CurrentList.m_Items.empty())
 			{
-				// Direct deletion only allowed if there's exactly one item in the list. Otherwise do it in a submenu.
+				// Direct deletion only allowed if there's exactly one item in the list. Otherwise, do it in a submenu.
 				if (CurrentList.m_Items.size() == 1)
 				{
 					CurrentList.m_Items.pop_front();
@@ -607,7 +611,7 @@ int Shortcuts::Configure()
 		case KEY_F4:
 			if (!CurrentList.m_Items.empty())
 			{
-				// Direct editing only allowed if there's exactly one item in the list. Otherwise do it in a submenu.
+				// Direct editing only allowed if there's exactly one item in the list. Otherwise, do it in a submenu.
 				if (CurrentList.m_Items.size() == 1)
 				{
 					if (EditListItem(AllShortcuts[Pos].m_Items, *FolderList, CurrentList.m_Items.front(), true))

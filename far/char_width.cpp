@@ -480,6 +480,14 @@ namespace
 
 		return codepoint_width::wide;
 	}
+
+	[[nodiscard]]
+	bool is_legacy_rendering()
+	{
+		DWORD Mode;
+		static const auto IsRedirected = !console.GetMode(console.GetOutputHandle(), Mode);
+		return !IsRedirected && !console.IsVtActive();
+	}
 }
 
 namespace char_width
@@ -487,6 +495,9 @@ namespace char_width
 	[[nodiscard]]
 	size_t get(codepoint const Codepoint)
 	{
+		if (!is_bmp(Codepoint) && is_legacy_rendering())
+			return 2; // Classic grid mode, nothing we can do :(
+
 		switch (s_FullWidthState)
 		{
 		default:
@@ -546,7 +557,7 @@ namespace char_width
 	{
 		// As of 23 Jun 2022 conhost and WT render half-width surrogates as half-width,
 		// but advance the cursor position as if they were full-width.
-		// We can workaround it by moving the cursor backwards each time.
+		// We can work around it by moving the cursor backwards each time.
 		// They might fix it eventually, so it's better to detect it dynamically.
 
 		// Mathematical Bold Fraktur Small A, U+1D586, half-width
