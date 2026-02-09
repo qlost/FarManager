@@ -38,7 +38,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #error C++ only
 #endif
 
+#ifndef __CRT_HPP__
 #include <string>
+#endif
 
 #include "plugin.hpp"
 
@@ -131,11 +133,13 @@ private:
 class PluginEditFieldBinding: public DialogAPIBinding
 {
 public:
+#ifndef __CRT_HPP__
 	PluginEditFieldBinding(const PluginStartupInfo& aInfo, HANDLE* aHandle, int aID, std::wstring* aValue):
 		DialogAPIBinding(aInfo, aHandle, aID),
 		StrValue(aValue)
 	{
 	}
+#endif
 
 	PluginEditFieldBinding(const PluginStartupInfo& aInfo, HANDLE* aHandle, int aID, wchar_t* aValue, int aMaxSize):
 		DialogAPIBinding(aInfo, aHandle, aID),
@@ -149,14 +153,18 @@ public:
 		(void)RadioGroupIndex;
 		(void)Item;
 		const auto DataPtr = reinterpret_cast<const wchar_t*>(Info.SendDlgMessage(*DialogHandle, DM_GETCONSTTEXTPTR, ID, nullptr));
+#ifndef __CRT_HPP__
 		if (StrValue)
 			*StrValue = DataPtr;
 		else
+#endif
 			lstrcpynW(Value, DataPtr, MaxSize);
 	}
 
 private:
+#ifndef __CRT_HPP__
 	std::wstring* StrValue{};
+#endif
 	wchar_t* Value{};
 	int MaxSize{};
 };
@@ -554,6 +562,7 @@ public:
 		return Item;
 	}
 
+#ifndef __CRT_HPP__
 	FarDialogItem* AddEditField(std::wstring& Value, int Width, const wchar_t* HistoryID = nullptr, bool UseLastHistory = false)
 	{
 		const auto Item = AddDialogItem(DI_EDIT, Value.c_str());
@@ -570,6 +579,7 @@ public:
 		SetLastItemBinding(new PluginEditFieldBinding(Info, &DialogHandle, m_DialogItemsCount - 1, &Value));
 		return Item;
 	}
+#endif
 
 	FarDialogItem* AddPasswordField(wchar_t* Value, int MaxSize, int Width)
 	{

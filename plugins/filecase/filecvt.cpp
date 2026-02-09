@@ -1,4 +1,5 @@
-﻿#include <cstdlib>
+﻿#define __CRT_HPP__
+#include <cstdlib>
 #include "FileCase.hpp"
 #include <DlgBuilder.hpp>
 #include <PluginSettings.hpp>

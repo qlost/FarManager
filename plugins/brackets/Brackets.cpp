@@ -1,4 +1,5 @@
-﻿#include <algorithm>
+﻿#define __CRT_HPP__
+#include <algorithm>
 #include <plugin.hpp>
 #include <PluginSettings.hpp>
 #include <DlgBuilder.hpp>
