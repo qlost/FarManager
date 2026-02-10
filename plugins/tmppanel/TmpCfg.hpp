@@ -2,6 +2,8 @@
 #define TMPCFG_HPP_25F4A642_C5AE_4888_B059_831752D782CF
 #pragma once
 
+#include "headers.hpp"
+
 struct options_t
 {
 	bool AddToDisksMenu{};

@@ -7,6 +7,7 @@ Temporary panel plugin class implementation
 
 
 #include "CRT\crt.hpp"
+#include "headers.hpp"
 #define _CSTDIO_
 #define _CWCHAR_
 //#include <cwchar>
@@ -32,6 +33,7 @@ extern "C" {
 #endif
 	int _fltused = 0;
 
+	#pragma function(ceilf)
 	float ceilf(float X)
 	{
 		int Y = (int)X;
@@ -846,4 +848,3 @@ void TmpPanel::clear()
 {
 	m_Panel->clear();
 }
-
