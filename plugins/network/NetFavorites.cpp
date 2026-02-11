@@ -1,4 +1,5 @@
-﻿#include "NetFavorites.hpp"
+﻿#include "CRT\crt.hpp"
+#include "NetFavorites.hpp"
 #include "Network.hpp"
 #include "NetCommon.hpp"
 #include "NetLng.hpp"

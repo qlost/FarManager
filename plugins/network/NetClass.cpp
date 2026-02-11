@@ -1,7 +1,4 @@
 ﻿#include "CRT\crt.hpp"
-#define _CSTDIO_
-#define _CWCHAR_
-#define _IOSFWD_
 #include <windows.h>
 #include <lm.h>
 #include "NetCommon.hpp"
@@ -13,6 +10,24 @@
 #include "guid.hpp"
 #include <PluginSettings.hpp>
 #include <DlgBuilder.hpp>
+
+/////////////////////////////////////////////////////////////////////////////////
+__declspec(noreturn) _ACRTIMP void __cdecl _invoke_watson(
+    _In_opt_z_ wchar_t const* _Expression,
+    _In_opt_z_ wchar_t const* _FunctionName,
+    _In_opt_z_ wchar_t const* _FileName,
+    _In_       unsigned int _LineNo,
+    _In_       uintptr_t _Reserved) {};
+
+void __cdecl std::_Xlength_error(char const*) {};
+
+void(__cdecl* std::_Raise_handler)(class stdext::exception const&) {};
+
+void __cdecl std::_Xout_of_range(char const*) {};
+
+int atexit(void(*func)(void)) {return 0;}
+/////////////////////////////////////////////////////////////////////////////////
+
 
 NetResourceList* CommonRootResources;
 bool SavedCommonRootResources = false;
@@ -2490,4 +2505,3 @@ void NetBrowser::GetHiddenShares()
 	while (res == ERROR_MORE_DATA);
 	free(nr);
 }
-
