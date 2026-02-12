@@ -132,7 +132,7 @@ PerfThread::PerfThread(Plist* const Owner, const wchar_t* hostname, const wchar_
 	// finally null terminated at the end.  the strings are in pairs of
 	// counter number and counter name.
 
-	for (auto p = buf.data(); *p; p += std::wcslen(p) + 1)
+	for (auto p = buf.data(); *p; p += lstrlen(p) + 1)
 	{
 		if (FSF.LStricmp(p, L"Process") == 0)
 			pf.SubKey = str(getcounter(p));
@@ -162,7 +162,7 @@ PerfThread::PerfThread(Plist* const Owner, const wchar_t* hostname, const wchar_
 	{
 		EventWMIReady.reset(CreateEvent({}, TRUE, FALSE, {}));
 		EventMTARefresh.reset(CreateEvent({}, 0, 0, {}));
-		EventMTARefreshDone.reset(CreateEvent({}, 0, 0, {}));
+		EventMTARefreshDone.reset(CreateEvent({}, TRUE, TRUE, {}));
 
 		hWmiThread.reset(CreateThread({}, 0, WmiThreadProc, this, 0, {}));
 		MTAThread.reset(CreateThread({}, 0, MTAThreadProc, this, 0, {}));
@@ -883,7 +883,7 @@ void PerfThread::MTAThreadProc() const
 		if (WaitForMultipleObjects(static_cast<DWORD>(std::size(ReadyHandles)), ReadyHandles, 0, INFINITE) == WAIT_OBJECT_0)
 			break;
 
-		MTACallable(WMI);
+		MTACallable(WMI, MTACallableParam);
 		SetEvent(EventMTARefreshDone.get());
 	}
 
@@ -891,9 +891,12 @@ void PerfThread::MTAThreadProc() const
 		CoUninitialize();
 }
 
-void PerfThread::RunMTA(std::function<void(WMIConnection const& WMI)> Callable)
+void PerfThread::RunMTA(t_MTACallable Callable, void* CallableParam)
 {
+	WaitForSingleObject(EventMTARefreshDone.get(), INFINITE);
+	ResetEvent(EventMTARefreshDone.get());
 	MTACallable = Callable;
+	MTACallableParam = CallableParam;
 	SetEvent(EventMTARefresh.get());
 	WaitForSingleObject(EventMTARefreshDone.get(), INFINITE);
 }

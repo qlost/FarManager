@@ -1,6 +1,4 @@
 ﻿#include <CRT\crt.hpp>
-#include <array>
-#include <mutex>
 
 #include "Proclist.hpp"
 #include "perfthread.hpp"
@@ -11,6 +9,50 @@
 #include <PluginSettings.hpp>
 
 #include <winperf.h>
+
+extern "C" void __stdcall _CxxThrowException(void* pExceptionObject, _ThrowInfo* pThrowInfo) {}
+#pragma function(wcslen)
+size_t __cdecl wcslen(wchar_t const* _String){return lstrlen(_String);}
+void __cdecl throw_far_exception(class std::basic_string_view<char,struct std::char_traits<char> >,struct source_location const &) {}
+
+struct tThreadParams
+{
+	//params
+	DWORD pid;
+	DWORD priority;
+	PerfThread *pPerfThread;
+	//results
+	HRESULT Result;
+	wmi_result<DWORD> PriorityClass;
+	std::optional<std::wstring> User, Domain, Sid;
+	std::optional<int> SessionId;
+};
+void TermProcess(WMIConnection const& WMI, void* pdata)
+{
+	((tThreadParams*)pdata)->Result = WMI.TerminateProcess(((tThreadParams*)pdata)->pid);
+}
+void GetProcessPr(WMIConnection const& WMI, void* pdata)
+{
+	((tThreadParams*)pdata)->PriorityClass = WMI.GetProcessPriority(((tThreadParams*)pdata)->pid);
+}
+void SetProcessPr(WMIConnection const& WMI, void* pdata)
+{
+	((tThreadParams*)pdata)->Result = WMI.SetProcessPriority(((tThreadParams*)pdata)->pid, ((tThreadParams*)pdata)->priority);
+}
+void Refresh(WMIConnection const& WMI, void* pdata)
+{
+	((tThreadParams*)pdata)->pPerfThread->RefreshWMI(((tThreadParams*)pdata)->pid);
+	{
+		const std::scoped_lock l(*((tThreadParams*)pdata)->pPerfThread);
+		if (auto* Data = ((tThreadParams*)pdata)->pPerfThread->GetProcessData(((tThreadParams*)pdata)->pid))
+		{
+			((tThreadParams*)pdata)->User = Data->Owner;
+			((tThreadParams*)pdata)->Domain = Data->Domain;
+			((tThreadParams*)pdata)->Sid = Data->Sid;
+			((tThreadParams*)pdata)->SessionId = Data->SessionId;
+		}
+	}
+}
 
 using namespace std::literals;
 
@@ -65,7 +107,6 @@ static std::wstring ui64toa_width(uint64_t value, unsigned width, bool bThousand
 		return { Buffer, Size - 1 };
 
 	return str(value);
-*/
 }
 
 static std::wstring PrintTitle(std::wstring_view const Msg)
@@ -576,7 +617,7 @@ int Plist::GetFindData(PluginPanelItem*& pPanelItem, size_t& ItemsNumber, OPERAT
 
 		if (pDesc)
 		{
-			CurItem.Description = new wchar_t[std::wcslen(pDesc) + 1];
+			CurItem.Description = new wchar_t[lstrlen(pDesc) + 1];
 			std::wcscpy(const_cast<wchar_t*>(CurItem.Description), pDesc);
 		}
 
@@ -968,12 +1009,12 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 			if (Current.wYear != Compare.wYear || Current.wMonth != Compare.wMonth || Current.wDay != Compare.wDay)
 			{
 				WriteToFile(InfoFile.get(), far::format(L"\n{}{} {}.{:07}\n"sv, PrintTitle(MTitleStarted), DateText, TimeText, Hns));
-				StartedTimestampLength = std::wcslen(DateText) + 1 + std::wcslen(TimeText) + 1 + 7; // Date + space + Time + space + Hns
+				StartedTimestampLength = lstrlen(DateText) + 1 + lstrlen(TimeText) + 1 + 7; // Date + space + Time + space + Hns
 			}
 			else
 			{
 				WriteToFile(InfoFile.get(), far::format(L"\n{}{}.{:07}\n"sv, PrintTitle(MTitleStarted), TimeText, Hns));
-				StartedTimestampLength = std::wcslen(TimeText) + 1 + 7; // Time + space + Hns
+				StartedTimestampLength = lstrlen(TimeText) + 1 + 7; // Time + space + Hns
 			}
 
 			WriteToFile(InfoFile.get(), far::format(L"{}{:>{}}\n"sv, PrintTitle(MTitleUptime), FileTimeDifferenceToText(CurFileTime, CurItem.CreationTime), StartedTimestampLength));
@@ -1114,19 +1155,13 @@ int Plist::DeleteFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, OPERATION
 		}
 		else
 		{
-			HRESULT Result;
-
-			pPerfThread->RunMTA([&](WMIConnection const& WMI)
+			tThreadParams p = {pdata->dwPID};
+			pPerfThread->RunMTA(&TermProcess, &p);
+			if (FAILED(p.Result))
 			{
-				Result = WMI.TerminateProcess(pdata->dwPID);
-			});
-
-			if (FAILED(Result))
-			{
-				WmiError(Result);
+				WmiError(p.Result);
 				continue;
 			}
-
 			Success = true;
 		}
 
@@ -1200,7 +1235,7 @@ void Plist::Reread()
 
 void Plist::PutToCmdLine(const wchar_t* tmp)
 {
-	const auto l = std::wcslen(tmp);
+	const auto l = lstrlen(tmp);
 	std::unique_ptr<wchar_t[]> Buffer;
 
 	if (wcscspn(tmp, L" &^") != l)
@@ -1651,19 +1686,16 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 			}
 			else
 			{
-				wmi_result<DWORD> PriorityClass;
-				pPerfThread->RunMTA([&](WMIConnection const& WMI)
+				tThreadParams p = {Pid};
+				pPerfThread->RunMTA(&GetProcessPr, &p);
+				if (!p.PriorityClass)
 				{
-					PriorityClass = WMI.GetProcessPriority(Pid);
-				});
-
-				if (!PriorityClass)
-				{
-					WmiError(PriorityClass.error());
+					WmiError(p.PriorityClass.error());
 					continue;
 				}
+				p.priority = *p.PriorityClass;
 
-				auto Iterator = std::ranges::find(Priorities, *PriorityClass, &priority_mapping::Value);
+				auto Iterator = std::ranges::find(Priorities, p.priority, &priority_mapping::Value);
 				if (Iterator == std::cend(Priorities))
 					continue;
 
@@ -1671,14 +1703,9 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 				if (Iterator == std::cend(Priorities))
 					continue;
 
-				HRESULT Result;
-				pPerfThread->RunMTA([&](WMIConnection const& WMI)
-				{
-					Result = WMI.SetProcessPriority(Pid, Iterator->Class);
-				});
-
-				if (FAILED(Result))
-					WmiError(Result);
+				pPerfThread->RunMTA(&SetProcessPr, &p);
+				if (FAILED(p.Result))
+					WmiError(p.Result);
 			}
 		}
 
@@ -1970,43 +1997,27 @@ void Plist::PrintOwnerInfo(HANDLE const InfoFile, DWORD const Pid)
 	if (const auto Result = pPerfThread->GetWMIStatus(); FAILED(Result))
 		return;
 
-	std::optional<std::wstring> User, Domain, Sid;
-	std::optional<int> SessionId;
+	tThreadParams p = {Pid, 0, &(*pPerfThread)};
+	pPerfThread->RunMTA(&Refresh, &p);
 
-	pPerfThread->RunMTA([&](WMIConnection const&)
-	{
-		pPerfThread->RefreshWMI(Pid);
-
-		{
-			const std::scoped_lock l(*pPerfThread);
-			if (auto* Data = pPerfThread->GetProcessData(Pid))
-			{
-				User = Data->Owner;
-				Domain = Data->Domain;
-				Sid = Data->Sid;
-				SessionId = Data->SessionId;
-			}
-		}
-	});
-
-	if (User || Domain || Sid)
+	if (p.User || p.Domain || p.Sid)
 	{
 		WriteToFile(InfoFile, PrintTitle(MTitleUsername));
 
-		if (Domain)
-			WriteToFile(InfoFile, far::format(L"{}\\"sv, *Domain));
+		if (p.Domain)
+			WriteToFile(InfoFile, far::format(L"{}\\"sv, *p.Domain));
 
-		if (User)
-			WriteToFile(InfoFile, *User);
+		if (p.User)
+			WriteToFile(InfoFile, *p.User);
 
-		if (Sid)
-			WriteToFile(InfoFile, far::format(L" ({})"sv, *Sid));
+		if (p.Sid)
+			WriteToFile(InfoFile, far::format(L" ({})"sv, *p.Sid));
 
 		WriteToFile(InfoFile, L'\n');
 	}
 
-	if (SessionId)
-		WriteToFile(InfoFile, far::format(L"{}{}\n"sv, PrintTitle(MTitleSessionId), *SessionId));
+	if (p.SessionId)
+		WriteToFile(InfoFile, far::format(L"{}{}\n"sv, PrintTitle(MTitleSessionId), *p.SessionId));
 }
 
 template<typename T>

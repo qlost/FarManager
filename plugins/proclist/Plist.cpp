@@ -226,7 +226,7 @@ void PrintNTCurDirAndEnv(HANDLE InfoFile, HANDLE hProcess, BOOL bExportEnvironme
 	{
 		WriteToFile(InfoFile, far::format(L"\n{}:\n"sv, GetMsg(MEnvironment)));
 
-		for (wchar_t* p = EnvStrings.data(); *p; p += std::wcslen(p) + 1)
+		for (wchar_t* p = EnvStrings.data(); *p; p += lstrlen(p) + 1)
 		{
 			WriteToFile(InfoFile, far::format(L"{}\n"sv, p));
 		}
