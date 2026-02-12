@@ -1,4 +1,5 @@
-﻿#include <PluginSettings.hpp>
+﻿#include "headers.hpp"
+#include <PluginSettings.hpp>
 #include <DlgBuilder.hpp>
 #include "Proclist.hpp"
 #include "Proclng.hpp"

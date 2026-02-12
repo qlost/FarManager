@@ -77,7 +77,11 @@ public:
 		if (has_value())
 			return std::get<0>(m_Data);
 
+		#if _HAS_EXCEPTIONS
 		throw W{ std::get<1>(m_Data).m_Error };
+		#else
+		throw_exception("No value"sv);
+		#endif
 	}
 
 	T& value()

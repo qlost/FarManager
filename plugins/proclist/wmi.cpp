@@ -217,45 +217,41 @@ HRESULT WMIConnection::ExecMethod(DWORD const Pid, const wchar_t* wsMethod, cons
 	return get_return_value(OutParams);
 }
 
-HRESULT WMIConnection::GetProcessProperty(DWORD const Pid, const wchar_t* const Name, const std::function<void(const VARIANT&)>& Getter) const
+HRESULT WMIConnection::GetProcessProperty(DWORD const Pid, const wchar_t* const Name, VARIANT *Variant) const
 {
 	com_ptr<IWbemClassObject> Object;
 	if (const auto Result = pIWbemServices->GetObject(ProcessPath(Pid), 0, {}, &ptr_setter(Object), {}); FAILED(Result))
 		return Result;
 
-	VARIANT Variant;
-	if (const auto Result = Object->Get(Name, 0, &Variant, {}, {}); FAILED(Result))
+	if (const auto Result = Object->Get(Name, 0, Variant, {}, {}); FAILED(Result))
 		return Result;
 
-	Getter(Variant);
-
-	return VariantClear(&Variant);
+	return ERROR_SUCCESS;
 }
 
 wmi_result<DWORD> WMIConnection::GetProcessInt(DWORD const Pid, const wchar_t* const Name) const
 {
 	DWORD Value;
-
-	if (const auto Result = GetProcessProperty(Pid, Name, [&](const VARIANT& Variant)
-	{
-		if (Variant.vt == VT_I4)
-			Value = Variant.lVal;
-	}); FAILED(Result))
+	VARIANT Variant;
+	if (const auto Result = GetProcessProperty(Pid, Name, &Variant); FAILED(Result))
 		return Result;
 
+	if (Variant.vt == VT_I4)
+		Value = Variant.lVal;
+	VariantClear(&Variant);
 	return Value;
 }
 
 wmi_result<std::wstring> WMIConnection::GetProcessString(DWORD const Pid, const wchar_t* const Name) const
 {
 	std::wstring Value;
-	if (const auto Result = GetProcessProperty(Pid, Name, [&](const VARIANT& Variant)
-	{
-		if (Variant.vt == VT_BSTR)
-			Value = Variant.bstrVal;
-	}); FAILED(Result))
+	VARIANT Variant;
+	if (const auto Result = GetProcessProperty(Pid, Name, &Variant); FAILED(Result))
 		return Result;
 
+	if (Variant.vt == VT_BSTR)
+		Value = Variant.bstrVal;
+	VariantClear(&Variant);
 	return Value;
 }
 

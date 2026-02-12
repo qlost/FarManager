@@ -4,6 +4,8 @@
 
 #include <expected.hpp>
 
+typedef void (*t_MTACallable)(WMIConnection const& WMI, void* data);
+
 constexpr inline auto NCOUNTERS = 23;
 constexpr inline auto MAX_USERNAME_LENGTH = 128;
 
@@ -85,7 +87,7 @@ public:
 private:
 	HRESULT ExecMethod(DWORD Pid, const wchar_t* wsMethod, const wchar_t* wsParamName = {}, DWORD dwParam = 0) const;
 
-	HRESULT GetProcessProperty(DWORD Pid, const wchar_t* Name, const std::function<void(const VARIANT&)>& Getter) const;
+	HRESULT GetProcessProperty(DWORD Pid, const wchar_t* Name, VARIANT *Variant) const;
 	wmi_result<DWORD> GetProcessInt(DWORD Pid, const wchar_t* Name) const;
 	wmi_result<std::wstring> GetProcessString(DWORD Pid, const wchar_t* Name) const;
 
@@ -115,7 +117,7 @@ public:
 	const auto& UserName() const { return m_UserName; }
 	const auto& Password() const { return m_Password; }
 	void RefreshWMI(DWORD Pid) { return RefreshWMIData(Pid); }
-	void RunMTA(std::function<void(WMIConnection const& WMI)> Callable);
+	void RunMTA(t_MTACallable Callable, void* CallableParam);
 private:
 	static DWORD WINAPI ThreadProc(void* Param);
 	static DWORD WINAPI WmiThreadProc(void* Param);
@@ -149,7 +151,8 @@ private:
 	PerfLib pf;
 	std::wstring m_UserName;
 	std::wstring m_Password;
-	std::function<void(WMIConnection const& WMI)> MTACallable;
+	t_MTACallable MTACallable;
+	void* MTACallableParam;
 };
 
 enum

@@ -2,6 +2,7 @@
 #define PROCLIST_HPP_71FFA62B_457B_416D_B4F5_DAB215BE015F
 #pragma once
 
+#include "headers.hpp"
 #include <plugin.hpp>
 
 #include "format.hpp"

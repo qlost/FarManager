@@ -9,8 +9,6 @@
 #include <smart_ptr.hpp>
 #include <string_utils.hpp>
 
-void __cdecl std::_Xout_of_range(char const*) {}
-
 using namespace std::literals;
 
 struct SYSTEM_HANDLE_TABLE_ENTRY_INFO

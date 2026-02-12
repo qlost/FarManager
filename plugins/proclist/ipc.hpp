@@ -2,7 +2,7 @@
 #define IPC_HPP_B3F2F877_F2DB_4484_8523_255E608E1C0B
 #pragma once
 
-using print_module_t = std::function<void(HANDLE InfoFile, ULONG64 Module, DWORD SizeOfImage, int ProcessBitness, std::wstring const& FullDllName, options& LocalOpt)>;
+typedef void(*print_module_t)(HANDLE InfoFile, ULONG64 Module, DWORD SizeOfImage, int ProcessBitness, std::wstring const& FullDllName, options& LocalOpt);
 
 enum class bitness
 {

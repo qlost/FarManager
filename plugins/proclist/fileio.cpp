@@ -1,14 +1,5 @@
 ﻿#include "Proclist.hpp"
 
-int __do_unsigned_char_lconv_initialization = 255;
-
-int atexit(void(*func)(void))
-{
-	return 0;
-}
-
-_ACRTIMP __declspec(noreturn) void __cdecl _invalid_parameter_noinfo_noreturn(void) {}
-
 size_t WriteToFile(HANDLE File, const std::wstring_view& Str)
 {
 	DWORD Written;
