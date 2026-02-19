@@ -933,6 +933,7 @@ int Plist::GetFiles(PluginPanelItem* PanelItem, size_t ItemsNumber, int Move, co
 				FileName += L'\\';
 
 			FileName += CurItem.FileName;
+			FileName += L"_" + str(pdata->dwPID);
 			FileName += L".txt";
 		}
 
