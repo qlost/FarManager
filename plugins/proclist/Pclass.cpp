@@ -474,6 +474,8 @@ void Plist::GetOpenPanelInfo(OpenPanelInfo* Info)
 		VK_F6,SHIFT_PRESSED,MFLocal,
 		VK_F7,SHIFT_PRESSED,0,
 		VK_F8,SHIFT_PRESSED,MFKill,
+		VK_F5,LEFT_CTRL_PRESSED,MTitlePID,
+		VK_F9,LEFT_CTRL_PRESSED,MTitleParentPID,
 	};
 
 	static KeyBarLabel kbl[std::size(FKeys) / 3];
