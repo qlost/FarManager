@@ -1757,12 +1757,6 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 
 	if (OnlyAnyCtrlPressed && (Key >= VK_F3 && Key <= VK_F12))
 	{
-		if (
-			Key == VK_F5 || // Write time
-			Key == VK_F9    // Access time
-			)
-			return TRUE;
-
 		static const struct
 		{
 			unsigned id;
@@ -1774,14 +1768,14 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 		{
 			{MSortByName,           SM_NAME,                 VK_F3,  false, },
 			{MSortByExt,            SM_EXT,                  VK_F4,  false, },
+			{MSortByPID,            SM_PROCLIST_PID,         VK_F5,  false, },
 			{MSortBySize,           SM_SIZE,                 VK_F6,  true,  },
 			{MSortByUnsorted,       SM_UNSORTED,             VK_F7,  false, },
 			{MSortByTime,           SM_CTIME,                VK_F8,  true,  },
+			{MSortByParentPID,      SM_PROCLIST_PARENTPID,   VK_F9,  false, },
 			{MSortByDescriptions,   SM_DESCR,                VK_F10, false, },
 			{MSortByOwner,          SM_OWNER,                VK_F11, false, },
 			//{MPageFileBytes,        SM_COMPRESSEDSIZE,       0,      true,  },
-			{MTitlePID,             SM_PROCLIST_PID,         0,      false, },
-			{MTitleParentPID,       SM_PROCLIST_PARENTPID,   0,      false, },
 			{MTitleThreads,         SM_NUMLINKS,             0,      true,  },
 			{MTitlePriority,        SM_PROCLIST_PRIOR,       0,      true   },
 			//{0,-1},
@@ -1800,7 +1794,8 @@ int Plist::ProcessKey(const INPUT_RECORD* Rec)
 			const auto& StaticItem = std::find_if(std::cbegin(StaticItems), std::cend(StaticItems), [Key](const auto& i) { return i.Key == Key; });
 
 			SortMode = StaticItem->SortMode;
-			PsInfo.PanelControl(this, FCTL_SETSORTMODE, SortMode, {});
+			auto FarSortMode = SortMode < SM_PROCLIST_CUSTOM? static_cast<OPENPANELINFO_SORTMODES>(SortMode) : FarSortModeSlot;
+			PsInfo.PanelControl(this, FCTL_SETSORTMODE, FarSortMode, {});
 
 			const auto SameSelected = SortMode == CurrentSortMode;
 			PsInfo.PanelControl(this, FCTL_SETSORTORDER, SameSelected? !Reversed : StaticItem->InvertByDefault, {});
