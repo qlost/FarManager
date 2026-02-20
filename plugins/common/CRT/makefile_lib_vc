@@ -49,6 +49,7 @@ $(OBJDIR)\vc_ullshr.obj
 
 LINK_OBJS = $(LINK32_OBJS) \
 $(OBJDIR)\calloc.obj \
+$(OBJDIR)\math.obj \
 $(OBJDIR)\delete.obj \
 $(OBJDIR)\delete_array.obj \
 $(OBJDIR)\free.obj \
@@ -80,7 +81,7 @@ $(OBJDIR)\swab.obj
 CPP_BASE=/MP /nologo /c /Gy /J /Gr /GR- /GS- /D_CRT_SECURE_NO_DEPRECATE /D_CRT_NONSTDC_NO_WARNINGS /D_CRT_SECURE_NO_WARNINGS /D_INC_CTYPE /DUNICODE /D_UNICODE /DNDEBUG /FC /GF /Gm- /EHs-c- /LD /Oi /O1 /Os /TP /W3 /WX- /Zc:forScope /Zc:inline /Zc:threadSafeInit- /Zc:wchar_t $(ENV_INC_OPT)
 !ifdef AMD64
 CPP_PROJ=$(CPP_BASE) /Oy /Zp8 $(COMPAT64)
-!elseif defined(IA64) 
+!elseif defined(IA64)
 CPP_PROJ=$(CPP_BASE) /Zp8 $(COMPAT64)
 !else
 CPP_PROJ=$(CPP_BASE) /Oy
@@ -124,6 +125,7 @@ $(OUTDIR)\$(DLLNAME) : $(LINK_OBJS)
 
 
 $(OBJDIR)\calloc.obj: calloc.cpp crt.hpp
+$(OBJDIR)\math.obj: math.cpp crt.hpp
 $(OBJDIR)\delete.obj: delete.cpp crt.hpp
 $(OBJDIR)\delete_array.obj: delete_array.cpp crt.hpp
 $(OBJDIR)\free.obj: free.cpp crt.hpp

@@ -186,6 +186,10 @@ extern "C"
 #else
                    (char* b1,char* b2,int length);
 #endif
+  float ceilf(float X);
+  short __cdecl _dclass(_In_ double _X);
+  short __cdecl _ldclass(_In_ long double _X);
+  short __cdecl _fdclass(_In_ float _X);
 #ifdef __cplusplus
 };
 #endif
