@@ -3,10 +3,6 @@
  #pragma function(memchr)
 #endif
 
-#ifdef _MSC_VER
-#pragma function(memchr)
-#endif
-
 _CONST_RETURN void * __cdecl memchr(const void *buf, int chr, size_t cnt)
 {
   while (cnt && (*(unsigned char *)buf != (unsigned char)chr))

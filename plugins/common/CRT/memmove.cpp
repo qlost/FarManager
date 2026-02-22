@@ -7,10 +7,6 @@
  #pragma function(memmove)
 #endif
 
-#ifdef _MSC_VER
-#pragma function(memmove)
-#endif
-
 void * __cdecl memmove(void *dst, const void *src, size_t count)
 {
   void *ret = dst;
