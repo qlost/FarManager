@@ -1,0 +1,22 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/fmt/">
+    <Project Path="ace.vcxproj" />
+    <Project Path="arc.vcxproj" />
+    <Project Path="arj.vcxproj" />
+    <Project Path="cab.vcxproj" />
+    <Project Path="ha.vcxproj" />
+    <Project Path="lzh.vcxproj" />
+    <Project Path="rar.vcxproj" />
+    <Project Path="targz.vcxproj" />
+    <Project Path="zip.vcxproj" />
+  </Folder>
+  <Folder Name="/fmt/custom/">
+    <Project Path="custom.vcxproj" />
+    <Project Path="libpcre/pcre.vcxproj" />
+  </Folder>
+  <Project Path="MultiArc.vcxproj" />
+</Solution>

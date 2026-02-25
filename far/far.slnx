@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Debug_ASAN" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release_no_LTCG" />
+    <Platform Name="ARM" />
+    <Platform Name="ARM64" />
+    <Platform Name="Win32" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="common_test.vcxproj" />
+  <Project Path="far.vcxproj" />
+  <Project Path="sqlite.vcxproj" />
+</Solution>
