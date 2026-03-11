@@ -120,7 +120,7 @@ namespace os
 		[[nodiscard]]
 		static bool single_wait(HANDLE const Handle, std::optional<std::chrono::milliseconds> const Timeout = {})
 		{
-			switch (const auto Result = WaitForSingleObject(Handle, Timeout? *Timeout / 1ms : INFINITE))
+			switch (WaitForSingleObject(Handle, Timeout? *Timeout / 1ms : INFINITE))
 			{
 			case WAIT_ABANDONED:
 				LOGWARNING(L"WaitForSingleObject(): WAIT_ABANDONED for handle {}"sv, Handle);
