@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <CRT\crt.hpp>
 #include <shlwapi.h>
 
 #define __SIMPLE_STRING_USED
@@ -27,9 +28,17 @@ typedef class SimpleString
 
 		SimpleString() { Alloc(__DEF_DELTA); }
 		SimpleString(const SimpleString &strCopy) { Alloc(strCopy.Len()+1); Copy(strCopy); }
-		SimpleString(const wchar_t *data) { size_t l = lstrlen(data?data:L""); Alloc(l+1); Copy(data, l); }
+		SimpleString(const wchar_t *data) { size_t l = data?lstrlen(data):0; Alloc(l+1); Copy(data, l); }
 		SimpleString(const wchar_t *data, size_t len) { Alloc(len+1); Copy(data, len); }
 		explicit SimpleString(size_t size) { Alloc(size); }
+		SimpleString(const char *data) {
+			size_t l = data ? lstrlenA(data) : 0;
+			Alloc(l+1);
+			wchar_t *buf = new wchar_t[l+1];
+			MultiByteToWideChar(CP_ACP, 0L, data, -1, buf, (int)(l+1));
+			Copy(buf, l);
+			delete[] buf;
+		}
 
 		~SimpleString() { free(m_str); }
 
@@ -47,7 +56,7 @@ typedef class SimpleString
 		}
 
 		wchar_t *GetBuf(size_t size = (size_t)-1) { Inflate(size == (size_t)-1 ? m_size : size); return m_str; }
-		void ReleaseBuf(size_t len = (size_t)-1) { (len == (size_t)-1) ? SetLen(lstrlen(m_str)) : (len >= m_size ? SetLen(m_size-1) : SetLen(len)); }
+		void ReleaseBuf(size_t len = (size_t)-1) { (len == (size_t)-1) ? SetLen(lstrlen(m_str)) : SetLen(len >= m_size ? m_size-1 : len); }
 
 		size_t Len() const { return m_len; }
 		size_t SetLen(size_t len) { if (len < m_size) { m_len = len; m_str[m_len] = 0; } return m_len; }
@@ -97,12 +106,13 @@ typedef class SimpleString
 			// Pos & Len must be valid
 			// Data and *this must not intersect (but Data can be located entirely within *this)
 
-			if (!Len && !DataLen)
-				return *this;
-
 			size_t NewLength = m_len + DataLen - Len;
 
-			if (NewLength)
+			if (!NewLength)
+				*m_str = 0;
+			else if (!Len && !DataLen)
+				return *this;
+			else
 			{
 				if (Data >= m_str && Data + DataLen <= m_str + m_len)
 				{
@@ -126,26 +136,39 @@ typedef class SimpleString
 		}
 
 		SimpleString& Replace(size_t Pos, size_t Len, const SimpleString& Str) { return Replace(Pos, Len, Str.CPtr(), Str.Len()); }
-		SimpleString& Replace(size_t Pos, size_t Len, const wchar_t* Str) { return Replace(Pos, Len, Str, lstrlen(Str?Str:L"")); }
+		SimpleString& Replace(size_t Pos, size_t Len, const wchar_t* Str) { return Replace(Pos, Len, Str, Str?lstrlen(Str):0); }
 		SimpleString& Replace(size_t Pos, size_t Len, wchar_t Ch) { return Replace(Pos, Len, &Ch, 1); }
 
 		SimpleString& Append(const wchar_t* Str, size_t StrLen) { return Replace(Len(), 0, Str, StrLen); }
 		SimpleString& Append(const SimpleString& Str) { return Append(Str.CPtr(), Str.Len()); }
-		SimpleString& Append(const wchar_t* Str) { return Append(Str, lstrlen(Str?Str:L"")); }
+		SimpleString& Append(const wchar_t* Str) { return Append(Str, Str?lstrlen(Str):0); }
 		SimpleString& Append(wchar_t Ch) { return Append(&Ch, 1); }
 
 		SimpleString& Insert(size_t Pos, const wchar_t* Str, size_t StrLen) { return Replace(Pos, 0, Str, StrLen); }
 		SimpleString& Insert(size_t Pos, const SimpleString& Str) { return Insert(Pos, Str.CPtr(), Str.Len()); }
-		SimpleString& Insert(size_t Pos, const wchar_t* Str) { return Insert(Pos, Str, lstrlen(Str?Str:L"")); }
+		SimpleString& Insert(size_t Pos, const wchar_t* Str) { return Insert(Pos, Str, Str?lstrlen(Str):0); }
 		SimpleString& Insert(size_t Pos, wchar_t Ch) { return Insert(Pos, &Ch, 1); }
 
 		SimpleString& Copy(const wchar_t *Str, size_t StrLen) { return Replace(0, Len(), Str, StrLen); }
-		SimpleString& Copy(const wchar_t *Str) { return Copy(Str, lstrlen(Str?Str:L"")); }
+		SimpleString& Copy(const wchar_t *Str) { return Copy(Str, Str?lstrlen(Str):0); }
 		SimpleString& Copy(wchar_t Ch) { return Copy(&Ch, 1); }
 		SimpleString& Copy(const SimpleString &Str) { return Copy(Str.CPtr(), Str.Len()); }
 
 		SimpleString& Remove(size_t Pos, size_t Len = 1) { return Replace(Pos, Len, nullptr, 0); }
 		SimpleString& LShift(size_t nShiftCount, size_t nStartPos=0) { return Remove(nStartPos, nShiftCount); }
+
+		SimpleString& Replace(const wchar_t *src, const wchar_t *dst) {
+			size_t src_len = lstrlen(src), dst_len = lstrlen(dst), i = 0;
+			while (i < m_len) {
+				if (wcsncmp(m_str+i, src, src_len) == 0) {
+					Replace(i, src_len, dst, dst_len);
+					i += dst_len;
+				}
+				else
+					i++;
+			}
+			return *this;
+		}
 
 		SimpleString& Clear() { m_len = 0; *m_str = 0; return *this; }
 
@@ -160,17 +183,13 @@ typedef class SimpleString
 		const SimpleString& operator+=(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
 		const SimpleString& operator+=(wchar_t chAdd) { return Append(chAdd); }
 
-		friend const SimpleString operator+(const SimpleString &strSrc1, const SimpleString &strSrc2);
-		friend const SimpleString operator+(const SimpleString &strSrc1, const wchar_t *lpwszSrc2);
+		friend const SimpleString operator+(const SimpleString &strSrc1, const SimpleString &strSrc2)
+		{
+			return SimpleString(strSrc1).Append(strSrc2);
+		}
+		friend const SimpleString operator+(const SimpleString &strSrc1, const wchar_t *lpwszSrc2)
+		{
+			return SimpleString(strSrc1).Append(lpwszSrc2);
+		}
 
 } string;
-
-const SimpleString operator+(const SimpleString &strSrc1, const SimpleString &strSrc2)
-{
-	return SimpleString(strSrc1).Append(strSrc2);
-}
-
-const SimpleString operator+(const SimpleString &strSrc1, const wchar_t *lpwszSrc2)
-{
-	return SimpleString(strSrc1).Append(lpwszSrc2);
-}
