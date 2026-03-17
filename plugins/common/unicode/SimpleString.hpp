@@ -175,6 +175,8 @@ typedef class SimpleString
 		const wchar_t *CPtr() const { return m_str; }
 		operator const wchar_t *() const { return m_str; }
 
+		const bool operator==(const SimpleString &str) const { return !lstrcmp(m_str, str.CPtr()); }
+
 		const SimpleString& operator=(const SimpleString &strCopy) { return Copy(strCopy); }
 		const SimpleString& operator=(const wchar_t *lpwszData) { return Copy(lpwszData); }
 		const SimpleString& operator=(wchar_t chData) { return Copy(chData); }
@@ -183,13 +185,5 @@ typedef class SimpleString
 		const SimpleString& operator+=(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
 		const SimpleString& operator+=(wchar_t chAdd) { return Append(chAdd); }
 
-		friend const SimpleString operator+(const SimpleString &strSrc1, const SimpleString &strSrc2)
-		{
-			return SimpleString(strSrc1).Append(strSrc2);
-		}
-		friend const SimpleString operator+(const SimpleString &strSrc1, const wchar_t *lpwszSrc2)
-		{
-			return SimpleString(strSrc1).Append(lpwszSrc2);
-		}
-
+		const SimpleString& operator+(const SimpleString &str) { return Append(str); }
 } string;
