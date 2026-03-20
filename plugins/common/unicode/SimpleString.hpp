@@ -26,7 +26,7 @@ typedef class SimpleString
 
 	public:
 
-		SimpleString() { Alloc(__DEF_DELTA); }
+		SimpleString() { Alloc(__DEF_DELTA); *m_str = 0; }
 		SimpleString(const SimpleString &strCopy) { Alloc(strCopy.Len()+1); Copy(strCopy); }
 		SimpleString(const wchar_t *data) { size_t l = data?lstrlen(data):0; Alloc(l+1); Copy(data, l); }
 		SimpleString(const wchar_t *data, size_t len) { Alloc(len+1); Copy(data, len); }
@@ -176,6 +176,7 @@ typedef class SimpleString
 		operator const wchar_t *() const { return m_str; }
 
 		const bool operator==(const SimpleString &str) const { return !lstrcmp(m_str, str.CPtr()); }
+		const bool operator==(const wchar_t *lpwsz) const { return !lstrcmp(m_str, lpwsz); }
 
 		const SimpleString& operator=(const SimpleString &strCopy) { return Copy(strCopy); }
 		const SimpleString& operator=(const wchar_t *lpwszData) { return Copy(lpwszData); }
@@ -185,5 +186,7 @@ typedef class SimpleString
 		const SimpleString& operator+=(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
 		const SimpleString& operator+=(wchar_t chAdd) { return Append(chAdd); }
 
-		const SimpleString& operator+(const SimpleString &str) { return Append(str); }
+		const SimpleString& operator+(const SimpleString &strAdd) { return Append(strAdd); }
+		const SimpleString& operator+(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
+		const SimpleString& operator+(wchar_t chAdd) { return Append(chAdd); }
 } string;
