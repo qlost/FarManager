@@ -12,6 +12,8 @@ typedef class SimpleString
 		wchar_t *m_str{};
 		size_t m_len{};
 		size_t m_size{};
+		char *m_utf{};
+		size_t m_utf_len{};
 
 		void Alloc(size_t size)
 		{
@@ -40,7 +42,7 @@ typedef class SimpleString
 			delete[] buf;
 		}
 
-		~SimpleString() { free(m_str); }
+		~SimpleString() { free(m_str); free(m_utf);}
 
 		void Inflate(size_t size)
 		{
@@ -59,6 +61,7 @@ typedef class SimpleString
 		void ReleaseBuf(size_t len = (size_t)-1) { (len == (size_t)-1) ? SetLen(lstrlen(m_str)) : SetLen(len >= m_size ? m_size-1 : len); }
 
 		size_t Len() const { return m_len; }
+		size_t UTFLen() const { return m_utf_len; }
 		size_t SetLen(size_t len) { if (len < m_size) { m_len = len; m_str[m_len] = 0; } return m_len; }
 
 		size_t Size() const { return m_size; }
@@ -66,6 +69,17 @@ typedef class SimpleString
 		wchar_t At(size_t index) const { return m_str[index]; }
 
 		bool IsEmpty() const { return !m_len; }
+
+		char* toUTF8()
+		{
+			m_utf_len = WideCharToMultiByte(CP_UTF8, 0, m_str, (int)m_len, NULL, 0, NULL, NULL);
+			if (!m_utf_len)
+				return NULL;
+			m_utf = (char*)realloc(m_utf, m_utf_len + sizeof(char));
+			WideCharToMultiByte(CP_UTF8, 0, m_str, (int)m_len, m_utf, (int)m_utf_len + sizeof(char), NULL, NULL);
+			m_utf[m_utf_len] = '\0';
+			return m_utf;
+		}
 
 		int __cdecl Format(const wchar_t * format, ...)
 		{
