@@ -33,13 +33,12 @@ typedef class SimpleString
 		SimpleString(const wchar_t *data) { size_t l = data?lstrlen(data):0; Alloc(l+1); Copy(data, l); }
 		SimpleString(const wchar_t *data, size_t len) { Alloc(len+1); Copy(data, len); }
 		explicit SimpleString(size_t size) { Alloc(size); }
+
 		SimpleString(const char *data, unsigned codepage = CP_ACP) {
-			size_t l = data ? lstrlenA(data) : 0;
-			Alloc(l+1);
-			wchar_t *buf = new wchar_t[l+1];
-			MultiByteToWideChar(codepage, 0L, data, -1, buf, (int)(l+1));
-			Copy(buf, l);
-			delete[] buf;
+			int l = data ? MultiByteToWideChar(codepage, 0L, data, -1, NULL, 0) : 0;
+			Alloc(l);
+			MultiByteToWideChar(codepage, 0L, data, -1, m_str, l);
+			SetLen(l-1);
 		}
 
 		~SimpleString() { free(m_str); free(m_utf);}
@@ -75,7 +74,8 @@ typedef class SimpleString
 			m_utf_len = WideCharToMultiByte(CP_UTF8, 0, m_str, (int)m_len, NULL, 0, NULL, NULL);
 			if (!m_utf_len)
 				return NULL;
-			m_utf = (char*)realloc(m_utf, m_utf_len + sizeof(char));
+			free(m_utf);
+			m_utf = (char*)malloc(m_utf_len + sizeof(char));
 			WideCharToMultiByte(CP_UTF8, 0, m_str, (int)m_len, m_utf, (int)m_utf_len + sizeof(char), NULL, NULL);
 			m_utf[m_utf_len] = '\0';
 			return m_utf;
