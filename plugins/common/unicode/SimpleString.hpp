@@ -32,14 +32,8 @@ typedef class SimpleString
 		SimpleString(const SimpleString &strCopy) { Alloc(strCopy.Len()+1); Copy(strCopy); }
 		SimpleString(const wchar_t *data) { size_t l = data?lstrlen(data):0; Alloc(l+1); Copy(data, l); }
 		SimpleString(const wchar_t *data, size_t len) { Alloc(len+1); Copy(data, len); }
+		SimpleString(const char *data, unsigned codepage = CP_ACP) { fromChar(data, codepage); }
 		explicit SimpleString(size_t size) { Alloc(size); }
-
-		SimpleString(const char *data, unsigned codepage = CP_ACP) {
-			int l = data ? MultiByteToWideChar(codepage, 0L, data, -1, NULL, 0) : 0;
-			Alloc(l);
-			MultiByteToWideChar(codepage, 0L, data, -1, m_str, l);
-			SetLen(l-1);
-		}
 
 		~SimpleString() { free(m_str); free(m_utf);}
 
@@ -79,6 +73,15 @@ typedef class SimpleString
 			WideCharToMultiByte(CP_UTF8, 0, m_str, (int)m_len, m_utf, (int)m_utf_len + sizeof(char), NULL, NULL);
 			m_utf[m_utf_len] = '\0';
 			return m_utf;
+		}
+
+		SimpleString& fromChar(const char *data, unsigned codepage = CP_ACP)
+		{
+			int l = data ? MultiByteToWideChar(codepage, 0L, data, -1, NULL, 0) : 0;
+			Alloc(l);
+			MultiByteToWideChar(codepage, 0L, data, -1, m_str, l);
+			SetLen(l-1);
+			return *this;
 		}
 
 		int __cdecl Format(const wchar_t * format, ...)
