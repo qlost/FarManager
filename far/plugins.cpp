@@ -88,6 +88,34 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //----------------------------------------------------------------------------
 
+bool CheckStructSize(size_t const Actual, size_t const Expected)
+{
+	if (Actual == Expected)
+		return true;
+
+	if (Actual < Expected)
+		return false;
+
+	// Here be dragons
+	// Some plugins do not bother to even initialize the size, so it can contain random rubbish,
+	// which might happen to be larger than the actual size of the structure.
+	// If we trust it and write into the struct, the whole thing will crash and burn.
+	// Hence, if the size is too large, then it's likely rubbish.
+	// Now, what is "too large"?
+	// How larger an API struct can get with time?
+	// Let's say we added 100 pointer-like fields, which is already a stretch.
+	// On x64, it's 800 bytes.
+	// Let's be generous and round it up to 1K.
+	// Let's be luxurious and round it up to 64K total.
+	// No one in their right mind would have structs with 8000 fields, right?
+	const size_t MaximumReasonableStructSize = 65536;
+	if (Actual <= MaximumReasonableStructSize)
+		return true;
+
+	LOGERROR(L"Plugin API struct size is unreasonably large ({}, {} expected). Have you initialized it properly?"sv, Actual, Expected);
+	return false;
+}
+
 static string GetHotKeyPluginKey(Plugin const* const pPlugin)
 {
 	/*
@@ -114,9 +142,18 @@ static wchar_t GetPluginHotKey(const Plugin* pPlugin, const UUID& Uuid, hotkey_t
 	return strHotKey.empty()? L'\0' : strHotKey.front();
 }
 
+class plugins_sort_accessor
+{
+public:
+	static auto compare_ordinal_icase(string_view const Str1, string_view const Str2)
+	{
+		return string_sort::keyhole::compare_ordinal_icase(Str1, Str2);
+	}
+};
+
 bool PluginManager::plugin_less::operator()(const Plugin* a, const Plugin* b) const
 {
-	return string_sort::less(PointToName(a->ModuleName()), PointToName(b->ModuleName()));
+	return std::is_lt(plugins_sort_accessor::compare_ordinal_icase(PointToName(a->ModuleName()), PointToName(b->ModuleName())));
 }
 
 static void EnsureLuaCpuCompatibility()
@@ -143,7 +180,10 @@ PluginManager::PluginManager():
 void PluginManager::NotifyExitLuaMacro() const
 {
 	if (const auto LuaMacro = m_Plugins.find(Global->Opt->KnownIDs.Luamacro.Id); LuaMacro != m_Plugins.cend())
+	{
 		LuaMacro->second->NotifyExit();
+		LuaMacro->second->WorkFlags.Set(PIWF_DONTLOADAGAIN);
+	}
 }
 
 void PluginManager::UnloadPlugins()
@@ -158,18 +198,22 @@ void PluginManager::UnloadPlugins()
 		}
 		else
 		{
-			i->Unload(true);
+			i->Unload();
+			// Just to make sure other plugins' ExitFAR won't bring it back from the dead somehow
+			i->WorkFlags.Set(PIWF_DONTLOADAGAIN);
 		}
 	}
 
 	if (Luamacro)
 	{
-		Luamacro->Unload(false);
+		Luamacro->Unload();
 	}
 
 	// some plugins might still have dialogs (if DialogFree wasn't called)
 	// better to delete them explicitly while manager is still alive
 	m_Plugins.clear();
+	SortedPlugins.clear();
+	UnloadedPlugins.clear();
 }
 
 Plugin* PluginManager::AddPlugin(std::unique_ptr<Plugin>&& pPlugin)
@@ -178,7 +222,7 @@ Plugin* PluginManager::AddPlugin(std::unique_ptr<Plugin>&& pPlugin)
 	if (!IsEmplaced)
 	{
 		LOGWARNING(L"Plugin \"{}\" is already loaded from {}, ignoring {}"sv, Iterator->second->Title(), Iterator->second->ModuleName(), pPlugin->ModuleName());
-		pPlugin->Unload(true);
+		pPlugin->Unload();
 		return nullptr;
 	}
 	Iterator->second = std::move(pPlugin);
@@ -261,7 +305,7 @@ Plugin* PluginManager::LoadPlugin(const string& FileName, const os::fs::find_dat
 
 	if (bDataLoaded && !PluginPtr->Load())
 	{
-		PluginPtr->Unload(true);
+		PluginPtr->Unload();
 		RemovePlugin(PluginPtr);
 		return nullptr;
 	}
@@ -314,7 +358,7 @@ bool PluginManager::UnloadPlugin(Plugin* pPlugin, int From)
 
 		const auto IsPanelPlugin = pPlugin->IsPanelPlugin();
 
-		Result = pPlugin->Unload(true);
+		Result = pPlugin->Unload();
 
 		pPlugin->WorkFlags.Set(PIWF_DONTLOADAGAIN);
 
@@ -353,7 +397,7 @@ bool PluginManager::UnloadPluginExternal(Plugin* pPlugin)
 	}
 
 	UnloadedPlugins.erase(pPlugin);
-	const auto Result = pPlugin->Unload(true);
+	const auto Result = pPlugin->Unload();
 	RemovePlugin(pPlugin);
 	return Result;
 }
@@ -2460,7 +2504,7 @@ void PluginManager::RefreshPluginsList()
 		if (i->Active())
 			return false;
 
-		i->Unload(true);
+		i->Unload();
 		RemovePlugin(i);
 		return true;
 	});
@@ -2493,3 +2537,48 @@ void plugin_panel::delayed_delete(const string& Name)
 	}
 	m_DelayedDeleter->add(Name);
 }
+
+#ifdef ENABLE_TESTS
+
+#include "testing.hpp"
+
+TEST_CASE("plugins.CheckStructSize")
+{
+	struct s
+	{
+		size_t StructSize;
+
+		int OldField;
+		int NewField1;
+		int NewField2;
+	}
+	const
+		S1{ 1 },
+		S2{ sizeof(s) },
+		S3{ sizeof(s) + 1 },
+		SLegacy1{ offsetof(s, NewField1) },
+		SLegacy2{ offsetof(s, NewField2) };
+
+	REQUIRE(!CheckStructSize(static_cast<s const*>(nullptr)));
+	REQUIRE(!CheckStructSize(&S1));
+	REQUIRE(CheckStructSize(&S2));
+	REQUIRE(CheckStructSize(&S3));
+	REQUIRE(!CheckStructSize(&SLegacy1));
+	REQUIRE(!CheckStructSize(&SLegacy2));
+
+	REQUIRE(!CheckStructSize(&S1, &s::OldField));
+	REQUIRE(CheckStructSize(&S2, &s::NewField2));
+	REQUIRE(CheckStructSize(&S3, &s::NewField2));
+	REQUIRE(!CheckStructSize(&SLegacy1, &s::NewField1));
+	REQUIRE(!CheckStructSize(&SLegacy1, &s::NewField2));
+	REQUIRE(CheckStructSize(&SLegacy2, &s::NewField1));
+	REQUIRE(!CheckStructSize(&SLegacy2, &s::NewField2));
+
+	// Sanity checks
+	REQUIRE(!CheckStructSize(32, 64));
+	REQUIRE(CheckStructSize(64, 64));
+	REQUIRE(CheckStructSize(65536, 64));
+	REQUIRE(!CheckStructSize(65537, 64));
+}
+
+#endif

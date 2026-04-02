@@ -119,7 +119,7 @@ jobs:
         working-directory: _build/vc
         run: |
           cl
-          msbuild -m /property:Configuration=${{ matrix.build_type }} /property:Platform=${{ matrix.platform_sln }} all.sln
+          msbuild -m /property:Configuration=${{ matrix.build_type }} /property:Platform=${{ matrix.platform_sln }} far.sln
 
       - name: Run macro tests
         if: matrix.builder == 'msbuild' && matrix.platform_sln != 'ARM64'
@@ -170,6 +170,11 @@ jobs:
         exclude:
           - sys: clang64
             compiler: gcc
+          - sys: mingw32
+            compiler: clang
+          - sys: mingw32
+            compiler: gcc
+            build_type: Debug
 
     name: build-msys2_${{ matrix.sys }}_${{ matrix.compiler }}_${{ matrix.build_type }}
 

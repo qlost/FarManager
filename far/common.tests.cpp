@@ -51,39 +51,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "common.hpp"
 
-TEST_CASE("common.CheckStructSize")
-{
-	struct s
-	{
-		size_t StructSize;
-
-		int OldField;
-		int NewField1;
-		int NewField2;
-	}
-	const
-		S1{ 1 },
-		S2{ sizeof(s) },
-		S3{ sizeof(s) + 1 },
-		SLegacy1{ offsetof(s, NewField1) },
-		SLegacy2{ offsetof(s, NewField2) };
-
-	REQUIRE(!CheckStructSize(static_cast<s const*>(nullptr)));
-	REQUIRE(!CheckStructSize(&S1));
-	REQUIRE(CheckStructSize(&S2));
-	REQUIRE(CheckStructSize(&S3));
-	REQUIRE(!CheckStructSize(&SLegacy1));
-	REQUIRE(!CheckStructSize(&SLegacy2));
-
-	REQUIRE(!CheckStructSize(&S1, &s::OldField));
-	REQUIRE(CheckStructSize(&S2, &s::NewField2));
-	REQUIRE(CheckStructSize(&S3, &s::NewField2));
-	REQUIRE(!CheckStructSize(&SLegacy1, &s::NewField1));
-	REQUIRE(!CheckStructSize(&SLegacy1, &s::NewField2));
-	REQUIRE(CheckStructSize(&SLegacy2, &s::NewField1));
-	REQUIRE(!CheckStructSize(&SLegacy2, &s::NewField2));
-}
-
 TEST_CASE("common.NullToEmpty")
 {
 	const char* Null{}, *Empty = "", *NonEmpty = "banana";
@@ -328,46 +295,6 @@ TEST_CASE("algorithm.any_none_of")
 	STATIC_REQUIRE(any_of(1, 1, 2, 3));
 	STATIC_REQUIRE(none_of(1, 0));
 	STATIC_REQUIRE(none_of(1, 2, 3));
-}
-
-TEST_CASE("algorithm.intersect.segments")
-{
-	struct test_data
-	{
-		struct test_segment: public segment
-		{
-			test_segment(int const Begin, int const End)
-				: segment{ Begin, segment::sentinel_tag{ End } }
-			{}
-		};
-		test_segment A, B, Intersection;
-	};
-
-	static const test_data TestDataPoints[] =
-	{
-		{ { 10, 20 }, { -1, 5 }, { 0, 0 } },
-		{ { 10, 20 }, { -1, 10 }, { 0, 0 } },
-		{ { 10, 20 }, { -1, 15 }, { 10, 15 } },
-		{ { 10, 20 }, { -1, 20 }, { 10, 20 } },
-		{ { 10, 20 }, { -1, 25 }, { 10, 20 } },
-		{ { 10, 20 }, { 10, 15 }, { 10, 15 } },
-		{ { 10, 20 }, { 10, 20 }, { 10, 20 } },
-		{ { 10, 20 }, { 10, 25 }, { 10, 20 } },
-		{ { 10, 20 }, { 15, 20 }, { 15, 20 } },
-		{ { 10, 20 }, { 15, 25 }, { 15, 20 } },
-		{ { 10, 20 }, { 20, 25 }, { 0, 0 } },
-		{ { 10, 20 }, { 25, 30 }, { 0, 0 } },
-		{ { 10, 20 }, { 0, 0 }, { 0, 0 } },
-		{ { 10, 20 }, { 15, 15 }, { 0, 0 } },
-		{ { 10, 20 }, { 20, 20 }, { 42, 42 } },
-		{ { 10, 20 }, { 30, 30 }, { 0, 0 } },
-	};
-
-	for (const auto& TestDataPoint : TestDataPoints)
-	{
-		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.A, TestDataPoint.B));
-		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.B, TestDataPoint.A));
-	}
 }
 
 //----------------------------------------------------------------------------
@@ -1325,6 +1252,47 @@ TEST_CASE("segment.iota")
 		REQUIRE(std::ranges::equal(
 			TestDataPoint.Segment.iota() | std::views::take(TestDataPoint.Take),
 			TestDataPoint.Expected));
+	}
+}
+
+TEST_CASE("algorithm.intersect.segments")
+{
+	struct test_data
+	{
+		struct test_segment: public segment
+		{
+			test_segment(int const Begin, int const End)
+				: segment{ Begin, segment::sentinel_tag{ End } }
+			{
+			}
+		};
+		test_segment A, B, Intersection;
+	};
+
+	static const test_data TestDataPoints[] =
+	{
+		{ { 10, 20 }, { -1, 5 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 10 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { -1, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { -1, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { 10, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 15, 20 }, { 15, 20 } },
+		{ { 10, 20 }, { 15, 25 }, { 15, 20 } },
+		{ { 10, 20 }, { 20, 25 }, { 0, 0 } },
+		{ { 10, 20 }, { 25, 30 }, { 0, 0 } },
+		{ { 10, 20 }, { 0, 0 }, { 0, 0 } },
+		{ { 10, 20 }, { 15, 15 }, { 0, 0 } },
+		{ { 10, 20 }, { 20, 20 }, { 42, 42 } },
+		{ { 10, 20 }, { 30, 30 }, { 0, 0 } },
+	};
+
+	for (const auto& TestDataPoint : TestDataPoints)
+	{
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.A, TestDataPoint.B));
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.B, TestDataPoint.A));
 	}
 }
 

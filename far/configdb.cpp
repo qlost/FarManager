@@ -57,7 +57,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.fs.hpp"
 
 // Common:
-#include "common.hpp"
 #include "common/base64.hpp"
 #include "common/bytes_view.hpp"
 #include "common/function_ref.hpp"
@@ -112,13 +111,75 @@ static auto& CreateChild(tinyxml::XMLElement& Parent, const char* Name)
 	return *e;
 }
 
+static auto base64_tag(std::string_view const Name)
+{
+	return Name + ".base64"s;
+}
+
 template<typename T>
 static void SetAttribute(tinyxml::XMLElement& Element, const char* Name, T const& Value)
 {
 	if constexpr (std::convertible_to<T, std::string_view>)
-		Element.SetAttribute(Name, null_terminated_t<char>(Value).c_str());
+	{
+		std::string_view const StrValue = Value;
+
+		if (std::ranges::any_of(StrValue, [](const unsigned char Char) { return Char < 0x20; }))
+		{
+			Element.SetAttribute(Name, base64::encode(view_bytes(StrValue)).c_str());
+			Element.SetAttribute(base64_tag(Name).c_str(), 1);
+		}
+		else
+			Element.SetAttribute(Name, null_terminated_t(StrValue).c_str());
+	}
 	else
 		Element.SetAttribute(Name, Value);
+}
+
+class attribute_value
+{
+public:
+	explicit(false) attribute_value(const char* Value):
+		m_Value(Value)
+	{
+	}
+
+	explicit(false) attribute_value(bytes const& Value):
+		m_Value(std::string{ to_string_view(Value) })
+	{
+	}
+
+	explicit operator bool() const
+	{
+		return std::visit(overload{
+			[&](const char* const Value){ return Value != nullptr; },
+			[&](std::string const&){ return true; }
+		}, m_Value);
+	}
+
+	std::string_view get() const
+	{
+		return std::visit(overload{
+			[&](const char* const Value){ return Value? std::string_view{ Value } : std::string_view{}; },
+			[&](std::string const& Value){ return std::string_view{ Value }; }
+		}, m_Value);
+	}
+
+	explicit(false) operator std::string_view() const
+	{
+		return get();
+	}
+
+private:
+	std::variant<const char*, std::string> m_Value;
+};
+
+static attribute_value GetAttribute(tinyxml::XMLElement const& Element, const char* Name)
+{
+	const auto Value = Element.Attribute(Name);
+	if (!Value || !Element.IntAttribute(base64_tag(Name).c_str()))
+		return Value;
+
+	return base64::decode(Value);
 }
 
 class representation_destination
@@ -139,7 +200,7 @@ public:
 
 	void Save(string_view const File)
 	{
-		const file_ptr XmlFile(_wfsopen(nt_path(File).c_str(), L"w", _SH_DENYWR));
+		const file_ptr XmlFile(_wfsopen(nt_path(File).c_str(), L"wb", _SH_DENYWR));
 		if (!XmlFile)
 			throw far_known_exception(far::format(L"Error opening file \"{}\": {}"sv, File, os::format_errno(errno)));
 
@@ -206,12 +267,16 @@ void serialise_blob(tinyxml::XMLElement& e, bytes_view const Value)
 	SetAttribute(e, "value", base64::encode(Value));
 }
 
-bool deserialise_value(std::string_view const Type, char const* Value, auto const& Setter)
+bool deserialise_value(std::string_view const Type, attribute_value const& Value, auto const& Setter)
 {
 	if (Type == "qword"sv)
 	{
 		if (Value)
-			Setter(strtoull(Value, nullptr, 16));
+		{
+			const auto StrValue = Value.get();
+			if (unsigned long long Result; std::from_chars(StrValue.data(), StrValue.data() + StrValue.size(), Result, 16).ec == std::errc())
+				Setter(Result);
+		}
 		return true;
 	}
 
@@ -393,19 +458,19 @@ private:
 		SCOPED_ACTION(auto)(ScopedTransaction());
 		for(const auto& e: xml_enum(Representation.Root().FirstChildElement(GetKeyName()), "setting"))
 		{
-			const auto key = e.Attribute("key");
+			const auto key = GetAttribute(e, "key");
 			if (!key)
 				continue;
 
-			const auto name = e.Attribute("name");
+			const auto name = GetAttribute(e, "name");
 			if (!name)
 				continue;
 
-			const auto type = e.Attribute("type");
+			const auto type = GetAttribute(e, "type");
 			if (!type)
 				continue;
 
-			const auto value = e.Attribute("value");
+			const auto value = GetAttribute(e, "value");
 			if (!value)
 				continue;
 
@@ -499,9 +564,9 @@ protected:
 		serialise_blob(e, Blob);
 	}
 
-	virtual bytes DeserializeBlob(const char* Type, const char* Value, const tinyxml::XMLElement& e) const
+	virtual bytes DeserializeBlob(std::string_view const Type, const std::optional<std::string_view> Value, const tinyxml::XMLElement& e) const
 	{
-		return Value? HexStringToBlob(encoding::utf8::get_chars(Value)) : bytes{};
+		return Value? HexStringToBlob(encoding::utf8::get_chars(*Value)) : bytes{};
 	}
 
 private:
@@ -745,26 +810,26 @@ private:
 
 	void Import(const key& root, const tinyxml::XMLElement& key)
 	{
-		const auto KeyName = key.Attribute("name");
+		const auto KeyName = GetAttribute(key, "name");
 		if (!KeyName)
 			return;
 
 		const auto Key = CreateKey(root, encoding::utf8::get_chars(KeyName));
 
-		if (const auto KeyDescription = key.Attribute("description"))
+		if (const auto KeyDescription = GetAttribute(key, "description"))
 			SetKeyDescription(Key, encoding::utf8::get_chars(KeyDescription));
 
 		for (const auto& e: xml_enum(key, "value"))
 		{
-			const auto name = e.Attribute("name");
+			const auto name = GetAttribute(e, "name");
 			if (!name)
 				continue;
 
-			const auto type = e.Attribute("type");
+			const auto type = GetAttribute(e, "type");
 			if (!type)
 				continue;
 
-			const auto value = e.Attribute("value");
+			const auto value = GetAttribute(e, "value");
 
 			const auto Name = encoding::utf8::get_chars(name);
 
@@ -852,8 +917,7 @@ FarColor deserialize_color(function_ref<char const* (char const* Name)> const Ge
 	{
 		if (const auto Value = Getter(Name))
 		{
-			char* EndPtr;
-			if (const auto Result = std::strtoul(Value, &EndPtr, 16); EndPtr != Value)
+			if (unsigned long Result; std::from_chars(Value, Value + std::strlen(Value), Result, 16).ec == std::errc())
 				Color = Result;
 		}
 	};
@@ -878,7 +942,13 @@ namespace
 
 FarColor color_from_xml(tinyxml::XMLElement const& e)
 {
-	return deserialize_color([&](char const* const AttributeName){ return e.Attribute(AttributeName); }, {});
+	std::optional<attribute_value> Value;
+
+	return deserialize_color([&](char const* const AttributeName)
+	{
+		Value = GetAttribute(e, AttributeName);
+		return Value->get().data();
+	}, {});
 }
 
 class HighlightHierarchicalConfigDb final: public HierarchicalConfigDb
@@ -911,7 +981,7 @@ private:
 		return HierarchicalConfigDb::SerializeBlob(Name, Blob, e);
 	}
 
-	bytes DeserializeBlob(const char* Type, const char* Value, const tinyxml::XMLElement& e) const override
+	bytes DeserializeBlob(std::string_view const Type, const std::optional<std::string_view> Value, const tinyxml::XMLElement& e) const override
 	{
 		if(Type == "color"sv)
 			return bytes(view_bytes(color_from_xml(e)));
@@ -983,7 +1053,7 @@ private:
 		SCOPED_ACTION(auto)(ScopedTransaction());
 		for (const auto& e: xml_enum(Representation.Root().FirstChildElement("colors"), "object"))
 		{
-			const auto name = e.Attribute("name");
+			const auto name = GetAttribute(e, "name");
 
 			if (!name)
 				continue;
@@ -1210,24 +1280,19 @@ private:
 			return;
 
 		SCOPED_ACTION(auto)(ScopedTransaction());
-		Exec("DELETE FROM filetypes;"sv); // delete all before importing
+
 		primary_key id{};
 		for (const auto& e: xml_enum(base, "filetype"))
 		{
-			const auto mask = e.Attribute("mask");
-			const auto description = e.Attribute("description");
-
+			const auto mask = GetAttribute(e, "mask");
 			if (!mask)
 				continue;
 
-			const auto Mask = encoding::utf8::get_chars(mask);
-			const auto Description = encoding::utf8::get_chars(NullToEmpty(description));
-
-			id = AddType(id, Mask, Description);
+			id = AddType(id, encoding::utf8::get_chars(mask), encoding::utf8::get_chars(GetAttribute(e, "description")));
 
 			for (const auto& se: xml_enum(e, "command"))
 			{
-				const auto command = se.Attribute("command");
+				const auto command = GetAttribute(se, "command");
 				if (!command)
 					continue;
 
@@ -1700,7 +1765,7 @@ private:
 		SCOPED_ACTION(auto)(ScopedTransaction());
 		for (const auto& e: xml_enum(Representation.Root().FirstChildElement("pluginhotkeys"), "plugin"))
 		{
-			const auto key = e.Attribute("key");
+			const auto key = GetAttribute(e, "key");
 
 			if (!key)
 				continue;
@@ -1709,11 +1774,11 @@ private:
 
 			for (const auto& se: xml_enum(e, "hotkey"))
 			{
-				const auto stype = se.Attribute("menu");
+				const auto stype = GetAttribute(se, "menu");
 				if (!stype)
 					continue;
 
-				const auto UuidStr = se.Attribute("guid");
+				const auto UuidStr = GetAttribute(se, "guid");
 				if (!UuidStr)
 					continue;
 
@@ -1721,11 +1786,11 @@ private:
 				if (!Uuid)
 					continue;
 
-				const auto hotkey = se.Attribute("hotkey");
+				const auto hotkey = GetAttribute(se, "hotkey");
 
 				const auto ProcessHotkey = [&](hotkey_type const Type)
 				{
-					if (hotkey && *hotkey)
+					if (hotkey && !hotkey.get().empty())
 						SetHotkey(Key, *Uuid, Type, encoding::utf8::get_chars(hotkey));
 					else
 						DelHotkey(Key, *Uuid, Type);
@@ -1755,15 +1820,15 @@ private:
 	};
 };
 
-class HistoryConfigCustom: public HistoryConfig, public sqlite_boilerplate
+class HistoryConfigDb: public HistoryConfig, public sqlite_boilerplate
 {
 public:
-	explicit HistoryConfigCustom(string_view const DbName):
-		sqlite_boilerplate(&HistoryConfigCustom::Initialise, DbName, true)
+	explicit HistoryConfigDb(string_view const DbName):
+		sqlite_boilerplate(&HistoryConfigDb::Initialise, DbName, true)
 	{
 	}
 
-	~HistoryConfigCustom() override
+	~HistoryConfigDb() override
 	{
 		WaitAllAsync();
 		StopEvent.set();
@@ -1774,7 +1839,7 @@ private:
 	os::event AsyncDeleteAddDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncCommitDone{os::event::type::manual, os::event::state::signaled};
 	os::event AsyncWork{os::event::type::automatic, os::event::state::nonsignaled};
-	[[maybe_unused]] os::thread WorkThread{&HistoryConfigCustom::ThreadProc, this};
+	[[maybe_unused]] os::thread WorkThread{&HistoryConfigDb::ThreadProc, this};
 
 	struct AsyncWorkItem
 	{
@@ -2285,6 +2350,239 @@ private:
 		ExecuteStatement(stmtDeleteOldViewer, older, MinimumEntries);
 	}
 
+	void Import(const representation_source& Representation) override
+	{
+		SCOPED_ACTION(auto)(ScopedTransaction());
+
+		auto historyRoot = Representation.Root().FirstChildElement("history");
+		if (!historyRoot.ToNode())
+			return;
+
+		for (const auto& e: xml_enum(historyRoot.FirstChildElement("items"), "item"))
+		{
+			int kind;
+			if (e.QueryIntAttribute("kind", &kind) != tinyxml::XML_SUCCESS)
+				continue;
+
+			const auto key = GetAttribute(e, "key");
+			if (!key)
+				continue;
+
+			int type;
+			if (e.QueryIntAttribute("type", &type) != tinyxml::XML_SUCCESS)
+				continue;
+
+			const auto name = GetAttribute(e, "name");
+			if (!name)
+				continue;
+
+			const auto lock = e.IntAttribute("lock");
+			const auto time = e.Unsigned64Attribute("time");
+			const auto guid = GetAttribute(e, "guid");
+			const auto file = GetAttribute(e, "file");
+			const auto data = GetAttribute(e, "data");
+
+			AddInternal(
+				kind,
+				encoding::utf8::get_chars(key),
+				type,
+				lock != 0,
+				encoding::utf8::get_chars(name),
+				os::chrono::nt_clock::from_hectonanoseconds(time),
+				guid? encoding::utf8::get_chars(guid) : L""sv,
+				file? encoding::utf8::get_chars(file) : L""sv,
+				data? encoding::utf8::get_chars(data) : L""sv
+			);
+		}
+
+		for (const auto& e: xml_enum(historyRoot.FirstChildElement("editorpositions"), "position"))
+		{
+			const auto name = GetAttribute(e, "name");
+			if (!name)
+				continue;
+
+			const auto time = e.Unsigned64Attribute("time");
+			const auto line = e.IntAttribute("line");
+			const auto linepos = e.IntAttribute("linepos");
+			const auto screenline = e.IntAttribute("screenline");
+			const auto leftpos = e.IntAttribute("leftpos");
+			const auto codepage = e.IntAttribute("codepage");
+
+			ExecuteStatement(stmtSetEditorPos, encoding::utf8::get_chars(name), time, line, linepos, screenline, leftpos, codepage);
+		}
+
+		const auto stmtGetEditorPositionId = create_stmt("SELECT id FROM editorposition_history WHERE name=?1;"sv);
+
+		for (const auto& e: xml_enum(historyRoot.FirstChildElement("editorbookmarks"), "bookmark"))
+		{
+			const auto name = GetAttribute(e, "name");
+			if (!name)
+				continue;
+
+			int num = 0;
+			if (e.QueryIntAttribute("num", &num) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int line = 0;
+			if (e.QueryIntAttribute("line", &line) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int linepos = 0;
+			if (e.QueryIntAttribute("linepos", &linepos) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int screenline = 0;
+			if (e.QueryIntAttribute("screenline", &screenline) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int leftpos = 0;
+			if (e.QueryIntAttribute("leftpos", &leftpos) != tinyxml::XML_SUCCESS)
+				continue;
+
+			if (auto_statement const Stmt(&stmtGetEditorPositionId); Stmt->Bind(encoding::utf8::get_chars(name)).Step())
+				ExecuteStatement(stmtSetEditorBookmark, Stmt->GetColInt64(0), num, line, linepos, screenline, leftpos);
+		}
+
+		for (const auto& e: xml_enum(historyRoot.FirstChildElement("viewerpositions"), "position"))
+		{
+			const auto name = GetAttribute(e, "name");
+			if (!name)
+				continue;
+
+			const auto time = e.Unsigned64Attribute("time");
+			const auto filepos = e.Int64Attribute("filepos");
+			const auto leftpos = e.Int64Attribute("leftpos");
+			const auto hex = e.IntAttribute("hex");
+			const auto codepage = e.IntAttribute("codepage");
+
+			ExecuteStatement(stmtSetViewerPos, encoding::utf8::get_chars(name), time, filepos, leftpos, hex, codepage);
+		}
+
+		const auto stmtGetViewerPositionId = create_stmt("SELECT id FROM viewerposition_history WHERE name=?1;"sv);
+
+		for (const auto& e: xml_enum(historyRoot.FirstChildElement("viewerbookmarks"), "bookmark"))
+		{
+			const auto name = GetAttribute(e, "name");
+			if (!name)
+				continue;
+
+			int num = 0;
+			if (e.QueryIntAttribute("num", &num) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int64_t filepos = 0;
+			if (e.QueryInt64Attribute("filepos", &filepos) != tinyxml::XML_SUCCESS)
+				continue;
+
+			int64_t leftpos = 0;
+			if (e.QueryInt64Attribute("leftpos", &leftpos) != tinyxml::XML_SUCCESS)
+				continue;
+
+			if (auto_statement const Stmt(&stmtGetViewerPositionId); Stmt->Bind(encoding::utf8::get_chars(name)).Step())
+				ExecuteStatement(stmtSetViewerBookmark, Stmt->GetColInt64(0), num, filepos, leftpos);
+		}
+	}
+
+	void Export(representation_destination& Representation) const override
+	{
+		auto& root = CreateChild(Representation.Root(), "history");
+
+		{
+			auto& historyRoot = CreateChild(root, "items");
+			const auto stmtEnumAllHistory = create_stmt("SELECT kind, key, type, lock, name, time, guid, file, data FROM history ORDER BY kind, key, time;"sv);
+
+			while (stmtEnumAllHistory.Step())
+			{
+				auto& e = CreateChild(historyRoot, "item");
+
+				SetAttribute(e, "kind", stmtEnumAllHistory.GetColInt(0));
+				SetAttribute(e, "key", stmtEnumAllHistory.GetColTextUTF8(1));
+				SetAttribute(e, "type", stmtEnumAllHistory.GetColInt(2));
+				SetAttribute(e, "lock", stmtEnumAllHistory.GetColInt(3));
+				SetAttribute(e, "name", stmtEnumAllHistory.GetColTextUTF8(4));
+				SetAttribute(e, "time", stmtEnumAllHistory.GetColInt64(5));
+				SetAttribute(e, "guid", stmtEnumAllHistory.GetColTextUTF8(6));
+				SetAttribute(e, "file", stmtEnumAllHistory.GetColTextUTF8(7));
+				SetAttribute(e, "data", stmtEnumAllHistory.GetColTextUTF8(8));
+			}
+		}
+
+		{
+			auto& editorRoot = CreateChild(root, "editorpositions");
+			const auto stmtEnumEditorPos = create_stmt("SELECT name, time, line, linepos, screenline, leftpos, codepage FROM editorposition_history ORDER BY time;"sv);
+
+			while (stmtEnumEditorPos.Step())
+			{
+				auto& e = CreateChild(editorRoot, "position");
+
+				SetAttribute(e, "name", stmtEnumEditorPos.GetColTextUTF8(0));
+				SetAttribute(e, "time", stmtEnumEditorPos.GetColInt64(1));
+				SetAttribute(e, "line", stmtEnumEditorPos.GetColInt(2));
+				SetAttribute(e, "linepos", stmtEnumEditorPos.GetColInt(3));
+				SetAttribute(e, "screenline", stmtEnumEditorPos.GetColInt(4));
+				SetAttribute(e, "leftpos", stmtEnumEditorPos.GetColInt(5));
+				SetAttribute(e, "codepage", stmtEnumEditorPos.GetColInt(6));
+			}
+		}
+
+		{
+			auto& bookmarksRoot = CreateChild(root, "editorbookmarks");
+			const auto stmtEnumEditorBookmarks = create_stmt(
+				"SELECT ep.name, eb.num, eb.line, eb.linepos, eb.screenline, eb.leftpos "
+				"FROM editorbookmarks_history AS eb "
+				"JOIN editorposition_history AS ep ON eb.pid=ep.id "
+				"ORDER BY ep.name, eb.num;"sv);
+
+			while (stmtEnumEditorBookmarks.Step())
+			{
+				auto& e = CreateChild(bookmarksRoot, "bookmark");
+
+				SetAttribute(e, "name", stmtEnumEditorBookmarks.GetColTextUTF8(0));
+				SetAttribute(e, "num", stmtEnumEditorBookmarks.GetColInt(1));
+				SetAttribute(e, "line", stmtEnumEditorBookmarks.GetColInt(2));
+				SetAttribute(e, "linepos", stmtEnumEditorBookmarks.GetColInt(3));
+				SetAttribute(e, "screenline", stmtEnumEditorBookmarks.GetColInt(4));
+				SetAttribute(e, "leftpos", stmtEnumEditorBookmarks.GetColInt(5));
+			}
+		}
+
+		{
+			auto& viewerRoot = CreateChild(root, "viewerpositions");
+			const auto stmtEnumViewerPos = create_stmt("SELECT name, time, filepos, leftpos, hex, codepage FROM viewerposition_history ORDER BY time;"sv);
+
+			while (stmtEnumViewerPos.Step())
+			{
+				auto& e = CreateChild(viewerRoot, "position");
+
+				SetAttribute(e, "name", stmtEnumViewerPos.GetColTextUTF8(0));
+				SetAttribute(e, "time", stmtEnumViewerPos.GetColInt64(1));
+				SetAttribute(e, "filepos", stmtEnumViewerPos.GetColInt64(2));
+				SetAttribute(e, "leftpos", stmtEnumViewerPos.GetColInt64(3));
+				SetAttribute(e, "hex", stmtEnumViewerPos.GetColInt(4));
+				SetAttribute(e, "codepage", stmtEnumViewerPos.GetColInt(5));
+			}
+		}
+
+		{
+			auto& bookmarksRoot = CreateChild(root, "viewerbookmarks");
+			const auto stmtEnumViewerBookmarks = create_stmt(
+				"SELECT vp.name, vb.num, vb.filepos, vb.leftpos "
+				"FROM viewerbookmarks_history AS vb "
+				"JOIN viewerposition_history AS vp ON vb.pid=vp.id "
+				"ORDER BY vp.name, vb.num;"sv);
+
+			while (stmtEnumViewerBookmarks.Step())
+			{
+				auto& e = CreateChild(bookmarksRoot, "bookmark");
+
+				SetAttribute(e, "name", stmtEnumViewerBookmarks.GetColTextUTF8(0));
+				SetAttribute(e, "num", stmtEnumViewerBookmarks.GetColInt(1));
+				SetAttribute(e, "filepos", stmtEnumViewerBookmarks.GetColInt64(2));
+				SetAttribute(e, "leftpos", stmtEnumViewerBookmarks.GetColInt64(3));
+			}
+		}
+	}
+
 	enum statement_id
 	{
 		stmtEnum,
@@ -2315,40 +2613,6 @@ private:
 
 		stmt_count
 	};
-};
-
-class HistoryConfigDb final: public HistoryConfigCustom
-{
-public:
-	explicit HistoryConfigDb(string_view const Name):
-		HistoryConfigCustom(Name)
-	{
-	}
-
-private:
-	// TODO: implementation
-	void Import(const representation_source&) override
-	{
-		LOGNOTICE(L"History import not implemented"sv);
-	}
-
-	void Export(representation_destination&) const override
-	{
-		LOGNOTICE(L"History export not implemented"sv);
-	}
-};
-
-class HistoryConfigMemory final: public HistoryConfigCustom
-{
-public:
-	explicit HistoryConfigMemory(string_view const Name):
-		HistoryConfigCustom(Name)
-	{
-	}
-
-private:
-	void Import(const representation_source&) override {}
-	void Export(representation_destination&) const override {}
 };
 
 bool is_uuid(string_view const Str)
@@ -2382,8 +2646,8 @@ void config_provider::TryImportDatabase(representable& p, const char* NodeName, 
 		{
 			for (const auto& i: xml_enum(root.FirstChildElement("pluginsconfig"), "plugin"))
 			{
-				const auto Uuid = i.Attribute("guid");
-				if (Uuid && !std::strcmp(Uuid, NodeName))
+				const auto Uuid = GetAttribute(i, "guid");
+				if (Uuid && Uuid.get() == NodeName)
 				{
 					m_TemplateSource->SetRoot(&const_cast<tinyxml::XMLElement&>(i));
 					p.Import(*m_TemplateSource);
@@ -2567,7 +2831,7 @@ config_provider::config_provider(mode Mode):
 	m_PlCacheCfg([this]{ return CreateDatabase<PluginsCacheConfigDb>(pluginscache_db_name(), true); }),
 	m_PlHotkeyCfg([this]{ return CreateDatabase<PluginsHotkeysConfigDb>(L"pluginhotkeys"sv, false); }),
 	m_HistoryCfg([this]{ return CreateDatabase<HistoryConfigDb>(L"history"sv, true); }),
-	m_HistoryCfgMem([this]{ return CreateDatabase<HistoryConfigMemory>(SQLiteDb::memory_db_name, true); })
+	m_HistoryCfgMem([this]{ return CreateDatabase<HistoryConfigDb>(SQLiteDb::memory_db_name, true); })
 {
 }
 
@@ -2581,6 +2845,18 @@ config_provider::~config_provider()
 	// Make sure all threads are joined before freeing the library
 	m_Threads.clear();
 }
+
+constexpr struct
+{
+	string Options::*Path;
+	const char* Name;
+	bool IsLocal;
+}
+PluginsConfigs[]
+{
+	{ &Options::ProfilePath,      "pluginsconfig",      false, },
+	{ &Options::LocalProfilePath, "localpluginsconfig", true,  },
+};
 
 void config_provider::Export(string_view const File)
 {
@@ -2606,21 +2882,24 @@ void config_provider::Export(string_view const File)
 
 	{
 		const auto Ext = L"*.db"sv;
-		//TODO: export local plugin settings
-		auto& e = CreateChild(root, "pluginsconfig");
-		for(const auto& i: os::fs::enum_files(path::join(Global->Opt->ProfilePath, L"PluginsData"sv, Ext)))
+
+		for (const auto& Config: PluginsConfigs)
 		{
-			if (!os::fs::is_file(i))
-				continue;
+			auto& e = CreateChild(root, Config.Name);
+			for (const auto& i: os::fs::enum_files(path::join(std::invoke(Config.Path, Global->Opt), L"PluginsData"sv, Ext)))
+			{
+				if (!os::fs::is_file(i))
+					continue;
 
-			const auto FileName = name_ext(i.FileName).first;
-			if (!is_uuid(FileName))
-				continue;
+				const auto FileName = name_ext(i.FileName).first;
+				if (!is_uuid(FileName))
+					continue;
 
-			auto& PluginRoot = CreateChild(e, "plugin");
-			SetAttribute(PluginRoot, "guid", encoding::utf8::get_bytes(FileName));
-			Representation.SetRoot(PluginRoot);
-			CreatePluginsConfig(FileName)->Export(Representation);
+				auto& PluginRoot = CreateChild(e, "plugin");
+				SetAttribute(PluginRoot, "guid", encoding::utf8::get_bytes(FileName));
+				Representation.SetRoot(PluginRoot);
+				CreatePluginsConfig(FileName, Config.IsLocal)->Export(Representation);
+			}
 		}
 	}
 
@@ -2659,17 +2938,19 @@ void config_provider::Import(string_view const File)
 	Representation.SetRoot(root.FirstChildElement("shortcuts"));
 	CreateShortcutsConfig()->Import(Representation);
 
-	//TODO: import local plugin settings
-	for (const auto& plugin: xml_enum(root.FirstChildElement("pluginsconfig"), "plugin"))
+	for (const auto& Config: PluginsConfigs)
 	{
-		const auto UuidStr = plugin.Attribute("guid");
-		if (!UuidStr)
-			continue;
-
-		if (const auto Uuid = encoding::utf8::get_chars(UuidStr); is_uuid(Uuid))
+		for (const auto& plugin: xml_enum(root.FirstChildElement(Config.Name), "plugin"))
 		{
-			Representation.SetRoot(&const_cast<tinyxml::XMLElement&>(plugin));
-			CreatePluginsConfig(Uuid)->Import(Representation);
+			const auto UuidStr = GetAttribute(plugin, "guid");
+			if (!UuidStr)
+				continue;
+
+			if (const auto Uuid = encoding::utf8::get_chars(UuidStr); is_uuid(Uuid))
+			{
+				Representation.SetRoot(&const_cast<tinyxml::XMLElement&>(plugin));
+				CreatePluginsConfig(Uuid, Config.IsLocal)->Import(Representation);
+			}
 		}
 	}
 }
@@ -2714,3 +2995,33 @@ int HierarchicalConfig::ToSettingsType(int Type)
 		return FST_UNKNOWN;
 	}
 }
+
+#ifdef ENABLE_TESTS
+
+#include "testing.hpp"
+
+TEST_CASE("configdb.attribute_value")
+{
+	{
+		attribute_value Value(nullptr);
+		REQUIRE(!Value);
+		REQUIRE(Value.get() == ""sv);
+		REQUIRE(!Value.get().data());
+	}
+
+	{
+		const auto Data = "banana";
+		attribute_value Value(Data);
+		REQUIRE(Value);
+		REQUIRE(Value.get().data() == Data);
+	}
+
+	{
+		const auto Data = "blob"_b;
+		attribute_value Value(Data);
+		REQUIRE(Value);
+		REQUIRE(Value.get() == "blob"sv);
+		REQUIRE(Value.get().data() != to_string_view(Data).data());
+	}
+}
+#endif
