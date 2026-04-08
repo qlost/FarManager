@@ -192,6 +192,9 @@ typedef class SimpleString
 		const wchar_t *CPtr() const { return m_str; }
 		operator const wchar_t *() const { return m_str; }
 
+		bool startsWith(SimpleString &s) const { return !wcsncmp(m_str, s.CPtr(), s.Len()); }
+		bool startsWith(wchar_t *s) const { return !wcsncmp(m_str, s, lstrlenW(s)); }
+
 		const bool operator==(const SimpleString &str) const { return !lstrcmp(m_str, str.CPtr()); }
 		const bool operator==(const wchar_t *lpwsz) const { return !lstrcmp(m_str, lpwsz); }
 
