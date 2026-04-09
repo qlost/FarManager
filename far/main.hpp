@@ -1,12 +1,13 @@
-﻿#ifndef SQLITE_CONFIG_H_C8BF39A5_DAD7_4B50_BAE1_04F174FA5302
-#define SQLITE_CONFIG_H_C8BF39A5_DAD7_4B50_BAE1_04F174FA5302
+﻿#ifndef MAIN_HPP_E29E6548_A41A_4F7F_9E57_356BE15FC9A7
+#define MAIN_HPP_E29E6548_A41A_4F7F_9E57_356BE15FC9A7
 #pragma once
 
 /*
-sqlite.config.h
+main.hpp
+
 */
 /*
-Copyright © 2024 Far Group
+Copyright © 2026 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,25 +33,35 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// Internal:
+
+// Platform:
+
+// Common:
+
+// External:
+
 //----------------------------------------------------------------------------
 
-#define SQLITE_DEFAULT_MEMSTATUS 0
-#define SQLITE_DEFAULT_WAL_SYNCHRONOUS 1
-#define SQLITE_LIKE_DOESNT_MATCH_BLOBS
+enum class run_mode
+{
+	unknown,
+	interactive,
+	elevation,
+	config_import,
+	config_export,
+	clear_cache,
+	logger,
+	help,
+#ifdef ENABLE_TESTS
+	tests,
+#endif
+};
 
-//#define SQLITE_OMIT_AUTHORIZATION 1
-//#define SQLITE_OMIT_AUTOINIT 1
-//#define SQLITE_OMIT_COMPILEOPTION_DIAGS 1
-//#define SQLITE_OMIT_DECLTYPE 1
-//#define SQLITE_OMIT_DEPRECATED 1
-//#define SQLITE_OMIT_EXPLAIN 1
-//#define SQLITE_OMIT_PROGRESS_CALLBACK 1
+run_mode get_run_mode();
 
-#define SQLITE_WIN32_NO_ANSI 1
-
-#ifdef _DEBUG
-#define SQLITE_DEBUG 1
-#define SQLITE_ENABLE_API_ARMOR 1
+#ifdef ENABLE_TESTS
+void set_test_mode();
 #endif
 
-#endif // SQLITE_CONFIG_H_C8BF39A5_DAD7_4B50_BAE1_04F174FA5302
+#endif // MAIN_HPP_E29E6548_A41A_4F7F_9E57_356BE15FC9A7
