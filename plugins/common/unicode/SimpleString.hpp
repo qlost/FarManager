@@ -205,8 +205,4 @@ typedef class SimpleString
 		const SimpleString& operator+=(const SimpleString &strAdd) { return Append(strAdd); }
 		const SimpleString& operator+=(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
 		const SimpleString& operator+=(wchar_t chAdd) { return Append(chAdd); }
-
-		const SimpleString& operator+(const SimpleString &strAdd) { return Append(strAdd); }
-		const SimpleString& operator+(const wchar_t *lpwszAdd) { return Append(lpwszAdd); }
-		const SimpleString& operator+(wchar_t chAdd) { return Append(chAdd); }
 } string;
