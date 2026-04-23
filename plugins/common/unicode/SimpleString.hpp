@@ -175,14 +175,19 @@ typedef class SimpleString
 		SimpleString& LShift(size_t nShiftCount, size_t nStartPos=0) { return Remove(nStartPos, nShiftCount); }
 
 		SimpleString& Replace(const wchar_t *src, const wchar_t *dst) {
-			size_t src_len = lstrlen(src), dst_len = lstrlen(dst), i = 0;
-			while (i < m_len) {
-				if (wcsncmp(m_str+i, src, src_len) == 0) {
-					Replace(i, src_len, dst, dst_len);
-					i += dst_len;
+			if (m_len > 0 && src) {
+				size_t src_len = lstrlen(src);
+				if (m_len >= src_len && src_len > 0) {
+					size_t dst_len = lstrlen(dst), i = 0;
+					while (i < m_len) {
+						if (wcsncmp(m_str+i, src, src_len) == 0) {
+							Replace(i, src_len, dst, dst_len);
+							i += dst_len;
+						}
+						else
+							i++;
+					}
 				}
-				else
-					i++;
 			}
 			return *this;
 		}
