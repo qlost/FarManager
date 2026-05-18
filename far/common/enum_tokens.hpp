@@ -208,7 +208,7 @@ WARNING_POP()
 
 			const auto NewIterator = std::ranges::find_if(View, [&](wchar_t const i)
 			{
-				return !m_Overrider.active(i) && contains(Separators, i);
+				return !m_Overrider.active(i) && Separators.contains(i);
 			});
 
 			Value = { View.cbegin(), NewIterator };

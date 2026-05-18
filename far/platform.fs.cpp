@@ -2646,9 +2646,7 @@ WARNING_POP()
 		// It's good enough to read it once.
 		static const auto AllowedDrivesMask = []
 		{
-			// Declared separately due to a VS19 bug
-			const auto Where = { &reg::key::local_machine, &reg::key::current_user };
-			for (const auto& i: Where)
+			for (const auto& i: { &reg::key::local_machine, &reg::key::current_user })
 			{
 				if (const auto NoDrives = i->get_dword(L"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"sv, L"NoDrives"sv))
 					return ~*NoDrives;

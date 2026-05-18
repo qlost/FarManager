@@ -862,6 +862,9 @@ static void parse_command_line(std::span<const wchar_t* const> const Args, std::
 
 static void register_restart(bool const HasArgs)
 {
+	if (!imports.RegisterApplicationRestart)
+		return;
+
 	const auto Args = HasArgs? []
 	{
 		const auto CommandLine = GetCommandLine();
@@ -869,7 +872,11 @@ static void register_restart(bool const HasArgs)
 		return CommandLine + ExecutableSize + 1;
 	}() : nullptr;
 
-	if (const auto Result = imports.RegisterApplicationRestart(Args, 0); FAILED(Result))
+	const auto Flags = is_exception_handling_enabled()?
+		0 :
+		RESTART_NO_CRASH | RESTART_NO_HANG;
+
+	if (const auto Result = imports.RegisterApplicationRestart(Args, Flags); FAILED(Result))
 		LOGWARNING(L"RegisterApplicationRestart(): {}"sv, os::format_error(Result));
 }
 

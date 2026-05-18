@@ -1,4 +1,48 @@
 --------------------------------------------------------------------------------
+drkns 2026-05-15 01:17:17+01:00 - build 6687
+
+1. Correction of 6686.
+
+--------------------------------------------------------------------------------
+drkns 2026-05-15 00:41:46+01:00 - build 6686
+
+1. Refactoring.
+
+--------------------------------------------------------------------------------
+drkns 2026-05-12 22:05:18+01:00 - build 6685
+
+1. Continue 6684.1.
+
+--------------------------------------------------------------------------------
+drkns 2026-05-12 21:14:58+01:00 - build 6684
+
+1. 0001610: Attempt to fix some historical madness in FindFile.
+
+2. Refactoring.
+
+--------------------------------------------------------------------------------
+MZK 2026-05-10 12:27:04-04:00 - build 6683
+
+1. gh-1000: Do not materialize text coordinates in Find All menu items.
+   Instead of extracting line and position of the found pattern
+   from the item's text, macros should use Menu.GetItemExtendedData.
+
+--------------------------------------------------------------------------------
+drkns 2026-05-09 12:59:44+01:00 - build 6682
+
+1. Bump VS version to 2022, remove 2019 workarounds.
+
+2. Emulate SRW locks for old OSes.
+   SQLite 3.54 uses them, so they can't be stubs anymore.
+
+3. Continue 6677.2.
+
+--------------------------------------------------------------------------------
+yjh 2026-05-06 01:52:15+03:00 - build 6681
+
+1. SQLite: v3.53.1
+
+--------------------------------------------------------------------------------
 drkns 2026-04-28 23:20:47+01:00 - build 6680
 
 1. Correction of 6679.
