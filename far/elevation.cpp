@@ -316,12 +316,6 @@ auto elevation::execute(lng Why, string_view const Object, auto Fallback, const 
 	}
 }
 
-static auto make_admin_sid()
-{
-	SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
-	return os::security::make_sid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS);
-}
-
 static auto make_explicit_admin_access(os::security::sid_ptr const& AdminSid)
 {
 	EXPLICIT_ACCESS Access{};
@@ -349,7 +343,7 @@ static os::handle create_named_pipe(string_view const Name)
 	if (!InitializeSecurityDescriptor(&SD, SECURITY_DESCRIPTOR_REVISION))
 		return nullptr;
 
-	const auto AdminSid = make_admin_sid();
+	const auto AdminSid = os::security::make_admin_sid();
 	if (!AdminSid)
 		return nullptr;
 
@@ -378,7 +372,7 @@ static bool grant_duplicate_handle()
 		return false;
 	}
 
-	const auto AdminSid = make_admin_sid();
+	const auto AdminSid = os::security::make_admin_sid();
 	if (!AdminSid)
 		return false;
 

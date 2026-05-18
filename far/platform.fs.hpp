@@ -78,7 +78,7 @@ namespace os::fs
 	using find_file_handle = os::detail::handle_t<detail::find_file_handle_closer>;
 	using find_volume_handle = os::detail::handle_t<detail::find_volume_handle_closer>;
 
-	using drives_set = std::bitset<26>;
+	using drives_set = std::bitset<'Z' - 'A' + 1>;
 
 	using security_descriptor = block_ptr<SECURITY_DESCRIPTOR, default_buffer_size>;
 

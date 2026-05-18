@@ -162,6 +162,11 @@ void disable_exception_handling()
 	LOGWARNING(L"Exception handling disabled"sv);
 }
 
+bool is_exception_handling_enabled()
+{
+	return HandleCppExceptions && HandleSehExceptions;
+}
+
 static std::atomic_bool s_ExceptionHandlingInprogress{};
 bool exception_handling_in_progress()
 {

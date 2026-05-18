@@ -1024,7 +1024,7 @@ static void FillKeyBarTitles(lua_State *L, int src_pos, struct KeyBarTitles *kbt
 		}
 
 		kbt->Labels[i].Key.VirtualKeyCode = GetOptIntFromTable(L, "VirtualKeyCode", 0);
-		kbt->Labels[i].Key.ControlKeyState = CAST(DWORD,CheckFlagsFromTable(L, -1, "ControlKeyState"));
+		kbt->Labels[i].Key.ControlKeyState = (DWORD) CheckFlagsFromTable(L, -1, "ControlKeyState");
 		//-----------------------------------------------------------------------
 		lua_getfield(L, -1, "Text");
 		kbt->Labels[i].Text = StoreTempString(L, store_pos);
@@ -1283,7 +1283,7 @@ static int FillEditorSelect(lua_State *L, int pos_table, struct EditorSelect *es
 {
 	int success;
 	lua_getfield(L, pos_table, "BlockType");
-	es->BlockType = CAST(int, get_env_flag(L, -1, &success));
+	es->BlockType = (int) get_env_flag(L, -1, &success);
 
 	if (!success)
 	{
@@ -1311,7 +1311,7 @@ static int editor_Select(lua_State *L)
 		success = FillEditorSelect(L, 2, &es);
 	else
 	{
-		es.BlockType = CAST(int, check_env_flag(L, 2));
+		es.BlockType = (int) check_env_flag(L, 2);
 		es.BlockStartLine = luaL_optinteger(L, 3, 0) - 1;
 		es.BlockStartPos  = luaL_optinteger(L, 4, 0) - 1;
 		es.BlockWidth     = luaL_optinteger(L, 5, -1);
@@ -1427,9 +1427,9 @@ int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
 	{
 		lua_pushvalue(L, pos);
 		Color->Flags = CheckFlagsFromTable(L, -1, "Flags");
-		Color->Foreground.ForegroundColor = CAST(COLORREF, GetOptNumFromTable(L, "ForegroundColor", 0));
-		Color->Background.BackgroundColor = CAST(COLORREF, GetOptNumFromTable(L, "BackgroundColor", 0));
-		Color->Underline.UnderlineColor = CAST(COLORREF, GetOptNumFromTable(L, "UnderlineColor", 0));
+		Color->Foreground.ForegroundColor = (COLORREF) GetOptNumFromTable(L, "ForegroundColor", 0);
+		Color->Background.BackgroundColor = (COLORREF) GetOptNumFromTable(L, "BackgroundColor", 0);
+		Color->Underline.UnderlineColor = (COLORREF) GetOptNumFromTable(L, "UnderlineColor", 0);
 		Color->Reserved = 0;
 		lua_pop(L, 1);
 		return 1;
@@ -1459,7 +1459,7 @@ void PushFarColor(lua_State *L, const struct FarColor* Color)
 static void GetOptGuid(lua_State *L, int pos, GUID* target, const GUID* source)
 {
 	if (lua_type(L, pos) == LUA_TSTRING && lua_objlen(L, pos) >= sizeof(GUID))
-		*target = *CAST(const GUID*, lua_tostring(L, pos));
+		*target = *(const GUID*) lua_tostring(L, pos);
 	else if (lua_isnoneornil(L, pos))
 		*target = *source;
 	else
@@ -1478,7 +1478,7 @@ static int editor_AddColor(lua_State *L)
 	ec.EndPos       = luaL_checkinteger(L, 4) - 1;
 	ec.Flags        = OptFlags(L, 5, 0);
 	luaL_argcheck(L, GetFarColor(L, 6, &ec.Color), 6, "table or number expected");
-	ec.Priority     = CAST(unsigned, luaL_optnumber(L, 7, EDITOR_COLOR_NORMAL_PRIORITY));
+	ec.Priority     = (unsigned) luaL_optnumber(L, 7, EDITOR_COLOR_NORMAL_PRIORITY);
 	GetOptGuid(L, 8, &ec.Owner, pd->PluginId);
 	lua_pushboolean(L, pd->Info->EditorControl(EditorId, ECTL_ADDCOLOR, 0, &ec) != 0);
 	return 1;
@@ -1595,7 +1595,7 @@ void FillInputRecord(lua_State *L, int pos, INPUT_RECORD *ir)
 	memset(ir, 0, sizeof(INPUT_RECORD));
 	// determine event type
 	lua_getfield(L, pos, "EventType");
-	ir->EventType = CAST(WORD, get_env_flag(L, -1, &success));
+	ir->EventType = (WORD) get_env_flag(L, -1, &success);
 	if (success)
 	{
 		if (ir->EventType == 0)
@@ -2345,7 +2345,7 @@ static int SetPanelIntegerProperty(lua_State *L, int command)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
 	HANDLE handle = OptHandle2(L);
-	int param1 = CAST(int, check_env_flag(L,3));
+	int param1 = (int) check_env_flag(L,3);
 	lua_pushboolean(L, Info->PanelControl(handle, command, param1, 0) != 0);
 	return 1;
 }
@@ -3115,7 +3115,7 @@ static int DoSendDlgMessage (lua_State *L, intptr_t Msg, int delta)
 	lua_settop(L, pos4); //many cases below rely on top==pos4
 	HANDLE hDlg = CheckDialogHandle(L, 1);
 	if (delta == 0)
-		Msg = CAST(int, check_env_flag(L, 2));
+		Msg = (int) check_env_flag(L, 2);
 
 	// Param1
 	switch(Msg)
@@ -4782,7 +4782,7 @@ static int DoAdvControl (lua_State *L, int Command, int Delta)
 		lua_settop(L,pos3);  /* for proper calling GetOptIntFromTable and the like */
 
 	if (Delta == 0)
-		Command = CAST(int, check_env_flag(L, 1));
+		Command = (int) check_env_flag(L, 1);
 
 	switch(Command)
 	{
@@ -4800,7 +4800,7 @@ static int DoAdvControl (lua_State *L, int Command, int Delta)
 			break;
 
 		case ACTL_GETFARHWND:
-			lua_pushlightuserdata(L, CAST(void*, Info->AdvControl(PluginId, Command, 0, NULL)));
+			lua_pushlightuserdata(L, (void*) Info->AdvControl(PluginId, Command, 0, NULL));
 			return 1;
 
 		case ACTL_SETCURRENTWINDOW:
@@ -4924,12 +4924,12 @@ static int DoAdvControl (lua_State *L, int Command, int Delta)
 				case WTYPE_DIALOG:
 				case WTYPE_VMENU:
 				case WTYPE_COMBOBOX:
-					NewDialogData(L, Info, CAST(HANDLE, wi.Id), FALSE);
+					NewDialogData(L, Info, (HANDLE)wi.Id, FALSE);
 					lua_setfield(L, -2, "Id");
 					break;
 
 				default:
-					PutIntToTable(L, "Id", CAST(int, wi.Id));
+					PutIntToTable(L, "Id", (int)wi.Id);
 					break;
 			}
 
@@ -5383,7 +5383,7 @@ static int far_CreateFileFilter(lua_State *L)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
 	HANDLE hHandle = (luaL_checkinteger(L,1) % 2) ? PANEL_ACTIVE:PANEL_PASSIVE;
-	int filterType = CAST(int, check_env_flag(L,2));
+	int filterType = (int) check_env_flag(L,2);
 	HANDLE* pOutHandle = (HANDLE*)lua_newuserdata(L, sizeof(HANDLE));
 
 	if (Info->FileFilterControl(hHandle, FFCTL_CREATEFILEFILTER, filterType, pOutHandle))
@@ -5462,11 +5462,11 @@ static int filefilter_IsFileInFilter(lua_State *L)
 static int plugin_load(lua_State *L, enum FAR_PLUGINS_CONTROL_COMMANDS command)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
-	int param1 = CAST(int, check_env_flag(L, 1));
+	int param1 = (int) check_env_flag(L, 1);
 	void *param2 = check_utf8_string(L, 2, NULL);
 	intptr_t result = Info->PluginsControl(INVALID_HANDLE_VALUE, command, param1, param2);
 
-	if (result) PushPluginHandle(L, CAST(HANDLE, result));
+	if (result) PushPluginHandle(L, (HANDLE)result);
 	else lua_pushnil(L);
 
 	return 1;
@@ -5486,7 +5486,7 @@ static int far_UnloadPlugin(lua_State *L)
 static int far_FindPlugin(lua_State *L)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
-	int param1 = CAST(int, check_env_flag(L, 1));
+	int param1 = (int) check_env_flag(L, 1);
 	void *param2 = NULL;
 
 	if (param1 == PFM_MODULENAME)
@@ -5494,7 +5494,7 @@ static int far_FindPlugin(lua_State *L)
 	else if (param1 == PFM_GUID)
 	{
 		size_t len;
-		param2 = CAST(void*, luaL_checklstring(L, 2, &len));
+		param2 = (void*) luaL_checklstring(L, 2, &len);
 
 		if (len < sizeof(GUID)) param2 = NULL;
 	}
@@ -5505,7 +5505,7 @@ static int far_FindPlugin(lua_State *L)
 
 		if (handle)
 		{
-			PushPluginHandle(L, CAST(HANDLE, handle));
+			PushPluginHandle(L, (HANDLE)handle);
 			return 1;
 		}
 	}
@@ -5524,7 +5524,7 @@ static void PutPluginMenuItemToTable(lua_State *L, const char* field, const stru
 
 		for (int i=0; i < (int) mi->Count; i++)
 		{
-			lua_pushlstring(L, CAST(const char*, mi->Guids + i), sizeof(GUID));
+			lua_pushlstring(L, (const char*)(mi->Guids + i), sizeof(GUID));
 			lua_rawseti(L, -3, i+1);
 			push_utf8_string(L, mi->Strings[i], -1);
 			lua_rawseti(L, -2, i+1);
@@ -5881,10 +5881,10 @@ static int far_CreateSettings(lua_State *L)
 			return 1;
 		}
 
-		ParamId = IsFarSettings? &FarGuid : CAST(const GUID*, strId);
+		ParamId = IsFarSettings? &FarGuid : (const GUID*)strId;
 	}
 
-	int location = CAST(int, OptFlags(L, 2, PSL_ROAMING));
+	int location = (int) OptFlags(L, 2, PSL_ROAMING);
 	struct FarSettingsCreate fsc = { sizeof(fsc) };
 	fsc.Guid = *ParamId;
 

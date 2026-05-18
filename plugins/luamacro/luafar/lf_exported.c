@@ -573,7 +573,7 @@ HANDLE LF_Analyse(lua_State* L, const struct AnalyseInfo *Info)
 					luaL_unref(L, LUA_REGISTRYINDEX, 0);
 				}
 
-				result = CAST(HANDLE, ref);
+				result = (HANDLE)ref;
 			}
 			else
 				lua_pop(L, 1);                   //+0
@@ -693,7 +693,7 @@ static void OPI_FillKeyBarTitles(lua_State *L, struct OpenPanelInfo *Info, int c
 
 			kbt->Labels[i].Key.VirtualKeyCode = GetOptIntFromTable(L, "VirtualKeyCode", 0);
 			lua_getfield(L, -1, "ControlKeyState");
-			kbt->Labels[i].Key.ControlKeyState = CAST(DWORD, GetFlagCombination(L, -1, NULL));
+			kbt->Labels[i].Key.ControlKeyState = (DWORD) GetFlagCombination(L, -1, NULL);
 			lua_pop(L, 1);
 			kbt->Labels[i].Text = AddStringToCollectorField(L, cpos, "Text");
 			kbt->Labels[i].LongText = AddStringToCollectorField(L, cpos, "LongText");
@@ -735,7 +735,7 @@ void LF_GetOpenPanelInfo(lua_State* L, struct OpenPanelInfo *aInfo)
 	//---------------------------------------------------------------------------
 	Info->StructSize = sizeof(struct OpenPanelInfo);
 	Info->hPanel     = aInfo->hPanel;
-	Info->FreeSize   = CAST(unsigned __int64, GetOptNumFromTable(L, "FreeSize", 0));
+	Info->FreeSize   = (unsigned __int64) GetOptNumFromTable(L, "FreeSize", 0);
 	Info->Flags      = GetFlagsFromTable(L, -1, "Flags");
 	Info->HostFile   = AddStringToCollectorField(L, cpos, "HostFile");
 	Info->CurDir     = AddStringToCollectorField(L, cpos, "CurDir");
@@ -917,9 +917,11 @@ static void push_guid(lua_State *L, const void *pGuid)
 HANDLE LF_Open(lua_State* L, const struct OpenInfo *Info)
 {
 	FP_PROTECT();
+	int entry_top = lua_gettop(L);
+	HANDLE Result = NULL;
 
 	if (!CheckReloadDefaultScript(L) || !GetExportFunction(L, "Open"))
-		return NULL;
+		return Result;
 
 	if (Info->OpenFrom == OPEN_LUAMACRO)
 		return Open_Luamacro(L, Info);
@@ -936,31 +938,35 @@ HANDLE LF_Open(lua_State* L, const struct OpenInfo *Info)
 	}
 	else if (Info->OpenFrom == OPEN_SHORTCUT)
 	{
-		struct OpenShortcutInfo *osi = CAST(struct OpenShortcutInfo*, Info->Data);
+		struct OpenShortcutInfo *osi = (struct OpenShortcutInfo*)Info->Data;
 		lua_createtable(L, 0, 3);
 		PutWStrToTable(L, "HostFile", osi->HostFile, -1);
 		PutWStrToTable(L, "ShortcutData", osi->ShortcutData, -1);
 		PutFlagsToTable(L, "Flags", osi->Flags);
 	}
 	else if (Info->OpenFrom == OPEN_COMMANDLINE)
-		push_utf8_string(L, CAST(struct OpenCommandLineInfo*, Info->Data)->CommandLine, -1);
+	{
+		push_utf8_string(L, ((struct OpenCommandLineInfo*)Info->Data)->CommandLine, -1);
+	}
 	else if (Info->OpenFrom == OPEN_DIALOG)
 	{
-		struct OpenDlgPluginData *data = CAST(struct OpenDlgPluginData*, Info->Data);
+		struct OpenDlgPluginData *data = (struct OpenDlgPluginData*)Info->Data;
 		lua_createtable(L, 0, 1);
 		NewDialogData(L, NULL, data->hDlg, FALSE);
 		lua_setfield(L, -2, "hDlg");
 	}
 	else if (Info->OpenFrom == OPEN_ANALYSE)
 	{
-		struct OpenAnalyseInfo* oai = CAST(struct OpenAnalyseInfo*, Info->Data);
+		struct OpenAnalyseInfo* oai = (struct OpenAnalyseInfo*)Info->Data;
 		PushAnalyseInfo(L, oai->Info);
 		lua_rawgeti(L, LUA_REGISTRYINDEX, (int)(intptr_t)oai->Handle);
 		lua_setfield(L, -2, "Handle");
 		luaL_unref(L, LUA_REGISTRYINDEX, (int)(intptr_t)oai->Handle);
 	}
 	else
+	{
 		lua_pushinteger(L, Info->Data);
+	}
 
 	// Call export.Open()
 
@@ -969,31 +975,26 @@ HANDLE LF_Open(lua_State* L, const struct OpenInfo *Info)
 		int top = lua_gettop(L);
 		if (pcall_msg(L, 3, LUA_MULTRET) == 0)
 		{
-			HANDLE ret;
-			int narg = lua_gettop(L) - top + 4; // narg
-			if (narg > 0 && lua_istable(L, -narg))
+			int nret = lua_gettop(L) - top + 4; // nret
+			if (nret > 0 && lua_istable(L, -nret))
 			{
-				lua_getfield(L, -narg, "type"); // narg+1
+				lua_getfield(L, -nret, "type"); // nret+1
 				if (lua_type(L,-1)==LUA_TSTRING && lua_objlen(L,-1)==5 && !strcmp("panel",lua_tostring(L,-1)))
 				{
-					lua_pop(L,1); // narg
-					lua_rawgeti(L,-narg,1); // narg+1
+					lua_pop(L,1); // nret
+					lua_rawgeti(L,-nret,1); // nret+1
 					if (lua_toboolean(L, -1))
 					{
 						struct FarMacroCall* fmc = CreateFarMacroCall(1);
 						fmc->Values[0].Type = FMVT_PANEL;
-						fmc->Values[0].Value.Pointer = RegisterObject(L); // narg
-						lua_pop(L,narg); // +0
-						return fmc;
+						fmc->Values[0].Value.Pointer = RegisterObject(L); // nret
+						Result = fmc;
 					}
-					lua_pop(L,narg+1); // +0
-					return NULL;
+					goto Exit;
 				}
-				lua_pop(L,1); // narg
+				lua_pop(L,1); // nret
 			}
-			ret = FillFarMacroCall(L,narg);
-			lua_pop(L,narg);
-			return ret;
+			Result = FillFarMacroCall(L,nret);
 		}
 	}
 	else
@@ -1001,18 +1002,15 @@ HANDLE LF_Open(lua_State* L, const struct OpenInfo *Info)
 		if (pcall_msg(L, 3, 1) == 0)
 		{
 			if (lua_type(L,-1) == LUA_TNUMBER && lua_tonumber(L,-1) == -1)
-			{
-				lua_pop(L,1);
-				return PANEL_STOP;
-			}
-			else if (lua_toboolean(L, -1))             //+1: Obj
-				return RegisterObject(L);               //+0
-
-			lua_pop(L,1);
+				Result = PANEL_STOP;
+			else if (lua_toboolean(L, -1))
+				Result = RegisterObject(L);
 		}
 	}
 
-	return NULL;
+Exit:
+	lua_settop(L, entry_top);
+	return Result;
 }
 
 void LF_ClosePanel(lua_State* L, const struct ClosePanelInfo *Info)
