@@ -676,10 +676,22 @@ bool Grabber::ProcessKey(const Manager::Key& Key)
 			break;
 	}
 
-	if (LocalKey==KEY_SHIFTDOWN || LocalKey==KEY_SHIFTUP || LocalKey==KEY_SHIFTLEFT || LocalKey==KEY_SHIFTRIGHT)
-		Global->WindowManager->RefreshWindow(); // на случай сброс выделения
+	//https://forum.farmanager.com/viewtopic.php?t=13940
+	if (any_of(LocalKey, KEY_LEFT  , KEY_NUMPAD4 , L'4',
+			     KEY_RIGHT , KEY_NUMPAD6 , L'6',
+			     KEY_UP    , KEY_NUMPAD8 , L'8',
+			     KEY_DOWN  , KEY_NUMPAD2 , L'2',
+			     KEY_CTRLLEFT , KEY_RCTRLLEFT, KEY_CTRLNUMPAD4, KEY_RCTRLNUMPAD4,
+			     KEY_CTRLRIGHT, KEY_RCTRLRIGHT,KEY_CTRLNUMPAD6, KEY_RCTRLNUMPAD6,
+			     KEY_CTRLUP   , KEY_RCTRLUP  , KEY_CTRLNUMPAD8, KEY_RCTRLNUMPAD8,
+			     KEY_CTRLDOWN , KEY_RCTRLDOWN, KEY_CTRLNUMPAD2, KEY_RCTRLNUMPAD2))
+	{
+		Show(); //больше не гаснет курсор (в conhost Win7) во время нажатии долго-(влево/вправо/вверх/вниз)
+	}
 	else
-		Show(); //больше не гаснет курсор (в conhost) во время нажатии долго-(влево/вправо/вверх/вниз)
+	{
+		Global->WindowManager->RefreshWindow();   // на случай сброс выделения или пробел
+	}
 	return true;
 }
 
