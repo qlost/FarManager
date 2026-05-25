@@ -676,7 +676,10 @@ bool Grabber::ProcessKey(const Manager::Key& Key)
 			break;
 	}
 
-	Global->WindowManager->RefreshWindow();
+	if (LocalKey==KEY_SHIFTDOWN || LocalKey==KEY_SHIFTUP || LocalKey==KEY_SHIFTLEFT || LocalKey==KEY_SHIFTRIGHT)
+		Global->WindowManager->RefreshWindow(); // на случай сброс выделения
+	else
+		Show(); //больше не гаснет курсор (в conhost) во время нажатии долго-(влево/вправо/вверх/вниз)
 	return true;
 }
 

@@ -1021,7 +1021,10 @@ void Manager::RefreshCommit(const window_ptr& Param)
 
 	const auto SpecialWindowIterator = IsSpecialWindow();
 	const auto IsSpecialWindow = m_windows.cend() != SpecialWindowIterator;
-	const auto WindowIndex = std::min(IndexOf(Param), static_cast<int>(SpecialWindowIterator - m_windows.cbegin()));
+	//const auto WindowIndex = std::min(IndexOf(Param), static_cast<int>(SpecialWindowIterator - m_windows.cbegin()));
+	const auto WindowIndex = (Param->GetType() == windowtype_editor)
+		? IndexOf(Param) //не терять курсор в Alt-F7 (FileFind) -> F4 (Edit) -> потеря курсора во время нажатии стрелки долго-влево, долго-вправо
+		: std::min(IndexOf(Param), static_cast<int>(SpecialWindowIterator - m_windows.cbegin())); //для остальных случаев
 
 	if (-1==WindowIndex)
 		return;
