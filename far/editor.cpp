@@ -3527,7 +3527,6 @@ namespace
 		void add_item(FindCoord FoundCoords, string_view ItemText)
 		{
 			menu_item_ex Item{ string{ ItemText } };
-			Item.Annotations.emplace_back(FoundCoords.Pos, segment::length_tag{ FoundCoords.SearchLen });
 			Item.ComplexUserData = FoundCoords;
 			m_Menu->AddItem(Item);
 
@@ -3606,6 +3605,16 @@ namespace
 					return false;
 				}
 			);
+			m_Menu->ListBox().RegisterItemAnnotationProvider(
+				[](const menu_item_ex& Item)
+				{
+					if (const auto* Coord{ std::any_cast<FindCoord>(&Item.ComplexUserData) })
+					{
+						return segment{ Coord->Pos, segment::length_tag{ Coord->SearchLen } };
+					}
+					return segment{};
+				}
+			);
 		}
 
 		void toggle_zoom()
@@ -3625,7 +3634,6 @@ namespace
 
 	private:
 		const short m_LineNumColumnMaxWidth{};
-		static constexpr short m_FoundPosColumnMaxWidth{ 10 }; // Enough?
 		int m_MaxLineNum{};
 		int m_MaxFoundPos{};
 		int m_LastSeenLine{ -1 };
@@ -6056,7 +6064,7 @@ int Editor::EditorControl(int Command, intptr_t Param1, void *Param2)
 
 			case ESPT_CODEPAGE:
 			{
-				const uintptr_t cp = espar->iParam;
+				const uintptr_t cp = encoding::codepage::normalise(espar->iParam);
 				// BUGBUG
 				if (const auto HostFileEditor = GetHostFileEditor())
 				{

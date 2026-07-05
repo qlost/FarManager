@@ -793,11 +793,11 @@ private:
 		if (!imports.DebugCreate)
 			return;
 
-		COM_INVOKE(imports.DebugCreate, (IID_IDebugClient, IID_PPV_ARGS_Helper(&ptr_setter(m_DebugClient))));
+		COM_INVOKE(imports.DebugCreate)(IID_IDebugClient, IID_PPV_ARGS_Helper(&ptr_setter(m_DebugClient)));
 
-		COM_INVOKE(m_DebugClient->AttachProcess, ({}, GetCurrentProcessId(), DEBUG_ATTACH_NONINVASIVE | DEBUG_ATTACH_NONINVASIVE_NO_SUSPEND));
+		COM_INVOKE(m_DebugClient->AttachProcess)({}, GetCurrentProcessId(), DEBUG_ATTACH_NONINVASIVE | DEBUG_ATTACH_NONINVASIVE_NO_SUSPEND);
 
-		COM_INVOKE(m_DebugClient->QueryInterface, (IID_IDebugControl, IID_PPV_ARGS_Helper(&ptr_setter(m_DebugControl))));
+		COM_INVOKE(m_DebugClient->QueryInterface)(IID_IDebugControl, IID_PPV_ARGS_Helper(&ptr_setter(m_DebugControl)));
 
 		if (const auto Result = m_DebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE); FAILED(Result))
 			LOGWARNING(L"WaitForEvent(): {}"sv, os::format_error(Result));
@@ -806,9 +806,9 @@ private:
 			LOGWARNING(L"SetOutputMask(): {}"sv, os::format_error(Result));
 
 		if (os::com::ptr<IDebugClient5> DebugClient5; SUCCEEDED(m_DebugClient->QueryInterface(IID_IDebugClient5, IID_PPV_ARGS_Helper(&ptr_setter(DebugClient5)))))
-			COM_INVOKE(DebugClient5->SetOutputCallbacksWide, (&m_Callbacks));
+			COM_INVOKE(DebugClient5->SetOutputCallbacksWide)(&m_Callbacks);
 		else
-			COM_INVOKE(m_DebugClient->SetOutputCallbacks, (&m_Callbacks));
+			COM_INVOKE(m_DebugClient->SetOutputCallbacks)(&m_Callbacks);
 	}
 
 	string* m_To;
@@ -984,7 +984,7 @@ static string get_locale()
 
 	const auto LocaleId = GetUserDefaultLCID();
 	const auto LanguageId = LANGIDFROMLCID(LocaleId);
-	return far::format(L"{} | LCID={:08X} (Lang={:04X} (Primary={:03X} Sub={:02X}) Sort={:X} SortVersion={:X}) | ANSI={} OEM={}"sv,
+	return far::format(L"{} | LCID={:08X} (Lang={:04X} (Primary={:03X} Sub={:02X}) Sort={:X} SortVersion={:X}) | ANSI={} OEM={}{}"sv,
 		LocaleName,
 		LocaleId,
 		LanguageId,
@@ -992,8 +992,9 @@ static string get_locale()
 		SUBLANGID(LanguageId),
 		SORTIDFROMLCID(LocaleId),
 		SORTVERSIONFROMLCID(LocaleId),
-		encoding::codepage::ansi(),
-		encoding::codepage::oem()
+		encoding::codepage::real_ansi(),
+		encoding::codepage::real_oem(),
+		encoding::codepage::is_system_utf8()? L" UTF-8"sv : L""sv
 	);
 }
 
@@ -2422,6 +2423,7 @@ constexpr auto real_wassert = _wassert;
 
 WARNING_PUSH()
 WARNING_DISABLE_MSC(4273) // 'function': inconsistent dll linkage
+WARNING_DISABLE_CLANG("-Wmissing-prototypes")
 void far_assert(wchar_t const* const Message, wchar_t const* const File, unsigned const Line)
 {
 	switch (assert_handler_impl(Message, { encoding::utf8::get_bytes(File).c_str(), "assert", Line }))

@@ -856,7 +856,6 @@ public:
 	IntOption QuotedName;
 	BoolOption AutoSaveSetup;
 	IntOption ChangeDriveMode;
-	BoolOption ChangeDriveDisconnectMode;
 
 	Bool3Option SaveHistory;
 	IntOption HistoryCount;
