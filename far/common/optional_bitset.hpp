@@ -1,11 +1,12 @@
-﻿/*
-menubar.cpp
+﻿#ifndef OPTIONAL_BITSET_HPP_2F835FC0_7824_407C_8018_3013F670DF15
+#define OPTIONAL_BITSET_HPP_2F835FC0_7824_407C_8018_3013F670DF15
+#pragma once
 
-Показ горизонтального меню при включенном "Always show menu bar"
+/*
+optional_bitset.hpp
 */
 /*
-Copyright © 1996 Eugene Roshal
-Copyright © 2000 Far Group
+Copyright © 2026 Far Group
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,31 +32,54 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// BUGBUG
-#include "platform.headers.hpp"
-
-// Self:
-#include "menubar.hpp"
-
-// Internal:
-#include "farcolor.hpp"
-#include "lang.hpp"
-#include "interf.hpp"
-#include "strmix.hpp"
-
-// Platform:
-
-// Common:
-
-// External:
+#include <bitset>
 
 //----------------------------------------------------------------------------
 
-void MenuBar::DisplayObject()
+enum class optional_bitset_state
 {
-	const auto strSpace = L"    "sv;
-	const auto strMsg = remove_highlight(concat(strSpace, msg(lng::MMenuLeftTitle), strSpace, msg(lng::MMenuFilesTitle), strSpace, msg(lng::MMenuCommandsTitle), strSpace, msg(lng::MMenuOptionsTitle), strSpace, msg(lng::MMenuRightTitle)));
-	GotoXY(m_Where.left, m_Where.top);
-	SetColor(COL_HMENUTEXT);
-	Text(pad_right(strMsg, m_Where.width()), m_Where.width());
-}
+	unknown,
+	yes,
+	no
+};
+
+template<size_t N>
+class optional_bitset
+{
+public:
+	void assign(size_t const Bit, bool const Value)
+	{
+		m_Bits.set(Bit, Value);
+		m_Bits.set(N + Bit);
+	}
+
+	void assign(size_t const Bit, optional_bitset_state const Value)
+	{
+		if (Value == optional_bitset_state::unknown)
+		{
+			m_Bits.reset(N + Bit);
+			return;
+		}
+
+		assign(Bit, Value == optional_bitset_state::yes);
+	}
+
+
+	void reset()
+	{
+		m_Bits.reset();
+	}
+
+	optional_bitset_state check(size_t const Bit) const
+	{
+		if (!m_Bits[N + Bit])
+			return optional_bitset_state::unknown;
+
+		return m_Bits[Bit] ? optional_bitset_state::yes : optional_bitset_state::no;
+	}
+
+private:
+	std::bitset<N * 2> m_Bits;
+};
+
+#endif // OPTIONAL_BITSET_HPP_2F835FC0_7824_407C_8018_3013F670DF15

@@ -2940,7 +2940,7 @@ bool FileList::ChangeDir(string_view const NewDir, bool IsParent, bool ResolvePa
 		{
 			Global->CtrlObject->FolderHistory->AddToHistory(m_CurDir);
 			if (!IsPopPlugin)
-				InitFSWatcher(false);
+				InitFSWatcher();
 		}
 	};
 
@@ -3616,7 +3616,7 @@ void FileList::OnSortingChange()
 void FileList::InitCurDir(string_view CurDir)
 {
 	Panel::InitCurDir(CurDir);
-	InitFSWatcher(false);
+	InitFSWatcher();
 }
 
 bool FileList::GoToFile(long idxItem)
@@ -4967,7 +4967,7 @@ void FileList::SelectSortMode()
 	bool PlusPressed = false;
 
 	{
-		const auto MenuStrings = VMenu::AddHotkeys(SortMenu);
+		VMenu::DecorateItemsWithHotkeys(SortMenu);
 
 		const auto SortModeMenu = VMenu2::create(msg(lng::MMenuSortTitle), SortMenu);
 		SortModeMenu->SetHelp(L"PanelCmdSort"sv);
@@ -5379,8 +5379,6 @@ void FileList::CountDirSize(bool IsRealNames)
 	SortFileList(true);
 	ShowFileList();
 	Parent()->Redraw();
-
-	InitFSWatcher(true);
 }
 
 
@@ -7304,7 +7302,7 @@ void FileList::UpdateIfChanged(bool Changed)
 	Update(UPDATE_KEEP_SELECTION);
 }
 
-void FileList::InitFSWatcher(bool CheckTree)
+void FileList::InitFSWatcher()
 {
 	if (m_PanelMode == panel_mode::PLUGIN_PANEL)
 		return;
@@ -7321,7 +7319,7 @@ void FileList::InitFSWatcher(bool CheckTree)
 
 	if (Global->Opt->AutoUpdateRemoteDrive || (!Global->Opt->AutoUpdateRemoteDrive && DriveType != DRIVE_REMOTE) || Type == root_type::volume)
 	{
-		FSWatcher.emplace(m_BackgroundUpdater->event_id(), m_CurDir, CheckTree);
+		FSWatcher.emplace(m_BackgroundUpdater->event_id(), m_CurDir);
 	}
 }
 
@@ -8747,7 +8745,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 						}
 					}
 
-					Text(fit_to_left(ColumnData + CurLeftPos, ColumnWidth));
+					Text(pad_right(ColumnData + CurLeftPos, ColumnWidth), ColumnWidth);
 				}
 				else
 				{
@@ -9016,7 +9014,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 							if (pos != string::npos)
 								DizText.remove_suffix(DizText.size() - pos);
 
-							Text(fit_to_left(string(DizText), ColumnWidth));
+							Text(pad_right(string(DizText), ColumnWidth), ColumnWidth);
 							break;
 						}
 
@@ -9050,7 +9048,7 @@ void FileList::ShowList(int ShowStatus,int StartColumn)
 								}
 							}
 
-							Text(fit_to_left(Owner.substr(Offset + CurLeftPos), ColumnWidth));
+							Text(pad_right(Owner.substr(Offset + CurLeftPos), ColumnWidth), ColumnWidth);
 							break;
 						}
 

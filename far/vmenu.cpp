@@ -522,16 +522,25 @@ namespace
 		return !(Item.Flags & (LIF_HIDDEN | LIF_FILTERED));
 	}
 
-	string_view get_item_text(const menu_item_ex& Item)
+	string_view get_item_text(const menu_item& Item)
 	{
 		return Item.GetName();
+	}
+
+	int get_item_visual_length(const menu_item& Item, const bool ShowAmpersand)
+	{
+		if (Item.VisualLength != Item.InvalidVisualLength)
+			return Item.VisualLength;
+
+		const auto ItemText{ get_item_text(Item) };
+		return Item.VisualLength = static_cast<int>(ShowAmpersand ? visual_string_length(ItemText) : HiStrlen(ItemText));
 	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
 	{
 		using enum item_hscroll_policy;
 
-		assert(ItemLength > 0);
+		assert(ItemLength >= 0);
 		assert(TextAreaWidth > 0);
 
 		switch (Policy)
@@ -540,7 +549,9 @@ namespace
 			return{ std::numeric_limits<int>::min(), std::numeric_limits<int>::max()};
 
 		case cling_to_edge:
-			return{ 1 - ItemLength, TextAreaWidth - 1 };
+			return ItemLength > 0
+				? std::pair{ 1 - ItemLength, TextAreaWidth - 1 }
+				: std::pair{ 0, TextAreaWidth };
 
 		case bound:
 			return{ std::min(0, TextAreaWidth - ItemLength), std::max(0, TextAreaWidth - ItemLength) };
@@ -1894,13 +1905,15 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 		}
 		case KEY_MSWHEEL_UP:
 		{
-			SetSelectPos(SelectPos - 1, -1, true);
+			FarListPos Pos{ sizeof(Pos), SelectPos - 1, TopPos - 1 };
+			SetSelectPos(&Pos);
 			DrawMenu();
 			break;
 		}
 		case KEY_MSWHEEL_DOWN:
 		{
-			SetSelectPos(SelectPos + 1, 1, true);
+			FarListPos Pos{ sizeof(Pos), SelectPos + 1, TopPos + 1 };
+			SetSelectPos(&Pos);
 			DrawMenu();
 			break;
 		}
@@ -2342,12 +2355,7 @@ bool VMenu::SetItemHPos(menu_item_ex& Item, const auto& GetNewHPos)
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
 	const auto ItemLength{ GetItemVisualLength(Item) };
-	if (ItemLength <= 0)
-	{
-		assert(Item.HorizontalPosition == 0);
-		m_HorizontalTracker->update_item_hpos(Item.HorizontalPosition, 0, 0, 0);
-		return false;
-	}
+	assert(ItemLength >= 0);
 
 	const auto NewHPos = [&]
 	{
@@ -2954,13 +2962,16 @@ bool VMenu::DrawItemText(
 	if (const auto Indent{ std::max(Item.HorizontalPosition, 0) }; Indent > 0)
 	{
 		GotoXY(TextArea.start(), Y);
-		if (ClippedText(BlankLine.substr(0, Indent), TextArea)) return true;
+		if (ClippedText(BlankLine.substr(0, Indent), TextArea))
+			return Indent > TextArea.length() || !get_item_text(Item).empty();
 		// Sanity check: one space (U+0020) occupies one screen cell
 		assert(WhereX() == TextArea.start() + Indent);
 	}
 
+	// If get_item_text(Item).empty(), the loop below still works correctly.
+	// Since it does not advance CurX, filling the right margin after the loop works as expected.
 	const auto [ItemText, Highlight] { GetItemTextWithHighlight(Item) };
-	const auto Markup{ markup_highlight(string_view{ ItemText }, Highlight) };
+	const auto Markup{ markup_highlight(ItemText, Highlight) };
 	const std::array MarkupColors{ ColorIndices.Normal, ColorIndices.Highlighted, ColorIndices.Normal };
 	static_assert(Markup.size() == MarkupColors.size());
 
@@ -3538,29 +3549,27 @@ const UUID& VMenu::Id() const
 	return MenuId;
 }
 
-std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
+void VMenu::DecorateItemsWithHotkeys(std::span<menu_item> const MenuItems, const bool ShowAmpersand)
 {
-	// Does this function properly account for wide characters?
-
-	std::vector<string> Result(MenuItems.size());
-
-	const size_t MaxLength = std::ranges::fold_left(MenuItems, 0uz, [](size_t Value, const auto& i)
+	const auto MaxVisualLength = std::ranges::fold_left(MenuItems, 0, [ShowAmpersand](const auto Acc, const auto& Item)
 	{
-		return std::max(Value, i.GetName().size());
+		return std::max(Acc, get_item_visual_length(Item, ShowAmpersand));
 	});
 
-	for (const auto& [Item, Str]: zip(MenuItems, Result))
+	for (auto& Item : MenuItems)
 	{
 		if (Item.Flags & LIF_SEPARATOR || !Item.AccelKey)
 			continue;
 
-		const auto Key = KeyToLocalizedText(Item.AccelKey);
-		const auto Hl = HiStrlen(Item.GetName()) != visual_string_length(Item.GetName());
-		Str = fit_to_left(Item.GetName(), MaxLength + (Hl? 2 : 1)) + Key;
-		Item.SetName(Str);
+		// `fit_to_left` always preserves ampersand which occupies exactly one screen cell. In other words,
+		// it accounts for the same number of screen cell as calculated by `visual_string_length`.
+		// If we show ampersand, an item occupies same number of screen cells as `fit_to_left` accounted for.
+		// If we do not show ampersand and an item actually has ampersand, it will occupy one screen cell less than
+		// `fit_to_left` accounted for, so we need to add an extra space to compensate for disappeared ampersand.
+		const auto Hl{ !ShowAmpersand
+			&& get_item_visual_length(Item, false) != static_cast<int>(visual_string_length(get_item_text(Item))) };
+		Item.SetName(fit_to_left(Item.GetName(), MaxVisualLength + (Hl? 2 : 1)) + KeyToLocalizedText(Item.AccelKey));
 	}
-
-	return Result;
 }
 
 int VMenu::GetNaturalMenuWidth() const
@@ -3590,11 +3599,7 @@ int VMenu::CalculateTextAreaWidth() const
 
 int VMenu::GetItemVisualLength(const menu_item_ex& Item) const
 {
-	if (Item.VisualLength != Item.InvalidVisualLength)
-		return Item.VisualLength;
-
-	const auto ItemText{ get_item_text(Item) };
-	return Item.VisualLength = static_cast<int>(CheckFlags(VMENU_SHOWAMPERSAND) ? visual_string_length(ItemText) : HiStrlen(ItemText));
+	return get_item_visual_length(Item, CheckFlags(VMENU_SHOWAMPERSAND));
 }
 
 int VMenu::SafeGetItemAnnotationStart(const menu_item_ex& Item) const
@@ -3730,6 +3735,7 @@ TEST_CASE("item.hpos.limits")
 	}
 	TestDataPoints[]
 	{
+		{  0, 5, { {  0, 5 }, {  0, 5 }, {  0, 0 } } },
 		{  1, 5, { {  0, 4 }, {  0, 4 }, {  0, 0 } } },
 		{  3, 5, { { -2, 4 }, {  0, 2 }, {  0, 0 } } },
 		{  5, 5, { { -4, 4 }, {  0, 0 }, {  0, 0 } } },
