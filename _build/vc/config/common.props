@@ -68,7 +68,7 @@
     <TargetOsVersion Condition="'$(Platform)'=='Win32'">5.0</TargetOsVersion>
     <TargetOsVersion Condition="'$(Platform)'=='x64'">5.2</TargetOsVersion>
     <TargetOsVersion Condition="'$(Platform)'=='ARM64'">6.2</TargetOsVersion>
-    <NewOptions Condition="'$(VisualStudioVersion)' &gt;= '17.0'">/Zc:__STDC__,enumTypes,templateScope</NewOptions>
+    <NewOptions Condition="'$(VisualStudioVersion)' &gt;= '18.0'"></NewOptions>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -76,9 +76,8 @@
     <RootNamespace>$(ProjectName)</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <CharacterSet Condition="'$(CharacterSet)' == ''">Unicode</CharacterSet>
-    <PlatformToolset Condition="'$(VisualStudioVersion)' == '16.0'">v142</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioVersion)' &gt;= '17.0'">v143</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioVersion)' &gt;= '18.0'">v145</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioVersion)' == '17.0'">v143</PlatformToolset>
     <OutDir>$(OutputsRoot)product\$(ConfigSpecificDirectoryName)\$(ProjectSpecificOutDirName)\</OutDir>
     <IntDir>$(OutputsRoot)intermediate\$(ConfigSpecificDirectoryName)\$(ProjectSpecificIntDirName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
@@ -125,7 +124,7 @@
       <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
       <ConformanceMode>true</ConformanceMode>
       <UseFullPaths>false</UseFullPaths>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
