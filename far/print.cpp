@@ -88,10 +88,10 @@ static void AddToPrintersMenu(VMenu2 *PrinterList, std::span<PRINTER_INFO_4 cons
 		if (!bDefaultPrinterFound && printer.pPrinterName == strDefaultPrinter)
 		{
 			bDefaultPrinterFound = true;
-			Item.SetCheck();
-			Item.SetSelect(true);
+			Item.set_check(true);
+			Item.set_select(true);
 		}
-		Item.ComplexUserData = Item.GetName();
+		Item.ComplexUserData = Item.get_name();
 		PrinterList->AddItem(Item);
 	}
 
@@ -175,7 +175,7 @@ void PrintFiles(FileList* SrcPanel)
 
 		os::printer_handle Printer;
 
-		if (!OpenPrinter(UNSAFE_CSTR(strPrinterName), &ptr_setter(Printer), nullptr))
+		if (!OpenPrinter(UNSAFE_CSTR(strPrinterName), std::out_ptr(Printer), nullptr))
 			throw far_exception(msg(lng::MCannotOpenPrinter));
 
 		SCOPED_ACTION(SaveScreen);

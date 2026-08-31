@@ -38,8 +38,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/compiler.hpp"
 
 REQUIRE_COMPILER(CL, 19, 42, 34444, " (Visual Studio 2022 Fall 2024 LTSC 17.12)");
-REQUIRE_COMPILER(GCC, 12, 0, 0);
-REQUIRE_COMPILER(CLANG, 16, 0, 0);
+REQUIRE_COMPILER(GCC, 14, 0, 0);
+REQUIRE_COMPILER(CLANG, 19, 0, 0);
 
 #include "common/shims_pre.hpp"
 
@@ -109,6 +109,7 @@ REQUIRE_COMPILER(CLANG, 16, 0, 0);
 
 #include "common/polyfills.hpp"
 
+//----------------------------------------------------------------------------
 using string = std::wstring;
 using string_view = std::wstring_view;
 using size_t = std::size_t;
@@ -146,6 +147,8 @@ namespace features
 		reserved = false;
 
 }
+
+#include "format.hpp"
 
 // BUGBUG remove
 #define PRECOMPILE_PLATFORM_HEADERS

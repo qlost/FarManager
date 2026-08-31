@@ -81,16 +81,10 @@ namespace detail
 		}
 
 		[[nodiscard]]
-		decltype(auto) operator*() { return matrix_row(m_Data, m_Width); }
+		decltype(auto) operator*(this auto&& Self) { return matrix_row(Self.m_Data, Self.m_Width); }
 
 		[[nodiscard]]
-		decltype(auto) operator*() const { return matrix_row(m_Data, m_Width); }
-
-		[[nodiscard]]
-		auto operator->() { return &**this; }
-
-		[[nodiscard]]
-		auto operator->() const { return &**this; }
+		auto operator->(this auto&& Self) { return &*Self; }
 
 		auto& operator++() { m_Data += m_Width; return *this; }
 		auto& operator--() { m_Data -= m_Width; return *this; }
@@ -156,11 +150,11 @@ public:
 	// TODO: use iterators
 	auto operator[](size_t const Index) const { assert(Index <= m_Rows); return detail::matrix_row(m_Data + m_Cols * Index, m_Cols); }
 
-	auto& at(size_t const Row, size_t const Col) const
+	auto& operator[](this auto&& Self, size_t const Row, size_t const Col)
 	{
-		assert(Row < m_Rows);
-		assert(Col < m_Cols);
-		return data()[m_Cols * Row + Col];
+		assert(Row < Self.m_Rows);
+		assert(Col < Self.m_Cols);
+		return Self.m_Data[Self.m_Cols * Row + Col];
 	}
 
 	[[nodiscard]]

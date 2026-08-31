@@ -67,7 +67,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/algorithm.hpp"
 #include "common/enum_tokens.hpp"
 #include "common/enum_substrings.hpp"
-#include "common/view/zip.hpp"
 
 // External:
 
@@ -176,7 +175,7 @@ static bool ParseStringWithQuotes(string_view const Str, string& Start, string& 
 	{
 		auto WordDiv = GetBlanks() + Global->Opt->strWordDiv.Get();
 		static const auto NoQuote = L"\":\\/%.?-"sv;
-		std::erase_if(WordDiv, [&](wchar_t i){ return contains(NoQuote, i); });
+		std::erase_if(WordDiv, [&](wchar_t i){ return NoQuote.contains(i); });
 
 		for (Pos = Str.size() - 1; Pos != static_cast<size_t>(-1); Pos--)
 		{
@@ -188,7 +187,7 @@ static bool ParseStringWithQuotes(string_view const Str, string& Start, string& 
 					Pos--;
 				}
 			}
-			else if (contains(WordDiv, Str[Pos]))
+			else if (WordDiv.contains(Str[Pos]))
 			{
 				Pos++;
 				break;
@@ -444,7 +443,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			{
 				for (const auto i: std::views::iota(0uz, pList->size()))
 				{
-					const auto& Text = pList->at(i).GetName();
+					const auto& Text = pList->at(i).get_name();
 
 					if (!starts_with_icase(Text, Str))
 						continue;
@@ -486,7 +485,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 		{
 			int SelStart = GetLength();
 
-			const auto& FirstItem = ComplMenu->at(0).GetName();
+			const auto& FirstItem = ComplMenu->at(0).get_name();
 			const auto Data = ComplMenu->GetComplexUserDataPtr<cmp_user_data>(0);
 
 			// magic
@@ -516,7 +515,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 			}
 		};
 
-		if(ComplMenu->size() > 1 || (ComplMenu->size() == 1 && !equal_icase(CurrentInput, ComplMenu->at(0).GetName())))
+		if(ComplMenu->size() > 1 || (ComplMenu->size() == 1 && !equal_icase(CurrentInput, ComplMenu->at(0).get_name())))
 		{
 			ComplMenu->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND);
 			if(!DelBlock && Global->Opt->AutoComplete.AppendCompletion && (!m_Flags.Check(FEDITLINE_PERSISTENTBLOCKS) || Global->Opt->AutoComplete.ShowList))
@@ -555,7 +554,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 						{
 							PrevPos=CurPos;
 							IsChanged = false;
-							SetString(CurPos? ComplMenu->at(CurPos).GetName() : CurrentInput);
+							SetString(CurPos? ComplMenu->at(CurPos).get_name() : CurrentInput);
 							Show();
 						}
 
@@ -604,7 +603,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 
 								Complete(*ComplMenu, CurrentInput);
 
-								if (ComplMenu->size() > 1 || (ComplMenu->size() == 1 && !equal_icase(CurrentInput, ComplMenu->at(0).GetName())))
+								if (ComplMenu->size() > 1 || (ComplMenu->size() == 1 && !equal_icase(CurrentInput, ComplMenu->at(0).get_name())))
 								{
 									if(none_of(MenuKey, KEY_BS, KEY_DEL, KEY_NUMDEL) && Global->Opt->AutoComplete.AppendCompletion)
 									{
@@ -757,7 +756,7 @@ int EditControl::AutoCompleteProc(bool Manual,bool DelBlock,Manager::Key& BackKe
 				{
 					if(Global->Opt->AutoComplete.ModalList)
 					{
-						SetString(ComplMenu->at(ExitCode).GetName());
+						SetString(ComplMenu->at(ExitCode).get_name());
 						Show();
 					}
 					else
@@ -808,7 +807,7 @@ bool EditControl::ProcessKey(const Manager::Key& Key)
 		KEY_RCTRLNUMPAD0
 	};
 	const auto Result = Edit::ProcessKey(Key);
-	if (Result && m_Flags.Check(FEDITLINE_CLEARFLAG) && !contains(NonClearKeys, Key()))
+	if (Result && m_Flags.Check(FEDITLINE_CLEARFLAG) && !std::ranges::contains(NonClearKeys, Key()))
 	{
 		m_Flags.Clear(FEDITLINE_CLEARFLAG);
 		Show();
@@ -963,7 +962,7 @@ void EditControl::RefreshStrByMask(int InitMode)
 	m_Str.resize(Mask.size(), L' ');
 	MaxLength = m_Str.size();
 
-	for (const auto& [Str, Msk]: zip(m_Str, Mask))
+	for (const auto& [Str, Msk]: std::views::zip(m_Str, Mask))
 	{
 		if (InitMode)
 			Str = MaskDefaultChar(Msk);

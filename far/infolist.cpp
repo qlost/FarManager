@@ -220,7 +220,7 @@ void InfoList::DisplayObject()
 		PrintInfo(strComputerName);
 
 		os::netapi::ptr<SERVER_INFO_101> ServerInfo;
-		if (NetServerGetInfo(nullptr, 101, std::bit_cast<BYTE**>(&ptr_setter(ServerInfo))) == NERR_Success)
+		if (NetServerGetInfo(nullptr, 101, std::bit_cast<BYTE**>(&std::out_ptr(ServerInfo))) == NERR_Success)
 		{
 			if(ServerInfo->sv101_comment && *ServerInfo->sv101_comment)
 			{
@@ -246,7 +246,7 @@ void InfoList::DisplayObject()
 		PrintInfo(DisplayName);
 
 		os::netapi::ptr<USER_INFO_1> UserInfo;
-		if (UserNameRead && NetUserGetInfo(nullptr, UserLogonName.c_str(), 1, std::bit_cast<BYTE**>(&ptr_setter(UserInfo))) == NERR_Success)
+		if (UserNameRead && NetUserGetInfo(nullptr, UserLogonName.c_str(), 1, std::bit_cast<BYTE**>(&std::out_ptr(UserInfo))) == NERR_Success)
 		{
 			if(UserInfo->usri1_comment && *UserInfo->usri1_comment)
 			{
@@ -616,24 +616,24 @@ long long InfoList::VMProcess(int OpCode, void* vParam, long long iParam)
 
 void InfoList::SelectShowMode()
 {
-	menu_item ShowModeMenuItem[]
+	menu_item_data ShowModeMenuItem[]
 	{
 		{ msg(lng::MMenuInfoShowModeDisk), LIF_SELECTED },
-		{ msg(lng::MMenuInfoShowModeMemory), 0 },
-		{ msg(lng::MMenuInfoShowModeDirDiz), 0 },
-		{ msg(lng::MMenuInfoShowModePluginDiz), 0 },
-		{ msg(lng::MMenuInfoShowModePower), 0 },
+		{ msg(lng::MMenuInfoShowModeMemory), {} },
+		{ msg(lng::MMenuInfoShowModeDirDiz), {} },
+		{ msg(lng::MMenuInfoShowModePluginDiz), {} },
+		{ msg(lng::MMenuInfoShowModePower), {} },
 	};
 
 	for (const auto& [i, index]: enumerate(SectionState))
 	{
-		ShowModeMenuItem[index].SetCustomCheck(i.Show? L'+' : L'-');
+		ShowModeMenuItem[index].set_check(i.Show? L'+' : L'-');
 	}
 
 	if (!Global->Opt->InfoPanel.ShowPowerStatus)
 	{
-		ShowModeMenuItem[ILSS_POWERSTATUS].SetDisable(true);
-		ShowModeMenuItem[ILSS_POWERSTATUS].SetCustomCheck(L' ');
+		ShowModeMenuItem[ILSS_POWERSTATUS].set_disable(true);
+		ShowModeMenuItem[ILSS_POWERSTATUS].set_check(false);
 	}
 
 	int ShowCode=-1;
