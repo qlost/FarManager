@@ -49,7 +49,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Common:
 #include "common/chrono.hpp"
 #include "common/from_string.hpp"
-#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -720,7 +719,7 @@ string duration_to_string_hr(os::chrono::duration Duration)
 
 	string Result;
 
-	for (const auto& [v, s]: zip(Values, L"dhm"sv))
+	for (const auto& [v, s]: std::views::zip(Values, L"dhm"sv))
 	{
 		if (v)
 			far::format_to(Result, L"{}{} "sv, v, s);
@@ -823,7 +822,13 @@ string pe_timestamp()
 	const auto& FarNtHeaders = view_as<IMAGE_NT_HEADERS>(FarModule, FarDosHeader.e_lfanew);
 	// TimeDateStamp is the low 32 bits of the time stamp of the image.
 	// This will work till 2106-02-07 06:28:15, which is good enough for now.
-	return timestamp(os::chrono::nt_clock::from_time_t(FarNtHeaders.FileHeader.TimeDateStamp));
+	auto PeTimestamp = timestamp(os::chrono::nt_clock::from_time_t(FarNtHeaders.FileHeader.TimeDateStamp));
+
+	// time_t has second precision, no point in showing ".000" for milliseconds
+	if (const auto MsSuffix = L".000"sv; PeTimestamp.ends_with(MsSuffix))
+		PeTimestamp.resize(PeTimestamp.size() - MsSuffix.size());
+
+	return PeTimestamp;
 }
 
 template<typename T>

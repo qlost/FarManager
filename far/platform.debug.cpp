@@ -37,7 +37,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Internal:
 #include "encoding.hpp"
-#include "imports.hpp"
 #include "log.hpp"
 #include "map_file.hpp"
 #include "pathmix.hpp"
@@ -47,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
+#include "platform.imports.hpp"
 #include "platform.memory.hpp"
 
 // Common:
@@ -110,7 +110,7 @@ namespace os::debug
 			return {};
 
 		memory::local::ptr<wchar_t> Name;
-		if (FAILED(imports.GetThreadDescription(ThreadHandle, &ptr_setter(Name))))
+		if (FAILED(imports.GetThreadDescription(ThreadHandle, std::out_ptr(Name))))
 			return {};
 
 		return Name.get();

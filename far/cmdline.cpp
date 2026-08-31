@@ -89,7 +89,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/from_string.hpp"
 #include "common/function_traits.hpp"
 #include "common/scope_exit.hpp"
-#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -174,7 +173,7 @@ size_t CommandLine::DrawPrompt()
 	size_t CurLength = 0;
 	GotoXY(m_Where.left, m_Where.top);
 
-	for (const auto& [i, l]: zip(PromptList, Sizes))
+	for (const auto& [i, l]: std::views::zip(PromptList, Sizes))
 	{
 		auto str = i.Text;
 		auto VisualLength = l;
@@ -577,7 +576,7 @@ bool CommandLine::ProcessKey(const Manager::Key& Key)
 					KEY_END,        KEY_NUMPAD1
 				};
 
-				if (contains(UnmarkKeys, LocalKey()))
+				if (std::ranges::contains(UnmarkKeys, LocalKey()))
 				{
 					CmdStr.RemoveSelection();
 				}
@@ -992,65 +991,51 @@ static void about()
 {
 	pager([](function_ref<void(string_view)> const PrintLine)
 	{
-		PrintLine({});
-		PrintLine(build::version_string());
+		const auto print_header = [&](string_view const Title)
+		{
+			PrintLine({});
+			PrintLine(Title);
+		};
+
+		const auto print_block = [&](string_view const Title, string_view const Text)
+		{
+			print_header(Title);
+			PrintLine(Text);
+		};
+
+		print_header(build::version_string());
 		PrintLine(build::copyright());
 
 		if (const auto Revision = build::scm_revision(); !Revision.empty())
-		{
-			PrintLine({});
-			PrintLine(L"SCM revision:"sv);
-			PrintLine(Revision);
-		}
+			print_block(L"SCM revision:"sv, Revision);
 
-		PrintLine({});
-		PrintLine(L"Build date:"sv);
-		{
-			auto PeTimestamp = pe_timestamp();
-			if (const auto MsSuffix = L".000"sv; PeTimestamp.ends_with(MsSuffix))
-				PeTimestamp.resize(PeTimestamp.size() - MsSuffix.size());
-			PrintLine(PeTimestamp);
-		}
-
-		PrintLine({});
-		PrintLine(L"Compiler:"sv);
-		PrintLine(build::compiler());
-
-		PrintLine({});
-		PrintLine(L"Standard library:"sv);
-		PrintLine(build::library());
+		print_block(L"Build date:"sv, pe_timestamp());
+		print_block(L"Compiler:"sv, build::compiler());
+		print_block(L"Standard library:"sv, build::library());
 
 		if (const auto& ComponentsInfo = components::GetComponentsInfo(); !ComponentsInfo.empty())
 		{
-			PrintLine({});
-			PrintLine(L"Third party libraries:"sv);
+			print_header(L"Third party libraries:"sv);
 
 			for (const auto& [Name, Version]: ComponentsInfo)
 			{
-				Version.empty()?
-					PrintLine(Name) :
-					PrintLine(far::format(L"{}, version {}"sv, Name, Version));
+				PrintLine(far::format(L"{}, version {}"sv, Name, Version));
 			}
 		}
 
-		if (const auto& Factories = Global->CtrlObject->Plugins->Factories(); std::ranges::any_of(Factories, [](const auto& i) { return i->IsExternal(); }))
+		if (auto Factories = Global->CtrlObject->Plugins->Factories() | std::views::filter([](const auto& i) { return i->IsExternal(); }); !Factories.empty())
 		{
-			PrintLine({});
-			PrintLine(L"Plugin adapters:"sv);
+			print_header(L"Plugin adapters:"sv);
 
 			for (const auto& i: Factories)
 			{
-				if (!i->IsExternal())
-					continue;
-
 				PrintLine(far::format(L"{}, version {}"sv, i->Title(), version_to_string(i->version())));
 			}
 		}
 
 		if (Global->CtrlObject->Plugins->size())
 		{
-			PrintLine({});
-			PrintLine(L"Plugins:"sv);
+			print_header(L"Plugins:"sv);
 
 			for (const auto& i: *Global->CtrlObject->Plugins)
 			{

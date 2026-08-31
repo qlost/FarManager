@@ -49,7 +49,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "strmix.hpp"
 #include "console.hpp"
 #include "colormix.hpp"
-#include "imports.hpp"
 #include "res.hpp"
 #include "plugins.hpp"
 #include "lang.hpp"
@@ -62,6 +61,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Platform:
 #include "platform.concurrency.hpp"
 #include "platform.debug.hpp"
+#include "platform.imports.hpp"
 #include "platform.security.hpp"
 
 // Common:
@@ -167,11 +167,11 @@ static void CancelSynchronousIoWrapper(void* Thread)
 {
 	os::debug::set_thread_name(L"CancelSynchronousIo caller");
 
-	if (!imports.CancelSynchronousIo)
+	if (!os::imports.CancelSynchronousIo)
 		return;
 
 	// TODO: SEH guard, try/catch, exception_ptr
-	imports.CancelSynchronousIo(Thread);
+	os::imports.CancelSynchronousIo(Thread);
 	CancelIoInProgress().reset();
 }
 
@@ -1376,7 +1376,7 @@ size_t string_pos_to_visual_pos(string_view Str, size_t const StringPos, size_t 
 	const auto CharWidthEnabled = char_width::is_enabled();
 	if (!CharWidthEnabled)
 	{
-		if (TabSize == 1 || !contains(Str, L'\t'))
+		if (TabSize == 1 || !Str.contains(L'\t'))
 			return StringPos;
 	}
 
@@ -1435,7 +1435,7 @@ size_t visual_pos_to_string_pos(string_view Str, size_t const VisualPos, size_t 
 	const auto CharWidthEnabled = char_width::is_enabled();
 	if (!CharWidthEnabled)
 	{
-		if (TabSize == 1 || !contains(Str, L'\t'))
+		if (TabSize == 1 || !Str.contains(L'\t'))
 			return VisualPos;
 	}
 

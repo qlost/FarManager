@@ -5,13 +5,15 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <math.h>
-#include "lf_version.h"
-#include "lf_luafar.h"
-#include "lf_util.h"
-#include "lf_string.h"
+
 #include "lf_bit64.h"
+#include "lf_common.h"
 #include "lf_flags.h"
+#include "lf_luafar.h"
 #include "lf_service.h"
+#include "lf_string.h"
+#include "lf_util.h"
+#include "lf_version.h"
 
 #ifndef LUADLL
 # if LUA_VERSION_NUM == 501
@@ -35,6 +37,7 @@ extern int luaopen_dialog(lua_State *L);
 extern int luaopen_panel(lua_State *L);
 extern int luaopen_actl(lua_State *L);
 extern int luaopen_macro(lua_State *L);
+extern int luaopen_viewer(lua_State *L);
 
 extern int  luaB_dofileW(lua_State *L);
 extern int  luaB_loadfileW(lua_State *L);
@@ -46,13 +49,8 @@ extern int far_MacroCallToLua(lua_State *L);
 extern int GetExportFunction(lua_State* L, const char* FuncName);
 extern BOOL RunDefaultScript(lua_State* L, int ForFirstTime);
 
-const char FarFileFilterType[] = "FarFileFilter";
-const char FarTimerType[]      = "FarTimer";
 const char FarTimerQueueKey[]  = "FarTimerQueue";
-const char SettingsType[]      = "FarSettings";
 const char SettingsHandles[]   = "FarSettingsHandles";
-const char PluginHandleType[]  = "FarPluginHandle";
-const char SavedScreenType[]   = "FarSavedScreen";
 
 const char FAR_VIRTUALKEYS[]   = "far.virtualkeys";
 const char FAR_FLAGSTABLE[]    = "far.Flags";
@@ -213,7 +211,7 @@ static void PushPluginHandle(lua_State *L, HANDLE Handle)
 	{
 		HANDLE *p = (HANDLE*)lua_newuserdata(L, sizeof(HANDLE));
 		*p = Handle;
-		luaL_getmetatable(L, PluginHandleType);
+		luaL_getmetatable(L, TYPE_PLUGINHANDLE);
 		lua_setmetatable(L, -2);
 	}
 	else
@@ -222,7 +220,7 @@ static void PushPluginHandle(lua_State *L, HANDLE Handle)
 
 static int PluginHandle_rawhandle(lua_State *L)
 {
-	void* Handle = *(void**)luaL_checkudata(L, 1, PluginHandleType);
+	void* Handle = *(void**)luaL_checkudata(L, 1, TYPE_PLUGINHANDLE);
 	lua_pushlightuserdata(L, Handle);
 	return 1;
 }
@@ -407,27 +405,6 @@ static int far_GetCurrentDirectory(lua_State *L)
 	return 1;
 }
 
-static int push_viewer_filename(lua_State *L, intptr_t Id)
-{
-	PSInfo *Info = GetPluginData(L)->Info;
-	size_t size = Info->ViewerControl(Id, VCTL_GETFILENAME, 0, 0);
-
-	if (!size) return 0;
-
-	wchar_t* fname = (wchar_t*)lua_newuserdata(L, size * sizeof(wchar_t));
-	size = Info->ViewerControl(Id, VCTL_GETFILENAME, size, fname);
-
-	if (size)
-	{
-		push_utf8_string(L, fname, -1);
-		lua_remove(L, -2);
-		return 1;
-	}
-
-	lua_pop(L,1);
-	return 0;
-}
-
 static void FillKeyBarTitles(lua_State *L, int src_pos, struct KeyBarTitles *kbt)
 {
 	lua_newtable(L);
@@ -497,11 +474,6 @@ int SetKeyBar(lua_State *L, BOOL editor)
 	         Info->ViewerControl(Id, VCTL_SETKEYBAR, 0, param);
 	lua_pushboolean(L, result != 0);
 	return 1;
-}
-
-static int viewer_SetKeyBar(lua_State *L)
-{
-	return SetKeyBar(L, FALSE);
 }
 
 int GetFarColor(lua_State *L, int pos, struct FarColor* Color)
@@ -1212,11 +1184,11 @@ static int far_GetPluginDirList(lua_State *L)
 
 static int SavedScreen_tostring (lua_State *L)
 {
-	void **pp = (void**)luaL_checkudata(L, 1, SavedScreenType);
+	void **pp = (void**)luaL_checkudata(L, 1, TYPE_SAVEDSCREEN);
 	if (*pp)
-		lua_pushfstring(L, "%s (%p)", SavedScreenType, *pp);
+		lua_pushfstring(L, "%s (%p)", TYPE_SAVEDSCREEN, *pp);
 	else
-		lua_pushfstring(L, "%s (freed)", SavedScreenType);
+		lua_pushfstring(L, "%s (freed)", TYPE_SAVEDSCREEN);
 	return 1;
 }
 
@@ -1228,7 +1200,7 @@ static int far_RestoreScreen(lua_State *L)
 		GetPluginData(L)->Info->RestoreScreen(NULL);
 	else
 	{
-		void **pp = (void**)luaL_checkudata(L, 1, SavedScreenType);
+		void **pp = (void**)luaL_checkudata(L, 1, TYPE_SAVEDSCREEN);
 		if (*pp)
 		{
 			GetPluginData(L)->Info->RestoreScreen(*pp);
@@ -1242,7 +1214,7 @@ static int far_RestoreScreen(lua_State *L)
 //   handle:    handle of saved screen.
 static int far_FreeScreen(lua_State *L)
 {
-	void **pp = (void**)luaL_checkudata(L, 1, SavedScreenType);
+	void **pp = (void**)luaL_checkudata(L, 1, TYPE_SAVEDSCREEN);
 	if (*pp)
 	{
 		GetPluginData(L)->Info->FreeScreen(*pp);
@@ -1261,150 +1233,8 @@ static int far_SaveScreen(lua_State *L)
 	intptr_t Y2 = luaL_optinteger(L,4,-1);
 
 	*(void**)lua_newuserdata(L, sizeof(void*)) = GetPluginData(L)->Info->SaveScreen(X1,Y1,X2,Y2);
-	luaL_getmetatable(L, SavedScreenType);
+	luaL_getmetatable(L, TYPE_SAVEDSCREEN);
 	lua_setmetatable(L, -2);
-	return 1;
-}
-
-static int viewer_Viewer(lua_State *L)
-{
-	PSInfo *Info = GetPluginData(L)->Info;
-	const wchar_t* FileName = check_utf8_string(L, 1, NULL);
-	const wchar_t* Title    = opt_utf8_string(L, 2, NULL);
-	intptr_t X1 = luaL_optinteger(L, 3, 0);
-	intptr_t Y1 = luaL_optinteger(L, 4, 0);
-	intptr_t X2 = luaL_optinteger(L, 5, -1);
-	intptr_t Y2 = luaL_optinteger(L, 6, -1);
-	flags_t  Flags = OptFlags(L, 7, 0);
-	intptr_t CodePage = luaL_optinteger(L, 8, CP_DEFAULT);
-	intptr_t ret = Info->Viewer(FileName, Title, X1, Y1, X2, Y2, Flags, CodePage);
-	lua_pushboolean(L, ret != 0);
-	return 1;
-}
-
-static int viewer_GetFileName(lua_State *L)
-{
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-
-	if (!push_viewer_filename(L, ViewerId)) lua_pushnil(L);
-
-	return 1;
-}
-
-static int viewer_GetInfo(lua_State *L)
-{
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	PSInfo *Info = GetPluginData(L)->Info;
-	struct ViewerInfo vi = { sizeof(vi) };
-
-	if (Info->ViewerControl(ViewerId, VCTL_GETINFO, 0, &vi))
-	{
-		lua_createtable(L, 0, 10);
-		PutNumToTable(L, "ViewerID", (double) vi.ViewerID);
-
-		if (push_viewer_filename(L, ViewerId))
-			lua_setfield(L, -2, "FileName");
-
-		PutNumToTable(L,  "FileSize", (double) vi.FileSize);
-		PutNumToTable(L,  "FilePos", (double) vi.FilePos);
-		PutNumToTable(L,  "WindowSizeX", vi.WindowSizeX);
-		PutNumToTable(L,  "WindowSizeY", vi.WindowSizeY);
-		PutNumToTable(L,  "Options", vi.Options);
-		PutNumToTable(L,  "TabSize", vi.TabSize);
-		PutNumToTable(L,  "LeftPos", vi.LeftPos + 1);
-		lua_createtable(L, 0, 3);
-		PutNumToTable(L, "CodePage", vi.CurMode.CodePage);
-		PutFlagsToTable(L, "Flags",  vi.CurMode.Flags);
-		PutNumToTable(L, "ViewMode", vi.CurMode.ViewMode);
-		lua_setfield(L, -2, "CurMode");
-	}
-	else
-		lua_pushnil(L);
-
-	return 1;
-}
-
-static int viewer_Quit(lua_State *L)
-{
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	PSInfo *Info = GetPluginData(L)->Info;
-	lua_pushboolean(L, Info->ViewerControl(ViewerId, VCTL_QUIT, 0, 0));
-	return 1;
-}
-
-static int viewer_Redraw(lua_State *L)
-{
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	PSInfo *Info = GetPluginData(L)->Info;
-	Info->ViewerControl(ViewerId, VCTL_REDRAW, 0, 0);
-	return 0;
-}
-
-static int viewer_Select(lua_State *L)
-{
-	PSInfo *Info = GetPluginData(L)->Info;
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	struct ViewerSelect vs = { sizeof (vs) };
-	vs.BlockStartPos = (INT64)luaL_checknumber(L,2);
-	vs.BlockLen = (INT64)luaL_checknumber(L,3);
-	lua_pushboolean(L, Info->ViewerControl(ViewerId, VCTL_SELECT, 0, &vs) != 0);
-	return 1;
-}
-
-static int viewer_SetPosition(lua_State *L)
-{
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	PSInfo *Info = GetPluginData(L)->Info;
-	struct ViewerSetPosition vsp = { sizeof(vsp) };
-
-	if (lua_istable(L, 2))
-	{
-		lua_settop(L, 2);
-		vsp.StartPos = (__int64)GetOptNumFromTable(L, "StartPos", 0);
-		vsp.LeftPos = (__int64)GetOptNumFromTable(L, "LeftPos", 1) - 1;
-		vsp.Flags = CheckFlagsFromTable(L, -1, "Flags");
-	}
-	else
-	{
-		vsp.StartPos = (__int64)luaL_optnumber(L,2,0);
-		vsp.LeftPos = (__int64)luaL_optnumber(L,3,1) - 1;
-		vsp.Flags = OptFlags(L,4,0);
-	}
-
-	if (Info->ViewerControl(ViewerId, VCTL_SETPOSITION, 0, &vsp))
-		lua_pushnumber(L, (double)vsp.StartPos);
-	else
-		lua_pushnil(L);
-
-	return 1;
-}
-
-static int viewer_SetMode(lua_State *L)
-{
-	int success;
-	struct ViewerSetMode vsm = { sizeof(vsm) };
-	intptr_t ViewerId = luaL_optinteger(L, 1, -1);
-	luaL_checktype(L, 2, LUA_TTABLE);
-	lua_getfield(L, 2, "Type");
-	vsm.Type = get_env_flag(L, -1, &success);
-
-	if (!success)
-		return lua_pushboolean(L,0), 1;
-
-	lua_getfield(L, 2, "iParam");
-
-	if (lua_isnumber(L, -1))
-		vsm.Param.iParam = lua_tointeger(L, -1);
-	else
-		return lua_pushboolean(L,0), 1;
-
-	lua_getfield(L, 2, "Flags");
-	vsm.Flags = get_env_flag(L, -1, &success);
-
-	if (!success)
-		return lua_pushboolean(L,0), 1;
-
-	lua_pushboolean(L, GetPluginData(L)->Info->ViewerControl(ViewerId, VCTL_SETMODE, 0, &vsm) != 0);
 	return 1;
 }
 
@@ -1967,7 +1797,7 @@ void NewVirtualKeyTable(lua_State* L, BOOL twoways)
 
 HANDLE* CheckFileFilter(lua_State* L, int pos)
 {
-	return (HANDLE*)luaL_checkudata(L, pos, FarFileFilterType);
+	return (HANDLE*)luaL_checkudata(L, pos, TYPE_FILEFILTER);
 }
 
 HANDLE CheckValidFileFilter(lua_State* L, int pos)
@@ -1986,7 +1816,7 @@ static int far_CreateFileFilter(lua_State *L)
 
 	if (Info->FileFilterControl(hHandle, FFCTL_CREATEFILEFILTER, filterType, pOutHandle))
 	{
-		luaL_getmetatable(L, FarFileFilterType);
+		luaL_getmetatable(L, TYPE_FILEFILTER);
 		lua_setmetatable(L, -2);
 	}
 	else
@@ -2022,9 +1852,9 @@ static int filefilter_tostring(lua_State *L)
 	HANDLE *h = CheckFileFilter(L, 1);
 
 	if (*h != INVALID_HANDLE_VALUE)
-		lua_pushfstring(L, "%s (%p)", FarFileFilterType, h);
+		lua_pushfstring(L, "%s (%p)", TYPE_FILEFILTER, h);
 	else
-		lua_pushfstring(L, "%s (closed)", FarFileFilterType);
+		lua_pushfstring(L, "%s (closed)", TYPE_FILEFILTER);
 
 	return 1;
 }
@@ -2076,7 +1906,7 @@ static int far_ForcedLoadPlugin(lua_State *L) { return plugin_load(L, PCTL_FORCE
 static int far_UnloadPlugin(lua_State *L)
 {
 	PSInfo *Info = GetPluginData(L)->Info;
-	void* Handle = *(void**)luaL_checkudata(L, 1, PluginHandleType);
+	void* Handle = *(void**)luaL_checkudata(L, 1, TYPE_PLUGINHANDLE);
 	lua_pushboolean(L, Info->PluginsControl(Handle, PCTL_UNLOADPLUGIN, 0, 0) != 0);
 	return 1;
 }
@@ -2149,7 +1979,7 @@ static int far_GetPluginInformation(lua_State *L)
 {
 	struct FarGetPluginInformation *pi;
 	PSInfo *Info = GetPluginData(L)->Info;
-	HANDLE Handle = *(HANDLE*)luaL_checkudata(L, 1, PluginHandleType);
+	HANDLE Handle = *(HANDLE*)luaL_checkudata(L, 1, TYPE_PLUGINHANDLE);
 	size_t size = Info->PluginsControl(Handle, PCTL_GETPLUGININFORMATION, 0, 0);
 
 	if (size == 0) return lua_pushnil(L), 1;
@@ -2312,7 +2142,7 @@ static int far_Timer(lua_State *L)
 	lua_rawseti(L, -2, 1);
 
 	TTimerData *td = (TTimerData*)lua_newuserdata(L, sizeof(TTimerData));
-	luaL_getmetatable(L, FarTimerType);
+	luaL_getmetatable(L, TYPE_TIMER);
 	lua_setmetatable(L, -2);
 	lua_pushvalue(L, -1);
 	lua_rawseti(L, -3, 2);                  // place the userdata at [2]
@@ -2343,7 +2173,7 @@ static int far_Timer(lua_State *L)
 
 TTimerData* CheckTimer(lua_State* L, int pos)
 {
-	return (TTimerData*)luaL_checkudata(L, pos, FarTimerType);
+	return (TTimerData*)luaL_checkudata(L, pos, TYPE_TIMER);
 }
 
 TTimerData* CheckValidTimer(lua_State* L, int pos)
@@ -2386,9 +2216,9 @@ static int timer_tostring(lua_State *L)
 	TTimerData* td = CheckTimer(L, 1);
 
 	if (!td->needClose)
-		lua_pushfstring(L, "%s (%p)", FarTimerType, td);
+		lua_pushfstring(L, "%s (%p)", TYPE_TIMER, td);
 	else
-		lua_pushfstring(L, "%s (closed)", FarTimerType);
+		lua_pushfstring(L, "%s (closed)", TYPE_TIMER);
 
 	return 1;
 }
@@ -2495,7 +2325,7 @@ static int far_CreateSettings(lua_State *L)
 	FarSettingsUdata *udata = (FarSettingsUdata*)lua_newuserdata(L, sizeof(FarSettingsUdata));
 	udata->Handle = fsc.Handle;
 	udata->IsFarSettings = IsFarSettings;
-	luaL_getmetatable(L, SettingsType);
+	luaL_getmetatable(L, TYPE_SETTINGS);
 	lua_setmetatable(L, -2);
 	lua_pushvalue(L, -1);
 	lua_pushinteger(L, 1);
@@ -2505,7 +2335,7 @@ static int far_CreateSettings(lua_State *L)
 
 static FarSettingsUdata* GetSettingsUdata(lua_State *L, int pos)
 {
-	return luaL_checkudata(L, pos, SettingsType);
+	return luaL_checkudata(L, pos, TYPE_SETTINGS);
 }
 
 static FarSettingsUdata* CheckSettings(lua_State *L, int pos)
@@ -2514,7 +2344,7 @@ static FarSettingsUdata* CheckSettings(lua_State *L, int pos)
 
 	if (udata->Handle == INVALID_HANDLE_VALUE)
 	{
-		const char* s = lua_pushfstring(L, "attempt to access a closed %s", SettingsType);
+		const char* s = lua_pushfstring(L, "attempt to access a closed %s", TYPE_SETTINGS);
 		luaL_argerror(L, pos, s);
 	}
 
@@ -2728,9 +2558,9 @@ static int Settings_tostring(lua_State *L)
 	FarSettingsUdata* udata = GetSettingsUdata(L, 1);
 
 	if (udata->Handle != INVALID_HANDLE_VALUE)
-		lua_pushfstring(L, "%s (%p)", SettingsType, udata->Handle);
+		lua_pushfstring(L, "%s (%p)", TYPE_SETTINGS, udata->Handle);
 	else
-		lua_pushfstring(L, "%s (closed)", SettingsType);
+		lua_pushfstring(L, "%s (closed)", TYPE_SETTINGS);
 
 	return 1;
 }
@@ -2847,21 +2677,6 @@ const luaL_Reg Settings_methods[] =
 	{"Set",                 Settings_set},
 	{"CreateSubkey",        Settings_createsubkey},
 	{"OpenSubkey",          Settings_opensubkey},
-	{NULL, NULL},
-};
-
-const luaL_Reg viewer_funcs[] =
-{
-	PAIR( viewer, GetFileName),
-	PAIR( viewer, GetInfo),
-	PAIR( viewer, Quit),
-	PAIR( viewer, Redraw),
-	PAIR( viewer, Select),
-	PAIR( viewer, SetKeyBar),
-	PAIR( viewer, SetMode),
-	PAIR( viewer, SetPosition),
-	PAIR( viewer, Viewer),
-
 	{NULL, NULL},
 };
 
@@ -2985,17 +2800,15 @@ static int luaopen_far(lua_State *L)
 
 	SetFarColors(L);
 
-	luaL_register(L, "viewer", viewer_funcs);
-
-	luaL_newmetatable(L, FarFileFilterType);
+	luaL_newmetatable(L, TYPE_FILEFILTER);
 	lua_pushvalue(L,-1);
 	lua_setfield(L, -2, "__index");
 	luaL_register(L, NULL, filefilter_methods);
 
-	luaL_newmetatable(L, FarTimerType);
+	luaL_newmetatable(L, TYPE_TIMER);
 	luaL_register(L, NULL, timer_methods);
 
-	luaL_newmetatable(L, SettingsType);
+	luaL_newmetatable(L, TYPE_SETTINGS);
 	lua_pushvalue(L,-1);
 	lua_setfield(L, -2, "__index");
 	luaL_register(L, NULL, Settings_methods);
@@ -3006,13 +2819,13 @@ static int luaopen_far(lua_State *L)
 	lua_setmetatable(L, -2);
 	lua_setfield(L, LUA_REGISTRYINDEX, SettingsHandles);
 
-	luaL_newmetatable(L, PluginHandleType);
+	luaL_newmetatable(L, TYPE_PLUGINHANDLE);
 	lua_pushvalue(L, -1);
 	lua_setfield(L, -2, "__index");
 	lua_pushcfunction(L, PluginHandle_rawhandle);
 	lua_setfield(L, -2, "rawhandle");
 
-	luaL_newmetatable(L, SavedScreenType);
+	luaL_newmetatable(L, TYPE_SAVEDSCREEN);
 	lua_pushcfunction(L, far_FreeScreen);
 	lua_setfield(L, -2, "__gc");
 	lua_pushcfunction(L, SavedScreen_tostring);
@@ -3070,6 +2883,7 @@ static const luaL_Reg lualibs[] =
 	{"panel",         luaopen_panel},
 	{"",              luaopen_actl},
 	{"",              luaopen_macro},
+	{"",              luaopen_viewer},
 	{NULL, NULL}
 };
 

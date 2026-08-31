@@ -40,7 +40,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Internal:
 #include "dialog.hpp"
 #include "strmix.hpp"
-#include "imports.hpp"
 #include "message.hpp"
 #include "lang.hpp"
 #include "uuids.far.dialogs.hpp"
@@ -395,7 +394,7 @@ SearchReplaceDlgResult GetSearchReplaceString(
 					if (!Picker) break;
 
 					// BUGBUG: #0003136: DM_INSERTTEXT or something like that
-					static_cast<DlgEdit*>(Dlg->GetAllItem()[dlg_edit_search_text].ObjPtr)->InsertString(Picker(Param1 == dlg_button_selection));
+					Dlg->GetAllItem()[dlg_edit_search_text].Edit->InsertString(Picker(Param1 == dlg_button_selection));
 					Dlg->SendMessage(DM_SETFOCUS, dlg_edit_search_text, nullptr);
 				}
 				return TRUE;
@@ -937,7 +936,7 @@ operation OperationFailed(const error_state_ex& ErrorState, string_view const Ob
 				}
 				continue;
 			}
-			else if (MsgResult != message_result::cancelled)
+			else if (MsgResult > message_result::first_button)
 			{
 				MsgResult = static_cast<message_result>(static_cast<size_t>(MsgResult) - 1);
 			}

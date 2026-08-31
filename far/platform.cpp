@@ -38,7 +38,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.hpp"
 
 // Internal:
-#include "imports.hpp"
 #include "pathmix.hpp"
 #include "string_utils.hpp"
 #include "exception.hpp"
@@ -47,6 +46,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform:
 #include "platform.fs.hpp"
+#include "platform.imports.hpp"
 #include "platform.memory.hpp"
 #include "platform.reg.hpp"
 #include "platform.version.hpp"
@@ -231,7 +231,7 @@ namespace os
 
 		void nt_handle_closer::operator()(HANDLE Handle) const noexcept
 		{
-			if (const auto Status = imports.NtClose(Handle); !NT_SUCCESS(Status))
+			if (const auto Status = os::imports.NtClose(Handle); !NT_SUCCESS(Status))
 				LOGERROR(L"NtClose(): {}"sv, Status);
 		}
 
@@ -360,7 +360,7 @@ static string format_error_impl(unsigned const ErrorCode, bool const Nt)
 		(Nt? GetModuleHandle(L"ntdll.dll") : nullptr),
 		ErrorCode,
 		0,
-		std::bit_cast<wchar_t*>(&ptr_setter(Buffer)),
+		std::bit_cast<wchar_t*>(&std::out_ptr(Buffer)),
 		0,
 		nullptr);
 

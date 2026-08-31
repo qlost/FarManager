@@ -52,11 +52,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pathmix.hpp"
 #include "strmix.hpp"
 #include "network.hpp"
-#include "fileowner.hpp"
 #include "wakeful.hpp"
 #include "uuids.far.dialogs.hpp"
 #include "plugins.hpp"
-#include "imports.hpp"
 #include "lang.hpp"
 #include "locale.hpp"
 #include "string_utils.hpp"
@@ -72,9 +70,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.hpp"
 #include "platform.env.hpp"
 #include "platform.fs.hpp"
+#include "platform.imports.hpp"
 
 // Common:
-#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -433,7 +431,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 
 			const auto ToUTC = static_cast<FARCHECKEDSTATE>(std::bit_cast<intptr_t>(Param2)) == BSTATE_CHECKED;
 
-			for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
+			for (const auto& [i, State]: std::views::zip(TimeMap, DlgParam.Times))
 			{
 				const auto set_original = [&]
 				{
@@ -514,7 +512,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 
 			if (DlgParam.DialogMode == MODE_FOLDER)
 			{
-				for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
+				for (const auto& [i, State]: std::views::zip(TimeMap, DlgParam.Times))
 				{
 					const auto process = [&](int const Id, auto& Component)
 					{
@@ -541,7 +539,7 @@ static intptr_t SetAttrDlgProc(Dialog* Dlg,intptr_t Msg,intptr_t Param1,void* Pa
 		{
 			SCOPED_ACTION(Dialog::suppress_redraw)(Dlg);
 
-			for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
+			for (const auto& [i, State]: std::views::zip(TimeMap, DlgParam.Times))
 			{
 				const auto process = [&](int const Id, auto& Component)
 				{
@@ -748,7 +746,7 @@ static bool process_single_file(
 
 	{
 		os::chrono::time_point Times[4]{};
-		for (const auto& [i, Time]: zip(TimeMap, Times))
+		for (const auto& [i, Time]: std::views::zip(TimeMap, Times))
 		{
 			const auto OriginalTime = std::invoke(i.Accessor, Current.FindData);
 			if (const auto Result = (IsUTC? construct_time_from_utc : construct_time_from_localtime)(OriginalTime, DateTimeAccessor(i.DateId), DateTimeAccessor(i.TimeId)); Result && *Result != OriginalTime)
@@ -1026,12 +1024,12 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 			if (SingleSelFindData.Attributes != INVALID_FILE_ATTRIBUTES)
 			{
-				for (const auto& [i, State]: zip(AttributeMap, DlgParam.Attributes))
+				for (const auto& [i, State]: std::views::zip(AttributeMap, DlgParam.Attributes))
 				{
 					State.InitialValue = (SingleSelFindData.Attributes & i.Attribute) ? BSTATE_CHECKED : BSTATE_UNCHECKED;
 				}
 
-				for (const auto& [i, State]: zip(TimeMap, DlgParam.Times))
+				for (const auto& [i, State]: std::views::zip(TimeMap, DlgParam.Times))
 				{
 					State.InitialValue = std::invoke(i.Accessor, SingleSelFindData);
 					std::tie(State.Date.InitialValue, State.Time.InitialValue) = setattr_time_point_to_localtime_string(State.InitialValue);
@@ -1127,11 +1125,11 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 								auto get_dfs_info = [&](const auto& Callable)
 								{
-									return Callable(UNSAFE_CSTR(path), {}, {}, 3, edit_as<BYTE**>(&ptr_setter(DfsInfo))) == NERR_Success;
+									return Callable(UNSAFE_CSTR(path), {}, {}, 3, edit_as<BYTE**>(&std::out_ptr(DfsInfo))) == NERR_Success;
 								};
 
 								// Client first - it should be faster, and we want to see the activity flag, which is a client thing
-								if (get_dfs_info(imports.NetDfsGetClientInfo) || get_dfs_info(imports.NetDfsGetInfo))
+								if (get_dfs_info(os::imports.NetDfsGetClientInfo) || get_dfs_info(os::imports.NetDfsGetInfo))
 								{
 									KnownReparseTag = true;
 
@@ -1139,7 +1137,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 									ListItems.resize(DfsStorages.size());
 									Links.resize(DfsStorages.size());
 
-									for (const auto& [Link, Item, Storage]: zip(Links, ListItems, DfsStorages))
+									for (const auto& [Link, Item, Storage]: std::views::zip(Links, ListItems, DfsStorages))
 									{
 										Link = concat(L"\\\\"sv, Storage.ServerName, path::separator, Storage.ShareName);
 										Item.Text = Link.c_str();
@@ -1265,7 +1263,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					ConvertNameToFull(SingleSelFileName)
 				);
 
-				GetFileOwner(ComputerName, SingleSelFileName, DlgParam.Owner.InitialValue);
+				(void)os::fs::get_file_owner(SingleSelFileName, ComputerName, DlgParam.Owner.InitialValue);
 			}
 		}
 		else
@@ -1298,7 +1296,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 					EnableSubfolders();
 				}
 
-				for (const auto& [Attr, State] : zip(AttributeMap, DlgParam.Attributes))
+				for (const auto& [Attr, State] : std::views::zip(AttributeMap, DlgParam.Attributes))
 				{
 					if (PanelItem.Attributes & Attr.Attribute)
 					{
@@ -1309,19 +1307,19 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 				if(CheckOwner)
 				{
 					string strCurOwner;
-					GetFileOwner(ComputerName, PanelItem.FileName, strCurOwner);
-					if(DlgParam.Owner.InitialValue.empty())
+					const auto OwnerRead = os::fs::get_file_owner(PanelItem.FileName, ComputerName, strCurOwner);
+					if (OwnerRead && DlgParam.Owner.InitialValue.empty())
 					{
 						DlgParam.Owner.InitialValue = strCurOwner;
 					}
-					else if(DlgParam.Owner.InitialValue != strCurOwner)
+					else if (!OwnerRead || DlgParam.Owner.InitialValue != strCurOwner)
 					{
 						DlgParam.Owner.InitialValue.clear();
 						CheckOwner=false;
 					}
 				}
 
-				for (const auto& [t, State, DestTime, SkipCheckTime]: zip(TimeMap, DlgParam.Times, Times, SkipCheckTimes))
+				for (const auto& [t, State, DestTime, SkipCheckTime]: std::views::zip(TimeMap, DlgParam.Times, Times, SkipCheckTimes))
 				{
 					if (SkipCheckTime)
 						continue;
@@ -1354,7 +1352,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 						BSTATE_UNCHECKED;
 			}
 
-			for (const auto& [i, State, Time]: zip(TimeMap, DlgParam.Times, Times))
+			for (const auto& [i, State, Time]: std::views::zip(TimeMap, DlgParam.Times, Times))
 			{
 				if (!Time)
 					continue;
@@ -1428,7 +1426,7 @@ static bool ShellSetFileAttributesImpl(Panel* SrcPanel, const string* Object)
 
 				os::fs::attributes SetAttr = 0, ClearAttr = 0;
 
-				for (const auto& [i, Attr]: zip(DlgParam.Attributes, AttributeMap))
+				for (const auto& [i, Attr]: std::views::zip(DlgParam.Attributes, AttributeMap))
 				{
 					switch (i.CurrentValue)
 					{

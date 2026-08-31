@@ -88,7 +88,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lang.hpp"
 #include "language.hpp"
 #include "taskbar.hpp"
-#include "fileowner.hpp"
 #include "colormix.hpp"
 #include "keybar.hpp"
 #include "panelctype.hpp"
@@ -112,7 +111,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/scope_exit.hpp"
 #include "common/string_utils.hpp"
 #include "common/utility.hpp"
-#include "common/view/zip.hpp"
 
 // External:
 #include "format.hpp"
@@ -436,7 +434,7 @@ const string& FileListItem::Owner(const FileList* Owner) const
 	{
 		SCOPED_ACTION(elevation::suppress);
 
-		if (!GetFileOwner(Owner->GetComputerName(), GetItemFullName(*this, Owner), m_Owner))
+		if (!os::fs::get_file_owner(GetItemFullName(*this, Owner), Owner->GetComputerName(), m_Owner))
 		{
 			// One try is enough
 			m_Owner.clear();
@@ -998,7 +996,7 @@ long long FileList::VMProcess(int OpCode,void *vParam,long long iParam)
 						continue;
 
 					const auto NameToFind = IsRegularPanel? PointToName(i) : i;
-					const auto PartialCompare = IsRegularPanel || !contains(i, path::separator);
+					const auto PartialCompare = IsRegularPanel || !i.contains(path::separator);
 					const auto Pos = FindFile(NameToFind, PartialCompare);
 					if (Pos == -1)
 						continue;
@@ -3780,7 +3778,7 @@ bool FileList::FindPartName(string_view const Name,int Next,int Direct)
 
 	for (int I = m_CurFile + (Next ? Direct : 0); I >= 0 && static_cast<size_t>(I) < m_ListData.size(); I += Direct)
 	{
-		if (GetPlainString(Dest,I, CurrentTime) && contains(upper(Dest), strMask))
+		if (GetPlainString(Dest,I, CurrentTime) && contains_icase(Dest, strMask))
 		//if (CmpName(strMask,ListData[I].FileName,true,I==CurFile))
 		{
 			if (!IsParentDirectory(m_ListData[I]))
@@ -3800,7 +3798,7 @@ bool FileList::FindPartName(string_view const Name,int Next,int Direct)
 	{
 		if (
 			!GetPlainString(Dest, I, CurrentTime) ||
-			!contains(upper(Dest), strMask) ||
+			!contains_icase(Dest, strMask) ||
 			IsParentDirectory(m_ListData[I]) ||
 			(DirFind && !(m_ListData[I].Attributes & FILE_ATTRIBUTE_DIRECTORY))
 		)
@@ -4709,13 +4707,13 @@ void FileList::EditFilter()
 
 static int select_sort_layer(std::vector<std::pair<panel_sort, sort_order>> const& SortLayers)
 {
-	std::vector<menu_item> AvailableSortModesMenuItems(static_cast<size_t>(panel_sort::COUNT));
+	std::vector<menu_item_data> AvailableSortModesMenuItems(static_cast<size_t>(panel_sort::COUNT));
 	auto VisibleCount = AvailableSortModesMenuItems.size();
 
 	for (const auto& i: SortModes)
 	{
 		auto& Item = AvailableSortModesMenuItems[i.MenuPosition];
-		Item.SetName(msg(i.Label));
+		Item.Name = msg(i.Label);
 
 		if (std::ranges::any_of(SortLayers, [&](std::pair<panel_sort, sort_order> const& Layer) { return Layer.first == static_cast<panel_sort>(&i - SortModes); }))
 		{
@@ -4746,11 +4744,11 @@ static void edit_sort_layers(int MenuPos)
 
 	auto& SortLayers = Global->Opt->PanelSortLayers[SortMode];
 
-	std::vector<menu_item> SortLayersMenuItems;
+	std::vector<menu_item_data> SortLayersMenuItems;
 	SortLayersMenuItems.reserve(SortLayers.size());
 	std::ranges::transform(SortLayers, std::back_inserter(SortLayersMenuItems), [](std::pair<panel_sort, sort_order> const& Layer)
 	{
-		return menu_item{ msg(SortModes[static_cast<size_t>(Layer.first)].Label), LIF_CHECKED | order_indicator(Layer.second) };
+		return menu_item_data{ msg(SortModes[static_cast<size_t>(Layer.first)].Label), LIF_CHECKED | order_indicator(Layer.second) };
 	});
 
 	SortLayersMenuItems.front().Flags |= LIF_DISABLE;
@@ -4803,8 +4801,8 @@ static void edit_sort_layers(int MenuPos)
 				{
 					const auto NewSortModeIndex = std::ranges::find(SortModes, Result, &sort_mode::MenuPosition) - SortModes;
 					const auto Order = SortModes[NewSortModeIndex].DefaultLayers.begin()->second;
-					SortLayersMenu->at(Pos).SetName(msg(SortModes[NewSortModeIndex].Label));
-					SortLayersMenu->at(Pos).SetCustomCheck(order_indicator(Order));
+					SortLayersMenu->at(Pos).set_name(msg(SortModes[NewSortModeIndex].Label));
+					SortLayersMenu->at(Pos).set_check(order_indicator(Order));
 					SortLayers[Pos] = { static_cast<panel_sort>(NewSortModeIndex), Order };
 					SortLayersMenu->Redraw();
 				}
@@ -4880,16 +4878,16 @@ static void edit_sort_layers(int MenuPos)
 
 void FileList::SelectSortMode()
 {
-	std::vector<menu_item> SortMenu(std::size(SortModes));
+	std::vector<menu_item_data> SortMenu(std::size(SortModes));
 	for (const auto& i: SortModes)
 	{
 		auto& Item = SortMenu[i.MenuPosition];
 
-		Item.SetName(msg(i.Label));
+		Item.Name = msg(i.Label);
 		Item.AccelKey = i.MenuKey;
 	}
 
-	static const menu_item MenuSeparator{ string{}, LIF_SEPARATOR };
+	static const menu_item_data MenuSeparator{ string{}, LIF_SEPARATOR };
 
 	OpenMacroPluginInfo ompInfo{ MCT_GETCUSTOMSORTMODES };
 	MacroPluginReturn const* mpr{};
@@ -4907,7 +4905,7 @@ void FileList::SelectSortMode()
 				SortMenu.emplace_back(MenuSeparator);
 				for (size_t i=0; i < mpr->Count; i += 3)
 				{
-					SortMenu.emplace_back(menu_item{ mpr->Values[i + 2].String, {} });
+					SortMenu.emplace_back(menu_item_data{ mpr->Values[i + 2].String, {} });
 				}
 			}
 			else
@@ -4918,8 +4916,8 @@ void FileList::SelectSortMode()
 	const auto SetCheckAndSelect = [&](size_t const Index)
 	{
 		auto& MenuItem = SortMenu[Index];
-		MenuItem.SetCustomCheck(order_indicator(m_ReverseSortOrder? sort_order::descend : sort_order::ascend));
-		MenuItem.SetSelect(true);
+		MenuItem.set_check(order_indicator(m_ReverseSortOrder? sort_order::descend : sort_order::ascend));
+		MenuItem.set_select(true);
 	};
 
 	if (m_SortMode < panel_sort::COUNT)
@@ -4950,7 +4948,7 @@ void FileList::SelectSortMode()
 
 		SortOptCount
 	};
-	const menu_item InitSortMenuOptions[]
+	const menu_item_data InitSortMenuOptions[]
 	{
 		{ msg(lng::MMenuSortUseGroups), GetSortGroups()? MIF_CHECKED : 0, KEY_SHIFTF11 },
 		{ msg(lng::MMenuSortSelectedFirst), SelectedFirst? MIF_CHECKED : 0, KEY_SHIFTF12 },
@@ -5979,7 +5977,7 @@ size_t FileList::FileListToPluginItem2(const FileListItem& fi,FarGetPluginPanelI
 		}
 
 		size_t ColumnOffset = ColumnsDataOffset;
-		for (const auto& [Column, Data]: zip(fi.CustomColumns, std::span(const_cast<const wchar_t**>(gpi->Item->CustomColumnData), fi.CustomColumns.size())))
+		for (const auto& [Column, Data]: std::views::zip(fi.CustomColumns, std::span(const_cast<const wchar_t**>(gpi->Item->CustomColumnData), fi.CustomColumns.size())))
 		{
 			if (!Column)
 			{
@@ -8328,7 +8326,7 @@ bool FileList::ConvertName(const string_view SrcName, string& strDest, const siz
 	          ((FileAttr & FILE_ATTRIBUTE_DIRECTORY) && (m_ViewSettings.Flags & PVS_FOLDERALIGNEXTENSIONS))) &&
 	        SrcLength <= MaxLength &&
 	        (Extension = name_ext(SrcName).second).size() > 1 && Extension.size() != SrcName.size() &&
-	        (SrcName.size() > 2 || SrcName[0] != L'.') && !contains(Extension, L' '))
+	        (SrcName.size() > 2 || SrcName[0] != L'.') && !Extension.contains(L' '))
 	{
 		Extension.remove_prefix(1);
 		auto Name = SrcName.substr(0, SrcName.size() - Extension.size());

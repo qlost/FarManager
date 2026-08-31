@@ -817,7 +817,7 @@ static bool is_clear_selection_key(unsigned const Key, bool Persistent)
 		KEY_ENTER,     KEY_NUMENTER,
 	};
 
-	return Edit::is_clear_selection_key(Key) || contains(Keys, Key) || (Persistent && contains(KeysP, Key));
+	return Edit::is_clear_selection_key(Key) || std::ranges::contains(Keys, Key) || (Persistent && std::ranges::contains(KeysP, Key));
 }
 
 bool Editor::ProcessKeyInternal(unsigned const KeyCode, bool& Refresh, Manager::Key const* const RealKey)
@@ -3847,13 +3847,13 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 							DeleteColor(CurPtr, [&](const ColorItem& Item) { return newcol.StartPos == Item.StartPos && newcol.GetOwner() == Item.GetOwner();});
 
-							if (MsgCode == message_result::second_button)
+							if (MsgCode == message_result::first_button)
+								;
+							else if (MsgCode == message_result::second_button)
 								IsReplaceAll = true;
-
-							if (MsgCode == message_result::third_button)
+							else if (MsgCode == message_result::third_button)
 								Skip = true;
-
-							if (MsgCode == message_result::cancelled || MsgCode == message_result::fourth_button)
+							else
 							{
 								CurPtr->SetCurPos(m_FoundPos + (EdOpt.SearchCursorAtEnd? SearchLength : 0));
 								UserBreak = true;

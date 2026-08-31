@@ -42,8 +42,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "dialog.hpp"
 #include "farcolor.hpp"
 #include "colormix.hpp"
-#include "fileowner.hpp"
-#include "imports.hpp"
 #include "taskbar.hpp"
 #include "notification.hpp"
 #include "scrbuf.hpp"
@@ -60,6 +58,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "platform.hpp"
 #include "platform.concurrency.hpp"
 #include "platform.fs.hpp"
+#include "platform.imports.hpp"
 #include "platform.memory.hpp"
 #include "platform.security.hpp"
 
@@ -329,7 +328,7 @@ static auto make_explicit_admin_access(os::security::sid_ptr const& AdminSid)
 static auto make_acl(PACL const OldAcl, EXPLICIT_ACCESS& Access)
 {
 	os::memory::local::ptr<ACL> Acl;
-	if (const auto Result = SetEntriesInAcl(1, &Access, OldAcl, &ptr_setter(Acl)); Result != ERROR_SUCCESS)
+	if (const auto Result = SetEntriesInAcl(1, &Access, OldAcl, std::out_ptr(Acl)); Result != ERROR_SUCCESS)
 	{
 		LOGWARNING(L"SetEntriesInAcl: {}"sv, os::format_error(Result));
 	}
@@ -366,7 +365,7 @@ static bool grant_duplicate_handle()
 {
 	PACL Acl;
 	os::security::descriptor Descriptor;
-	if (const auto Result = GetSecurityInfo(GetCurrentProcess(), SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, {}, {}, &Acl, {}, std::bit_cast<PSECURITY_DESCRIPTOR*>(&ptr_setter(Descriptor))); Result != ERROR_SUCCESS)
+	if (const auto Result = GetSecurityInfo(GetCurrentProcess(), SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, {}, {}, &Acl, {}, std::bit_cast<PSECURITY_DESCRIPTOR*>(&std::out_ptr(Descriptor))); Result != ERROR_SUCCESS)
 	{
 		LOGWARNING(L"GetSecurityInfo: {}"sv, os::format_error(Result));
 		return false;
@@ -862,17 +861,17 @@ bool elevation::fMoveToRecycleBin(string_view const Object)
 		});
 }
 
-bool elevation::fSetOwner(const string& Computer, const string& Object, const string& Owner)
+bool elevation::fSetOwner(const string& Object, SE_OBJECT_TYPE const ObjectType, const string& Computer, const string& Owner)
 {
 	return execute(lng::MElevationRequiredSetOwner, Object,
 		false,
 		[&]
 		{
-			return SetOwnerInternal(Computer, Object, Owner);
+			return os::security::low::set_owner(Object.c_str(), ObjectType, Computer, Owner);
 		},
 		[&]
 		{
-			Write(C_FUNCTION_SETOWNER, Computer, Object, Owner);
+			Write(C_FUNCTION_SETOWNER, Object, ObjectType, Computer, Owner);
 			return RetrieveLastErrorAndResult<bool>();
 		});
 }
@@ -953,48 +952,47 @@ bool elevation::get_disk_free_space(const string& Object, unsigned long long* Fr
 		});
 }
 
-os::security::descriptor elevation::get_file_security(string const& Object, SECURITY_INFORMATION const RequestedInformation)
+os::security::descriptor elevation::get_security(string const& Object, SE_OBJECT_TYPE const ObjectType, SECURITY_INFORMATION const RequestedInformation)
 {
 	return execute(lng::MElevationRequiredOpen, Object,
 		os::security::descriptor{},
 		[&]
 		{
-			return os::fs::low::get_file_security(Object.c_str(), RequestedInformation);
+			return os::security::low::get_security(Object.c_str(), ObjectType, RequestedInformation);
 		},
 		[&]
 		{
-			Write(C_FUNCTION_GETFILESECURITY, Object, RequestedInformation);
+			Write(C_FUNCTION_GETFILESECURITY, Object, ObjectType, RequestedInformation);
 			return RetrieveLastErrorAndResult<os::security::descriptor>();
 		});
 }
 
-bool elevation::set_file_security(string const& Object, SECURITY_INFORMATION const RequestedInformation, os::security::descriptor const& Descriptor)
+bool elevation::set_security(string const& Object, SE_OBJECT_TYPE const ObjectType, SECURITY_INFORMATION const RequestedInformation, os::security::descriptor const& Descriptor)
 {
 	return execute(lng::MElevationRequiredProcess, Object,
 		false,
 		[&]
 		{
-			return os::fs::low::set_file_security(Object.c_str(), RequestedInformation, Descriptor.get());
+			return os::security::low::set_security(Object.c_str(), ObjectType, RequestedInformation, Descriptor.get());
 		},
 		[&]
 		{
-
-			Write(C_FUNCTION_SETFILESECURITY, Object, RequestedInformation, Descriptor);
+			Write(C_FUNCTION_SETFILESECURITY, Object, ObjectType, RequestedInformation, Descriptor);
 			return RetrieveLastErrorAndResult<bool>();
 		});
 }
 
-bool elevation::reset_file_security(string const& Object)
+bool elevation::reset_security(string const& Object, SE_OBJECT_TYPE const ObjectType)
 {
 	return execute(lng::MElevationRequiredProcess, Object,
 		false,
 		[&]
 		{
-			return os::fs::low::reset_file_security(Object.c_str());
+			return os::security::low::reset_security(Object.c_str(), ObjectType);
 		},
 		[&]
 		{
-			Write(C_FUNCTION_RESETFILESECURITY, Object);
+			Write(C_FUNCTION_RESETFILESECURITY, Object, ObjectType);
 			return RetrieveLastErrorAndResult<bool>();
 		});
 }
@@ -1081,7 +1079,7 @@ public:
 		{
 			// basic security checks
 			ULONG ServerProcessId = 0;
-			if (imports.GetNamedPipeServerProcessId && (!imports.GetNamedPipeServerProcessId(m_Pipe.native_handle(), &ServerProcessId) || ServerProcessId != PID))
+			if (os::imports.GetNamedPipeServerProcessId && (!os::imports.GetNamedPipeServerProcessId(m_Pipe.native_handle(), &ServerProcessId) || ServerProcessId != PID))
 				return GetLastError();
 
 			const os::handle ParentProcess(OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, PID));
@@ -1261,11 +1259,12 @@ private:
 
 	void SetOwnerHandler() const
 	{
-		const auto Computer = Read<string>();
 		const auto Object = Read<string>();
+		const auto ObjectType = Read<SE_OBJECT_TYPE>();
+		const auto Computer = Read<string>();
 		const auto Owner = Read<string>();
 
-		const auto Result = SetOwnerInternal(Computer, Object, Owner);
+		const auto Result = os::security::low::set_owner(Object.c_str(), ObjectType, Computer, Owner);
 
 		Write(os::last_error(), Result);
 	}
@@ -1330,9 +1329,10 @@ private:
 	void GetFileSecurityHandler() const
 	{
 		const auto Object = Read<string>();
+		const auto ObjectType = Read<SE_OBJECT_TYPE>();
 		const auto SecurityInformation = Read<SECURITY_INFORMATION>();
 
-		const auto Result = os::fs::low::get_file_security(Object.c_str(), SecurityInformation);
+		const auto Result = os::security::low::get_security(Object.c_str(), ObjectType, SecurityInformation);
 
 		Write(os::last_error(), Result);
 	}
@@ -1340,10 +1340,11 @@ private:
 	void SetFileSecurityHandler() const
 	{
 		const auto Object = Read<string>();
+		const auto ObjectType = Read<SE_OBJECT_TYPE>();
 		const auto SecurityInformation = Read<SECURITY_INFORMATION>();
 		const auto SecurityDescriptor = Read<os::security::descriptor>();
 
-		const auto Result = os::fs::low::set_file_security(Object.c_str(), SecurityInformation, SecurityDescriptor.get());
+		const auto Result = os::security::low::set_security(Object.c_str(), ObjectType, SecurityInformation, SecurityDescriptor.get());
 
 		Write(os::last_error(), Result);
 	}
@@ -1351,8 +1352,9 @@ private:
 	void ResetFileSecurityHandler() const
 	{
 		const auto Object = Read<string>();
+		const auto ObjectType = Read<SE_OBJECT_TYPE>();
 
-		const auto Result = os::fs::low::reset_file_security(Object.c_str());
+		const auto Result = os::security::low::reset_security(Object.c_str(), ObjectType);
 
 		Write(os::last_error(), Result);
 	}
