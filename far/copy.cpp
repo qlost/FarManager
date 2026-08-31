@@ -364,7 +364,7 @@ static string GenerateName(string_view const Name, string_view const Path)
 	const auto& [NamePart, ExtPart] = name_ext(Name);
 
 	auto GenNameFormat = Global->Opt->CMOpt.GenNameFormat.toString();
-	if (!contains(GenNameFormat, L"{0}"s))
+	if (!GenNameFormat.contains(L"{0}"s))
 		GenNameFormat = Global->GenNameFormat;
 	else
 	{
